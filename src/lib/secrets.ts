@@ -1,0 +1,33 @@
+import "server-only";
+
+import { eq } from "drizzle-orm";
+import { db, schema } from "@/db";
+import { KEY_ENV_VARS, type KeyProvider, pickApiKey } from "@/lib/credentials";
+
+/**
+ * API keys live in their own settings row, apart from the regular settings, so
+ * they are never sent to the browser along with them.
+ */
+const KEY = "api-keys";
+
+type StoredKeys = Partial<Record<KeyProvider, string>>;
+
+function getStoredKeys(): StoredKeys {
+  const row = db.select().from(schema.settings).where(eq(schema.settings.key, KEY)).get();
+  return (row?.value as StoredKeys | undefined) ?? {};
+}
+
+export function setApiKey(provider: KeyProvider, apiKey: string | null) {
+  const keys = getStoredKeys();
+  if (apiKey?.trim()) keys[provider] = apiKey.trim();
+  else delete keys[provider];
+
+  db.insert(schema.settings)
+    .values({ key: KEY, value: keys })
+    .onConflictDoUpdate({ target: schema.settings.key, set: { value: keys } })
+    .run();
+}
+
+export function resolveApiKey(provider: KeyProvider) {
+  return pickApiKey(getStoredKeys()[provider], process.env[KEY_ENV_VARS[provider]]);
+}

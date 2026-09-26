@@ -25,12 +25,13 @@ Corre 100% local y está pensado para ser gratis: por defecto usa un modelo loca
 
 ```bash
 pnpm install
-cp .env.example .env.local   # opcional: API keys, URL de Ollama
 ollama pull qwen3:14b        # o el modelo que elijas
 pnpm dev
 ```
 
-Abrí http://localhost:3737 y elegí proveedor y modelo en **Configuración** (el botón "Probar conexión" verifica que todo ande).
+Abrí http://localhost:3737 y elegí proveedor y modelo en **Configuración** (el botón "Probar conexión" verifica que todo ande). Ahí mismo se cargan las API keys de Gemini o Groq y la URL de Ollama: las keys se guardan solo en tu base local y nunca se muestran completas.
+
+Si preferís configurarlo por entorno, copiá `.env.example` a `.env.local`: esas variables se usan cuando no hay nada guardado en la app.
 
 La app usa el puerto **3737** para no chocar con el 3000 de otros proyectos. Para cambiarlo, editá los scripts `dev` y `start` en `package.json`.
 

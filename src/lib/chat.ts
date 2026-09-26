@@ -226,7 +226,7 @@ export async function improveMessagePrompt(messageId: string): Promise<string> {
 
 export function errorToMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  if (/Cannot connect to API|ECONNREFUSED|fetch failed|Connect Timeout/i.test(message)) {
+  if (/Cannot connect to API|ECONNREFUSED|fetch failed|Connect Timeout|aborted due to timeout/i.test(message)) {
     return "No se pudo conectar con el proveedor de IA. Si usás Ollama, fijate que esté corriendo y que el modelo esté descargado.";
   }
   if (/not found/i.test(message) && /model/i.test(message)) {

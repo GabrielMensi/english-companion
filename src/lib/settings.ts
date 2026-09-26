@@ -16,6 +16,8 @@ export const settingsSchema = z.object({
   explanationLanguage: z.enum(["es", "en"]),
   /** Whether typos count towards the dashboard statistics. */
   countTyposInStats: z.boolean(),
+  /** Ollama server URL; null uses OLLAMA_BASE_URL or the default. */
+  ollamaBaseUrl: z.url({ protocol: /^https?$/ }).nullable(),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   explanationLanguage: "es",
   countTyposInStats: false,
+  ollamaBaseUrl: null,
 };
 
 const KEY = "app";

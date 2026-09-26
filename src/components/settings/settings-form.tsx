@@ -12,21 +12,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { PROVIDER_IDS, PROVIDERS, type ProviderId } from "@/lib/ai/provider-info";
 import { api } from "@/lib/api";
+import type { ProviderStatus } from "@/lib/ai/providers";
+import { DEFAULT_OLLAMA_BASE_URL, KEY_ENV_VARS, type KeyProvider } from "@/lib/credentials";
 import type { Settings } from "@/lib/settings";
 import { cn } from "@/lib/utils";
 
-type ProviderStatus = Record<ProviderId, { configured: boolean; detail: string }>;
+type Providers = Record<ProviderId, ProviderStatus>;
 type TestResult = { ok: true; reply: string; ms: number } | { ok: false; error: string };
 
 export function SettingsForm({
   initialSettings,
-  providers,
+  initialProviders,
 }: {
   initialSettings: Settings;
-  providers: ProviderStatus;
+  initialProviders: Providers;
 }) {
   const router = useRouter();
   const [settings, setSettings] = useState(initialSettings);
+  const [providers, setProviders] = useState(initialProviders);
+  // Bumped when credentials change, so the model list is fetched again.
+  const [credentialsVersion, setCredentialsVersion] = useState(0);
+  // The Ollama URL used to list models; updated when the URL field loses focus.
+  const [listedOllamaUrl, setListedOllamaUrl] = useState(initialSettings.ollamaBaseUrl ?? "");
   const [models, setModels] = useState<{ list: string[]; error?: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -37,7 +44,9 @@ export function SettingsForm({
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/models?provider=${provider}`)
+    const query = new URLSearchParams({ provider });
+    if (provider === "ollama" && listedOllamaUrl) query.set("ollamaBaseUrl", listedOllamaUrl);
+    fetch(`/api/models?${query}`)
       .then((res) => res.json())
       .then((data: { models: string[]; error?: string }) => {
         if (!cancelled) setModels({ list: data.models, error: data.error });
@@ -46,7 +55,7 @@ export function SettingsForm({
     return () => {
       cancelled = true;
     };
-  }, [provider]);
+  }, [provider, credentialsVersion, listedOllamaUrl]);
 
   function update(patch: Partial<Settings>) {
     setSettings((s) => ({ ...s, ...patch }));
@@ -65,7 +74,8 @@ export function SettingsForm({
   async function save() {
     setSaving(true);
     try {
-      await api("/api/settings", { method: "PUT", body: settings });
+      const result = await api<{ providers: Providers }>("/api/settings", { method: "PUT", body: settings });
+      setProviders(result.providers);
       toast.success("Configuración guardada");
       router.refresh();
     } catch (error) {
@@ -116,17 +126,36 @@ export function SettingsForm({
             </button>
           ))}
         </div>
-        {!status.configured && (
-          <p className="text-sm text-amber-700 dark:text-amber-400">
-            Agregá <code>{status.detail}</code> en <code>.env.local</code> y reiniciá el servidor.
-          </p>
-        )}
-        {provider === "ollama" && (
-          <p className="text-sm text-muted-foreground">
-            Conectando a <code>{status.detail}</code> (se cambia con <code>OLLAMA_BASE_URL</code>).
-          </p>
-        )}
       </section>
+
+      {provider === "ollama" ? (
+        <section className="space-y-2">
+          <Label htmlFor="ollama-url" className="font-medium">
+            URL de Ollama
+          </Label>
+          <Input
+            id="ollama-url"
+            value={settings.ollamaBaseUrl ?? ""}
+            placeholder={status.source === "env" && status.detail ? status.detail : DEFAULT_OLLAMA_BASE_URL}
+            onChange={(e) => update({ ollamaBaseUrl: e.target.value.trim() || null })}
+            onBlur={() => setListedOllamaUrl(settings.ollamaBaseUrl ?? "")}
+          />
+          <p className="text-sm text-muted-foreground">
+            Dejalo vacío para usar {status.source === "env" ? <code>OLLAMA_BASE_URL</code> : "el default"}.
+          </p>
+        </section>
+      ) : (
+        <ApiKeyField
+          provider={provider}
+          status={status}
+          onChange={(next) => {
+            setProviders(next);
+            setModels(null);
+            setTest(null);
+            setCredentialsVersion((v) => v + 1);
+          }}
+        />
+      )}
 
       <section className="space-y-3">
         <Label htmlFor="model" className="font-medium">
@@ -212,5 +241,94 @@ export function SettingsForm({
         Guardar
       </Button>
     </div>
+  );
+}
+
+const KEY_URLS: Record<KeyProvider, string> = {
+  gemini: "https://aistudio.google.com/apikey",
+  groq: "https://console.groq.com/keys",
+};
+
+function ApiKeyField({
+  provider,
+  status,
+  onChange,
+}: {
+  provider: KeyProvider;
+  status: ProviderStatus;
+  onChange: (providers: Providers) => void;
+}) {
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function save(apiKey: string | null) {
+    setSaving(true);
+    try {
+      const result = await api<{ providers: Providers }>("/api/settings/keys", {
+        method: "PUT",
+        body: { provider, apiKey },
+      });
+      setValue("");
+      onChange(result.providers);
+      toast.success(apiKey ? "API key guardada" : "API key eliminada");
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="space-y-2">
+      <Label htmlFor="api-key" className="font-medium">
+        API key de {PROVIDERS[provider].label}
+      </Label>
+
+      {status.source === "app" && (
+        <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm">
+          <span>
+            Guardada en la app: <code>{status.detail}</code>
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => save(null)} disabled={saving}>
+            Eliminar
+          </Button>
+        </div>
+      )}
+      {status.source === "env" && (
+        <p className="text-sm text-muted-foreground">
+          Usando <code>{KEY_ENV_VARS[provider]}</code> del entorno (<code>{status.detail}</code>). Si guardás una
+          acá, tiene prioridad.
+        </p>
+      )}
+
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (value.trim()) save(value);
+        }}
+      >
+        <Input
+          id="api-key"
+          type="password"
+          autoComplete="off"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={status.source === "app" ? "Pegá una nueva key para reemplazarla" : "Pegá tu API key"}
+        />
+        <Button type="submit" variant="outline" disabled={saving || !value.trim()}>
+          {saving && <Loader2 className="animate-spin" />}
+          Guardar key
+        </Button>
+      </form>
+      <p className="text-sm text-muted-foreground">
+        Se guarda solo en tu base local y nunca se muestra completa.{" "}
+        {!status.configured && (
+          <a href={KEY_URLS[provider]} target="_blank" rel="noreferrer" className="underline underline-offset-4">
+            Conseguir una key gratis
+          </a>
+        )}
+      </p>
+    </section>
   );
 }

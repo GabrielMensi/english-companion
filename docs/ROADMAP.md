@@ -8,7 +8,7 @@
 - "Cómo lo diría un nativo" y escape al español con `[corchetes]` → vocabulario.
 - Convertir un mensaje corregido en prompt estructurado.
 - Dashboard: errores cada 100 palabras, evolución, áreas a trabajar, tendencias, errores frecuentes.
-- Providers: Ollama (local), Gemini y Groq (free tier).
+- Providers: Ollama (local), Gemini y Groq (free tier), con API keys y URL de Ollama configurables desde la app.
 
 ## Próximo
 
@@ -45,5 +45,5 @@ Consideraciones:
 
 ### Otras
 - Voz: dictado con Whisper local para practicar speaking y pronunciación.
-- Exportar/importar la base de datos para mover el historial entre PCs.
+- Exportar/importar la base de datos para mover el historial entre PCs. El export tiene que excluir la fila `api-keys` de `settings`, para no compartir keys por accidente.
 - Nivel estimado (CEFR) según la evolución de errores y el vocabulario usado.

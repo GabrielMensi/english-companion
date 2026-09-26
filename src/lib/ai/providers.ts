@@ -4,25 +4,49 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import type { generateText } from "ai";
 import { createOllama } from "ollama-ai-provider-v2";
+import { DEFAULT_OLLAMA_BASE_URL, type KeyProvider, maskKey, normalizeBaseUrl } from "@/lib/credentials";
+import { resolveApiKey } from "@/lib/secrets";
 import type { Settings } from "@/lib/settings";
-import type { ProviderId } from "./provider-info";
+import { type ProviderId, PROVIDERS } from "./provider-info";
 
-export const OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL ?? "http://localhost:11434").replace(
-  /\/+$/,
-  "",
-);
+/** Where the Ollama server is: saved in the app, else OLLAMA_BASE_URL, else the default. */
+export function ollamaBaseUrl(settings: Pick<Settings, "ollamaBaseUrl">): string {
+  return normalizeBaseUrl(settings.ollamaBaseUrl ?? process.env.OLLAMA_BASE_URL ?? DEFAULT_OLLAMA_BASE_URL);
+}
 
-export function providerStatus(): Record<ProviderId, { configured: boolean; detail: string }> {
+export interface ProviderStatus {
+  configured: boolean;
+  /** Where the credential comes from; null when there is none. */
+  source: "app" | "env" | null;
+  /** Masked API key, or the Ollama URL in use. Never the full key. */
+  detail: string | null;
+}
+
+export function providerStatus(settings: Settings): Record<ProviderId, ProviderStatus> {
+  const keyStatus = (provider: KeyProvider): ProviderStatus => {
+    const resolved = resolveApiKey(provider);
+    return resolved
+      ? { configured: true, source: resolved.source, detail: maskKey(resolved.key) }
+      : { configured: false, source: null, detail: null };
+  };
   return {
-    ollama: { configured: true, detail: OLLAMA_BASE_URL },
-    gemini: {
-      configured: Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY),
-      detail: "GOOGLE_GENERATIVE_AI_API_KEY",
+    ollama: {
+      configured: true,
+      source: settings.ollamaBaseUrl ? "app" : process.env.OLLAMA_BASE_URL ? "env" : null,
+      detail: ollamaBaseUrl(settings),
     },
-    groq: { configured: Boolean(process.env.GROQ_API_KEY), detail: "GROQ_API_KEY" },
+    gemini: keyStatus("gemini"),
+    groq: keyStatus("groq"),
   };
 }
 
+function requireApiKey(provider: KeyProvider): string {
+  const resolved = resolveApiKey(provider);
+  if (!resolved) {
+    throw new Error(`Falta la API key de ${PROVIDERS[provider].label}. Agregala en Configuración.`);
+  }
+  return resolved.key;
+}
 
 type CallSettings = Pick<
   Parameters<typeof generateText>[0],
@@ -45,7 +69,7 @@ export function resolveModel(settings: Settings): ResolvedModel {
 
   switch (provider) {
     case "ollama": {
-      const model = createOllama({ baseURL: `${OLLAMA_BASE_URL}/api` })(modelId);
+      const model = createOllama({ baseURL: `${ollamaBaseUrl(settings)}/api` })(modelId);
       return {
         provider,
         modelId,
@@ -65,40 +89,34 @@ export function resolveModel(settings: Settings): ResolvedModel {
       };
     }
     case "gemini": {
-      if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-        throw new Error("Falta GOOGLE_GENERATIVE_AI_API_KEY en .env.local");
-      }
-      const model = createGoogleGenerativeAI()(modelId);
+      const model = createGoogleGenerativeAI({ apiKey: requireApiKey("gemini") })(modelId);
       return { provider, modelId, call: ({ temperature }) => ({ model, temperature, maxRetries: 2 }) };
     }
     case "groq": {
-      if (!process.env.GROQ_API_KEY) {
-        throw new Error("Falta GROQ_API_KEY en .env.local");
-      }
-      const model = createGroq()(modelId);
+      const model = createGroq({ apiKey: requireApiKey("groq") })(modelId);
       return { provider, modelId, call: ({ temperature }) => ({ model, temperature, maxRetries: 2 }) };
     }
   }
 }
 
 /** Lists the models available for a provider (used by the settings page). */
-export async function listModels(provider: ProviderId): Promise<string[]> {
+export async function listModels(provider: ProviderId, settings: Settings): Promise<string[]> {
   const signal = AbortSignal.timeout(5000);
   switch (provider) {
     case "ollama": {
-      const res = await fetch(`${OLLAMA_BASE_URL}/api/tags`, { signal });
+      const res = await fetch(`${ollamaBaseUrl(settings)}/api/tags`, { signal });
       if (!res.ok) throw new Error(`Ollama respondió ${res.status}`);
       const data = (await res.json()) as { models: { name: string }[] };
       return data.models.map((m) => m.name).sort();
     }
     case "gemini": {
-      const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      const key = resolveApiKey("gemini")?.key;
       if (!key) return [];
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${key}`,
-        { signal },
-      );
-      if (!res.ok) throw new Error(`Gemini respondió ${res.status}`);
+      const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {
+        headers: { "x-goog-api-key": key },
+        signal,
+      });
+      if (!res.ok) throw new Error(res.status === 400 || res.status === 403 ? "API key de Gemini inválida" : `Gemini respondió ${res.status}`);
       const data = (await res.json()) as {
         models: { name: string; supportedGenerationMethods?: string[] }[];
       };
@@ -108,13 +126,13 @@ export async function listModels(provider: ProviderId): Promise<string[]> {
         .sort();
     }
     case "groq": {
-      const key = process.env.GROQ_API_KEY;
+      const key = resolveApiKey("groq")?.key;
       if (!key) return [];
       const res = await fetch("https://api.groq.com/openai/v1/models", {
         headers: { Authorization: `Bearer ${key}` },
         signal,
       });
-      if (!res.ok) throw new Error(`Groq respondió ${res.status}`);
+      if (!res.ok) throw new Error(res.status === 401 ? "API key de Groq inválida" : `Groq respondió ${res.status}`);
       const data = (await res.json()) as { data: { id: string }[] };
       return data.data.map((m) => m.id).sort();
     }
