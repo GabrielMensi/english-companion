@@ -2,7 +2,7 @@ import "server-only";
 
 import { generateText } from "ai";
 import type { Settings } from "@/lib/settings";
-import { resolveModel } from "./providers";
+import { withFallback } from "./providers";
 
 const INSTRUCTIONS = `You turn a message into a clear, well-structured prompt for an AI assistant (such as Claude or ChatGPT, often a coding agent).
 
@@ -15,13 +15,14 @@ Rules:
 - Output ONLY the final prompt, without preamble or explanations.`;
 
 export async function improvePrompt(text: string, settings: Settings) {
-  const resolved = resolveModel(settings);
-  const { text: prompt } = await generateText({
-    ...resolved.call({ temperature: 0.3 }),
-    instructions: INSTRUCTIONS,
-    prompt: `Message:\n<<<\n${text}\n>>>`,
-  });
-  return stripFences(prompt.trim());
+  const { result, used } = await withFallback(settings, (resolved, { isLast }) =>
+    generateText({
+      ...resolved.call({ temperature: 0.3, retry: isLast }),
+      instructions: INSTRUCTIONS,
+      prompt: `Message:\n<<<\n${text}\n>>>`,
+    }),
+  );
+  return { prompt: stripFences(result.text.trim()), provider: used.provider, modelId: used.modelId };
 }
 
 /** Some models wrap the whole answer in a code fence. */

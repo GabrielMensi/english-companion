@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { PROVIDER_IDS, PROVIDERS, type ProviderId } from "@/lib/ai/provider-info";
+import { modelLabel, PROVIDER_IDS, PROVIDERS, type ProviderId } from "@/lib/ai/provider-info";
 import { api } from "@/lib/api";
 import type { ProviderStatus } from "@/lib/ai/providers";
 import { DEFAULT_OLLAMA_BASE_URL, KEY_ENV_VARS, type KeyProvider } from "@/lib/credentials";
@@ -65,6 +65,13 @@ export function SettingsForm({
   function setProvider(value: ProviderId) {
     setModels(null);
     update({ provider: value });
+  }
+
+  function toggleFallback(id: ProviderId, on: boolean) {
+    const enabled = new Set(settings.fallbacks);
+    if (on) enabled.add(id);
+    else enabled.delete(id);
+    update({ fallbacks: PROVIDER_IDS.filter((p) => enabled.has(p)) });
   }
 
   function setModel(value: string) {
@@ -198,6 +205,34 @@ export function SettingsForm({
               <XCircle className="size-4 shrink-0" /> {test.error}
             </span>
           )}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="font-medium">Fallbacks</h2>
+          <p className="text-sm text-muted-foreground">
+            If {PROVIDERS[provider].name} fails (offline, quota exceeded, overloaded…), try these models in order.
+          </p>
+        </div>
+        <div className="grid gap-2">
+          {PROVIDER_IDS.filter((id) => id !== provider).map((id) => {
+            const configured = providers[id].configured;
+            return (
+              <div key={id} className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2">
+                <Label htmlFor={`fallback-${id}`} className="flex flex-col items-start gap-0.5 font-normal">
+                  <span>{modelLabel(id, settings.models[id])}</span>
+                  {!configured && <span className="text-xs text-muted-foreground">Add an API key to use it</span>}
+                </Label>
+                <Switch
+                  id={`fallback-${id}`}
+                  disabled={!configured}
+                  checked={configured && settings.fallbacks.includes(id)}
+                  onCheckedChange={(on) => toggleFallback(id, on)}
+                />
+              </div>
+            );
+          })}
         </div>
       </section>
 

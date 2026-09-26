@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { errorToMessage } from "@/lib/chat";
+import { errorToMessage } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "@/lib/ai/provider-info";
 import { listModels } from "@/lib/ai/providers";
 import { getSettings, settingsSchema } from "@/lib/settings";

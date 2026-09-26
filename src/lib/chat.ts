@@ -1,10 +1,10 @@
 import "server-only";
 
-import { NoObjectGeneratedError } from "ai";
 import { and, asc, desc, eq, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Correction, Message, SessionMode, VocabularyEntry } from "@/db/schema";
 import { analyzeMessage } from "@/lib/ai/analyze";
+import { errorToMessage } from "@/lib/ai/fallback";
 import type { HistoryTurn } from "@/lib/ai/analysis";
 import { improvePrompt } from "@/lib/ai/improve-prompt";
 import { getSettings } from "@/lib/settings";
@@ -113,7 +113,7 @@ export async function analyzeStoredMessage(messageId: string): Promise<ChatMessa
   const settings = getSettings();
 
   try {
-    const { analysis, provider, modelId } = await analyzeMessage(
+    const { analysis, provider, modelId, fallbackAttempts } = await analyzeMessage(
       { text: message.content, mode: session.mode, history: getHistory(message) },
       settings,
     );
@@ -132,6 +132,7 @@ export async function analyzeStoredMessage(messageId: string): Promise<ChatMessa
           naturalText: analysis.naturalText,
           provider,
           model: modelId,
+          fallbackAttempts: fallbackAttempts.length > 0 ? fallbackAttempts : null,
         })
         .where(eq(schema.messages.id, message.id))
         .run();
@@ -215,28 +216,13 @@ function getHistory(message: Message): HistoryTurn[] {
   return turns;
 }
 
-export async function improveMessagePrompt(messageId: string): Promise<string> {
+export async function improveMessagePrompt(messageId: string) {
   const message = db.select().from(schema.messages).where(eq(schema.messages.id, messageId)).get();
   if (!message || message.role !== "user") throw new Error("Message not found");
 
-  const improved = await improvePrompt(message.correctedText ?? message.content, getSettings());
-  db.update(schema.messages).set({ improvedPrompt: improved }).where(eq(schema.messages.id, messageId)).run();
-  return improved;
+  const { prompt, provider, modelId } = await improvePrompt(message.correctedText ?? message.content, getSettings());
+  const update = { improvedPrompt: prompt, improvedPromptProvider: provider, improvedPromptModel: modelId };
+  db.update(schema.messages).set(update).where(eq(schema.messages.id, messageId)).run();
+  return update;
 }
 
-export function errorToMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  if (/Cannot connect to API|ECONNREFUSED|fetch failed|Connect Timeout|aborted due to timeout/i.test(message)) {
-    return "Couldn't connect to the AI provider. If you use Ollama, make sure it's running and the model is downloaded.";
-  }
-  if (/not found/i.test(message) && /model/i.test(message)) {
-    return `${message}. Check the model name in Settings.`;
-  }
-  if (/429|rate limit|quota|RESOURCE_EXHAUSTED/i.test(message)) {
-    return "The provider's free tier limit was reached. Wait a while or switch providers.";
-  }
-  if (NoObjectGeneratedError.isInstance(error)) {
-    return "The model didn't return a response in the expected format. Try again or use a bigger model.";
-  }
-  return message;
-}

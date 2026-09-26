@@ -16,6 +16,8 @@ export const settingsSchema = z.object({
   explanationLanguage: z.enum(["es", "en"]),
   /** Whether typos count towards the dashboard statistics. */
   countTyposInStats: z.boolean(),
+  /** Providers to try, in order, when the selected one fails. */
+  fallbacks: z.array(z.enum(PROVIDER_IDS)),
   /** Ollama server URL; null uses OLLAMA_BASE_URL or the default. */
   ollamaBaseUrl: z.url({ protocol: /^https?$/ }).nullable(),
 });
@@ -31,6 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   explanationLanguage: "es",
   countTyposInStats: false,
+  fallbacks: [...PROVIDER_IDS],
   ollamaBaseUrl: null,
 };
 

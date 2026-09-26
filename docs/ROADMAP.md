@@ -9,6 +9,7 @@
 - Convertir un mensaje corregido en prompt estructurado.
 - Dashboard: errores cada 100 palabras, evolución, áreas a trabajar, tendencias, errores frecuentes.
 - Providers: Ollama (local), Gemini y Groq (free tier), con API keys y URL de Ollama configurables desde la app.
+- Selector de modelo en el chat, modelo registrado en cada respuesta y fallback automático entre modelos configurados.
 
 ## Próximo
 

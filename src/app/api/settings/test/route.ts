@@ -1,5 +1,5 @@
 import { generateText } from "ai";
-import { errorToMessage } from "@/lib/chat";
+import { errorToMessage } from "@/lib/ai/fallback";
 import { resolveModel } from "@/lib/ai/providers";
 import { settingsSchema } from "@/lib/settings";
 

@@ -1,5 +1,6 @@
 import { relations } from "drizzle-orm";
 import { type AnySQLiteColumn, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import type { FallbackAttempt } from "@/lib/ai/fallback";
 import type { ErrorCategory, Severity } from "@/lib/taxonomy";
 
 export type SessionMode = "correction" | "conversation";
@@ -39,9 +40,14 @@ export const messages = sqliteTable(
     correctedText: text("corrected_text"),
     naturalText: text("natural_text"),
     improvedPrompt: text("improved_prompt"),
+    improvedPromptProvider: text("improved_prompt_provider"),
+    improvedPromptModel: text("improved_prompt_model"),
     wordCount: integer("word_count").notNull().default(0),
+    /** Provider and model that produced the analysis (or the reply). */
     provider: text("provider"),
     model: text("model"),
+    /** Models tried before `model` that failed, when the fallback kicked in. */
+    fallbackAttempts: text("fallback_attempts", { mode: "json" }).$type<FallbackAttempt[]>(),
     createdAt: createdAt(),
   },
   (t) => [index("messages_session_idx").on(t.sessionId, t.createdAt)],

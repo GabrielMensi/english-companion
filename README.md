@@ -14,6 +14,8 @@ Corre 100% local y está pensado para ser gratis: por defecto usa un modelo loca
 - **"Cómo lo diría un nativo"**: una versión más natural cuando la corrección es correcta pero suena traducida.
 - **Escape al español**: si no sabés cómo decir algo, escribilo entre corchetes (`I want to [aprovechar] this`) y te da opciones en inglés. Queda guardado como vocabulario.
 - **Convertir en prompt**: sobre un mensaje corregido, lo reestructura como un prompt claro para una IA, listo para copiar.
+- **Selector de modelo** en el chat y nota en cada respuesta con el modelo que la generó.
+- **Fallback automático**: si el modelo elegido falla (offline, cuota, sobrecarga), prueba con los otros modelos configurados, en orden, y deja registrado cuál falló.
 - **Dashboard**: errores cada 100 palabras, evolución en el tiempo, áreas a trabajar por categoría y gravedad, tendencia contra el período anterior, errores más frecuentes y vocabulario buscado.
 
 ## Requisitos

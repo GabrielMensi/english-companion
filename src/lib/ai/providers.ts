@@ -7,7 +7,8 @@ import { createOllama } from "ollama-ai-provider-v2";
 import { DEFAULT_OLLAMA_BASE_URL, type KeyProvider, maskKey, normalizeBaseUrl } from "@/lib/credentials";
 import { resolveApiKey } from "@/lib/secrets";
 import type { Settings } from "@/lib/settings";
-import { type ProviderId, PROVIDERS } from "./provider-info";
+import { fallbackOrder, runWithFallback } from "./fallback";
+import { PROVIDER_IDS, type ProviderId, PROVIDERS } from "./provider-info";
 
 /** Where the Ollama server is: saved in the app, else OLLAMA_BASE_URL, else the default. */
 export function ollamaBaseUrl(settings: Pick<Settings, "ollamaBaseUrl">): string {
@@ -56,15 +57,17 @@ type CallSettings = Pick<
 export interface ResolvedModel {
   provider: ProviderId;
   modelId: string;
-  /** Settings to spread into every `generateText` call. */
-  call: (options: { temperature: number }) => CallSettings;
+  /**
+   * Settings to spread into every `generateText` call. `retry: false` skips the
+   * SDK's retries, used when another model can take over right away.
+   */
+  call: (options: { temperature: number; retry?: boolean }) => CallSettings;
 }
 
 // Instructions + history + JSON output don't fit in Ollama's small default context.
 const OLLAMA_CONTEXT_TOKENS = 8192;
 
-export function resolveModel(settings: Settings): ResolvedModel {
-  const provider = settings.provider;
+export function resolveModel(settings: Settings, provider: ProviderId = settings.provider): ResolvedModel {
   const modelId = settings.models[provider];
 
   switch (provider) {
@@ -90,13 +93,49 @@ export function resolveModel(settings: Settings): ResolvedModel {
     }
     case "gemini": {
       const model = createGoogleGenerativeAI({ apiKey: requireApiKey("gemini") })(modelId);
-      return { provider, modelId, call: ({ temperature }) => ({ model, temperature, maxRetries: 2 }) };
+      return {
+        provider,
+        modelId,
+        call: ({ temperature, retry = true }) => ({ model, temperature, maxRetries: retry ? 2 : 0 }),
+      };
     }
     case "groq": {
       const model = createGroq({ apiKey: requireApiKey("groq") })(modelId);
-      return { provider, modelId, call: ({ temperature }) => ({ model, temperature, maxRetries: 2 }) };
+      return {
+        provider,
+        modelId,
+        call: ({ temperature, retry = true }) => ({ model, temperature, maxRetries: retry ? 2 : 0 }),
+      };
     }
   }
+}
+
+function isConfigured(provider: ProviderId): boolean {
+  return provider === "ollama" || resolveApiKey(provider) !== null;
+}
+
+/** Providers the user can pick: Ollama, every provider with an API key, and the selected one. */
+export function availableModels(settings: Settings) {
+  return PROVIDER_IDS.filter((p) => p === settings.provider || isConfigured(p)).map((provider) => ({
+    provider,
+    name: PROVIDERS[provider].name,
+    model: settings.models[provider],
+  }));
+}
+
+/**
+ * Runs `run` with the selected model and, if it fails, with each configured
+ * fallback in order. Retries are skipped while another model can take over.
+ */
+export function withFallback<T>(
+  settings: Settings,
+  run: (model: ResolvedModel, options: { isLast: boolean }) => Promise<T>,
+) {
+  const candidates = fallbackOrder(settings.provider, settings.fallbacks, isConfigured).map((provider) => ({
+    provider,
+    modelId: settings.models[provider],
+  }));
+  return runWithFallback(candidates, (candidate, options) => run(resolveModel(settings, candidate.provider), options));
 }
 
 /** Lists the models available for a provider (used by the settings page). */

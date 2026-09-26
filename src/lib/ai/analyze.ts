@@ -9,32 +9,32 @@ import {
   buildAnalysisPrompt,
   normalizeAnalysis,
 } from "./analysis";
-import { resolveModel } from "./providers";
+import { withFallback } from "./providers";
 
 export async function analyzeMessage(input: Omit<AnalysisPromptInput, "explanationLanguage">, settings: Settings) {
-  const resolved = resolveModel(settings);
   const promptInput = { ...input, explanationLanguage: settings.explanationLanguage };
 
-  const run = () =>
-    generateText({
-      ...resolved.call({ temperature: 0.2 }),
-      instructions: buildAnalysisInstructions(promptInput),
-      prompt: buildAnalysisPrompt(promptInput),
-      output: Output.object({ schema: analysisSchema }),
-    });
-
-  let result;
-  try {
-    result = await run();
-  } catch (error) {
-    // Small local models occasionally produce invalid JSON: one retry usually fixes it.
-    if (!NoObjectGeneratedError.isInstance(error)) throw error;
-    result = await run();
-  }
+  const { result, used, failed } = await withFallback(settings, async (resolved, { isLast }) => {
+    const run = () =>
+      generateText({
+        ...resolved.call({ temperature: 0.2, retry: isLast }),
+        instructions: buildAnalysisInstructions(promptInput),
+        prompt: buildAnalysisPrompt(promptInput),
+        output: Output.object({ schema: analysisSchema }),
+      });
+    try {
+      return await run();
+    } catch (error) {
+      // Small local models occasionally produce invalid JSON: one retry usually fixes it.
+      if (!NoObjectGeneratedError.isInstance(error)) throw error;
+      return await run();
+    }
+  });
 
   return {
     analysis: normalizeAnalysis(result.output, input.mode, input.text),
-    provider: resolved.provider,
-    modelId: resolved.modelId,
+    provider: used.provider,
+    modelId: used.modelId,
+    fallbackAttempts: failed,
   };
 }

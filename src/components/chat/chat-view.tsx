@@ -5,20 +5,24 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AssistantMessage } from "@/components/chat/assistant-message";
 import { Composer } from "@/components/chat/composer";
+import { type ModelOption, ModelSelect } from "@/components/chat/model-select";
 import { UserMessage } from "@/components/chat/user-message";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SessionMode } from "@/db/schema";
+import type { ProviderId } from "@/lib/ai/provider-info";
 import { api } from "@/lib/api";
 import type { ChatMessage, SessionSummary } from "@/lib/types";
 
 export function ChatView({
   session,
   initialMessages,
-  modelLabel,
+  models,
+  selectedProvider,
 }: {
   session: SessionSummary;
   initialMessages: ChatMessage[];
-  modelLabel: string;
+  models: ModelOption[];
+  selectedProvider: ProviderId;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
@@ -87,7 +91,7 @@ export function ChatView({
       <header className="flex items-center justify-between gap-4 border-b px-6 py-2.5">
         <h1 className="truncate font-medium">{session.title}</h1>
         <div className="flex items-center gap-3">
-          <span className="hidden text-xs text-muted-foreground md:inline">{modelLabel}</span>
+          <ModelSelect key={selectedProvider} options={models} selected={selectedProvider} />
           <Select value={mode} onValueChange={(v) => changeMode(v as SessionMode)}>
             <SelectTrigger size="sm" className="w-40">
               <SelectValue />
@@ -141,9 +145,12 @@ function optimisticMessage(id: string, sessionId: string, text: string): ChatMes
     correctedText: null,
     naturalText: null,
     improvedPrompt: null,
+    improvedPromptProvider: null,
+    improvedPromptModel: null,
     wordCount: 0,
     provider: null,
     model: null,
+    fallbackAttempts: null,
     createdAt: Date.now(),
     corrections: [],
     vocabulary: [],
