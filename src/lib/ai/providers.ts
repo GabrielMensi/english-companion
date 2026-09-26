@@ -43,7 +43,7 @@ export function providerStatus(settings: Settings): Record<ProviderId, ProviderS
 function requireApiKey(provider: KeyProvider): string {
   const resolved = resolveApiKey(provider);
   if (!resolved) {
-    throw new Error(`Falta la API key de ${PROVIDERS[provider].label}. Agregala en Configuración.`);
+    throw new Error(`Missing ${PROVIDERS[provider].label} API key. Add it in Settings.`);
   }
   return resolved.key;
 }
@@ -105,7 +105,7 @@ export async function listModels(provider: ProviderId, settings: Settings): Prom
   switch (provider) {
     case "ollama": {
       const res = await fetch(`${ollamaBaseUrl(settings)}/api/tags`, { signal });
-      if (!res.ok) throw new Error(`Ollama respondió ${res.status}`);
+      if (!res.ok) throw new Error(`Ollama responded ${res.status}`);
       const data = (await res.json()) as { models: { name: string }[] };
       return data.models.map((m) => m.name).sort();
     }
@@ -116,7 +116,7 @@ export async function listModels(provider: ProviderId, settings: Settings): Prom
         headers: { "x-goog-api-key": key },
         signal,
       });
-      if (!res.ok) throw new Error(res.status === 400 || res.status === 403 ? "API key de Gemini inválida" : `Gemini respondió ${res.status}`);
+      if (!res.ok) throw new Error(res.status === 400 || res.status === 403 ? "Invalid Gemini API key" : `Gemini responded ${res.status}`);
       const data = (await res.json()) as {
         models: { name: string; supportedGenerationMethods?: string[] }[];
       };
@@ -132,7 +132,7 @@ export async function listModels(provider: ProviderId, settings: Settings): Prom
         headers: { Authorization: `Bearer ${key}` },
         signal,
       });
-      if (!res.ok) throw new Error(res.status === 401 ? "API key de Groq inválida" : `Groq respondió ${res.status}`);
+      if (!res.ok) throw new Error(res.status === 401 ? "Invalid Groq API key" : `Groq responded ${res.status}`);
       const data = (await res.json()) as { data: { id: string }[] };
       return data.data.map((m) => m.id).sort();
     }

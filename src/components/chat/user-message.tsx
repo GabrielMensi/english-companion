@@ -23,7 +23,7 @@ export function UserMessage({
       {message.status === "pending" && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
-          Corrigiendo…
+          Correcting…
         </div>
       )}
 
@@ -31,10 +31,10 @@ export function UserMessage({
         <div className="flex items-start justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
           <div className="flex gap-2">
             <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
-            <span>{message.errorMessage ?? "No se pudo analizar el mensaje."}</span>
+            <span>{message.errorMessage ?? "Couldn't analyze the message."}</span>
           </div>
           <Button size="sm" variant="outline" onClick={() => onRetry(message.id)}>
-            <RotateCcw /> Reintentar
+            <RotateCcw /> Retry
           </Button>
         </div>
       )}

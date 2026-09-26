@@ -24,7 +24,7 @@ export function getSession(id: string) {
 export function createSession(mode: SessionMode) {
   return db
     .insert(schema.sessions)
-    .values({ id: crypto.randomUUID(), mode })
+    .values({ id: crypto.randomUUID(), title: "New chat", mode })
     .returning()
     .get();
 }
@@ -106,9 +106,9 @@ export function addUserMessage(sessionId: string, text: string) {
  */
 export async function analyzeStoredMessage(messageId: string): Promise<ChatMessage[]> {
   const message = db.select().from(schema.messages).where(eq(schema.messages.id, messageId)).get();
-  if (!message || message.role !== "user") throw new Error("Mensaje no encontrado");
+  if (!message || message.role !== "user") throw new Error("Message not found");
   const session = getSession(message.sessionId);
-  if (!session) throw new Error("Sesión no encontrada");
+  if (!session) throw new Error("Chat not found");
 
   const settings = getSettings();
 
@@ -217,7 +217,7 @@ function getHistory(message: Message): HistoryTurn[] {
 
 export async function improveMessagePrompt(messageId: string): Promise<string> {
   const message = db.select().from(schema.messages).where(eq(schema.messages.id, messageId)).get();
-  if (!message || message.role !== "user") throw new Error("Mensaje no encontrado");
+  if (!message || message.role !== "user") throw new Error("Message not found");
 
   const improved = await improvePrompt(message.correctedText ?? message.content, getSettings());
   db.update(schema.messages).set({ improvedPrompt: improved }).where(eq(schema.messages.id, messageId)).run();
@@ -227,16 +227,16 @@ export async function improveMessagePrompt(messageId: string): Promise<string> {
 export function errorToMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (/Cannot connect to API|ECONNREFUSED|fetch failed|Connect Timeout|aborted due to timeout/i.test(message)) {
-    return "No se pudo conectar con el proveedor de IA. Si usás Ollama, fijate que esté corriendo y que el modelo esté descargado.";
+    return "Couldn't connect to the AI provider. If you use Ollama, make sure it's running and the model is downloaded.";
   }
   if (/not found/i.test(message) && /model/i.test(message)) {
-    return `${message}. Revisá el nombre del modelo en Configuración.`;
+    return `${message}. Check the model name in Settings.`;
   }
   if (/429|rate limit|quota|RESOURCE_EXHAUSTED/i.test(message)) {
-    return "Se alcanzó el límite del free tier del proveedor. Esperá un rato o cambiá de proveedor.";
+    return "The provider's free tier limit was reached. Wait a while or switch providers.";
   }
   if (NoObjectGeneratedError.isInstance(error)) {
-    return "El modelo no devolvió una respuesta con el formato esperado. Probá reintentar o usar un modelo más grande.";
+    return "The model didn't return a response in the expected format. Try again or use a bigger model.";
   }
   return message;
 }

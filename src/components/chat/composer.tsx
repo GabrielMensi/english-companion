@@ -27,7 +27,7 @@ export function Composer({ onSend, disabled }: { onSend: (text: string) => Promi
             submit();
           }
         }}
-        placeholder="Write in English… (Enter para enviar, Shift+Enter para salto de línea)"
+        placeholder="Write in English… (Enter to send, Shift+Enter for a new line)"
         // The browser's spellchecker would give away the mistakes before the tutor sees them.
         spellCheck={false}
         autoCorrect="off"
@@ -36,7 +36,7 @@ export function Composer({ onSend, disabled }: { onSend: (text: string) => Promi
         rows={3}
         className="max-h-60 min-h-20 resize-none"
       />
-      <Button onClick={submit} disabled={disabled || !text.trim()} size="icon-lg" aria-label="Enviar">
+      <Button onClick={submit} disabled={disabled || !text.trim()} size="icon-lg" aria-label="Send">
         <SendHorizontal />
       </Button>
     </div>

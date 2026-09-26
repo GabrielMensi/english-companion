@@ -32,29 +32,29 @@ export const ERROR_CATEGORIES = [
 export type ErrorCategory = (typeof ERROR_CATEGORIES)[number];
 
 export const CATEGORY_LABELS: Record<ErrorCategory, string> = {
-  verb_tense: "Tiempos verbales",
-  subject_verb_agreement: "Concordancia sujeto-verbo",
-  verb_form: "Forma del verbo",
-  gerund_infinitive: "Patrones verbales (gerundio / infinitivo)",
-  conditionals: "Condicionales",
-  modals: "Verbos modales",
-  articles: "Artículos",
-  prepositions: "Preposiciones",
-  pronouns: "Pronombres",
-  plurals_countability: "Plurales / contables",
-  word_order: "Orden de palabras",
-  question_formation: "Formación de preguntas",
-  comparatives: "Comparativos / superlativos",
+  verb_tense: "Verb tenses",
+  subject_verb_agreement: "Subject-verb agreement",
+  verb_form: "Verb forms",
+  gerund_infinitive: "Verb patterns (gerund / infinitive)",
+  conditionals: "Conditionals",
+  modals: "Modal verbs",
+  articles: "Articles",
+  prepositions: "Prepositions",
+  pronouns: "Pronouns",
+  plurals_countability: "Plurals / countability",
+  word_order: "Word order",
+  question_formation: "Question formation",
+  comparatives: "Comparatives / superlatives",
   phrasal_verbs: "Phrasal verbs",
   collocations: "Collocations",
-  vocabulary: "Vocabulario",
-  false_friends: "Falsos amigos",
-  sentence_structure: "Estructura de la oración",
-  spelling: "Ortografía",
-  punctuation: "Puntuación",
-  capitalization: "Mayúsculas",
-  register_style: "Registro / estilo",
-  other: "Otros",
+  vocabulary: "Vocabulary",
+  false_friends: "False friends",
+  sentence_structure: "Sentence structure",
+  spelling: "Spelling",
+  punctuation: "Punctuation",
+  capitalization: "Capitalization",
+  register_style: "Register / style",
+  other: "Other",
 };
 
 /** One-line guidance for the model, so categories are applied consistently. */
@@ -90,9 +90,9 @@ export type Severity = (typeof SEVERITIES)[number];
 
 export const SEVERITY_LABELS: Record<Severity, string> = {
   typo: "Typo",
-  minor: "Leve",
-  moderate: "Moderado",
-  major: "Grave",
+  minor: "Minor",
+  moderate: "Moderate",
+  major: "Major",
 };
 
 /** Weight used by the dashboard to rank weak areas. Typos don't count. */

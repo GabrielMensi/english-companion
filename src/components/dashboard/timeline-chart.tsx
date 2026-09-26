@@ -12,7 +12,7 @@ export function TimelineChart({ data }: { data: Stats["timeline"] }) {
   if (points.filter((p) => p.rate !== null).length < 2) {
     return (
       <p className="py-10 text-center text-sm text-muted-foreground">
-        Escribí en al menos dos días distintos para ver la evolución.
+        Write on at least two different days to see your progress.
       </p>
     );
   }
@@ -60,14 +60,14 @@ function TimelineTooltip({ active, payload }: { active?: boolean; payload?: { pa
         <>
           <div>
             <span className="font-medium tabular-nums">{p.per100Words}</span>{" "}
-            <span className="text-muted-foreground">errores / 100 palabras</span>
+            <span className="text-muted-foreground">mistakes / 100 words</span>
           </div>
           <div className="text-muted-foreground">
-            {p.errors} errores en {p.words} palabras
+            {p.errors} mistakes in {p.words} words
           </div>
         </>
       ) : (
-        <div className="text-muted-foreground">Sin actividad</div>
+        <div className="text-muted-foreground">No activity</div>
       )}
     </div>
   );
@@ -75,5 +75,5 @@ function TimelineTooltip({ active, payload }: { active?: boolean; payload?: { pa
 
 function formatDate(key: string) {
   const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("es-AR", { day: "numeric", month: "numeric" });
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }

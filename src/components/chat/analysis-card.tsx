@@ -42,7 +42,7 @@ export function AnalysisCard({
       {perfect ? (
         <div className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
           <CheckCircle2 className="size-4" />
-          {corrected === message.content ? "Perfect! No mistakes." : "Sin errores."}
+          {corrected === message.content ? "Perfect! No mistakes." : "No mistakes."}
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -77,13 +77,13 @@ export function AnalysisCard({
       )}
 
       {message.naturalText && (
-        <Section icon={<MessageCircleHeart className="size-4" />} title="Cómo lo diría un nativo">
+        <Section icon={<MessageCircleHeart className="size-4" />} title="How a native speaker would say it">
           <p className="leading-relaxed whitespace-pre-wrap">{message.naturalText}</p>
         </Section>
       )}
 
       {message.vocabulary.length > 0 && (
-        <Section icon={<BookOpen className="size-4" />} title="Vocabulario">
+        <Section icon={<BookOpen className="size-4" />} title="Vocabulary">
           <ul className="flex flex-col gap-1.5 text-sm">
             {message.vocabulary.map((v) => (
               <li key={v.id}>
@@ -97,7 +97,7 @@ export function AnalysisCard({
       )}
 
       {message.improvedPrompt && (
-        <Section icon={<Sparkles className="size-4" />} title="Prompt mejorado">
+        <Section icon={<Sparkles className="size-4" />} title="Improved prompt">
           <pre className="rounded-lg bg-muted p-3 font-sans text-sm leading-relaxed whitespace-pre-wrap">
             {message.improvedPrompt}
           </pre>
@@ -105,19 +105,19 @@ export function AnalysisCard({
       )}
 
       <div className="-mb-1 flex flex-wrap gap-1 border-t pt-2">
-        <CopyButton text={corrected} label="Copiar corregido" />
+        <CopyButton text={corrected} label="Copy corrected" />
         {message.improvedPrompt ? (
           <>
-            <CopyButton text={message.improvedPrompt} label="Copiar prompt" />
+            <CopyButton text={message.improvedPrompt} label="Copy prompt" />
             <Button variant="ghost" size="sm" onClick={improve} disabled={improving}>
               {improving ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-              Regenerar prompt
+              Regenerate prompt
             </Button>
           </>
         ) : (
           <Button variant="ghost" size="sm" onClick={improve} disabled={improving}>
             {improving ? <Loader2 className="animate-spin" /> : <Sparkles />}
-            Convertir en prompt
+            Turn into prompt
           </Button>
         )}
       </div>

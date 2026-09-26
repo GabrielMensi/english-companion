@@ -9,6 +9,6 @@ const bodySchema = z.object({ mode: z.enum(["correction", "conversation"]).defau
 
 export async function POST(request: Request) {
   const body = bodySchema.safeParse(await request.json().catch(() => ({})));
-  if (!body.success) return Response.json({ error: "Datos inválidos" }, { status: 400 });
+  if (!body.success) return Response.json({ error: "Invalid data" }, { status: 400 });
   return Response.json(createSession(body.data.mode), { status: 201 });
 }

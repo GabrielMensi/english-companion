@@ -4,7 +4,7 @@ import { categoryLabel } from "@/lib/taxonomy";
 
 export function TopMistakes({ mistakes }: { mistakes: Stats["topMistakes"] }) {
   if (mistakes.length === 0) {
-    return <p className="text-sm text-muted-foreground">Sin errores en este período.</p>;
+    return <p className="text-sm text-muted-foreground">No mistakes in this period.</p>;
   }
 
   return (

@@ -6,7 +6,7 @@ import { settingsSchema } from "@/lib/settings";
 /** Sends a tiny request with the given (unsaved) settings to check the connection. */
 export async function POST(request: Request) {
   const body = settingsSchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) return Response.json({ error: "Configuración inválida" }, { status: 400 });
+  if (!body.success) return Response.json({ error: "Invalid settings" }, { status: 400 });
 
   const started = Date.now();
   try {

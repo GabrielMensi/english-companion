@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const provider = params.get("provider") as ProviderId | null;
   if (!provider || !PROVIDER_IDS.includes(provider)) {
-    return Response.json({ error: "Proveedor inválido" }, { status: 400 });
+    return Response.json({ error: "Invalid provider" }, { status: 400 });
   }
 
   // Lets the settings page list Ollama models for a URL that isn't saved yet.

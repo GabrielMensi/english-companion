@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 
 export function NewChatButton({
   mode = "correction",
-  label = "Nuevo chat",
+  label = "New chat",
   variant = "default",
   className,
 }: {

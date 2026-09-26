@@ -8,7 +8,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   const body = settingsSchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) return Response.json({ error: "Configuración inválida" }, { status: 400 });
+  if (!body.success) return Response.json({ error: "Invalid settings" }, { status: 400 });
   const settings = saveSettings(body.data);
   return Response.json({ settings, providers: providerStatus(settings) });
 }

@@ -13,7 +13,7 @@ const bodySchema = z.object({
 /** Saves or removes an API key. Responds with the masked status only, never the key. */
 export async function PUT(request: Request) {
   const body = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) return Response.json({ error: "API key inválida" }, { status: 400 });
+  if (!body.success) return Response.json({ error: "Invalid API key" }, { status: 400 });
 
   setApiKey(body.data.provider, body.data.apiKey);
   return Response.json({ providers: providerStatus(getSettings()) });

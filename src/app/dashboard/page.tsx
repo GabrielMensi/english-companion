@@ -9,7 +9,7 @@ import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { getDashboardData, RANGES, type RangeKey } from "@/lib/stats";
 import { cn } from "@/lib/utils";
 
-const RANGE_LABELS: Record<RangeKey, string> = { "7": "7 días", "30": "30 días", "90": "90 días", all: "Todo" };
+const RANGE_LABELS: Record<RangeKey, string> = { "7": "7 days", "30": "30 days", "90": "90 days", all: "All" };
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   await connection();
@@ -24,11 +24,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           <div>
             <h1 className="text-2xl font-semibold">Dashboard</h1>
             <p className="text-muted-foreground">
-              Dónde estás fuerte, dónde flojo y qué conviene practicar.
-              {!countTypos && " Los typos no se cuentan como errores."}
+              Where you’re strong, where you’re weak and what to practice next.
+              {!countTypos && " Typos don’t count as mistakes."}
             </p>
           </div>
-          <nav className="flex rounded-lg border p-0.5" aria-label="Período">
+          <nav className="flex rounded-lg border p-0.5" aria-label="Period">
             {(Object.keys(RANGES) as RangeKey[]).map((key) => (
               <Link
                 key={key}
@@ -46,35 +46,35 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
 
         {stats.totals.messages === 0 ? (
           <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed py-16 text-center">
-            <p className="text-muted-foreground">Todavía no hay mensajes en este período.</p>
-            <NewChatButton label="Escribir algo" />
+            <p className="text-muted-foreground">No messages in this period yet.</p>
+            <NewChatButton label="Write something" />
           </div>
         ) : (
           <>
             <StatTiles totals={stats.totals} />
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <Panel title="Áreas a trabajar" subtitle="Errores por categoría, según gravedad">
+              <Panel title="Areas to work on" subtitle="Mistakes by category and severity">
                 <CategoryChart categories={stats.categories.filter((c) => c.count > 0)} />
               </Panel>
-              <Panel title="Evolución" subtitle="Errores cada 100 palabras">
+              <Panel title="Progress" subtitle="Mistakes per 100 words">
                 <TimelineChart data={stats.timeline} />
               </Panel>
             </div>
 
             <Panel
-              title="Por categoría"
-              subtitle="Tendencia comparada con el período anterior de igual duración"
+              title="By category"
+              subtitle="Trend compared with the previous period of the same length"
             >
               <CategoryTable categories={stats.categories} />
             </Panel>
 
-            <Panel title="Errores más frecuentes" subtitle="Con el ejemplo más reciente">
+            <Panel title="Most frequent mistakes" subtitle="With the most recent example">
               <TopMistakes mistakes={stats.topMistakes} />
             </Panel>
 
             {vocabulary.length > 0 && (
-              <Panel title="Vocabulario buscado" subtitle="Lo que escribiste entre [corchetes]">
+              <Panel title="Vocabulary lookups" subtitle="What you wrote between [brackets]">
                 <ul className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
                   {vocabulary.map((v) => (
                     <li key={v.id}>

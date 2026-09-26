@@ -23,7 +23,7 @@ export function CategoryChart({ categories }: { categories: CategoryStat[] }) {
   }));
 
   if (data.length === 0) {
-    return <p className="py-10 text-center text-sm text-muted-foreground">Sin errores en este período 🎉</p>;
+    return <p className="py-10 text-center text-sm text-muted-foreground">No mistakes in this period 🎉</p>;
   }
 
   return (

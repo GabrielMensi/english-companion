@@ -8,10 +8,10 @@ const bodySchema = z.object({
 
 export async function PATCH(request: Request, ctx: RouteContext<"/api/sessions/[id]">) {
   const { id } = await ctx.params;
-  if (!getSession(id)) return Response.json({ error: "Sesión no encontrada" }, { status: 404 });
+  if (!getSession(id)) return Response.json({ error: "Chat not found" }, { status: 404 });
 
   const body = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) return Response.json({ error: "Datos inválidos" }, { status: 400 });
+  if (!body.success) return Response.json({ error: "Invalid data" }, { status: 400 });
   return Response.json(updateSession(id, body.data));
 }
 

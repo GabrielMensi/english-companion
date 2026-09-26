@@ -51,7 +51,7 @@ export function SettingsForm({
       .then((data: { models: string[]; error?: string }) => {
         if (!cancelled) setModels({ list: data.models, error: data.error });
       })
-      .catch(() => !cancelled && setModels({ list: [], error: "No se pudo obtener la lista de modelos" }));
+      .catch(() => !cancelled && setModels({ list: [], error: "Couldn't get the model list" }));
     return () => {
       cancelled = true;
     };
@@ -76,7 +76,7 @@ export function SettingsForm({
     try {
       const result = await api<{ providers: Providers }>("/api/settings", { method: "PUT", body: settings });
       setProviders(result.providers);
-      toast.success("Configuración guardada");
+      toast.success("Settings saved");
       router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
@@ -100,7 +100,7 @@ export function SettingsForm({
   return (
     <div className="space-y-8">
       <section className="space-y-3">
-        <h2 className="font-medium">Proveedor</h2>
+        <h2 className="font-medium">Provider</h2>
         <div className="grid gap-2">
           {PROVIDER_IDS.map((id) => (
             <button
@@ -119,9 +119,9 @@ export function SettingsForm({
               {PROVIDERS[id].local ? (
                 <Badge variant="secondary">Local</Badge>
               ) : providers[id].configured ? (
-                <Badge variant="secondary">API key OK</Badge>
+                <Badge variant="secondary">API key set</Badge>
               ) : (
-                <Badge variant="outline">Sin API key</Badge>
+                <Badge variant="outline">No API key</Badge>
               )}
             </button>
           ))}
@@ -131,7 +131,7 @@ export function SettingsForm({
       {provider === "ollama" ? (
         <section className="space-y-2">
           <Label htmlFor="ollama-url" className="font-medium">
-            URL de Ollama
+            Ollama URL
           </Label>
           <Input
             id="ollama-url"
@@ -141,7 +141,7 @@ export function SettingsForm({
             onBlur={() => setListedOllamaUrl(settings.ollamaBaseUrl ?? "")}
           />
           <p className="text-sm text-muted-foreground">
-            Dejalo vacío para usar {status.source === "env" ? <code>OLLAMA_BASE_URL</code> : "el default"}.
+            Leave it empty to use {status.source === "env" ? <code>OLLAMA_BASE_URL</code> : "the default"}.
           </p>
         </section>
       ) : (
@@ -159,7 +159,7 @@ export function SettingsForm({
 
       <section className="space-y-3">
         <Label htmlFor="model" className="font-medium">
-          Modelo
+          Model
         </Label>
         {models && models.list.length > 0 ? (
           <Select value={settings.models[provider]} onValueChange={setModel}>
@@ -168,7 +168,7 @@ export function SettingsForm({
             </SelectTrigger>
             <SelectContent>
               {!models.list.includes(settings.models[provider]) && (
-                <SelectItem value={settings.models[provider]}>{settings.models[provider]} (no encontrado)</SelectItem>
+                <SelectItem value={settings.models[provider]}>{settings.models[provider]} (not found)</SelectItem>
               )}
               {models.list.map((m) => (
                 <SelectItem key={m} value={m}>
@@ -180,17 +180,17 @@ export function SettingsForm({
         ) : (
           <Input id="model" value={settings.models[provider]} onChange={(e) => setModel(e.target.value)} />
         )}
-        {models === null && <p className="text-sm text-muted-foreground">Buscando modelos disponibles…</p>}
-        {models?.error && <p className="text-sm text-muted-foreground">{models.error}. Podés escribir el nombre a mano.</p>}
+        {models === null && <p className="text-sm text-muted-foreground">Looking for available models…</p>}
+        {models?.error && <p className="text-sm text-muted-foreground">{models.error}. You can type the name manually.</p>}
 
         <div className="flex items-center gap-3">
           <Button variant="outline" onClick={runTest} disabled={testing}>
             {testing ? <Loader2 className="animate-spin" /> : <PlugZap />}
-            Probar conexión
+            Test connection
           </Button>
           {test?.ok === true && (
             <span className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 className="size-4" /> Responde ({(test.ms / 1000).toFixed(1)}s)
+              <CheckCircle2 className="size-4" /> Working ({(test.ms / 1000).toFixed(1)}s)
             </span>
           )}
           {test?.ok === false && (
@@ -202,11 +202,11 @@ export function SettingsForm({
       </section>
 
       <section className="space-y-4">
-        <h2 className="font-medium">Correcciones</h2>
+        <h2 className="font-medium">Corrections</h2>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <Label>Idioma de las explicaciones</Label>
-            <p className="text-sm text-muted-foreground">En inglés es más inmersivo; en español, más claro.</p>
+            <Label>Explanation language</Label>
+            <p className="text-sm text-muted-foreground">English is more immersive; Spanish is clearer.</p>
           </div>
           <Select
             value={settings.explanationLanguage}
@@ -216,16 +216,16 @@ export function SettingsForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="es">Español</SelectItem>
+              <SelectItem value="es">Spanish</SelectItem>
               <SelectItem value="en">English</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <Label htmlFor="typos">Contar typos en las estadísticas</Label>
+            <Label htmlFor="typos">Count typos in stats</Label>
             <p className="text-sm text-muted-foreground">
-              Los typos siempre se marcan en la corrección, pero no reflejan falta de conocimiento.
+              Typos are always highlighted in corrections, but they don’t reflect a lack of knowledge.
             </p>
           </div>
           <Switch
@@ -238,7 +238,7 @@ export function SettingsForm({
 
       <Button onClick={save} disabled={saving}>
         {saving && <Loader2 className="animate-spin" />}
-        Guardar
+        Save
       </Button>
     </div>
   );
@@ -270,7 +270,7 @@ function ApiKeyField({
       });
       setValue("");
       onChange(result.providers);
-      toast.success(apiKey ? "API key guardada" : "API key eliminada");
+      toast.success(apiKey ? "API key saved" : "API key removed");
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -281,23 +281,23 @@ function ApiKeyField({
   return (
     <section className="space-y-2">
       <Label htmlFor="api-key" className="font-medium">
-        API key de {PROVIDERS[provider].label}
+        {PROVIDERS[provider].label} API key
       </Label>
 
       {status.source === "app" && (
         <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm">
           <span>
-            Guardada en la app: <code>{status.detail}</code>
+            Saved in the app: <code>{status.detail}</code>
           </span>
           <Button variant="ghost" size="sm" onClick={() => save(null)} disabled={saving}>
-            Eliminar
+            Remove
           </Button>
         </div>
       )}
       {status.source === "env" && (
         <p className="text-sm text-muted-foreground">
-          Usando <code>{KEY_ENV_VARS[provider]}</code> del entorno (<code>{status.detail}</code>). Si guardás una
-          acá, tiene prioridad.
+          Using <code>{KEY_ENV_VARS[provider]}</code> from the environment (<code>{status.detail}</code>). A key saved
+          here takes priority.
         </p>
       )}
 
@@ -314,18 +314,18 @@ function ApiKeyField({
           autoComplete="off"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder={status.source === "app" ? "Pegá una nueva key para reemplazarla" : "Pegá tu API key"}
+          placeholder={status.source === "app" ? "Paste a new key to replace it" : "Paste your API key"}
         />
         <Button type="submit" variant="outline" disabled={saving || !value.trim()}>
           {saving && <Loader2 className="animate-spin" />}
-          Guardar key
+          Save key
         </Button>
       </form>
       <p className="text-sm text-muted-foreground">
-        Se guarda solo en tu base local y nunca se muestra completa.{" "}
+        It’s only stored in your local database and never shown in full.{" "}
         {!status.configured && (
           <a href={KEY_URLS[provider]} target="_blank" rel="noreferrer" className="underline underline-offset-4">
-            Conseguir una key gratis
+            Get a free key
           </a>
         )}
       </p>

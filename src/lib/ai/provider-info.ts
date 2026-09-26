@@ -8,19 +8,19 @@ export const PROVIDERS: Record<
 > = {
   ollama: {
     label: "Ollama (local)",
-    description: "Modelo corriendo en tu PC. Gratis y privado.",
+    description: "Runs on your PC. Free and private.",
     defaultModel: "qwen3:14b",
     local: true,
   },
   gemini: {
     label: "Google Gemini",
-    description: "Free tier sin tarjeta. Ojo: en el plan gratis Google puede usar los datos.",
+    description: "Free tier, no credit card. Note: on the free plan Google may use your data.",
     defaultModel: "gemini-flash-latest",
     local: false,
   },
   groq: {
     label: "Groq",
-    description: "Free tier con límite diario. Muy rápido.",
+    description: "Free tier with daily limits. Very fast.",
     defaultModel: "openai/gpt-oss-120b",
     local: false,
   },

@@ -93,8 +93,8 @@ export function ChatView({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="correction">Corrección</SelectItem>
-              <SelectItem value="conversation">Conversación</SelectItem>
+              <SelectItem value="correction">Correction</SelectItem>
+              <SelectItem value="conversation">Conversation</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -105,8 +105,8 @@ export function ChatView({
           {messages.length === 0 && (
             <p className="py-16 text-center text-muted-foreground">
               {mode === "conversation"
-                ? "Escribí sobre lo que quieras: te corrijo y seguimos la charla."
-                : "Escribí algo en inglés y te lo devuelvo corregido."}
+                ? "Write about anything you like: I'll correct you and keep the conversation going."
+                : "Write something in English and I'll give it back corrected."}
             </p>
           )}
           {messages.map((m) =>

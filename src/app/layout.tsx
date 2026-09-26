@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "English Companion",
-  description: "Tu compañero de práctica de inglés con IA",
+  description: "Your AI English practice companion",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
 
   return (
     <html
-      lang="es"
+      lang="en"
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >

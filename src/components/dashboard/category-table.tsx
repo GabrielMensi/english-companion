@@ -4,7 +4,7 @@ import { categoryLabel } from "@/lib/taxonomy";
 
 export function CategoryTable({ categories }: { categories: CategoryStat[] }) {
   if (categories.length === 0) {
-    return <p className="text-sm text-muted-foreground">Sin errores en este período.</p>;
+    return <p className="text-sm text-muted-foreground">No mistakes in this period.</p>;
   }
 
   return (
@@ -12,11 +12,11 @@ export function CategoryTable({ categories }: { categories: CategoryStat[] }) {
       <table className="w-full text-sm">
         <thead className="text-left text-muted-foreground">
           <tr className="border-b">
-            <th className="py-2 pr-4 font-normal">Categoría</th>
-            <th className="py-2 pr-4 text-right font-normal">Errores</th>
-            <th className="py-2 pr-4 text-right font-normal">Graves</th>
-            <th className="py-2 pr-4 text-right font-normal">Cada 100 palabras</th>
-            <th className="py-2 font-normal">Tendencia</th>
+            <th className="py-2 pr-4 font-normal">Category</th>
+            <th className="py-2 pr-4 text-right font-normal">Mistakes</th>
+            <th className="py-2 pr-4 text-right font-normal">Major</th>
+            <th className="py-2 pr-4 text-right font-normal">Per 100 words</th>
+            <th className="py-2 font-normal">Trend</th>
           </tr>
         </thead>
         <tbody>
@@ -43,17 +43,17 @@ function Trend({ value }: { value: number | null }) {
   if (Math.abs(value) < 0.05) {
     return (
       <span className="flex items-center gap-1 text-muted-foreground">
-        <Minus className="size-3.5" /> Estable
+        <Minus className="size-3.5" /> Stable
       </span>
     );
   }
   return value < 0 ? (
     <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
-      <ArrowDownRight className="size-3.5" /> Mejorando
+      <ArrowDownRight className="size-3.5" /> Improving
     </span>
   ) : (
     <span className="flex items-center gap-1 text-red-700 dark:text-red-400">
-      <ArrowUpRight className="size-3.5" /> Empeorando
+      <ArrowUpRight className="size-3.5" /> Getting worse
     </span>
   );
 }

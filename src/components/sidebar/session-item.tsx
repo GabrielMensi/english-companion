@@ -70,7 +70,7 @@ export function SessionItem({ session, active }: { session: SessionSummary; acti
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="Acciones"
+            aria-label="Actions"
             className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 group-hover:opacity-100 aria-expanded:opacity-100"
           >
             <MoreHorizontal />
@@ -83,10 +83,10 @@ export function SessionItem({ session, active }: { session: SessionSummary; acti
               setDialog("rename");
             }}
           >
-            <Pencil /> Renombrar
+            <Pencil /> Rename
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => setDialog("delete")}>
-            <Trash2 /> Eliminar
+            <Trash2 /> Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -95,12 +95,12 @@ export function SessionItem({ session, active }: { session: SessionSummary; acti
         <DialogContent>
           <form onSubmit={rename} className="flex flex-col gap-4">
             <DialogHeader>
-              <DialogTitle>Renombrar chat</DialogTitle>
+              <DialogTitle>Rename chat</DialogTitle>
             </DialogHeader>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus maxLength={120} />
             <DialogFooter>
               <Button type="submit" disabled={!title.trim()}>
-                Guardar
+                Save
               </Button>
             </DialogFooter>
           </form>
@@ -110,17 +110,17 @@ export function SessionItem({ session, active }: { session: SessionSummary; acti
       <Dialog open={dialog === "delete"} onOpenChange={(open) => !open && setDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>¿Eliminar este chat?</DialogTitle>
+            <DialogTitle>Delete this chat?</DialogTitle>
             <DialogDescription>
-              Se borran los mensajes y sus correcciones, y dejan de contar en el dashboard.
+              Its messages and corrections will be deleted and will no longer count in the dashboard.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(null)}>
-              Cancelar
+              Cancel
             </Button>
             <Button variant="destructive" onClick={remove}>
-              Eliminar
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

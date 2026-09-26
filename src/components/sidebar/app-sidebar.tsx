@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-  { href: "/settings", label: "Configuración", icon: Settings },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export function AppSidebar({ sessions }: { sessions: SessionSummary[] }) {
@@ -50,7 +50,7 @@ export function AppSidebar({ sessions }: { sessions: SessionSummary[] }) {
       <div className="mt-4 px-5 pb-1 text-xs font-medium text-muted-foreground">Chats</div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
         {sessions.length === 0 ? (
-          <p className="px-2 py-1 text-sm text-muted-foreground">Todavía no hay chats.</p>
+          <p className="px-2 py-1 text-sm text-muted-foreground">No chats yet.</p>
         ) : (
           <ul className="flex flex-col gap-0.5">
             {sessions.map((s) => (
