@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "next typegen && tsc --noEmit",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "eval:models": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/run.mts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.82",

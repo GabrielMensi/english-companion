@@ -51,8 +51,13 @@ function requireApiKey(provider: KeyProvider): string {
 
 type CallSettings = Pick<
   Parameters<typeof generateText>[0],
-  "model" | "providerOptions" | "maxRetries" | "temperature"
+  "model" | "providerOptions" | "maxRetries" | "temperature" | "timeout"
 >;
+
+// A hung provider must fail (and fall back) instead of waiting forever. Local
+// models get more time because the first request loads them into the GPU.
+const LOCAL_TIMEOUT_MS = 180_000;
+const REMOTE_TIMEOUT_MS = 60_000;
 
 export interface ResolvedModel {
   provider: ProviderId;
@@ -80,6 +85,7 @@ export function resolveModel(settings: Settings, provider: ProviderId = settings
           model,
           // A local server is either up or not: retrying only delays the error.
           maxRetries: 0,
+          timeout: LOCAL_TIMEOUT_MS,
           providerOptions: {
             ollama: {
               // Reasoning ("thinking") is much slower and doesn't improve corrections.
@@ -96,7 +102,12 @@ export function resolveModel(settings: Settings, provider: ProviderId = settings
       return {
         provider,
         modelId,
-        call: ({ temperature, retry = true }) => ({ model, temperature, maxRetries: retry ? 2 : 0 }),
+        call: ({ temperature, retry = true }) => ({
+          model,
+          temperature,
+          maxRetries: retry ? 2 : 0,
+          timeout: REMOTE_TIMEOUT_MS,
+        }),
       };
     }
     case "groq": {
@@ -104,7 +115,12 @@ export function resolveModel(settings: Settings, provider: ProviderId = settings
       return {
         provider,
         modelId,
-        call: ({ temperature, retry = true }) => ({ model, temperature, maxRetries: retry ? 2 : 0 }),
+        call: ({ temperature, retry = true }) => ({
+          model,
+          temperature,
+          maxRetries: retry ? 2 : 0,
+          timeout: REMOTE_TIMEOUT_MS,
+        }),
       };
     }
   }

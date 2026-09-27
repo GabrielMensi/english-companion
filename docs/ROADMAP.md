@@ -9,6 +9,7 @@
 - Convertir un mensaje corregido en prompt estructurado.
 - Dashboard: errores cada 100 palabras, evolución, áreas a trabajar, tendencias, errores frecuentes.
 - Providers: Ollama (local), Gemini y Groq (free tier), con API keys y URL de Ollama configurables desde la app.
+- Set de evaluación de modelos (`pnpm eval:models`) y timeouts por request.
 - Selector de modelo en el chat, modelo registrado en cada respuesta y fallback automático entre modelos configurados.
 
 ## Próximo
@@ -21,9 +22,6 @@ A partir de las 3 categorías más flojas del dashboard, generar ejercicios cort
 
 ### Reporte semanal / plan de estudio
 La IA lee las estadísticas de la semana (categorías, tendencias, errores frecuentes, vocabulario) y arma un plan concreto: qué temas practicar, con qué tipo de ejercicios y ejemplos.
-
-### Set de evaluación de modelos
-Un set de ~20 oraciones con errores conocidos (incluidos typos y falsos amigos) y un script que las corre contra cada modelo configurado y mide precisión, formato válido y tiempo de respuesta. Sirve para elegir modelo con datos cada vez que sale uno nuevo.
 
 ### Streaming de la corrección
 Mostrar la corrección a medida que se genera (`streamText` + `Output.object`) para que los modelos locales se sientan más rápidos.
