@@ -64,6 +64,7 @@ describe("shortReason", () => {
   it("summarizes common provider errors", () => {
     expect(shortReason(new Error("API key not valid. Please pass a valid API key."))).toBe("invalid API key");
     expect(shortReason(new Error("model 'foo' not found"))).toBe("model not found");
+    expect(shortReason(new Error("The operation was aborted due to timeout"))).toBe("timed out");
     expect(shortReason(new Error("x".repeat(100)))).toHaveLength(78);
   });
 });

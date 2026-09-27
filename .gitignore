@@ -43,3 +43,6 @@ next-env.d.ts
 
 # local database
 /data/
+
+# model evaluation output
+/.eval-results/

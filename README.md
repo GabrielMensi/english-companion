@@ -62,6 +62,7 @@ Ollama corre en Windows (donde está la GPU) y la app en WSL. Con `networkingMod
 | `pnpm test` | Tests unitarios (vitest) |
 | `pnpm typecheck` | Genera tipos de rutas y corre `tsc` |
 | `pnpm lint` | ESLint |
+| `pnpm eval:models <provider>:<model> …` | Compara modelos sobre un set de oraciones con errores conocidos (ej. `ollama:qwen3:14b gemini:gemini-flash-lite-latest`) |
 | `pnpm db:generate` | Genera una migración después de cambiar `src/db/schema.ts` |
 
 ## Stack
