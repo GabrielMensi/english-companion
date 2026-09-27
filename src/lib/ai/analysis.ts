@@ -78,7 +78,7 @@ ${categories}
    - moderate: a clear grammar or vocabulary mistake a reader would notice, but the meaning is still clear.
    - major: the meaning changes or becomes unclear, or it's a fundamental pattern error (false friends, a tense that changes the meaning, Spanish calques that make the sentence confusing).
 6. explanation: in ${language}. One or two short sentences explaining the rule, not just restating the fix.
-7. spanishPhrases: ONLY for Spanish words that actually appear in the learner's message, usually between [square brackets] because the learner didn't know how to say them. For each one, give 1-3 English options and an optional short usage note in ${language}, and use the best option in correctedText and naturalText. These are NOT errors. Never include English words, misspelled English words or typos here. If the message has no Spanish, return an empty array.
+7. spanishPhrases: one entry for EACH text the learner wrote between [square brackets], and nothing else. Brackets mean the learner didn't know how to say it in English. For each one, give 1-3 English options and an optional short usage note in ${language}, and use the best option in correctedText and naturalText. These are NOT errors. Never add words that are not between brackets, even if they are misspelled or look Spanish. If there are no brackets, return an empty array.
 ${replyRule}
 
 The learner's message may contain typos: always infer the intended meaning, never ask for clarification.
@@ -137,7 +137,6 @@ export function normalizeAnalysis(raw: Analysis, mode: SessionMode, originalText
     });
 
   const naturalText = raw.naturalText?.trim() || null;
-  const errorFragments = new Set(errors.map((e) => e.original.toLowerCase()));
 
   return {
     correctedText,
@@ -149,15 +148,9 @@ export function normalizeAnalysis(raw: Analysis, mode: SessionMode, originalText
         english: p.english.map(clean).filter(Boolean).slice(0, 3),
         note: p.note?.trim() || null,
       }))
-      // Drop phrases the model made up: they must appear in what the learner wrote.
-      .filter(
-        (p) =>
-          p.spanish &&
-          p.english.length > 0 &&
-          containsLoosely(originalText, p.spanish) &&
-          // A misspelled English word already reported as an error isn't Spanish.
-          !errorFragments.has(p.spanish.toLowerCase()),
-      ),
+      // Only what the learner explicitly asked for, between [brackets]. Models also
+      // "translate" misspelled English words, which would pollute the vocabulary.
+      .filter((p) => p.spanish && p.english.length > 0 && isLookup(p.spanish)),
     reply: mode === "conversation" ? raw.reply?.trim() || null : null,
   };
 }

@@ -15,6 +15,13 @@
       "when": 1790466551640,
       "tag": "0001_model_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790472592865,
+      "tag": "0002_vocabulary_brackets_only",
+      "breakpoints": true
     }
   ]
 }

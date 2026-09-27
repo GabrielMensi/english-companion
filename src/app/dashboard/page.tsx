@@ -63,6 +63,38 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             </div>
 
             <Panel
+              title="Vocabulary"
+              subtitle="Words you looked up with [brackets] in this period"
+              action={
+                <Link href="/vocabulary" className="text-sm text-muted-foreground hover:text-foreground">
+                  See all →
+                </Link>
+              }
+            >
+              {vocabulary.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No lookups in this period. When you don’t know a word, write it in Spanish between brackets:{" "}
+                  <code className="rounded bg-muted px-1">I want to [aprovechar] this</code>
+                </p>
+              ) : (
+                <ul className="flex flex-wrap gap-2">
+                  {vocabulary.slice(0, 12).map((w) => (
+                    <li key={w.key} className="rounded-lg border px-3 py-1.5 text-sm">
+                      <span className="text-muted-foreground">{w.spanish}</span> →{" "}
+                      <span className="font-medium">{w.english[0]}</span>
+                      {w.timesLookedUp > 1 && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">{w.timesLookedUp}×</span>
+                      )}
+                    </li>
+                  ))}
+                  {vocabulary.length > 12 && (
+                    <li className="px-1 py-1.5 text-sm text-muted-foreground">+{vocabulary.length - 12} more</li>
+                  )}
+                </ul>
+              )}
+            </Panel>
+
+            <Panel
               title="By category"
               subtitle="Trend compared with the previous period of the same length"
             >
@@ -73,18 +105,6 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               <TopMistakes mistakes={stats.topMistakes} />
             </Panel>
 
-            {vocabulary.length > 0 && (
-              <Panel title="Vocabulary lookups" subtitle="What you wrote between [brackets]">
-                <ul className="grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
-                  {vocabulary.map((v) => (
-                    <li key={v.id}>
-                      <span className="text-muted-foreground">{v.spanish}</span> →{" "}
-                      <span className="font-medium">{v.english.join(" / ")}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Panel>
-            )}
           </>
         )}
       </div>
@@ -92,12 +112,25 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   );
 }
 
-function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Panel({
+  title,
+  subtitle,
+  action,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <section className="space-y-4 rounded-xl border bg-card p-5">
-      <div>
-        <h2 className="font-medium">{title}</h2>
-        {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-medium">{title}</h2>
+          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+        </div>
+        {action}
       </div>
       {children}
     </section>

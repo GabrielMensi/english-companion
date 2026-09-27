@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, eq, gte, lt } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { db, schema } from "@/db";
 import { getSettings } from "@/lib/settings";
 import { computeStats, type StatCorrection, type StatMessage } from "@/lib/stats-core";
+import { getVocabulary } from "@/lib/vocabulary";
 
 export const RANGES = { "7": 7, "30": 30, "90": 90, all: null } as const;
 export type RangeKey = keyof typeof RANGES;
@@ -36,14 +37,8 @@ export function getDashboardData(range: RangeKey) {
     previousCorrections: previous.corrections,
   });
 
-  const vocabulary = db
-    .select()
-    .from(schema.vocabulary)
-    .where(from !== null ? gte(schema.vocabulary.createdAt, new Date(from)) : undefined)
-    .orderBy(desc(schema.vocabulary.createdAt))
-    .limit(30)
-    .all()
-    .map((v) => ({ id: v.id, spanish: v.spanish, english: v.english, note: v.note }));
+  // Words looked up with [brackets] during the period, grouped and newest first.
+  const vocabulary = getVocabulary().filter((w) => from === null || w.lastSeen >= from);
 
   return { stats, vocabulary, countTypos: settings.countTyposInStats };
 }

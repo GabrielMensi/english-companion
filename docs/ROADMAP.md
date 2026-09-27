@@ -9,10 +9,14 @@
 - Convertir un mensaje corregido en prompt estructurado.
 - Dashboard: errores cada 100 palabras, evolución, áreas a trabajar, tendencias, errores frecuentes.
 - Providers: Ollama (local), Gemini y Groq (free tier), con API keys y URL de Ollama configurables desde la app.
+- Página Vocabulary y panel en el dashboard con las palabras buscadas entre [corchetes].
 - Set de evaluación de modelos (`pnpm eval:models`) y timeouts por request.
 - Selector de modelo en el chat, modelo registrado en cada respuesta y fallback automático entre modelos configurados.
 
 ## Próximo
+
+### Flashcards de vocabulario
+Practicar las palabras de la página Vocabulary (lo que escribiste entre [corchetes]): español → inglés, con la oración original como pista. Cada palabra agrupada (`VocabularyWord`) es una tarjeta.
 
 ### Repaso espaciado de tus errores
 Flashcards generadas desde tus correcciones reales (el original como pregunta, la corrección como respuesta), con un algoritmo tipo SM-2. Se guarda el estado de cada tarjeta en una tabla `reviews`.
