@@ -104,6 +104,23 @@ describe("grounding", () => {
     expect(result.errors.map((e) => e.original)).toEqual(["depend of"]);
   });
 
+  it("only keeps vocabulary the learner wrote between [brackets]", () => {
+    const phrase = { english: ["x"], note: null };
+    const result = normalizeAnalysis(
+      {
+        ...base,
+        spanishPhrases: [
+          { ...phrase, spanish: "aprovechar" },
+          { ...phrase, spanish: "Meaby" },
+          { ...phrase, spanish: "configurated" },
+        ],
+      },
+      "correction",
+      "Meaby the models configurated as fallback can [aprovechar] it.",
+    );
+    expect(result.spanishPhrases.map((p) => p.spanish)).toEqual(["aprovechar"]);
+  });
+
   it("drops spanish phrases that are not in the learner's text", () => {
     const phrase = { english: ["x"], note: null };
     const result = normalizeAnalysis(
