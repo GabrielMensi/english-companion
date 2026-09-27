@@ -27,7 +27,7 @@ Corre 100% local y está pensado para ser gratis: por defecto usa un modelo loca
 
 ```bash
 pnpm install
-ollama pull qwen3:14b        # o el modelo que elijas
+ollama pull gemma4:12b       # modelo local recomendado (requiere Ollama reciente)
 pnpm dev
 ```
 
@@ -41,12 +41,18 @@ La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migr
 
 ### Modelos recomendados
 
-| Hardware | Modelo | Notas |
-|---|---|---|
-| GPU 16 GB | `qwen3:14b` | Default. Muy bueno siguiendo instrucciones y devolviendo JSON. |
-| GPU 16 GB | `gpt-oss:20b` | Alternativa rápida (MoE); más justa de VRAM. |
-| GPU 8–12 GB | `qwen3:8b`, `gemma3:12b` | Más livianos; pueden equivocarse más con el formato. |
-| Sin GPU | Gemini / Groq | Free tier por API. |
+Configuración recomendada: **Gemini Flash-Lite como principal y `gemma4:12b` como fallback local**. Resultados de `pnpm eval:models` (septiembre 2026, 16 oraciones con errores típicos de hispanohablantes, GPU de 16 GB):
+
+| Modelo | Puntaje | Tiempo promedio | Notas |
+|---|---|---|---|
+| `gemini-flash-lite-latest` (API) | 96 % | 2 s | ~500 requests/día gratis. El más preciso. |
+| `gemma4:12b` (local, 7,6 GB) | 93 % | 9 s | El mejor local; detecta falsos amigos ("actually") y errores de significado. |
+| `qwen3:14b` (local) | 91 % | 7 s | Bueno, pero se le escapan errores de significado. |
+| `qwen2.5:14b-instruct` (local) | 89 % | 8 s | |
+| `gpt-oss:20b` (local) | 84 % | 34 s | Razona siempre: demasiado lento para chatear. |
+| Gemma 4 26B / 31B (API) | 44–63 % | 7–44 s | Lentos y con timeouts en el free tier. |
+
+`gemini-flash-latest` es más capaz, pero en el free tier tiene solo ~20 requests/día.
 
 > En el plan gratis de Gemini, Google puede usar los datos para mejorar sus productos. Groq no entrena con tus datos, pero tiene límites diarios.
 

@@ -87,6 +87,23 @@ describe("grounding", () => {
     expect(result.errors.map((e) => e.original)).toEqual(["Depend of"]);
   });
 
+  it("never reports [bracketed] vocabulary lookups as mistakes", () => {
+    const error = { category: "vocabulary" as const, subcategory: "x", severity: "moderate" as const, explanation: "" };
+    const result = normalizeAnalysis(
+      {
+        ...base,
+        errors: [
+          { ...error, original: "[aprovechar]", correction: "take advantage of" },
+          { ...error, original: "aprovechar", correction: "make the most of" },
+          { ...error, original: "depend of", correction: "depend on" },
+        ],
+      },
+      "correction",
+      text,
+    );
+    expect(result.errors.map((e) => e.original)).toEqual(["depend of"]);
+  });
+
   it("drops spanish phrases that are not in the learner's text", () => {
     const phrase = { english: ["x"], note: null };
     const result = normalizeAnalysis(
