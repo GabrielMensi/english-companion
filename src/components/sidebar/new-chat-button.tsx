@@ -12,13 +12,17 @@ export function NewChatButton({
   mode = "correction",
   label = "New chat",
   variant = "default",
+  iconOnly = false,
   className,
+  ...props
 }: {
   mode?: SessionMode;
   label?: string;
   variant?: "default" | "outline";
+  /** Square icon button, for the collapsed sidebar. */
+  iconOnly?: boolean;
   className?: string;
-}) {
+} & Omit<React.ComponentProps<typeof Button>, "onClick" | "variant">) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -36,9 +40,18 @@ export function NewChatButton({
   }
 
   return (
-    <Button onClick={create} disabled={pending} variant={variant} className={className}>
+    <Button
+      // Extra props (e.g. from a tooltip trigger) go to the underlying button.
+      {...props}
+      onClick={create}
+      disabled={pending}
+      variant={variant}
+      size={iconOnly ? "icon-sm" : "default"}
+      aria-label={iconOnly ? label : undefined}
+      className={className}
+    >
       <Plus />
-      {label}
+      {!iconOnly && label}
     </Button>
   );
 }
