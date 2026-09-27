@@ -10,14 +10,14 @@ export const PROVIDERS: Record<
     label: "Ollama (local)",
     name: "Ollama",
     description: "Runs on your PC. Free and private.",
-    defaultModel: "qwen3:14b",
+    defaultModel: "gemma4:12b",
     local: true,
   },
   gemini: {
     label: "Google Gemini",
     name: "Gemini",
-    description: "Free tier, no credit card. Note: on the free plan Google may use your data.",
-    defaultModel: "gemini-flash-latest",
+    description: "Free tier, no credit card (Flash-Lite: ~500 requests/day). Note: on the free plan Google may use your data.",
+    defaultModel: "gemini-flash-lite-latest",
     local: false,
   },
   groq: {

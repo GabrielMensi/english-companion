@@ -108,6 +108,13 @@ export function normalizeAnalysis(raw: Analysis, mode: SessionMode, originalText
   const clean = (s: string) => s.trim();
   const correctedText = raw.correctedText.trim() || originalText;
 
+  // Text the learner wrote between [brackets] is a vocabulary lookup, never a mistake.
+  const lookups = [...originalText.matchAll(/\[([^\]]+)\]/g)].map((m) => m[1]);
+  const isLookup = (fragment: string) => {
+    const inner = fragment.replace(/^\[|\]$/g, "").trim();
+    return inner.length > 0 && lookups.some((l) => containsLoosely(l, inner));
+  };
+
   const seen = new Set<string>();
   const errors = raw.errors
     .map((e) => ({
@@ -122,6 +129,7 @@ export function normalizeAnalysis(raw: Analysis, mode: SessionMode, originalText
       if (e.original === e.correction) return false;
       // ...or copy them from the prompt's example instead of the learner's text.
       if (!containsLoosely(originalText, e.original)) return false;
+      if (isLookup(e.original)) return false;
       const key = `${e.original.toLowerCase()}→${e.correction.toLowerCase()}`;
       if (seen.has(key)) return false;
       seen.add(key);
