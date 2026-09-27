@@ -2,7 +2,7 @@
  * Pure statistics computation for the dashboard. Data volume is personal-scale,
  * so everything is computed in memory from the raw rows of the period.
  */
-import { type ErrorCategory, SEVERITIES, type Severity, SEVERITY_WEIGHTS } from "@/lib/taxonomy";
+import { countsAsMistake, type ErrorCategory, SEVERITIES, type Severity, SEVERITY_WEIGHTS } from "@/lib/taxonomy";
 
 export interface StatMessage {
   createdAt: number;
@@ -68,8 +68,8 @@ export interface Stats {
 const DAY = 86_400_000;
 
 export function computeStats(input: StatsInput): Stats {
-  const counted = input.corrections.filter((c) => input.countTypos || c.severity !== "typo");
-  const previousCounted = input.previousCorrections.filter((c) => input.countTypos || c.severity !== "typo");
+  const counted = input.corrections.filter((c) => countsAsMistake(c.severity, input.countTypos));
+  const previousCounted = input.previousCorrections.filter((c) => countsAsMistake(c.severity, input.countTypos));
 
   const words = sum(input.messages.map((m) => m.wordCount));
   const previousWords = sum(input.previousMessages.map((m) => m.wordCount));

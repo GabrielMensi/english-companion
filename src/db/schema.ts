@@ -42,12 +42,16 @@ export const messages = sqliteTable(
     improvedPrompt: text("improved_prompt"),
     improvedPromptProvider: text("improved_prompt_provider"),
     improvedPromptModel: text("improved_prompt_model"),
+    /** How long generating the improved prompt took, in milliseconds. */
+    improvedPromptDurationMs: integer("improved_prompt_duration_ms"),
     wordCount: integer("word_count").notNull().default(0),
     /** Provider and model that produced the analysis (or the reply). */
     provider: text("provider"),
     model: text("model"),
     /** Models tried before `model` that failed, when the fallback kicked in. */
     fallbackAttempts: text("fallback_attempts", { mode: "json" }).$type<FallbackAttempt[]>(),
+    /** How long the analysis (or the reply, generated with it) took, including fallbacks, in milliseconds. */
+    durationMs: integer("duration_ms"),
     createdAt: createdAt(),
   },
   (t) => [index("messages_session_idx").on(t.sessionId, t.createdAt)],

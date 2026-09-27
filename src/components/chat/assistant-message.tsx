@@ -10,7 +10,7 @@ export function AssistantMessage({ message }: { message: ChatMessage }) {
       </div>
       <div className="flex flex-col gap-1 pt-1">
         <p className="leading-relaxed whitespace-pre-wrap">{message.content}</p>
-        <ModelNote verb="Replied by" provider={message.provider} model={message.model} />
+        <ModelNote verb="Replied by" provider={message.provider} model={message.model} durationMs={message.durationMs} />
       </div>
     </div>
   );

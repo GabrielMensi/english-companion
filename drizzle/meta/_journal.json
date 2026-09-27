@@ -22,6 +22,13 @@
       "when": 1790472592865,
       "tag": "0002_vocabulary_brackets_only",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790539974899,
+      "tag": "0003_response_time",
+      "breakpoints": true
     }
   ]
 }

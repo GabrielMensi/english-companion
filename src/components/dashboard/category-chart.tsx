@@ -7,6 +7,7 @@ import { categoryLabel, type Severity, SEVERITY_LABELS } from "@/lib/taxonomy";
 // Typos are excluded: they are not a learning signal.
 const SERIES: Severity[] = ["minor", "moderate", "major"];
 const COLOR: Record<Severity, string> = {
+  suggestion: "var(--muted-foreground)",
   typo: "var(--muted-foreground)",
   minor: "var(--viz-sev-minor)",
   moderate: "var(--viz-sev-moderate)",

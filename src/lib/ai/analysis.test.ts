@@ -4,6 +4,7 @@ import {
   buildAnalysisInstructions,
   buildAnalysisPrompt,
   containsLoosely,
+  isOptionalChange,
   normalizeAnalysis,
   toSnakeCase,
 } from "./analysis";
@@ -104,6 +105,23 @@ describe("grounding", () => {
     expect(result.errors.map((e) => e.original)).toEqual(["depend of"]);
   });
 
+  it("keeps real mistakes whose fragment happens to appear inside a lookup", () => {
+    const error = { category: "articles" as const, subcategory: "x", severity: "minor" as const, explanation: "" };
+    const result = normalizeAnalysis(
+      {
+        ...base,
+        errors: [
+          { ...error, original: "a", correction: "an" },
+          { ...error, original: "pro", correction: "the pro" },
+          { ...error, original: "[aprovechar] the time", correction: "take advantage of the time" },
+        ],
+      },
+      "correction",
+      "I want to [aprovechar] the time, it is a opportunity for a pro.",
+    );
+    expect(result.errors.map((e) => e.original)).toEqual(["a", "pro"]);
+  });
+
   it("only keeps vocabulary the learner wrote between [brackets]", () => {
     const phrase = { english: ["x"], note: null };
     const result = normalizeAnalysis(
@@ -163,5 +181,48 @@ describe("toSnakeCase", () => {
     expect(toSnakeCase("Present Perfect vs. Past Simple")).toBe("present_perfect_vs_past_simple");
     expect(toSnakeCase("missingArticle")).toBe("missing_article");
     expect(toSnakeCase("preposición")).toBe("preposicion");
+  });
+});
+
+describe("isOptionalChange", () => {
+  it("treats contractions and their full forms as optional", () => {
+    expect(isOptionalChange("is not", "isn't")).toBe(true);
+    expect(isOptionalChange("Push the work we have done", "Push the work we've done")).toBe(true);
+    expect(isOptionalChange("I would like", "I’d like")).toBe(true);
+    expect(isOptionalChange("it is fine", "it's fine")).toBe(true);
+  });
+
+  it("treats optional punctuation as optional", () => {
+    expect(isOptionalChange("which is better, Qwen or Gemini", "which is better: Qwen or Gemini")).toBe(true);
+    expect(isOptionalChange(", flashcards", "; flashcards")).toBe(true);
+    expect(isOptionalChange("Please, remind me", "Please remind me")).toBe(true);
+    expect(isOptionalChange("and work there", "and work there.")).toBe(true);
+  });
+
+  it("keeps real mistakes", () => {
+    expect(isOptionalChange("Its very difficult", "It's very difficult")).toBe(false);
+    expect(isOptionalChange("I'll like", "I'd like")).toBe(false);
+    expect(isOptionalChange("wich model is better qwen", "which model is better: Qwen")).toBe(false);
+    expect(isOptionalChange("the model's output", "the model is output")).toBe(false);
+    expect(isOptionalChange("same", "same")).toBe(false);
+  });
+});
+
+describe("suggestions", () => {
+  it("downgrades contraction and punctuation-only corrections to suggestions", () => {
+    const error = { category: "punctuation" as const, subcategory: "x", severity: "moderate" as const, explanation: "" };
+    const result = normalizeAnalysis(
+      {
+        ...base,
+        errors: [
+          { ...error, original: "is not", correction: "isn't" },
+          { ...error, original: "teh", correction: "the", severity: "typo" },
+          { ...error, original: "depend of", correction: "depend on" },
+        ],
+      },
+      "correction",
+      "It is not a problem, it depend of teh model.",
+    );
+    expect(result.errors.map((e) => e.severity)).toEqual(["suggestion", "typo", "moderate"]);
   });
 });

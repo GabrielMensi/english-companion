@@ -44,6 +44,18 @@ describe("computeStats", () => {
     expect(computeStats({ ...data, countTypos: true }).totals.errors).toBe(2);
   });
 
+  it("never counts suggestions as mistakes", () => {
+    const stats = computeStats(
+      input({
+        messages: [{ createdAt: now - DAY, wordCount: 50 }],
+        corrections: [correction({ severity: "suggestion", category: "punctuation" }), correction({})],
+        countTypos: true,
+      }),
+    );
+    expect(stats.totals.errors).toBe(1);
+    expect(stats.categories.map((c) => c.category)).toEqual(["articles"]);
+  });
+
   it("ranks categories by severity-weighted score", () => {
     const stats = computeStats(
       input({

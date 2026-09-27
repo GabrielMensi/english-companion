@@ -113,10 +113,12 @@ export async function analyzeStoredMessage(messageId: string): Promise<ChatMessa
   const settings = getSettings();
 
   try {
+    const started = Date.now();
     const { analysis, provider, modelId, fallbackAttempts } = await analyzeMessage(
       { text: message.content, mode: session.mode, history: getHistory(message) },
       settings,
     );
+    const durationMs = Date.now() - started;
 
     db.transaction((tx) => {
       // Retrying replaces any previous result for this message.
@@ -133,6 +135,7 @@ export async function analyzeStoredMessage(messageId: string): Promise<ChatMessa
           provider,
           model: modelId,
           fallbackAttempts: fallbackAttempts.length > 0 ? fallbackAttempts : null,
+          durationMs,
         })
         .where(eq(schema.messages.id, message.id))
         .run();
@@ -167,6 +170,7 @@ export async function analyzeStoredMessage(messageId: string): Promise<ChatMessa
             content: analysis.reply,
             provider,
             model: modelId,
+            durationMs,
             // Sort the reply right after the message it answers, even on retries.
             createdAt: new Date(message.createdAt.getTime() + 1),
           })
@@ -220,8 +224,14 @@ export async function improveMessagePrompt(messageId: string) {
   const message = db.select().from(schema.messages).where(eq(schema.messages.id, messageId)).get();
   if (!message || message.role !== "user") throw new Error("Message not found");
 
+  const started = Date.now();
   const { prompt, provider, modelId } = await improvePrompt(message.correctedText ?? message.content, getSettings());
-  const update = { improvedPrompt: prompt, improvedPromptProvider: provider, improvedPromptModel: modelId };
+  const update = {
+    improvedPrompt: prompt,
+    improvedPromptProvider: provider,
+    improvedPromptModel: modelId,
+    improvedPromptDurationMs: Date.now() - started,
+  };
   db.update(schema.messages).set(update).where(eq(schema.messages.id, messageId)).run();
   return update;
 }

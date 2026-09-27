@@ -85,23 +85,36 @@ export const CATEGORY_HINTS: Record<ErrorCategory, string> = {
   other: "anything that doesn't fit the categories above",
 };
 
-export const SEVERITIES = ["typo", "minor", "moderate", "major"] as const;
+/**
+ * "suggestion" is an optional improvement, not a mistake (contractions,
+ * optional punctuation...). Suggestions and typos never count as mistakes in
+ * the stats (typos can be opted in from Settings).
+ */
+export const SEVERITIES = ["suggestion", "typo", "minor", "moderate", "major"] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
 export const SEVERITY_LABELS: Record<Severity, string> = {
+  suggestion: "Suggestion",
   typo: "Typo",
   minor: "Minor",
   moderate: "Moderate",
   major: "Major",
 };
 
-/** Weight used by the dashboard to rank weak areas. Typos don't count. */
+/** Weight used by the dashboard to rank weak areas. Suggestions and typos don't count. */
 export const SEVERITY_WEIGHTS: Record<Severity, number> = {
+  suggestion: 0,
   typo: 0,
   minor: 1,
   moderate: 2,
   major: 3,
 };
+
+/** Whether a correction counts as a mistake in the stats. */
+export function countsAsMistake(severity: Severity, countTypos: boolean): boolean {
+  if (severity === "suggestion") return false;
+  return severity !== "typo" || countTypos;
+}
 
 export function categoryLabel(category: string): string {
   return CATEGORY_LABELS[category as ErrorCategory] ?? category;

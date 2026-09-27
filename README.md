@@ -11,10 +11,11 @@ Corre 100% local y está pensado para ser gratis: por defecto usa un modelo loca
   - **Conversación**: corrige y además te responde para seguir la charla.
 - **Correcciones detalladas**: diff del texto, lista de errores con categoría (taxonomía fija: tiempos verbales, preposiciones, falsos amigos…), gravedad (`typo`, leve, moderado, grave) y explicación.
 - **Tolerante a typos**: los errores de tipeo se marcan, pero no cuentan en las estadísticas (se puede cambiar en Configuración).
+- **Sugerencias, no errores**: contracciones ("is not" / "isn't"), puntuación opcional o comma splices en texto informal se muestran aparte como sugerencias y nunca cuentan en las estadísticas.
 - **"Cómo lo diría un nativo"**: una versión más natural cuando la corrección es correcta pero suena traducida.
 - **Escape al español**: si no sabés cómo decir algo, escribilo entre corchetes (`I want to [aprovechar] this`) y te da opciones en inglés. Queda guardado en la página **Vocabulary** (agrupado por palabra, con las veces que la buscaste y las oraciones donde la usaste) y en un panel del dashboard.
 - **Convertir en prompt**: sobre un mensaje corregido, lo reestructura como un prompt claro para una IA, listo para copiar.
-- **Selector de modelo** en el chat y nota en cada respuesta con el modelo que la generó.
+- **Selector de modelo** en el chat y nota en cada respuesta con el modelo que la generó y cuánto tardó.
 - **Fallback automático**: si el modelo elegido falla (offline, cuota, sobrecarga), prueba con los otros modelos configurados, en orden, y deja registrado cuál falló.
 - **Dashboard**: errores cada 100 palabras, evolución en el tiempo, áreas a trabajar por categoría y gravedad, tendencia contra el período anterior, errores más frecuentes y vocabulario buscado.
 

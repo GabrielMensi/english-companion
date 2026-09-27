@@ -50,11 +50,13 @@ export function scoreSample(sample: Sample, analysis: Analysis): SampleScore {
 
   // A sentence without mistakes is worth one point if nothing is flagged.
   const clean = sample.expect.length === 0;
-  const falsePositives = clean ? analysis.errors.length : 0;
+  // Suggestions are optional improvements, not mistakes, so they don't count.
+  const mistakes = analysis.errors.filter((e) => e.severity !== "suggestion");
+  const falsePositives = clean ? mistakes.length : 0;
   if (clean) {
     possible++;
     if (falsePositives === 0) points++;
-    else missed.push(`false positives: ${analysis.errors.map((e) => `"${e.original}"`).join(", ")}`);
+    else missed.push(`false positives: ${mistakes.map((e) => `"${e.original}"`).join(", ")}`);
   }
 
   return { points, possible, missed, falsePositives };
