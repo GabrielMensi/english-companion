@@ -12,6 +12,7 @@
 - Página Vocabulary y panel en el dashboard con las palabras buscadas entre [corchetes].
 - Set de evaluación de modelos (`pnpm eval:models`) y timeouts por request.
 - Selector de modelo en el chat, modelo registrado en cada respuesta y fallback automático entre modelos configurados.
+- Nivel `suggestion` para mejoras opcionales (contracciones, puntuación opcional), que no cuentan como errores, y tiempo de respuesta en cada mensaje.
 
 ## Próximo
 
@@ -25,10 +26,50 @@ Flashcards generadas desde tus correcciones reales (el original como pregunta, l
 A partir de las 3 categorías más flojas del dashboard, generar ejercicios cortos: completar huecos, reescribir oraciones o elegir la opción correcta. La respuesta del usuario también se corrige y suma a las estadísticas.
 
 ### Reporte semanal / plan de estudio
-La IA lee las estadísticas de la semana (categorías, tendencias, errores frecuentes, vocabulario) y arma un plan concreto: qué temas practicar, con qué tipo de ejercicios y ejemplos.
+La IA lee las estadísticas de la semana (categorías, tendencias, errores frecuentes, vocabulario) y arma un plan concreto: qué temas practicar, con qué tipo de ejercicios y ejemplos. Comparte base con el [reporte para la clase](#1-reporte-para-llevar-a-clase-prioridad-1).
 
 ### Streaming de la corrección
 Mostrar la corrección a medida que se genera (`streamText` + `Output.object`) para que los modelos locales se sientan más rápidos.
+
+## Integración con las clases
+
+Las clases son con un profesor por Google Meet, siguiendo un libro. La app ve cómo **escribís** todos los días y el profesor ve cómo **hablás**; hoy ninguno ve lo que ve el otro. La idea es cerrar ese círculo.
+
+### Los libros
+Los PDFs están en `books/` (ignorado en git: tienen copyright y pesan ~680 MB; nunca se suben).
+
+| Archivo | Curso | Páginas |
+|---|---|---|
+| `Roadmap.pdf` / `Roadmap - Workbook.pdf` | Roadmap B1 (Pearson): Student's Book y Workbook | 161 / 86 |
+| `Speak up.pdf` / `Speak up - Workbook.pdf` | Speakout (Pearson / BBC): Student's Book y Workbook | 170 / 96 |
+
+Lo que se verificó (2026-09-28):
+- **Son escaneos**: no tienen texto extraíble (`pdftotext` devuelve páginas vacías). Hay que leerlos como imagen, con un modelo de visión (Gemini Flash-Lite acepta imágenes y es gratis) o con OCR.
+- **El índice es muy aprovechable**: está en las páginas 2–5 de cada libro y se lee bien renderizado a 70 dpi (`pdftoppm -f 2 -l 5 -r 70`). Cada lección (1A, 1B…) tiene columnas *Grammar/Function*, *Vocabulary* y *Pronunciation* (Roadmap agrega *Speaking goal*; Speakout, *Reading*).
+- **La gramática se mapea directo a la taxonomía** de `src/lib/taxonomy.ts`. Ejemplos: present simple/continuous y past simple → `verb_tense`; *used to*, *be going to* → `verb_tense`; articles → `articles`; question forms → `question_formation`; verb patterns → `gerund_infinitive`; comparatives/superlatives → `comparatives`; modals for rules/advice, possibility/deduction → `modals`; zero/first conditional → `conditionals`; quantifiers → `plurals_countability`; phrasal verbs → `phrasal_verbs`; collocations with *get/make* → `collocations`.
+
+### 1. Reporte para llevar a clase (prioridad 1)
+Antes de cada clase, la app genera una página con: los errores más repetidos de la semana con ejemplos reales, las palabras buscadas con `[corchetes]` y las categorías que empeoraron. Se comparte pantalla en Meet o se manda antes, y el profesor dedica la clase a lo que realmente te cuesta en vez de adivinarlo.
+- Barato: los datos ya están en el dashboard (`getDashboardData`). Es una vista imprimible / exportable (Markdown o PDF) con rango "desde la última clase".
+- Opcional: un párrafo generado por la IA con "qué preguntarle al profesor".
+
+### 2. La app sigue el libro (prioridad 2)
+Se extrae una sola vez el índice de cada libro a un "syllabus" local (JSON en `data/`, no en git): unidades, lecciones, gramática, vocabulario y a qué categoría de la taxonomía corresponde cada tema. Se elige el libro y la **unidad actual** en Configuración, y con eso:
+- **Alerta de errores en temas ya vistos**: "Viste present perfect en la unidad 3 (Roadmap 3A) y lo erraste 6 veces esta semana". Distingue "todavía no lo estudié" de "lo estudié y no se me fijó", que es lo que más le sirve al profesor.
+- **Práctica enfocada**: los ejercicios dirigidos y las flashcards se generan con la gramática y el vocabulario de la unidad actual; el modo conversación propone temas de la unidad (p. ej. "Culture shock", "Bucket lists").
+- **Vocabulario activo**: marcar si usás al escribir las palabras de la unidad, no solo si las reconocés.
+- Extracción: renderizar las páginas del índice a imagen y pasarlas a un modelo de visión con un schema (unidad, lección, título, gramática, vocabulario, categoría), revisando el resultado a mano una vez. Es un paso único por libro.
+
+### 3. Correcciones del profesor después de la clase
+Después de la clase se cargan las correcciones y palabras nuevas que dio el profesor, como una nueva fuente "From class" (columna `source` en `corrections` / `vocabulary`). Suman a las estadísticas y al vocabulario junto con las de la IA, y después entran en las flashcards. Se puede cargar en texto libre y que la IA lo estructure con la misma taxonomía.
+
+### 4. Tareas sin spoilers
+Para las tareas de escritura que da el profesor: un modo "homework" donde escribís el texto y las correcciones de la IA quedan ocultas hasta que lo marcás como entregado. Así el profesor ve tus errores reales, y después podés comparar su corrección con la de la IA, que además sirve para evaluar qué tan buenos son los modelos.
+
+### 5. Speaking desde la transcripción de la clase (más adelante)
+Google Meet puede generar transcripciones, pero en general solo en cuentas pagas de Workspace. Con una transcripción, la app analizaría solo tus intervenciones y llevaría estadísticas de errores **hablados** separadas de las escritas.
+- Problemas: los errores del reconocimiento de voz parecen errores de gramática, y grabar localmente (Whisper) requiere el consentimiento del profesor.
+- Relacionado con la idea de voz de "Otras".
 
 ## Ideas a futuro
 

@@ -46,3 +46,6 @@ next-env.d.ts
 
 # model evaluation output
 /.eval-results/
+
+# English textbooks (copyrighted, local only)
+/books/

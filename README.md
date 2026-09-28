@@ -92,4 +92,4 @@ drizzle/               migraciones SQL
 docs/ROADMAP.md        próximas features e ideas
 ```
 
-Ver [docs/ROADMAP.md](docs/ROADMAP.md) para lo que viene.
+Los libros del curso (PDFs) van en `books/`, que está ignorado en git. Ver [docs/ROADMAP.md](docs/ROADMAP.md) para lo que viene, incluida la integración con las clases.
