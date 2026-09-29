@@ -1,0 +1,1 @@
+ALTER TABLE `messages` ADD `tense_counts` text;
