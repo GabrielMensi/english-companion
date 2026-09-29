@@ -1,6 +1,6 @@
 # Tiempos verbales: diagnóstico por tiempo
 
-Estado (2026-09-29): propuesta. Los tiempos verbales son uno de los temas más importantes para un hispanohablante, pero hoy la app solo sabe **cuántos** errores hay en `verb_tense`, no **en qué tiempo** ni **cuáles domino**.
+Estado (2026-09-29): **implementado** (ver "Implementado" al final). Quedan la estrategia de mejora (ejercicios, conversación dirigida) y la comparación escrito / hablado. Los tiempos verbales son uno de los temas más importantes para un hispanohablante, pero hoy la app solo sabe **cuántos** errores hay en `verb_tense`, no **en qué tiempo** ni **cuáles domino**.
 
 ## Qué pasa hoy
 
@@ -150,3 +150,20 @@ El diagnóstico alimenta las features del roadmap que ya estaban previstas, con 
 9. **Docs**: README y ROADMAP.
 
 Después: ejercicios de contraste y conversación dirigida, que se apoyan en esto.
+
+## Implementado
+
+- **Tiempo de cada error**: lo asigna el clasificador diferido de [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md) (`tense` / `tenseUsed` en `corrections`), no el prompt del chat.
+- **Conteo de usos**: `src/lib/tenses-core.ts` (`countTenses`), con compromise más reglas propias:
+  - une lo que compromise separa en las preguntas ("Did | she finish", "Are you going | to deploy");
+  - resuelve contracciones ("she's been" → has been);
+  - descarta infinitivos, imperativos (incluidos "Don't…" y los que van después de una coma) y participios usados como adjetivos ("minified code", "the work done on").
+  - Hay 45 casos de test. Sobre los prompts reales anda bien. Las fallas que quedan vienen de errores de etiquetado de compromise (p. ej. "show" como sustantivo) o son imperativos coordinados sin sujeto.
+- **Guardado**: `messages.tense_counts` (`{ version, counts }`), calculado la primera vez que el dashboard lo necesita. Si cambian las reglas, se sube `TENSE_COUNTER_VERSION` y se recalcula solo.
+- **Estadísticas**: `src/lib/tense-stats.ts` (puro, con tests):
+  - usos, errores de uso y de forma, precisión, precisión suavizada, tendencia, estado y confusiones;
+  - "present continuous for the future" se mide como present continuous, porque el contador no los distingue;
+  - los errores verbales que esperan al clasificador se muestran como pendientes y no se cuentan.
+- **Dashboard**: card "Verb tenses", con un resumen (el más fuerte, el que necesita trabajo y los poco usados), la tabla por familia y las confusiones más comunes con un ejemplo real.
+
+Umbrales iniciales: precisión recién con 5 usos; `strong` con ≥ 90 % suavizado y ≥ 15 usos; `weak` < 75 %; `avoided` si un tiempo común aparece ≤ 1 vez en ≥ 1000 palabras.

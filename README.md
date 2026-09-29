@@ -11,6 +11,7 @@ Corre 100% local y está pensado para ser gratis: por defecto usa un modelo loca
   - **Conversación**: corrige y además te responde para seguir la charla.
 - **Correcciones detalladas**: diff del texto, lista de errores con categoría (taxonomía fija: tiempos verbales, preposiciones, falsos amigos…), gravedad (`typo`, leve, moderado, grave) y explicación.
 - **Tipos de error detallados**: además de la categoría, cada error recibe un tipo fijo (p. ej. *Preposiciones › Verbo + preposición*) y, en los errores verbales, qué tiempo correspondía y cuál usaste. Se clasifica después, en lotes, al abrir el dashboard o cuando la app está inactiva, así el chat no se hace más lento. Si un tipo está mal, "Wrong type?" lo corrige a mano.
+- **Tiempos verbales**: el dashboard muestra, para cada tiempo, cuántas veces lo necesitaste y con qué precisión lo usaste, si fallás al elegirlo o al formarlo, qué tiempo usás en su lugar y cuáles casi no usás. Los usos se cuentan en el texto corregido sin IA (con [compromise](https://github.com/spencermountain/compromise)).
 - **Tolerante a typos**: los errores de tipeo se marcan, pero no cuentan en las estadísticas (se puede cambiar en Configuración).
 - **Sugerencias, no errores**: contracciones ("is not" / "isn't"), puntuación opcional o comma splices en texto informal se muestran aparte como sugerencias y nunca cuentan en las estadísticas.
 - **"Cómo lo diría un nativo"**: una versión más natural cuando la corrección es correcta pero suena traducida.
@@ -91,6 +92,8 @@ src/
     classification.ts  clasificación diferida de errores (lotes, prioridad del chat)
     chat.ts            sesiones, mensajes y persistencia del análisis
     stats-core.ts      cálculo de estadísticas (puro, testeado)
+    tenses-core.ts     conteo de tiempos verbales en un texto (puro, testeado)
+    tense-stats.ts     precisión por tiempo verbal (puro, testeado)
 drizzle/               migraciones SQL
 docs/ROADMAP.md        próximas features e ideas
 ```

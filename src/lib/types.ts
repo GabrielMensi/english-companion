@@ -4,7 +4,7 @@ import type { Correction, Message, Session, VocabularyEntry } from "@/db/schema"
 export type ChatCorrection = Omit<Correction, "createdAt"> & { createdAt: number };
 export type ChatVocabulary = Omit<VocabularyEntry, "createdAt"> & { createdAt: number };
 
-export type ChatMessage = Omit<Message, "createdAt"> & {
+export type ChatMessage = Omit<Message, "createdAt" | "tenseCounts"> & {
   createdAt: number;
   corrections: ChatCorrection[];
   vocabulary: ChatVocabulary[];

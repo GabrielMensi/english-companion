@@ -4,6 +4,7 @@ import { CategoryChart } from "@/components/dashboard/category-chart";
 import { CategoryTable } from "@/components/dashboard/category-table";
 import { ClassificationStatus } from "@/components/dashboard/classification-status";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
+import { TensePanel } from "@/components/dashboard/tense-panel";
 import { TimelineChart } from "@/components/dashboard/timeline-chart";
 import { TopMistakes } from "@/components/dashboard/top-mistakes";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
@@ -17,7 +18,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   await connection();
   const { range: rawRange } = await searchParams;
   const range: RangeKey = typeof rawRange === "string" && rawRange in RANGES ? (rawRange as RangeKey) : "30";
-  const { stats, vocabulary, countTypos } = getDashboardData(range);
+  const { stats, tenses, vocabulary, countTypos } = getDashboardData(range);
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -65,6 +66,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 <TimelineChart data={stats.timeline} />
               </Panel>
             </div>
+
+            <Panel
+              title="Verb tenses"
+              subtitle="How often you needed each tense and how often you got it right"
+            >
+              <TensePanel stats={tenses} />
+            </Panel>
 
             <Panel
               title="Vocabulary"

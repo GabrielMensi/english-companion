@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import { type AnySQLiteColumn, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { FallbackAttempt } from "@/lib/ai/fallback";
+import type { TenseCounts } from "@/lib/tenses-core";
 import type { ErrorCategory, Severity, Tense } from "@/lib/taxonomy";
 
 export type SessionMode = "correction" | "conversation";
@@ -54,6 +55,8 @@ export const messages = sqliteTable(
     fallbackAttempts: text("fallback_attempts", { mode: "json" }).$type<FallbackAttempt[]>(),
     /** How long the analysis (or the reply, generated with it) took, including fallbacks, in milliseconds. */
     durationMs: integer("duration_ms"),
+    /** Tenses in the corrected text, filled in by the dashboard; recomputed when the counter's version changes. */
+    tenseCounts: text("tense_counts", { mode: "json" }).$type<{ version: number; counts: TenseCounts }>(),
     createdAt: createdAt(),
   },
   (t) => [index("messages_session_idx").on(t.sessionId, t.createdAt)],
