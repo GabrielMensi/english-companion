@@ -1,6 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import type { Stats } from "@/lib/stats-core";
-import { categoryLabel } from "@/lib/taxonomy";
+import { categoryLabel, subtypeLabel } from "@/lib/taxonomy";
 
 export function TopMistakes({ mistakes }: { mistakes: Stats["topMistakes"] }) {
   if (mistakes.length === 0) {
@@ -10,11 +10,11 @@ export function TopMistakes({ mistakes }: { mistakes: Stats["topMistakes"] }) {
   return (
     <ul className="divide-y">
       {mistakes.map((m) => (
-        <li key={`${m.category}/${m.subcategory}`} className="flex gap-4 py-3 first:pt-0 last:pb-0">
+        <li key={`${m.category}/${m.subtype ?? m.subcategory}`} className="flex gap-4 py-3 first:pt-0 last:pb-0">
           <div className="w-10 shrink-0 text-right text-lg font-semibold tabular-nums">{m.count}×</div>
           <div className="min-w-0 space-y-1 text-sm">
             <div>
-              <span className="font-medium">{humanize(m.subcategory)}</span>{" "}
+              <span className="font-medium">{subtypeLabel(m.category, m.subtype) ?? humanize(m.subcategory)}</span>{" "}
               <span className="text-muted-foreground">· {categoryLabel(m.category)}</span>
             </div>
             <div className="flex flex-wrap items-center gap-2">

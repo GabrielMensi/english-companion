@@ -7,6 +7,7 @@ import { analyzeMessage } from "@/lib/ai/analyze";
 import { errorToMessage } from "@/lib/ai/fallback";
 import type { HistoryTurn } from "@/lib/ai/analysis";
 import { improvePrompt } from "@/lib/ai/improve-prompt";
+import { withChatPriority } from "@/lib/classification";
 import { getSettings } from "@/lib/settings";
 import { countWords, makeTitle } from "@/lib/text";
 import type { ChatMessage } from "@/lib/types";
@@ -114,9 +115,8 @@ export async function analyzeStoredMessage(messageId: string): Promise<ChatMessa
 
   try {
     const started = Date.now();
-    const { analysis, provider, modelId, fallbackAttempts } = await analyzeMessage(
-      { text: message.content, mode: session.mode, history: getHistory(message) },
-      settings,
+    const { analysis, provider, modelId, fallbackAttempts } = await withChatPriority(() =>
+      analyzeMessage({ text: message.content, mode: session.mode, history: getHistory(message) }, settings),
     );
     const durationMs = Date.now() - started;
 
@@ -225,7 +225,9 @@ export async function improveMessagePrompt(messageId: string) {
   if (!message || message.role !== "user") throw new Error("Message not found");
 
   const started = Date.now();
-  const { prompt, provider, modelId } = await improvePrompt(message.correctedText ?? message.content, getSettings());
+  const { prompt, provider, modelId } = await withChatPriority(() =>
+    improvePrompt(message.correctedText ?? message.content, getSettings()),
+  );
   const update = {
     improvedPrompt: prompt,
     improvedPromptProvider: provider,

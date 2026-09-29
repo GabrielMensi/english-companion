@@ -29,6 +29,13 @@
       "when": 1790539974899,
       "tag": "0003_response_time",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790711860705,
+      "tag": "0004_error_classification",
+      "breakpoints": true
     }
   ]
 }

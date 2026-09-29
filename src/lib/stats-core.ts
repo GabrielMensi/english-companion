@@ -14,6 +14,8 @@ export interface StatCorrection {
   createdAt: number;
   category: ErrorCategory;
   subcategory: string;
+  /** Fixed fine-grained type, null until the classifier gets to it. */
+  subtype: string | null;
   severity: Severity;
   original: string;
   correction: string;
@@ -42,6 +44,8 @@ export interface CategoryStat {
   /** Change in errors per 100 words vs the previous period (null if no data). */
   trend: number | null;
   bySeverity: Record<Severity, number>;
+  /** Most frequent classified types in the category, most frequent first. */
+  topSubtypes: { subtype: string; count: number }[];
 }
 
 export interface Stats {
@@ -59,6 +63,8 @@ export interface Stats {
   timeline: { bucket: string; words: number; errors: number; per100Words: number }[];
   topMistakes: {
     category: ErrorCategory;
+    /** The fixed type when classified; otherwise the model's free label in `subcategory`. */
+    subtype: string | null;
     subcategory: string;
     count: number;
     example: { original: string; correction: string; explanation: string };
@@ -106,15 +112,27 @@ function categoryStats(
   previousWords: number,
 ): CategoryStat[] {
   const map = new Map<ErrorCategory, CategoryStat>();
+  const subtypeCounts = new Map<ErrorCategory, Map<string, number>>();
   for (const c of counted) {
     let stat = map.get(c.category);
     if (!stat) {
-      stat = { category: c.category, count: 0, score: 0, per100Words: 0, trend: null, bySeverity: emptySeverityRecord() };
+      stat = emptyCategoryStat(c.category);
       map.set(c.category, stat);
     }
     stat.count++;
     stat.score += SEVERITY_WEIGHTS[c.severity];
     stat.bySeverity[c.severity]++;
+    if (c.subtype) {
+      const counts = subtypeCounts.get(c.category) ?? new Map<string, number>();
+      counts.set(c.subtype, (counts.get(c.subtype) ?? 0) + 1);
+      subtypeCounts.set(c.category, counts);
+    }
+  }
+  for (const [category, counts] of subtypeCounts) {
+    map.get(category)!.topSubtypes = [...counts.entries()]
+      .map(([subtype, count]) => ({ subtype, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
   }
 
   const previousCounts = new Map<ErrorCategory, number>();
@@ -123,7 +141,7 @@ function categoryStats(
   // Categories that had errors before but none now are improvements worth showing.
   for (const category of previousCounts.keys()) {
     if (!map.has(category)) {
-      map.set(category, { category, count: 0, score: 0, per100Words: 0, trend: null, bySeverity: emptySeverityRecord() });
+      map.set(category, emptyCategoryStat(category));
     }
   }
 
@@ -172,11 +190,19 @@ function timeline(input: StatsInput, counted: StatCorrection[]) {
 function topMistakes(counted: StatCorrection[]): Stats["topMistakes"] {
   const map = new Map<string, Stats["topMistakes"][number] & { last: number }>();
   for (const c of counted) {
-    const k = `${c.category}/${c.subcategory}`;
+    // Classified mistakes group by their fixed type; the rest by the model's free label.
+    const k = c.subtype ? `${c.category}/${c.subtype}` : `${c.category}/free:${c.subcategory}`;
     const entry = map.get(k);
     const example = { original: c.original, correction: c.correction, explanation: c.explanation };
     if (!entry) {
-      map.set(k, { category: c.category, subcategory: c.subcategory, count: 1, example, last: c.createdAt });
+      map.set(k, {
+        category: c.category,
+        subtype: c.subtype,
+        subcategory: c.subcategory,
+        count: 1,
+        example,
+        last: c.createdAt,
+      });
     } else {
       entry.count++;
       if (c.createdAt > entry.last) {
@@ -188,7 +214,7 @@ function topMistakes(counted: StatCorrection[]): Stats["topMistakes"] {
   return [...map.values()]
     .sort((a, b) => b.count - a.count || b.last - a.last)
     .slice(0, 10)
-    .map(({ category, subcategory, count, example }) => ({ category, subcategory, count, example }));
+    .map(({ category, subtype, subcategory, count, example }) => ({ category, subtype, subcategory, count, example }));
 }
 
 /** Local-date bucket key: YYYY-MM-DD (weekly buckets use the week's Monday). */
@@ -200,6 +226,18 @@ export function bucketKey(ms: number, weekly: boolean): string {
   }
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function emptyCategoryStat(category: ErrorCategory): CategoryStat {
+  return {
+    category,
+    count: 0,
+    score: 0,
+    per100Words: 0,
+    trend: null,
+    bySeverity: emptySeverityRecord(),
+    topSubtypes: [],
+  };
 }
 
 function emptySeverityRecord(): Record<Severity, number> {

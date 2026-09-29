@@ -3,14 +3,15 @@
 import { ArrowRight, BookOpen, CheckCircle2, Lightbulb, Loader2, MessageCircleHeart, RefreshCw, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ClassificationDialog } from "@/components/chat/classification-dialog";
 import { DiffText } from "@/components/chat/diff-text";
 import { ModelNote } from "@/components/chat/model-note";
 import { CopyButton } from "@/components/copy-button";
 import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import { categoryLabel, SEVERITIES } from "@/lib/taxonomy";
-import type { ChatMessage } from "@/lib/types";
+import { categoryLabel, SEVERITIES, subtypeLabel, tenseLabel } from "@/lib/taxonomy";
+import type { ChatCorrection, ChatMessage } from "@/lib/types";
 
 export function AnalysisCard({
   message,
@@ -24,6 +25,10 @@ export function AnalysisCard({
   const errors = message.corrections.filter((c) => c.severity !== "suggestion");
   const suggestions = message.corrections.filter((c) => c.severity === "suggestion");
   const perfect = errors.length === 0;
+
+  function updateCorrection(updated: ChatCorrection) {
+    onUpdate({ id: message.id, corrections: message.corrections.map((c) => (c.id === updated.id ? updated : c)) });
+  }
 
   async function improve() {
     setImproving(true);
@@ -67,16 +72,7 @@ export function AnalysisCard({
       {errors.length > 0 && (
         <ul className="flex flex-col gap-3">
           {errors.map((e) => (
-            <li key={e.id} className="flex flex-col gap-1 text-sm">
-              <div className="flex flex-wrap items-center gap-2">
-                <SeverityBadge severity={e.severity} />
-                <span className="text-red-600/90 line-through dark:text-red-400/90">{e.original}</span>
-                <ArrowRight className="size-3.5 text-muted-foreground" />
-                <span className="font-medium text-emerald-700 dark:text-emerald-400">{e.correction}</span>
-                <span className="text-xs text-muted-foreground">· {categoryLabel(e.category)}</span>
-              </div>
-              <p className="text-muted-foreground">{e.explanation}</p>
-            </li>
+            <ErrorItem key={e.id} error={e} onUpdate={updateCorrection} />
           ))}
         </ul>
       )}
@@ -158,6 +154,43 @@ export function AnalysisCard({
         )}
       </div>
     </div>
+  );
+}
+
+function ErrorItem({ error: e, onUpdate }: { error: ChatCorrection; onUpdate: (c: ChatCorrection) => void }) {
+  const [editing, setEditing] = useState(false);
+  const subtype = subtypeLabel(e.category, e.subtype);
+  const tense = tenseLabel(e.tense);
+  const tenseUsed = tenseLabel(e.tenseUsed);
+
+  return (
+    <li className="group flex flex-col gap-1 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <SeverityBadge severity={e.severity} />
+        <span className="text-red-600/90 line-through dark:text-red-400/90">{e.original}</span>
+        <ArrowRight className="size-3.5 text-muted-foreground" />
+        <span className="font-medium text-emerald-700 dark:text-emerald-400">{e.correction}</span>
+        <span className="text-xs text-muted-foreground">
+          · {categoryLabel(e.category)}
+          {subtype && ` › ${subtype}`}
+        </span>
+        <Button
+          variant="ghost"
+          size="xs"
+          className="text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          onClick={() => setEditing(true)}
+        >
+          Wrong type?
+        </Button>
+      </div>
+      {tense && (
+        <p className="text-xs text-muted-foreground">
+          {tenseUsed ? `${tenseUsed} used instead of ${tense.toLowerCase()}` : tense}
+        </p>
+      )}
+      <p className="text-muted-foreground">{e.explanation}</p>
+      {editing && <ClassificationDialog correction={e} open={editing} onOpenChange={setEditing} onSaved={onUpdate} />}
+    </li>
   );
 }
 

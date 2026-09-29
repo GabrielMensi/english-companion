@@ -1,11 +1,13 @@
 import { relations } from "drizzle-orm";
 import { type AnySQLiteColumn, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { FallbackAttempt } from "@/lib/ai/fallback";
-import type { ErrorCategory, Severity } from "@/lib/taxonomy";
+import type { ErrorCategory, Severity, Tense } from "@/lib/taxonomy";
 
 export type SessionMode = "correction" | "conversation";
 export type MessageRole = "user" | "assistant";
 export type MessageStatus = "pending" | "done" | "error";
+/** Fine classification of a correction, done later by the deferred classifier. */
+export type ClassificationStatus = "pending" | "done" | "failed" | "skipped";
 
 const createdAt = () =>
   integer("created_at", { mode: "timestamp_ms" })
@@ -70,10 +72,21 @@ export const corrections = sqliteTable(
     subcategory: text("subcategory").notNull(),
     severity: text("severity").$type<Severity>().notNull(),
     explanation: text("explanation").notNull(),
+    /** Fixed fine-grained type from `SUBTYPES[category]`; null until classified. */
+    subtype: text("subtype"),
+    /** For verb mistakes: the tense the sentence needed... */
+    tense: text("tense").$type<Tense>(),
+    /** ...and the tense the learner used instead (only when the tense choice was wrong). */
+    tenseUsed: text("tense_used").$type<Tense>(),
+    classification: text("classification").$type<ClassificationStatus>().notNull().default("pending"),
+    /** Who assigned the subtype: "rule", "user" or "<provider>:<model>". */
+    classifiedBy: text("classified_by"),
+    classificationAttempts: integer("classification_attempts").notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [
     index("corrections_message_idx").on(t.messageId),
+    index("corrections_classification_idx").on(t.classification),
     index("corrections_created_idx").on(t.createdAt),
   ],
 );

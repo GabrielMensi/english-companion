@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "next typegen && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "eval:models": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/run.mts"
+    "eval:models": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/run.mts",
+    "eval:classify": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/classify.mts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.82",
