@@ -123,6 +123,17 @@ pronunciation_issues: id, messageId, word, expected, heard, category, explanatio
 ## Plan por fases
 
 ### Fase 0 — Medir la fidelidad del STT (go / no-go)
+
+**Herramientas listas (2026-09-29)**:
+- Página `/eval/asr`: se leen en voz alta 22 oraciones con un error audible cada una (`src/lib/eval/asr-samples.ts`). El audio se graba en el navegador, se convierte a WAV mono de 16 kHz (`src/lib/audio/wav.ts`) y se guarda en `data/asr-samples/`.
+- `pnpm eval:asr [engine:model …]`: transcribe cada grabación e indica si el error quedó (`kept`), si el motor lo corrigió (`fixed`) o si no aparece ninguna de las dos formas (`lost`), más el WER contra lo leído. Motores:
+  - `groq` y `groq-verbatim` (Whisper, con y sin prompt verbatim);
+  - `gemini` y `gemini-smart` (Gemini Transcribe);
+  - `gemini-llm` (un modelo de chat al que se le pide transcribir literal);
+  - `whisper-cpp:<url>` (servidor local).
+- Prueba del pipeline con audio sintético (Gemini TTS, voz nativa): los tres motores de Gemini conservaron el 100 % de los errores, pero Gemini Transcribe tardó ~10 s por frase. No sirve como resultado: falta la voz real con acento y Whisper (no hay key de Groq configurada).
+
+Plan original:
 - Grabar ~20 oraciones de `scripts/eval/samples.ts` leídas en voz alta **con los errores**, más algunas en habla libre.
 - Nuevo script `pnpm eval:asr <provider>:<model> …` (junto a `eval:models`): transcribe cada audio y mide qué porcentaje de los fragmentos con error sobreviven literalmente, además del WER contra el texto leído.
 - Comparar whisper.cpp `large-v3-turbo` (con y sin prompt verbatim), Groq Whisper y Gemini Transcribe `VERBATIM`.

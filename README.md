@@ -73,6 +73,7 @@ Ollama corre en Windows (donde está la GPU) y la app en WSL. Con `networkingMod
 | `pnpm lint` | ESLint |
 | `pnpm eval:models <provider>:<model> …` | Compara modelos sobre un set de oraciones con errores conocidos (ej. `ollama:qwen3:14b gemini:gemini-flash-lite-latest`) |
 | `pnpm eval:classify <provider>:<model> …` | Compara modelos clasificando errores ya detectados (tipo fino y tiempos verbales). `--with-user-labels` suma los tipos corregidos a mano en la app |
+| `pnpm eval:asr [engine:model …]` | Transcribe las grabaciones de `/eval/asr` con cada motor de speech-to-text y mide si conservan tus errores o los "corrigen" (ver [docs/VOICE.md](docs/VOICE.md)) |
 | `pnpm db:generate` | Genera una migración después de cambiar `src/db/schema.ts` |
 
 ## Stack
