@@ -16,6 +16,15 @@
 
 ## Próximo
 
+### Diagnóstico de tiempos verbales
+Precisión por tiempo verbal (usos vs errores), confusiones más comunes ("past simple en vez de present perfect") y tiempos evitados, para dirigir los ejercicios. Plan completo en [VERB_TENSES.md](VERB_TENSES.md).
+
+### Clasificación de errores en dos etapas
+El LLM detecta y corrige; un clasificador aparte asigna el tipo fino de una lista fija (subtipos, tiempo verbal, gravedad) con confianza. Evalúa Kev/Jev como backend. Ver [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md).
+
+### Voz
+Dictado con Whisper (local con whisper.cpp, fallback Groq/Gemini), estadísticas escritas vs habladas, conversación por voz, lectura en voz alta y pronunciación. Investigación y plan en [VOICE.md](VOICE.md).
+
 ### Flashcards de vocabulario
 Practicar las palabras de la página Vocabulary (lo que escribiste entre [corchetes]): español → inglés, con la oración original como pista. Cada palabra agrupada (`VocabularyWord`) es una tarjeta.
 
@@ -69,7 +78,7 @@ Para las tareas de escritura que da el profesor: un modo "homework" donde escrib
 ### 5. Speaking desde la transcripción de la clase (más adelante)
 Google Meet puede generar transcripciones, pero en general solo en cuentas pagas de Workspace. Con una transcripción, la app analizaría solo tus intervenciones y llevaría estadísticas de errores **hablados** separadas de las escritas.
 - Problemas: los errores del reconocimiento de voz parecen errores de gramática, y grabar localmente (Whisper) requiere el consentimiento del profesor.
-- Relacionado con la idea de voz de "Otras".
+- Ver [VOICE.md](VOICE.md), fase 4.
 
 ## Ideas a futuro
 
@@ -88,6 +97,5 @@ Consideraciones:
 - El endpoint sería el mismo análisis que usa el chat, sin la UI.
 
 ### Otras
-- Voz: dictado con Whisper local para practicar speaking y pronunciación.
 - Exportar/importar la base de datos para mover el historial entre PCs. El export tiene que excluir la fila `api-keys` de `settings`, para no compartir keys por accidente.
 - Nivel estimado (CEFR) según la evolución de errores y el vocabulario usado.
