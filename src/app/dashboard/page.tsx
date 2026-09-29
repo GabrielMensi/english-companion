@@ -2,10 +2,12 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { CategoryChart } from "@/components/dashboard/category-chart";
 import { CategoryTable } from "@/components/dashboard/category-table";
+import { ClassificationStatus } from "@/components/dashboard/classification-status";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { TimelineChart } from "@/components/dashboard/timeline-chart";
 import { TopMistakes } from "@/components/dashboard/top-mistakes";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
+import { getClassificationStatus } from "@/lib/classification";
 import { getDashboardData, RANGES, type RangeKey } from "@/lib/stats";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +45,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             ))}
           </nav>
         </div>
+
+        <ClassificationStatus initial={getClassificationStatus()} />
 
         {stats.totals.messages === 0 ? (
           <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed py-16 text-center">

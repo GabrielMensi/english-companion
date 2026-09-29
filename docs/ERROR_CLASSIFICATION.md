@@ -1,6 +1,6 @@
 # Clasificación de errores en dos etapas (Jev / Kev / Jeeves)
 
-Estado (2026-09-29): investigación y propuesta. Relacionado con [VERB_TENSES.md](VERB_TENSES.md) y [VOICE.md](VOICE.md).
+Estado (2026-09-29): **pasos 1–3 del plan implementados** con el backend LLM, y el 4 en parte (56 errores etiquetados de los ~150 previstos) (ver "Implementado"). Kev / Jev / Jeeves siguen como investigación. Relacionado con [VERB_TENSES.md](VERB_TENSES.md) y [VOICE.md](VOICE.md).
 
 ## La idea
 
@@ -142,6 +142,24 @@ Se agrega a `taxonomy.ts` un segundo nivel fijo, `SUBTYPES: Record<ErrorCategory
 7. **Jev / Jeeves**: probar con el mismo cliente si se consigue acceso a Jev, o Jeeves en Modal, como clasificador remoto opcional para lotes.
 
 Criterio de decisión en el paso 5: Kev se queda si, sin fine-tuning, está a menos de 5 puntos del LLM y su confianza sirve para separar aciertos de errores (p. ej. con confianza > 0,8 acierta ≥ 95 %). Si no, se sigue con el backend LLM y Kev se vuelve a evaluar cuando haya datos para fine-tuning.
+
+## Implementado
+
+- `SUBTYPES`, `TENSES` y `TENSE_CATEGORIES` en `src/lib/taxonomy.ts`. El prompt del chat no cambió: sigue devolviendo su `subcategory` libre, que queda como detalle.
+- Columnas nuevas en `corrections`: `subtype`, `tense`, `tense_used`, `classification` (`pending / done / failed / skipped`), `classified_by` (`rule`, `user` o `<provider>:<model>`) y `classification_attempts`.
+- `src/lib/ai/classify-core.ts` (puro, con tests): reglas sin modelo (sugerencias → `skipped`, typos → `keyboard_typo`, categorías de un solo tipo), prompt por lotes con solo las opciones de la categoría de cada error y normalización contra las listas fijas.
+- `src/lib/classification.ts`: job por lotes de 8, que se dispara al abrir el dashboard, tras 5 minutos sin mensajes o a mano (reintentar). El chat tiene prioridad (`withChatPriority`): el lote espera mientras hay un pedido del chat en curso. Usa el mismo modelo y los mismos fallbacks que el chat, así que no carga otro modelo local. Un proveedor caído o sin cuota no cuenta como intento fallido; una respuesta inválida sí (3 intentos → `failed`).
+- UI: tipo y tiempo en cada error del chat, botón "Wrong type?" (queda con `classified_by = "user"`), banner de progreso en el dashboard, columna "Main types" y errores frecuentes agrupados por tipo.
+- `pnpm eval:classify`: 56 errores etiquetados (18 difíciles, que no aparecen en las descripciones de los tipos), más las etiquetas corregidas en la app con `--with-user-labels`.
+
+Resultados (2026-09-29, lotes de 8):
+
+| Modelo | Tipo | Tiempo | Tiempo usado | s / lote |
+|---|---|---|---|---|
+| `gemini-flash-lite-latest` | 100 % | 96 % | 100 % | 3,2 |
+| `gemma4:12b` (local) | 100 % | 89 % | 96 % | 5,3 |
+
+El set todavía es chico y lo armé yo: las etiquetas de "Wrong type?" son la medida real. Sobre el historial real (62 errores), los casos que caían en `other` mostraron dos tipos faltantes, que se agregaron: `word_order/noun_modifiers` y `spelling/word_split`.
 
 ## Fuentes
 

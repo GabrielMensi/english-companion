@@ -10,6 +10,7 @@ Corre 100% local y está pensado para ser gratis: por defecto usa un modelo loca
   - **Corrección**: solo corrige. Ideal para escribir prompts o mensajes y después usarlos en otro lado.
   - **Conversación**: corrige y además te responde para seguir la charla.
 - **Correcciones detalladas**: diff del texto, lista de errores con categoría (taxonomía fija: tiempos verbales, preposiciones, falsos amigos…), gravedad (`typo`, leve, moderado, grave) y explicación.
+- **Tipos de error detallados**: además de la categoría, cada error recibe un tipo fijo (p. ej. *Preposiciones › Verbo + preposición*) y, en los errores verbales, qué tiempo correspondía y cuál usaste. Se clasifica después, en lotes, al abrir el dashboard o cuando la app está inactiva, así el chat no se hace más lento. Si un tipo está mal, "Wrong type?" lo corrige a mano.
 - **Tolerante a typos**: los errores de tipeo se marcan, pero no cuentan en las estadísticas (se puede cambiar en Configuración).
 - **Sugerencias, no errores**: contracciones ("is not" / "isn't"), puntuación opcional o comma splices en texto informal se muestran aparte como sugerencias y nunca cuentan en las estadísticas.
 - **"Cómo lo diría un nativo"**: una versión más natural cuando la corrección es correcta pero suena traducida.
@@ -70,6 +71,7 @@ Ollama corre en Windows (donde está la GPU) y la app en WSL. Con `networkingMod
 | `pnpm typecheck` | Genera tipos de rutas y corre `tsc` |
 | `pnpm lint` | ESLint |
 | `pnpm eval:models <provider>:<model> …` | Compara modelos sobre un set de oraciones con errores conocidos (ej. `ollama:qwen3:14b gemini:gemini-flash-lite-latest`) |
+| `pnpm eval:classify <provider>:<model> …` | Compara modelos clasificando errores ya detectados (tipo fino y tiempos verbales). `--with-user-labels` suma los tipos corregidos a mano en la app |
 | `pnpm db:generate` | Genera una migración después de cambiar `src/db/schema.ts` |
 
 ## Stack
@@ -85,7 +87,8 @@ src/
   db/                  schema de Drizzle y conexión (migra al arrancar)
   lib/
     ai/                providers, prompt de análisis, "convertir en prompt"
-    taxonomy.ts        categorías y gravedades de error (fijas)
+    taxonomy.ts        categorías, tipos, tiempos verbales y gravedades (fijos)
+    classification.ts  clasificación diferida de errores (lotes, prioridad del chat)
     chat.ts            sesiones, mensajes y persistencia del análisis
     stats-core.ts      cálculo de estadísticas (puro, testeado)
 drizzle/               migraciones SQL

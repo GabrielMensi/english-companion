@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import type { CategoryStat } from "@/lib/stats-core";
-import { categoryLabel } from "@/lib/taxonomy";
+import { categoryLabel, subtypeLabel } from "@/lib/taxonomy";
 
 export function CategoryTable({ categories }: { categories: CategoryStat[] }) {
   if (categories.length === 0) {
@@ -16,6 +16,7 @@ export function CategoryTable({ categories }: { categories: CategoryStat[] }) {
             <th className="py-2 pr-4 text-right font-normal">Mistakes</th>
             <th className="py-2 pr-4 text-right font-normal">Major</th>
             <th className="py-2 pr-4 text-right font-normal">Per 100 words</th>
+            <th className="py-2 pr-4 font-normal">Main types</th>
             <th className="py-2 font-normal">Trend</th>
           </tr>
         </thead>
@@ -26,6 +27,11 @@ export function CategoryTable({ categories }: { categories: CategoryStat[] }) {
               <td className="py-2 pr-4 text-right tabular-nums">{c.count}</td>
               <td className="py-2 pr-4 text-right tabular-nums">{c.bySeverity.major}</td>
               <td className="py-2 pr-4 text-right tabular-nums">{c.per100Words}</td>
+              <td className="py-2 pr-4 text-muted-foreground">
+                {c.topSubtypes.length === 0
+                  ? "—"
+                  : c.topSubtypes.map((t) => `${subtypeLabel(c.category, t.subtype) ?? t.subtype} (${t.count})`).join(", ")}
+              </td>
               <td className="py-2">
                 <Trend value={c.trend} />
               </td>

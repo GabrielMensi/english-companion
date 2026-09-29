@@ -12,6 +12,7 @@
 - Página Vocabulary y panel en el dashboard con las palabras buscadas entre [corchetes].
 - Set de evaluación de modelos (`pnpm eval:models`) y timeouts por request.
 - Selector de modelo en el chat, modelo registrado en cada respuesta y fallback automático entre modelos configurados.
+- Clasificación diferida de errores: tipos fijos por categoría, tiempo verbal que correspondía y que se usó, "Wrong type?" para corregirlo a mano y `pnpm eval:classify` ([ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md)).
 - Nivel `suggestion` para mejoras opcionales (contracciones, puntuación opcional), que no cuentan como errores, y tiempo de respuesta en cada mensaje.
 
 ## Próximo
@@ -19,8 +20,8 @@
 ### Diagnóstico de tiempos verbales
 Precisión por tiempo verbal (usos vs errores), confusiones más comunes ("past simple en vez de present perfect") y tiempos evitados, para dirigir los ejercicios. Plan completo en [VERB_TENSES.md](VERB_TENSES.md).
 
-### Clasificación de errores en dos etapas
-El LLM detecta y corrige; un clasificador aparte asigna el tipo fino de una lista fija (subtipos, tiempo verbal, gravedad) con confianza. Evalúa Kev/Jev como backend. Ver [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md).
+### Kev como clasificador
+La clasificación en dos etapas ya está hecha con el LLM. Falta evaluar Kev-0.8B (o Jev / Jeeves) como backend cuando haya etiquetas reales de "Wrong type?". Ver [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md).
 
 ### Voz
 Dictado con Whisper (local con whisper.cpp, fallback Groq/Gemini), estadísticas escritas vs habladas, conversación por voz, lectura en voz alta y pronunciación. Investigación y plan en [VOICE.md](VOICE.md).

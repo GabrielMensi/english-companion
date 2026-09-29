@@ -10,6 +10,7 @@ function correction(partial: Partial<StatCorrection>): StatCorrection {
     createdAt: now - DAY,
     category: "articles",
     subcategory: "missing_article",
+    subtype: null,
     severity: "minor",
     original: "go to park",
     correction: "go to the park",
@@ -123,6 +124,37 @@ describe("computeStats", () => {
       }),
     );
     expect(stats.topMistakes[0]).toMatchObject({ subcategory: "missing_article", count: 2, example: { original: "new" } });
+  });
+
+  it("groups classified mistakes by their fixed type, whatever the free label", () => {
+    const stats = computeStats(
+      input({
+        corrections: [
+          correction({ subtype: "missing_a_an", subcategory: "missing_article" }),
+          correction({ subtype: "missing_a_an", subcategory: "article_before_profession" }),
+          correction({ subtype: null, subcategory: "missing_a_an" }),
+        ],
+      }),
+    );
+    expect(stats.topMistakes[0]).toMatchObject({ subtype: "missing_a_an", count: 2 });
+    expect(stats.topMistakes[1]).toMatchObject({ subtype: null, subcategory: "missing_a_an", count: 1 });
+  });
+
+  it("lists the most frequent types of each category", () => {
+    const stats = computeStats(
+      input({
+        corrections: [
+          correction({ subtype: "generic_the" }),
+          correction({ subtype: "missing_a_an" }),
+          correction({ subtype: "missing_a_an" }),
+          correction({ subtype: null }),
+        ],
+      }),
+    );
+    expect(stats.categories[0].topSubtypes).toEqual([
+      { subtype: "missing_a_an", count: 2 },
+      { subtype: "generic_the", count: 1 },
+    ]);
   });
 });
 
