@@ -11,3 +11,12 @@ export type ChatMessage = Omit<Message, "createdAt" | "tenseCounts"> & {
 };
 
 export type SessionSummary = Pick<Session, "id" | "title" | "mode">;
+
+/** How a dictated message was transcribed, sent along with its (possibly edited) text. */
+export interface VoiceInput {
+  transcriptRaw: string;
+  transcriptEdited: boolean;
+  transcriptionProvider: string;
+  transcriptionModel: string;
+  audioDurationMs: number;
+}

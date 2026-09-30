@@ -1,10 +1,10 @@
 "use client";
 
 import { CheckCircle2, Circle, Loader2, Mic, Square } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
+import { useRecorder } from "@/components/audio/use-recorder";
 import { Button } from "@/components/ui/button";
-import { encodeWav, resample, SPEECH_SAMPLE_RATE, toMono } from "@/lib/audio/wav";
 import type { AsrSample } from "@/lib/eval/asr-samples";
 import { cn } from "@/lib/utils";
 
@@ -16,43 +16,23 @@ export function AsrRecorder({ samples, initialRecorded }: { samples: AsrSample[]
   // Bumped after each save so the <audio> reloads the new take.
   const [versions, setVersions] = useState<Record<string, number>>({});
   const [phase, setPhase] = useState<Phase>(null);
-  const recorder = useRef<MediaRecorder | null>(null);
+  const recorder = useRecorder();
 
   async function start(id: string) {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
-      });
-      const chunks: Blob[] = [];
-      const media = new MediaRecorder(stream);
-      media.ondataavailable = (e) => chunks.push(e.data);
-      media.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        void save(id, new Blob(chunks, { type: media.mimeType }));
-      };
-      recorder.current = media;
-      media.start();
+      await recorder.start();
       setPhase({ id, step: "recording" });
     } catch (error) {
       toast.error(`Couldn't use the microphone: ${(error as Error).message}`);
     }
   }
 
-  function stop() {
-    recorder.current?.stop();
-    recorder.current = null;
-  }
-
-  async function save(id: string, blob: Blob) {
+  async function stop(id: string) {
     setPhase({ id, step: "saving" });
     try {
-      const context = new AudioContext();
-      const audio = await context.decodeAudioData(await blob.arrayBuffer());
-      await context.close();
-      const channels = Array.from({ length: audio.numberOfChannels }, (_, i) => audio.getChannelData(i));
-      const wav = encodeWav(resample(toMono(channels), audio.sampleRate, SPEECH_SAMPLE_RATE), SPEECH_SAMPLE_RATE);
-
-      const res = await fetch(`/api/eval/asr-samples/${id}`, { method: "PUT", body: wav });
+      const recording = await recorder.stop();
+      if (!recording) return;
+      const res = await fetch(`/api/eval/asr-samples/${id}`, { method: "PUT", body: recording.wav });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Error ${res.status}`);
       setRecorded((prev) => new Set(prev).add(id));
       setVersions((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
@@ -84,7 +64,7 @@ export function AsrRecorder({ samples, initialRecorded }: { samples: AsrSample[]
                   <p className="leading-relaxed">{highlight(s.text, s.mistake)}</p>
                 </div>
                 {active && phase.step === "recording" ? (
-                  <Button size="sm" variant="destructive" onClick={stop}>
+                  <Button size="sm" variant="destructive" onClick={() => stop(s.id)}>
                     <Square /> Stop
                   </Button>
                 ) : (

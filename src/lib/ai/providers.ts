@@ -2,7 +2,7 @@ import "server-only";
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
-import type { generateText } from "ai";
+import type { generateText, TranscriptionModel } from "ai";
 import { createOllama } from "ollama-ai-provider-v2";
 import { DEFAULT_OLLAMA_BASE_URL, type KeyProvider, maskKey, normalizeBaseUrl } from "@/lib/credentials";
 import { resolveApiKey } from "@/lib/secrets";
@@ -152,6 +152,22 @@ export function withFallback<T>(
     modelId: settings.models[provider],
   }));
   return runWithFallback(candidates, (candidate, options) => run(resolveModel(settings, candidate.provider), options));
+}
+
+/**
+ * Speech-to-text for dictation. Whisper large-v3-turbo on Groq kept the most
+ * mistakes without inventing text in the Phase 0 eval (docs/VOICE.md), is free
+ * for ~8 h of audio a day and answers in under a second. Null without a Groq key.
+ */
+export const TRANSCRIPTION_MODEL = { provider: "groq", modelId: "whisper-large-v3-turbo" } as const;
+
+export function resolveTranscriptionModel(): { model: TranscriptionModel; provider: string; modelId: string } | null {
+  const resolved = resolveApiKey("groq");
+  if (!resolved) return null;
+  return {
+    model: createGroq({ apiKey: resolved.key }).transcription(TRANSCRIPTION_MODEL.modelId),
+    ...TRANSCRIPTION_MODEL,
+  };
 }
 
 /** Lists the models available for a provider (used by the settings page). */

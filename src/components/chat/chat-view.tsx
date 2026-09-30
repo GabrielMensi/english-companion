@@ -11,18 +11,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import type { SessionMode } from "@/db/schema";
 import type { ProviderId } from "@/lib/ai/provider-info";
 import { api } from "@/lib/api";
-import type { ChatMessage, SessionSummary } from "@/lib/types";
+import type { ChatMessage, SessionSummary, VoiceInput } from "@/lib/types";
 
 export function ChatView({
   session,
   initialMessages,
   models,
   selectedProvider,
+  canDictate,
 }: {
   session: SessionSummary;
   initialMessages: ChatMessage[];
   models: ModelOption[];
   selectedProvider: ProviderId;
+  canDictate: boolean;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
@@ -45,12 +47,12 @@ export function ChatView({
     });
   }
 
-  async function send(text: string) {
+  async function send(text: string, voice?: VoiceInput) {
     const tempId = `temp-${Date.now()}`;
-    setMessages((prev) => [...prev, optimisticMessage(tempId, session.id, text)]);
+    setMessages((prev) => [...prev, optimisticMessage(tempId, session.id, text, voice)]);
     setSending(true);
     try {
-      const turn = await api<ChatMessage[]>(`/api/sessions/${session.id}/messages`, { body: { text } });
+      const turn = await api<ChatMessage[]>(`/api/sessions/${session.id}/messages`, { body: { text, voice } });
       mergeTurn(turn, tempId);
       if (messages.length === 0) router.refresh(); // first message sets the chat title
       return true;
@@ -126,14 +128,14 @@ export function ChatView({
 
       <div className="border-t">
         <div className="mx-auto max-w-3xl px-6 py-4">
-          <Composer onSend={send} disabled={sending} />
+          <Composer onSend={send} disabled={sending} canDictate={canDictate} />
         </div>
       </div>
     </div>
   );
 }
 
-function optimisticMessage(id: string, sessionId: string, text: string): ChatMessage {
+function optimisticMessage(id: string, sessionId: string, text: string, voice?: VoiceInput): ChatMessage {
   return {
     id,
     sessionId,
@@ -153,6 +155,12 @@ function optimisticMessage(id: string, sessionId: string, text: string): ChatMes
     model: null,
     fallbackAttempts: null,
     durationMs: null,
+    inputMode: voice ? "spoken" : "typed",
+    transcriptRaw: voice?.transcriptRaw ?? null,
+    transcriptEdited: voice?.transcriptEdited ?? null,
+    transcriptionProvider: voice?.transcriptionProvider ?? null,
+    transcriptionModel: voice?.transcriptionModel ?? null,
+    audioDurationMs: voice?.audioDurationMs ?? null,
     createdAt: Date.now(),
     corrections: [],
     vocabulary: [],

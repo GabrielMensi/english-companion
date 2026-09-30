@@ -157,7 +157,43 @@ describe("grounding", () => {
   });
 });
 
+describe("normalizeAnalysis for dictated messages", () => {
+  const error = (partial: Partial<Analysis["errors"][number]>) => ({
+    original: "I have went",
+    correction: "I went",
+    category: "verb_tense" as const,
+    subcategory: "x",
+    severity: "moderate" as const,
+    explanation: "...",
+    ...partial,
+  });
+  const text = "yesterday i have went to teh park, with my friends";
+
+  it("drops spelling, punctuation, capitalization and typos, keeps the rest", () => {
+    const raw = {
+      ...base,
+      errors: [
+        error({}),
+        error({ original: "teh", correction: "the", category: "spelling", severity: "typo" }),
+        error({ original: "yesterday i", correction: "Yesterday I", category: "capitalization", severity: "minor" }),
+        error({ original: "park,", correction: "park", category: "punctuation", severity: "minor" }),
+        error({ original: "to teh park", correction: "to the park", category: "articles", severity: "minor" }),
+      ],
+    };
+    const spoken = normalizeAnalysis(raw, "correction", text, "spoken");
+    expect(spoken.errors.map((e) => e.category)).toEqual(["verb_tense", "articles"]);
+    expect(normalizeAnalysis(raw, "correction", text).errors).toHaveLength(5);
+  });
+});
+
 describe("prompts", () => {
+  it("tells the model when the message was dictated", () => {
+    expect(buildAnalysisInstructions({ mode: "correction", explanationLanguage: "es", inputMode: "spoken" })).toContain(
+      "DICTATED",
+    );
+    expect(buildAnalysisInstructions({ mode: "correction", explanationLanguage: "es" })).not.toContain("DICTATED");
+  });
+
   it("asks for a reply only in conversation mode", () => {
     expect(buildAnalysisInstructions({ mode: "correction", explanationLanguage: "es" })).toContain("reply: always null");
     expect(buildAnalysisInstructions({ mode: "conversation", explanationLanguage: "en" })).toContain(

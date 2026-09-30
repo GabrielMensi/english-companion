@@ -368,3 +368,36 @@ export const TENSE_CATEGORIES: readonly ErrorCategory[] = [
 export function tenseLabel(tense: string | null): string | null {
   return tense ? (TENSE_LABELS[tense as Tense] ?? null) : null;
 }
+
+/**
+ * Categories speech-to-text can't measure: it decides spelling, punctuation and
+ * capitalization itself, and fills in short unstressed words (articles,
+ * prepositions, "it", the "do" of questions, a plural -s) from context
+ * (see docs/VOICE.md, Phase 0). Mistakes in these categories are still shown
+ * in spoken messages, but never counted in the stats.
+ */
+export const NOT_MEASURABLE_WHEN_SPOKEN: readonly ErrorCategory[] = [
+  "articles",
+  "prepositions",
+  "pronouns",
+  "plurals_countability",
+  "question_formation",
+  "spelling",
+  "punctuation",
+  "capitalization",
+];
+
+/** Categories that are the transcriber's decision, not the learner's: never reported for spoken messages. */
+export const TRANSCRIBER_CATEGORIES: readonly ErrorCategory[] = ["spelling", "punctuation", "capitalization"];
+
+export function isMeasurable(category: ErrorCategory, inputMode: "typed" | "spoken"): boolean {
+  return inputMode === "typed" || !NOT_MEASURABLE_WHEN_SPOKEN.includes(category);
+}
+
+/** Whether a mistake counts in the stats: a real mistake, in a category its input mode can measure. */
+export function countsInStats(
+  c: { severity: Severity; category: ErrorCategory; inputMode: "typed" | "spoken" },
+  countTypos: boolean,
+): boolean {
+  return countsAsMistake(c.severity, countTypos) && isMeasurable(c.category, c.inputMode);
+}

@@ -7,6 +7,8 @@ import type { ErrorCategory, Severity, Tense } from "@/lib/taxonomy";
 export type SessionMode = "correction" | "conversation";
 export type MessageRole = "user" | "assistant";
 export type MessageStatus = "pending" | "done" | "error";
+/** How the learner wrote the message: typed, or dictated with speech-to-text. */
+export type InputMode = "typed" | "spoken";
 /** Fine classification of a correction, done later by the deferred classifier. */
 export type ClassificationStatus = "pending" | "done" | "failed" | "skipped";
 
@@ -55,6 +57,15 @@ export const messages = sqliteTable(
     fallbackAttempts: text("fallback_attempts", { mode: "json" }).$type<FallbackAttempt[]>(),
     /** How long the analysis (or the reply, generated with it) took, including fallbacks, in milliseconds. */
     durationMs: integer("duration_ms"),
+    inputMode: text("input_mode").$type<InputMode>().notNull().default("typed"),
+    // The fields below only apply to spoken messages.
+    /** What speech-to-text returned, before the learner edited it. */
+    transcriptRaw: text("transcript_raw"),
+    /** Whether the learner changed the transcript before sending it. */
+    transcriptEdited: integer("transcript_edited", { mode: "boolean" }),
+    transcriptionProvider: text("transcription_provider"),
+    transcriptionModel: text("transcription_model"),
+    audioDurationMs: integer("audio_duration_ms"),
     /** Tenses in the corrected text, filled in by the dashboard; recomputed when the counter's version changes. */
     tenseCounts: text("tense_counts", { mode: "json" }).$type<{ version: number; counts: TenseCounts }>(),
     createdAt: createdAt(),

@@ -2,7 +2,8 @@
  * Pure statistics computation for the dashboard. Data volume is personal-scale,
  * so everything is computed in memory from the raw rows of the period.
  */
-import { countsAsMistake, type ErrorCategory, SEVERITIES, type Severity, SEVERITY_WEIGHTS } from "@/lib/taxonomy";
+import type { InputMode } from "@/db/schema";
+import { countsInStats, type ErrorCategory, SEVERITIES, type Severity, SEVERITY_WEIGHTS } from "@/lib/taxonomy";
 
 export interface StatMessage {
   createdAt: number;
@@ -20,6 +21,8 @@ export interface StatCorrection {
   original: string;
   correction: string;
   explanation: string;
+  /** Mistakes in dictated messages only count in categories speech-to-text can measure. */
+  inputMode: InputMode;
 }
 
 export interface StatsInput {
@@ -74,8 +77,8 @@ export interface Stats {
 const DAY = 86_400_000;
 
 export function computeStats(input: StatsInput): Stats {
-  const counted = input.corrections.filter((c) => countsAsMistake(c.severity, input.countTypos));
-  const previousCounted = input.previousCorrections.filter((c) => countsAsMistake(c.severity, input.countTypos));
+  const counted = input.corrections.filter((c) => countsInStats(c, input.countTypos));
+  const previousCounted = input.previousCorrections.filter((c) => countsInStats(c, input.countTypos));
 
   const words = sum(input.messages.map((m) => m.wordCount));
   const previousWords = sum(input.previousMessages.map((m) => m.wordCount));

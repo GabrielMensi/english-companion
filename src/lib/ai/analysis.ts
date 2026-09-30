@@ -3,8 +3,8 @@
  * normalization. Kept free of server-only imports so it can be unit tested.
  */
 import { z } from "zod";
-import type { SessionMode } from "@/db/schema";
-import { CATEGORY_HINTS, ERROR_CATEGORIES, SEVERITIES } from "@/lib/taxonomy";
+import type { InputMode, SessionMode } from "@/db/schema";
+import { CATEGORY_HINTS, ERROR_CATEGORIES, SEVERITIES, TRANSCRIBER_CATEGORIES } from "@/lib/taxonomy";
 
 export const analysisSchema = z.object({
   correctedText: z
@@ -46,9 +46,13 @@ export interface AnalysisPromptInput {
   mode: SessionMode;
   explanationLanguage: "es" | "en";
   history: HistoryTurn[];
+  /** Dictated messages come from speech-to-text; defaults to typed. */
+  inputMode?: InputMode;
 }
 
-export function buildAnalysisInstructions(input: Pick<AnalysisPromptInput, "mode" | "explanationLanguage">) {
+export function buildAnalysisInstructions(
+  input: Pick<AnalysisPromptInput, "mode" | "explanationLanguage" | "inputMode">,
+) {
   const language = input.explanationLanguage === "es" ? "Spanish (Rioplatense, neutral tone)" : "English";
   const categories = ERROR_CATEGORIES.map((c) => `- ${c}: ${CATEGORY_HINTS[c]}`).join("\n");
 
@@ -82,7 +86,11 @@ ${categories}
 7. spanishPhrases: one entry for EACH text the learner wrote between [square brackets], and nothing else. Brackets mean the learner didn't know how to say it in English. For each one, give 1-3 English options and an optional short usage note in ${language}, and use the best option in correctedText and naturalText. These are NOT errors. Never add words that are not between brackets, even if they are misspelled or look Spanish. If there are no brackets, return an empty array.
 ${replyRule}
 
-The learner's message may contain typos: always infer the intended meaning, never ask for clarification.
+${
+  input.inputMode === "spoken"
+    ? `The learner DICTATED this message and speech-to-text wrote it down, so the learner didn't choose its spelling, punctuation or capitalization: never report mistakes in the spelling, punctuation or capitalization categories, and there are no typos. Everything else (grammar, tenses, word choice, word order) is what the learner said: report it as usual.`
+    : `The learner's message may contain typos: always infer the intended meaning, never ask for clarification.`
+}
 
 Example. For the message "Yesterday I have went to teh store for buy milk" the errors are:
 [
@@ -105,7 +113,12 @@ export function buildAnalysisPrompt(input: AnalysisPromptInput): string {
 }
 
 /** Cleans up common model mistakes so bad output doesn't pollute the stats. */
-export function normalizeAnalysis(raw: Analysis, mode: SessionMode, originalText: string): Analysis {
+export function normalizeAnalysis(
+  raw: Analysis,
+  mode: SessionMode,
+  originalText: string,
+  inputMode: InputMode = "typed",
+): Analysis {
   const clean = (s: string) => s.trim();
   const correctedText = raw.correctedText.trim() || originalText;
 
@@ -130,6 +143,8 @@ export function normalizeAnalysis(raw: Analysis, mode: SessionMode, originalText
       explanation: clean(e.explanation),
     }))
     .filter((e) => {
+      // In dictated messages, spelling, punctuation and capitalization are the transcriber's.
+      if (inputMode === "spoken" && (e.severity === "typo" || TRANSCRIBER_CATEGORIES.includes(e.category))) return false;
       // Models sometimes report "errors" where nothing changes...
       if (e.original === e.correction) return false;
       // ...or copy them from the prompt's example instead of the learner's text.

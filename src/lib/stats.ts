@@ -12,9 +12,13 @@ import { getVocabulary } from "@/lib/vocabulary";
 export const RANGES = { "7": 7, "30": 30, "90": 90, all: null } as const;
 export type RangeKey = keyof typeof RANGES;
 
+/** Which messages the dashboard looks at: all, only typed or only dictated. */
+export const INPUT_FILTERS = ["all", "typed", "spoken"] as const;
+export type InputFilter = (typeof INPUT_FILTERS)[number];
+
 const DAY = 86_400_000;
 
-export function getDashboardData(range: RangeKey) {
+export function getDashboardData(range: RangeKey, input: InputFilter = "all") {
   const now = Date.now();
   const days = RANGES[range];
   const from = days === null ? null : now - days * DAY;
@@ -22,8 +26,8 @@ export function getDashboardData(range: RangeKey) {
 
   const settings = getSettings();
   const period = (start: number | null, end: number | null) => ({
-    messages: loadMessages(start, end),
-    corrections: loadCorrections(start, end),
+    messages: loadMessages(start, end, input),
+    corrections: loadCorrections(start, end, input),
   });
 
   const current = period(from, null);
@@ -50,10 +54,29 @@ export function getDashboardData(range: RangeKey) {
   // Words looked up with [brackets] during the period, grouped and newest first.
   const vocabulary = getVocabulary().filter((w) => from === null || w.lastSeen >= from);
 
-  return { stats, tenses, vocabulary, countTypos: settings.countTyposInStats };
+  return { stats, tenses, vocabulary, countTypos: settings.countTyposInStats, hasSpoken: hasSpokenMessages() };
 }
 
-function loadMessages(from: number | null, to: number | null): (StatMessage & { tenseCounts: TenseCounts })[] {
+function hasSpokenMessages(): boolean {
+  return (
+    db
+      .select({ id: schema.messages.id })
+      .from(schema.messages)
+      .where(eq(schema.messages.inputMode, "spoken"))
+      .limit(1)
+      .get() !== undefined
+  );
+}
+
+function inputFilter(input: InputFilter) {
+  return input === "all" ? undefined : eq(schema.messages.inputMode, input);
+}
+
+function loadMessages(
+  from: number | null,
+  to: number | null,
+  input: InputFilter,
+): (StatMessage & { tenseCounts: TenseCounts })[] {
   return db
     .select({
       id: schema.messages.id,
@@ -64,7 +87,14 @@ function loadMessages(from: number | null, to: number | null): (StatMessage & { 
       tenseCounts: schema.messages.tenseCounts,
     })
     .from(schema.messages)
-    .where(and(eq(schema.messages.role, "user"), eq(schema.messages.status, "done"), ...rangeFilter(schema.messages.createdAt, from, to)))
+    .where(
+      and(
+        eq(schema.messages.role, "user"),
+        eq(schema.messages.status, "done"),
+        inputFilter(input),
+        ...rangeFilter(schema.messages.createdAt, from, to),
+      ),
+    )
     .all()
     .map((m) => ({ createdAt: m.createdAt.getTime(), wordCount: m.wordCount, tenseCounts: tenseCountsOf(m) }));
 }
@@ -89,13 +119,18 @@ function tenseCountsOf(m: {
   return counts;
 }
 
-function loadCorrections(from: number | null, to: number | null): (StatCorrection & TenseStatCorrection)[] {
+function loadCorrections(
+  from: number | null,
+  to: number | null,
+  input: InputFilter,
+): (StatCorrection & TenseStatCorrection)[] {
   return db
-    .select()
+    .select({ correction: schema.corrections, inputMode: schema.messages.inputMode })
     .from(schema.corrections)
-    .where(and(...rangeFilter(schema.corrections.createdAt, from, to)))
+    .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
+    .where(and(inputFilter(input), ...rangeFilter(schema.corrections.createdAt, from, to)))
     .all()
-    .map((c) => ({ ...c, createdAt: c.createdAt.getTime() }));
+    .map(({ correction, inputMode }) => ({ ...correction, inputMode, createdAt: correction.createdAt.getTime() }));
 }
 
 function rangeFilter(column: AnySQLiteColumn, from: number | null, to: number | null) {

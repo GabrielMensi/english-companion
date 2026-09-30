@@ -3,7 +3,8 @@
  * corrected text), how often it went wrong, and which tenses the learner used
  * instead. Mistakes only count once the deferred classifier assigned a tense.
  */
-import { countsAsMistake, type ErrorCategory, type Severity, type Tense, TENSE_CATEGORIES, TENSES } from "@/lib/taxonomy";
+import type { InputMode } from "@/db/schema";
+import { countsInStats, type ErrorCategory, type Severity, type Tense, TENSE_CATEGORIES, TENSES } from "@/lib/taxonomy";
 import type { TenseCounts } from "@/lib/tenses-core";
 
 export interface TenseStatMessage {
@@ -20,6 +21,7 @@ export interface TenseStatCorrection {
   classification: string;
   original: string;
   correction: string;
+  inputMode: InputMode;
 }
 
 export type TenseStatus = "strong" | "shaky" | "weak" | "not_enough_data" | "avoided";
@@ -107,7 +109,7 @@ export function computeTenseStats(input: {
 
   const unclassified = input.corrections.filter(
     (c) =>
-      countsAsMistake(c.severity, input.countTypos) &&
+      countsInStats(c, input.countTypos) &&
       c.classification === "pending" &&
       TENSE_CATEGORIES.includes(c.category),
   ).length;
@@ -138,7 +140,7 @@ function aggregate(messages: TenseStatMessage[], corrections: TenseStatCorrectio
   }
 
   for (const c of corrections) {
-    if (!c.tense || !countsAsMistake(c.severity, countTypos)) continue;
+    if (!c.tense || !countsInStats(c, countTypos)) continue;
     const entry = get(measured(c.tense));
     const used = c.tenseUsed ? measured(c.tenseUsed) : null;
     if (used && used !== measured(c.tense)) {
