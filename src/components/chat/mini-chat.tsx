@@ -1,10 +1,25 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Bot, Check, CheckCircle2, ClipboardCheck, Loader2, RotateCcw, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Bot,
+  Check,
+  CheckCircle2,
+  ClipboardCheck,
+  Headphones,
+  Loader2,
+  Mic,
+  RotateCcw,
+  X,
+} from "lucide-react";
 import { useState } from "react";
+import { SpeakButton } from "@/components/audio/speak-button";
+import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { Composer, type ComposerState, type Notify } from "@/components/chat/composer";
 import { DiffText } from "@/components/chat/diff-text";
 import { CopyButton, copyText } from "@/components/copy-button";
+import { FluencyNote } from "@/components/chat/user-message";
 import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
 import type { SessionMode } from "@/db/schema";
@@ -34,6 +49,7 @@ export function MiniChat({
   notify,
   onRetry,
   onClose,
+  voice,
 }: {
   title: string;
   mode: SessionMode;
@@ -48,14 +64,33 @@ export function MiniChat({
   notify: Notify;
   onRetry: (id: string) => void;
   onClose: () => void;
+  /** Voice mode, shared with the tab; null when it isn't available (correction mode, no speech). */
+  voice: { on: boolean; canTurnOn: boolean; toggle: () => void } | null;
 }) {
   return (
     <div className="flex h-full flex-col text-sm">
       <header className="flex items-center justify-between gap-3 border-b px-3 py-2">
         <span className="truncate font-medium">{title}</span>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {mode === "conversation" ? "Conversation" : "Correction"}
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          {voice && (
+            <Button
+              variant={voice.on ? "secondary" : "ghost"}
+              size="xs"
+              onClick={voice.toggle}
+              disabled={!voice.canTurnOn}
+              aria-pressed={voice.on}
+              title={
+                voice.canTurnOn
+                  ? `Voice mode: replies are read aloud, hold ${PUSH_TO_TALK_KEYS} to answer`
+                  : "Voice mode needs a Groq API key for dictation: add it in Settings"
+              }
+            >
+              <Headphones />
+              Voice
+            </Button>
+          )}
+          <span className="text-xs text-muted-foreground">{mode === "conversation" ? "Conversation" : "Correction"}</span>
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
@@ -84,6 +119,12 @@ export function MiniChat({
 
       <div className="border-t p-3">
         <Composer composer={composer} canDictate={canDictate} />
+        {voice?.on && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Hold <kbd className="rounded border px-1 font-sans">{PUSH_TO_TALK_KEYS}</kbd> to talk, release to send.
+            Replies are read aloud.
+          </p>
+        )}
       </div>
     </div>
   );
@@ -161,6 +202,13 @@ function LastCorrection({
       ) : (
         <p className="leading-relaxed whitespace-pre-wrap">{message.content}</p>
       )}
+      {message.inputMode === "spoken" && (
+        <div className="-mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+          <Mic className="size-3" />
+          Spoken
+          {message.fluency && <FluencyNote fluency={message.fluency} />}
+        </div>
+      )}
 
       {errors.length > 0 && (
         <ul className="flex flex-col gap-2.5">
@@ -179,6 +227,7 @@ function LastCorrection({
       )}
 
       <div className="-mb-1 flex flex-wrap gap-1 border-t pt-2">
+        <SpeakButton text={corrected} label="Listen" />
         <CopyButton text={corrected} label="Copy corrected" onError={copyFailed} />
         {message.improvedPrompt && <CopyButton text={message.improvedPrompt} label="Copy prompt" onError={copyFailed} />}
         <CopyAndCloseButton text={corrected} onClose={onClose} onError={copyFailed} />
@@ -189,7 +238,8 @@ function LastCorrection({
           <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted">
             <Bot className="size-3.5" />
           </div>
-          <p className="leading-relaxed whitespace-pre-wrap">{reply.content}</p>
+          <p className="flex-1 leading-relaxed whitespace-pre-wrap">{reply.content}</p>
+          <SpeakButton text={reply.content} id={reply.id} />
         </div>
       )}
     </div>
