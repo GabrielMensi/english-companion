@@ -5,16 +5,32 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-export function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+/**
+ * Copies with the clipboard of the window the element is in: the floating window has its own,
+ * and writing from an unfocused window (the hidden tab) is rejected.
+ */
+export function copyText(text: string, from: Element) {
+  return (from.ownerDocument.defaultView?.navigator ?? navigator).clipboard.writeText(text);
+}
+
+export function CopyButton({
+  text,
+  label = "Copy",
+  onError = () => toast.error("Couldn't copy to the clipboard"),
+}: {
+  text: string;
+  label?: string;
+  onError?: () => void;
+}) {
   const [copied, setCopied] = useState(false);
 
-  async function copy() {
+  async function copy(event: React.MouseEvent<HTMLButtonElement>) {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyText(text, event.currentTarget);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      toast.error("Couldn't copy to the clipboard");
+      onError();
     }
   }
 
