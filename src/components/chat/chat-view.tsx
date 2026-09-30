@@ -16,8 +16,9 @@ import { usePipWindow } from "@/components/pip/use-pip-window";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SessionMode } from "@/db/schema";
+import type { AnalysisPreview } from "@/lib/ai/analysis";
 import type { ProviderId } from "@/lib/ai/provider-info";
-import { api } from "@/lib/api";
+import { api, streamTurn } from "@/lib/api";
 import type { ChatMessage, SessionSummary, VoiceInput } from "@/lib/types";
 
 export function ChatView({
@@ -37,6 +38,8 @@ export function ChatView({
   const [messages, setMessages] = useState(initialMessages);
   const [mode, setMode] = useState(session.mode);
   const [sending, setSending] = useState(false);
+  /** Analyses being streamed, by message id. */
+  const [previews, setPreviews] = useState<Record<string, AnalysisPreview>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const pip = usePipWindow();
   const [voiceMode, setVoiceMode] = useVoiceMode();
@@ -100,9 +103,48 @@ export function ChatView({
     return () => navigator.mediaSession.setActionHandler(action, null);
   }, [pip.supported, composer.recording, pipWindow, openPip]);
 
+  // Also follow the streamed correction as it grows, but only on coarse changes to avoid jitter.
+  const previewShape = Object.values(previews)
+    .map((p) => `${p.correctedDone}:${p.errors.length}:${!!p.naturalText}:${!!p.reply}`)
+    .join();
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, sending]);
+  }, [messages.length, sending, previewShape]);
+
+  function setPreview(id: string, preview: AnalysisPreview | null) {
+    setPreviews((prev) => {
+      const next = { ...prev };
+      if (preview) next[id] = preview;
+      else delete next[id];
+      return next;
+    });
+  }
+
+  /**
+   * Posts to a route that analyzes a message, showing the correction while it's generated.
+   * `target.id` is the message being analyzed; the optimistic one is swapped for the stored one
+   * as soon as the server sends it, and `target.id` follows.
+   */
+  async function analyze(url: string, body: unknown, target: { id: string }) {
+    try {
+      return await streamTurn(url, body, (event) => {
+        if (event.type === "message") {
+          const { id } = target;
+          setMessages((prev) => prev.map((m) => (m.id === id ? event.message : m)));
+          target.id = event.message.id;
+        } else {
+          setPreview(target.id, event.preview);
+        }
+      });
+    } finally {
+      setPreview(target.id, null);
+    }
+  }
+
+  /** Shows an error on a message whose analysis didn't come back, so it can be retried. */
+  function markFailed(id: string, errorMessage: string) {
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, status: "error", errorMessage } : m)));
+  }
 
   /** Replaces the turn's messages (by id) or appends them. */
   function mergeTurn(turn: ChatMessage[], replaceId?: string) {
@@ -119,14 +161,17 @@ export function ChatView({
     const tempId = `temp-${crypto.randomUUID()}`;
     setMessages((prev) => [...prev, optimisticMessage(tempId, session.id, text, voice)]);
     setSending(true);
+    const target = { id: tempId };
     try {
-      const turn = await api<ChatMessage[]>(`/api/sessions/${session.id}/messages`, { body: { text, voice } });
+      const turn = await analyze(`/api/sessions/${session.id}/messages`, { text, voice }, target);
       mergeTurn(turn, tempId);
       readReplyAloud(turn);
       if (messages.length === 0) router.refresh(); // first message sets the chat title
       return true;
     } catch (error) {
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      // Once stored, the message stays (with the error and a retry button), as after a reload.
+      if (target.id === tempId) setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      else markFailed(target.id, (error as Error).message);
       notify("error", (error as Error).message);
       return false;
     } finally {
@@ -137,10 +182,11 @@ export function ChatView({
   async function retry(messageId: string) {
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, status: "pending" } : m)));
     try {
-      const turn = await api<ChatMessage[]>(`/api/messages/${messageId}/retry`, { method: "POST" });
+      const turn = await analyze(`/api/messages/${messageId}/retry`, undefined, { id: messageId });
       mergeTurn(turn);
       readReplyAloud(turn);
     } catch (error) {
+      markFailed(messageId, (error as Error).message);
       notify("error", (error as Error).message);
     }
   }
@@ -235,7 +281,7 @@ export function ChatView({
           )}
           {messages.map((m) =>
             m.role === "user" ? (
-              <UserMessage key={m.id} message={m} onRetry={retry} onUpdate={updateMessage} />
+              <UserMessage key={m.id} message={m} preview={previews[m.id]} onRetry={retry} onUpdate={updateMessage} />
             ) : (
               <AssistantMessage key={m.id} message={m} />
             ),
@@ -276,6 +322,7 @@ export function ChatView({
             title={session.title}
             mode={mode}
             message={lastSent}
+            preview={lastSent && previews[lastSent.id]}
             reply={reply}
             composer={composer}
             canDictate={canDictate}
