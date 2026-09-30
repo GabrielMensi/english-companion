@@ -4,6 +4,7 @@ import { MessageSquare, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { SpeakButton } from "@/components/audio/speak-button";
 import { Highlight } from "@/components/vocabulary/highlight";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,7 +68,10 @@ export function VocabularyList({ initialWords }: { initialWords: VocabularyWord[
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-sm text-muted-foreground">{w.spanish}</div>
-                <div className="text-lg font-medium">{w.english.join(" / ")}</div>
+                <div className="flex items-center gap-1">
+                  <span className="text-lg font-medium">{w.english.join(" / ")}</span>
+                  <SpeakButton text={w.english.join(", ")} />
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs whitespace-nowrap text-muted-foreground">

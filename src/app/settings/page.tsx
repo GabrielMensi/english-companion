@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 import { SettingsForm } from "@/components/settings/settings-form";
+import { VoiceSettings } from "@/components/settings/voice-settings";
 import { providerStatus } from "@/lib/ai/providers";
 import { getSettings } from "@/lib/settings";
 
@@ -14,6 +15,7 @@ export default async function SettingsPage() {
           <p className="text-muted-foreground">Choose which AI models correct your messages and in what order.</p>
         </div>
         <SettingsForm initialSettings={settings} initialProviders={providerStatus(settings)} />
+        <VoiceSettings />
       </div>
     </div>
   );

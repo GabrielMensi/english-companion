@@ -1,10 +1,12 @@
 "use client";
 
-import { PictureInPicture2 } from "lucide-react";
+import { Headphones, PictureInPicture2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
+import { speak, stopSpeaking, useSpeechSupported, useVoiceMode } from "@/components/audio/speech";
+import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AssistantMessage } from "@/components/chat/assistant-message";
 import { Composer, type Notify, useComposer } from "@/components/chat/composer";
 import { MiniChat, type Notice } from "@/components/chat/mini-chat";
@@ -37,6 +39,10 @@ export function ChatView({
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const pip = usePipWindow();
+  const [voiceMode, setVoiceMode] = useVoiceMode();
+  const speechSupported = useSpeechSupported();
+  // Talking by voice only makes sense when the tutor answers.
+  const voiceConversation = voiceMode && mode === "conversation" && canDictate && speechSupported;
   // Tied to the window it was shown in, so it doesn't come back when the window is reopened.
   const [notice, setNotice] = useState<(Notice & { window: Window }) | null>(null);
 
@@ -47,7 +53,14 @@ export function ChatView({
     else toast[kind](message);
   };
 
-  const composer = useComposer({ onSend: send, disabled: sending, notify });
+  const composer = useComposer({
+    onSend: send,
+    disabled: sending,
+    notify,
+    canDictate,
+    autoSend: voiceConversation,
+    keyWindow: pip.window,
+  });
   const lastSent = messages.findLast((m) => m.role === "user");
   const reply = lastSent && messages.find((m) => m.replyToId === lastSent.id);
 
@@ -103,12 +116,13 @@ export function ChatView({
   }
 
   async function send(text: string, voice?: VoiceInput) {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = `temp-${crypto.randomUUID()}`;
     setMessages((prev) => [...prev, optimisticMessage(tempId, session.id, text, voice)]);
     setSending(true);
     try {
       const turn = await api<ChatMessage[]>(`/api/sessions/${session.id}/messages`, { body: { text, voice } });
       mergeTurn(turn, tempId);
+      readReplyAloud(turn);
       if (messages.length === 0) router.refresh(); // first message sets the chat title
       return true;
     } catch (error) {
@@ -123,10 +137,23 @@ export function ChatView({
   async function retry(messageId: string) {
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, status: "pending" } : m)));
     try {
-      mergeTurn(await api<ChatMessage[]>(`/api/messages/${messageId}/retry`, { method: "POST" }));
+      const turn = await api<ChatMessage[]>(`/api/messages/${messageId}/retry`, { method: "POST" });
+      mergeTurn(turn);
+      readReplyAloud(turn);
     } catch (error) {
       notify("error", (error as Error).message);
     }
+  }
+
+  /** In voice mode the reply is read aloud; the corrections just show up in the chat. */
+  function readReplyAloud(turn: ChatMessage[]) {
+    const reply = turn.find((m) => m.role === "assistant");
+    if (voiceConversation && reply) speak(reply.content, reply.id);
+  }
+
+  function toggleVoiceMode() {
+    if (voiceMode) stopSpeaking();
+    setVoiceMode(!voiceMode);
   }
 
   function updateMessage(updated: Partial<ChatMessage> & { id: string }) {
@@ -148,6 +175,23 @@ export function ChatView({
       <header className="flex items-center justify-between gap-4 border-b px-6 py-2.5">
         <h1 className="truncate font-medium">{session.title}</h1>
         <div className="flex items-center gap-3">
+          {mode === "conversation" && speechSupported && (
+            <Button
+              variant={voiceConversation ? "secondary" : "ghost"}
+              size="sm"
+              onClick={toggleVoiceMode}
+              disabled={!canDictate}
+              aria-pressed={voiceConversation}
+              title={
+                canDictate
+                  ? `Voice mode: replies are read aloud, hold ${PUSH_TO_TALK_KEYS} to answer`
+                  : "Voice mode needs a Groq API key for dictation: add it in Settings"
+              }
+            >
+              <Headphones />
+              Voice
+            </Button>
+          )}
           {pip.supported && (
             <Button
               variant={pipWindow ? "secondary" : "ghost"}
@@ -213,7 +257,15 @@ export function ChatView({
               </Button>
             </div>
           ) : (
-            <Composer composer={composer} canDictate={canDictate} />
+            <>
+              <Composer composer={composer} canDictate={canDictate} />
+              {voiceConversation && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Voice mode: hold <kbd className="rounded border px-1 font-sans">{PUSH_TO_TALK_KEYS}</kbd> to talk and
+                  release to send (or tap it to start and stop). Replies are read aloud; corrections stay in the chat.
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -265,6 +317,7 @@ function optimisticMessage(id: string, sessionId: string, text: string, voice?: 
     transcriptionProvider: voice?.transcriptionProvider ?? null,
     transcriptionModel: voice?.transcriptionModel ?? null,
     audioDurationMs: voice?.audioDurationMs ?? null,
+    fluency: voice?.fluency ?? null,
     createdAt: Date.now(),
     corrections: [],
     vocabulary: [],

@@ -1,6 +1,7 @@
 import "server-only";
 
-import { transcribe } from "ai";
+import { APICallError } from "ai";
+import { computeFluency, wordsFromResponse } from "@/lib/fluency";
 import { resolveTranscriptionModel } from "./providers";
 
 const TIMEOUT_MS = 30_000;
@@ -12,24 +13,33 @@ export class TranscriptionUnavailableError extends Error {
   }
 }
 
-/** Transcribes a dictated message (16 kHz mono WAV) word for word. */
+/** Transcribes a dictated message (16 kHz mono WAV) word for word, with fluency metrics from the word timestamps. */
 export async function transcribeSpeech(audio: Uint8Array) {
   const resolved = resolveTranscriptionModel();
   if (!resolved) throw new TranscriptionUnavailableError();
 
   const started = Date.now();
-  const result = await transcribe({
-    model: resolved.model,
-    audio,
-    maxRetries: 1,
-    abortSignal: AbortSignal.timeout(TIMEOUT_MS),
-    // Temperature 0 is the most literal; the language avoids detecting Spanish from the accent.
-    providerOptions: { groq: { language: "en", temperature: 0 } },
+  // Called on the model directly: `transcribe()` drops the raw response, and the word timestamps are only there.
+  const generate = async () =>
+    resolved.model.doGenerate({
+      audio,
+      mediaType: "audio/wav",
+      abortSignal: AbortSignal.timeout(TIMEOUT_MS),
+      // Temperature 0 is the most literal; the language avoids detecting Spanish from the accent.
+      providerOptions: {
+        groq: { language: "en", temperature: 0, responseFormat: "verbose_json", timestampGranularities: ["word"] },
+      },
+    });
+  const result = await generate().catch((error: unknown) => {
+    if (APICallError.isInstance(error) && error.isRetryable) return generate();
+    throw error;
   });
+
   return {
     text: result.text.trim(),
     provider: resolved.provider,
     model: resolved.modelId,
     durationMs: Date.now() - started,
+    fluency: computeFluency(wordsFromResponse(result.response?.body)),
   };
 }

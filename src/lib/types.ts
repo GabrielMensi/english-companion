@@ -1,4 +1,5 @@
 import type { Correction, Message, Session, VocabularyEntry } from "@/db/schema";
+import type { FluencyMetrics } from "@/lib/fluency";
 
 /** Serializable shapes sent from the server to client components. */
 export type ChatCorrection = Omit<Correction, "createdAt"> & { createdAt: number };
@@ -19,4 +20,6 @@ export interface VoiceInput {
   transcriptionProvider: string;
   transcriptionModel: string;
   audioDurationMs: number;
+  /** Null when speech-to-text gave no word timestamps. */
+  fluency: FluencyMetrics | null;
 }
