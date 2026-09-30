@@ -58,9 +58,13 @@ Los PDFs están en `books/` (ignorado en git: tienen copyright y pesan ~680 MB; 
 | `Speak up.pdf` / `Speak up - Workbook.pdf` | Speakout (Pearson / BBC): Student's Book y Workbook | 170 / 96 |
 
 Lo que se verificó (2026-09-28):
-- **Son escaneos**: no tienen texto extraíble (`pdftotext` devuelve páginas vacías). Hay que leerlos como imagen, con un modelo de visión (Gemini Flash-Lite acepta imágenes y es gratis) o con OCR.
+- **Los Student's Books son escaneos**: no tienen texto extraíble (`pdftotext` devuelve páginas vacías). Hay que leerlos como imagen, con un modelo de visión (Gemini Flash-Lite acepta imágenes y es gratis) o con OCR.
+- **Los Workbooks sí tienen texto en parte y traen answer key** (verificado 2026-09-30): el de Speakout tiene una capa OCR con ruido en todas las páginas; el de Roadmap, texto digital limpio en la answer key y los audio scripts (pp. 69–86). Detalle en [TEXTBOOKS.md](TEXTBOOKS.md).
 - **El índice es muy aprovechable**: está en las páginas 2–5 de cada libro y se lee bien renderizado a 70 dpi (`pdftoppm -f 2 -l 5 -r 70`). Cada lección (1A, 1B…) tiene columnas *Grammar/Function*, *Vocabulary* y *Pronunciation* (Roadmap agrega *Speaking goal*; Speakout, *Reading*).
 - **La gramática se mapea directo a la taxonomía** de `src/lib/taxonomy.ts`. Ejemplos: present simple/continuous y past simple → `verb_tense`; *used to*, *be going to* → `verb_tense`; articles → `articles`; question forms → `question_formation`; verb patterns → `gerund_infinitive`; comparatives/superlatives → `comparatives`; modals for rules/advice, possibility/deduction → `modals`; zero/first conditional → `conditionals`; quantifiers → `plurals_countability`; phrasal verbs → `phrasal_verbs`; collocations with *get/make* → `collocations`.
+
+### Resolver los ejercicios del libro en la app
+Un espacio para los libros: visor de PDF, un botón que pasa la página actual a texto y detecta los ejercicios, resolverlos en la app y corregirlos de a uno (o en grupo), contra la answer key cuando existe y con la IA cuando no. Registra el avance por lección y usa el índice para recomendar ejercicios. Cubre la extracción del índice de §2. Investigación y diseño en [TEXTBOOKS.md](TEXTBOOKS.md).
 
 ### 1. Reporte para llevar a clase (prioridad 1)
 Antes de cada clase, la app genera una página con: los errores más repetidos de la semana con ejemplos reales, las palabras buscadas con `[corchetes]` y las categorías que empeoraron. Se comparte pantalla en Meet o se manda antes, y el profesor dedica la clase a lo que realmente te cuesta en vez de adivinarlo.
