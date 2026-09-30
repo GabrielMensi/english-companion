@@ -23,8 +23,8 @@ export const PROVIDERS: Record<
   groq: {
     label: "Groq",
     name: "Groq",
-    description: "Free tier with daily limits. Very fast.",
-    defaultModel: "openai/gpt-oss-120b",
+    description: "Free tier: 1,000 requests and 200K tokens a day (~110 corrections with Qwen). Very fast.",
+    defaultModel: "qwen/qwen3.8-27b",
     local: false,
   },
 };

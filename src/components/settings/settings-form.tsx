@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { byFallbackPriority } from "@/lib/ai/fallback";
 import { modelLabel, PROVIDER_IDS, PROVIDERS, type ProviderId } from "@/lib/ai/provider-info";
 import { api } from "@/lib/api";
 import type { ProviderStatus } from "@/lib/ai/providers";
@@ -212,11 +213,12 @@ export function SettingsForm({
         <div>
           <h2 className="font-medium">Fallbacks</h2>
           <p className="text-sm text-muted-foreground">
-            If {PROVIDERS[provider].name} fails (offline, quota exceeded, overloaded…), try these models in order.
+            If {PROVIDERS[provider].name} fails (offline, quota exceeded, overloaded…), try these models in this order.
+            The local model always goes last: it’s slower and uses your GPU.
           </p>
         </div>
         <div className="grid gap-2">
-          {PROVIDER_IDS.filter((id) => id !== provider).map((id) => {
+          {byFallbackPriority(PROVIDER_IDS.filter((id) => id !== provider)).map((id) => {
             const configured = providers[id].configured;
             return (
               <div key={id} className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2">
