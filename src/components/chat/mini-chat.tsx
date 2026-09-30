@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, Bot, CheckCircle2, ClipboardCheck, Loader2, RotateCcw, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bot, Check, CheckCircle2, ClipboardCheck, Loader2, RotateCcw, X } from "lucide-react";
+import { useState } from "react";
 import { Composer, type ComposerState, type Notify } from "@/components/chat/composer";
 import { DiffText } from "@/components/chat/diff-text";
 import { CopyButton, copyText } from "@/components/copy-button";
@@ -135,15 +136,6 @@ function LastCorrection({
 
   const copyFailed = () => notify("error", "Couldn't copy to the clipboard");
 
-  async function copyAndClose(event: React.MouseEvent<HTMLButtonElement>) {
-    try {
-      await copyText(corrected, event.currentTarget);
-      onClose();
-    } catch {
-      copyFailed();
-    }
-  }
-
   return (
     <div className="flex flex-col gap-3">
       {errors.length === 0 ? (
@@ -189,10 +181,7 @@ function LastCorrection({
       <div className="-mb-1 flex flex-wrap gap-1 border-t pt-2">
         <CopyButton text={corrected} label="Copy corrected" onError={copyFailed} />
         {message.improvedPrompt && <CopyButton text={message.improvedPrompt} label="Copy prompt" onError={copyFailed} />}
-        <Button variant="ghost" size="sm" onClick={copyAndClose} title="Copy the corrected text and close this window">
-          <ClipboardCheck />
-          Copy &amp; close
-        </Button>
+        <CopyAndCloseButton text={corrected} onClose={onClose} onError={copyFailed} />
       </div>
 
       {reply && (
@@ -204,5 +193,36 @@ function LastCorrection({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Closing the window right after the write loses it on Windows: the clipboard write is still in
+ * flight when the window's document goes away. Show "Copied" for a moment, then close.
+ */
+function CopyAndCloseButton({ text, onClose, onError }: { text: string; onClose: () => void; onError: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyAndClose(event: React.MouseEvent<HTMLButtonElement>) {
+    try {
+      await copyText(text, event.currentTarget);
+      setCopied(true);
+      setTimeout(onClose, 600);
+    } catch {
+      onError();
+    }
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={copyAndClose}
+      disabled={copied}
+      title="Copy the corrected text and close this window"
+    >
+      {copied ? <Check /> : <ClipboardCheck />}
+      {copied ? "Copied" : "Copy & close"}
+    </Button>
   );
 }
