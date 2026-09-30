@@ -22,7 +22,7 @@
 ## Próximo
 
 ### Práctica de tiempos verbales
-Con el diagnóstico ya hecho: ejercicios de contraste para las confusiones más comunes y preguntas en el modo conversación que obliguen a usar los tiempos débiles o poco usados. Ver [VERB_TENSES.md](VERB_TENSES.md).
+Con el diagnóstico ya hecho: ejercicios de contraste para las confusiones más comunes y preguntas en el modo conversación que obliguen a usar los tiempos débiles o poco usados. Implementado en `feature/tense-practice` (página Practice); pendiente de probar y mergear. Ver [VERB_TENSES.md](VERB_TENSES.md#práctica).
 
 ### Kev como clasificador
 La clasificación en dos etapas ya está hecha con el LLM. Falta evaluar Kev-0.8B (o Jev / Jeeves) como backend cuando haya etiquetas reales de "Wrong type?". Ver [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md).
