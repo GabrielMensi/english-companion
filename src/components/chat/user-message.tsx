@@ -62,7 +62,7 @@ function formatDuration(ms: number) {
 }
 
 /** Pace, long pauses and fillers of a dictated message, e.g. "· 118 wpm · 1 long pause · 2 fillers". */
-function FluencyNote({ fluency }: { fluency: NonNullable<ChatMessage["fluency"]> }) {
+export function FluencyNote({ fluency }: { fluency: NonNullable<ChatMessage["fluency"]> }) {
   const { wpm, fillerCount, topFillers } = fluencySummary(fluency);
   const parts = [
     wpm !== null && `${wpm} wpm`,

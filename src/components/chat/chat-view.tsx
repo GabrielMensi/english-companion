@@ -284,6 +284,11 @@ export function ChatView({
             notify={notify}
             onRetry={retry}
             onClose={closePip}
+            voice={
+              mode === "conversation" && speechSupported
+                ? { on: voiceConversation, canTurnOn: canDictate, toggle: toggleVoiceMode }
+                : null
+            }
           />,
           pipWindow.document.body,
         )}
