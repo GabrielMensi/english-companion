@@ -1,12 +1,17 @@
 "use client";
 
+import { PictureInPicture2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { AssistantMessage } from "@/components/chat/assistant-message";
-import { Composer } from "@/components/chat/composer";
+import { Composer, type Notify, useComposer } from "@/components/chat/composer";
+import { MiniChat, type Notice } from "@/components/chat/mini-chat";
 import { type ModelOption, ModelSelect } from "@/components/chat/model-select";
 import { UserMessage } from "@/components/chat/user-message";
+import { usePipWindow } from "@/components/pip/use-pip-window";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SessionMode } from "@/db/schema";
 import type { ProviderId } from "@/lib/ai/provider-info";
@@ -31,6 +36,56 @@ export function ChatView({
   const [mode, setMode] = useState(session.mode);
   const [sending, setSending] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const pip = usePipWindow();
+  // Tied to the window it was shown in, so it doesn't come back when the window is reopened.
+  const [notice, setNotice] = useState<(Notice & { window: Window }) | null>(null);
+
+  /** Toasts render in the tab, which is hidden while the floating window is open: show them there instead. */
+  const notify: Notify = (kind, message) => {
+    const floating = window.documentPictureInPicture?.window;
+    if (floating) setNotice({ kind, message, window: floating });
+    else toast[kind](message);
+  };
+
+  const composer = useComposer({ onSend: send, disabled: sending, notify });
+  const lastSent = messages.findLast((m) => m.role === "user");
+  const reply = lastSent && messages.find((m) => m.replyToId === lastSent.id);
+
+  // Info notices go away on their own; errors stay until dismissed or replaced.
+  useEffect(() => {
+    if (notice?.kind !== "info") return;
+    const timer = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  // Alt+P pops the composer out into a floating window, or brings it back.
+  const { window: pipWindow, open: openPip, close: closePip } = pip;
+  useEffect(() => {
+    if (!pip.supported) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.code !== "KeyP" || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      event.preventDefault();
+      if (pipWindow) closePip();
+      else void openPip().catch((error: Error) => toast.error(`Couldn't open the floating window: ${error.message}`));
+    }
+    // Keys pressed in the floating window don't reach the tab's listeners.
+    const targets = [window, ...(pipWindow ? [pipWindow] : [])];
+    targets.forEach((t) => t.addEventListener("keydown", onKeyDown));
+    return () => targets.forEach((t) => t.removeEventListener("keydown", onKeyDown));
+  }, [pip.supported, pipWindow, openPip, closePip]);
+
+  // Switching tabs while dictating pops the window out on its own (like Google Meet), so you can keep
+  // talking while looking at something else. Chrome only allows it while the page uses the microphone.
+  useEffect(() => {
+    if (!pip.supported || !composer.recording || pipWindow) return;
+    const action = "enterpictureinpicture" as MediaSessionAction;
+    try {
+      navigator.mediaSession.setActionHandler(action, () => void openPip({ auto: true }).catch(() => {}));
+    } catch {
+      return; // This browser doesn't support automatic picture-in-picture.
+    }
+    return () => navigator.mediaSession.setActionHandler(action, null);
+  }, [pip.supported, composer.recording, pipWindow, openPip]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -58,7 +113,7 @@ export function ChatView({
       return true;
     } catch (error) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      toast.error((error as Error).message);
+      notify("error", (error as Error).message);
       return false;
     } finally {
       setSending(false);
@@ -70,7 +125,7 @@ export function ChatView({
     try {
       mergeTurn(await api<ChatMessage[]>(`/api/messages/${messageId}/retry`, { method: "POST" }));
     } catch (error) {
-      toast.error((error as Error).message);
+      notify("error", (error as Error).message);
     }
   }
 
@@ -93,6 +148,25 @@ export function ChatView({
       <header className="flex items-center justify-between gap-4 border-b px-6 py-2.5">
         <h1 className="truncate font-medium">{session.title}</h1>
         <div className="flex items-center gap-3">
+          {pip.supported && (
+            <Button
+              variant={pipWindow ? "secondary" : "ghost"}
+              size="icon-sm"
+              onClick={() =>
+                pipWindow
+                  ? closePip()
+                  : openPip().catch((error: Error) => toast.error(`Couldn't open the floating window: ${error.message}`))
+              }
+              aria-label={pipWindow ? "Bring the composer back" : "Pop out"}
+              title={
+                pipWindow
+                  ? "Bring the composer back to the tab (Alt+P)"
+                  : "Pop out: a floating window to write or dictate while you work in other apps (Alt+P)"
+              }
+            >
+              <PictureInPicture2 />
+            </Button>
+          )}
           <ModelSelect key={selectedProvider} options={models} selected={selectedProvider} />
           <Select value={mode} onValueChange={(v) => changeMode(v as SessionMode)}>
             <SelectTrigger size="sm" className="w-40">
@@ -128,9 +202,39 @@ export function ChatView({
 
       <div className="border-t">
         <div className="mx-auto max-w-3xl px-6 py-4">
-          <Composer onSend={send} disabled={sending} canDictate={canDictate} />
+          {pipWindow ? (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+              <span className="flex items-center gap-2">
+                <PictureInPicture2 className="size-4" />
+                Popped out: write in the floating window.
+              </span>
+              <Button variant="outline" size="sm" onClick={closePip}>
+                Back in the tab
+              </Button>
+            </div>
+          ) : (
+            <Composer composer={composer} canDictate={canDictate} />
+          )}
         </div>
       </div>
+
+      {pipWindow &&
+        createPortal(
+          <MiniChat
+            title={session.title}
+            mode={mode}
+            message={lastSent}
+            reply={reply}
+            composer={composer}
+            canDictate={canDictate}
+            notice={notice?.window === pipWindow ? notice : null}
+            onDismissNotice={() => setNotice(null)}
+            notify={notify}
+            onRetry={retry}
+            onClose={closePip}
+          />,
+          pipWindow.document.body,
+        )}
     </div>
   );
 }
