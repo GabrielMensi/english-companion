@@ -35,11 +35,20 @@ ollama pull gemma4:12b       # modelo local recomendado (requiere Ollama recient
 pnpm dev
 ```
 
-Abrí http://localhost:3737 y armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key (Gemini, Groq) o la URL (Ollama), el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
+Abrí https://localhost:3737 y armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key (Gemini, Groq) o la URL (Ollama), el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
 
 Si preferís configurarlo por entorno, copiá `.env.example` a `.env.local`: esas variables se usan cuando no hay nada guardado en la app.
 
 La app usa el puerto **3737** para no chocar con el 3000 de otros proyectos. Para cambiarlo, editá los scripts `dev` y `start` en `package.json`.
+
+`pnpm dev` sirve la app por **HTTPS** (`next dev --experimental-https`, certificado local de [mkcert](https://github.com/FiloSottile/mkcert) en `certificates/`): Chrome solo abre la ventana flotante sola al cambiar de pestaña mientras dictás si la página es `https://`, y `localhost` no es excepción. Como el navegador corre en Windows y el certificado se genera en WSL, hay que confiar una vez en la CA de mkcert desde Windows:
+
+```powershell
+# en WSL: cp ~/.local/share/mkcert/rootCA.pem /mnt/c/Users/<usuario>/Downloads/mkcert-rootCA.pem
+certutil -user -addstore Root $env:USERPROFILE\Downloads\mkcert-rootCA.pem
+```
+
+Después reiniciá Chrome. Solo se importa el certificado público; la clave queda en WSL.
 
 La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migra solo al arrancar.
 

@@ -22,22 +22,42 @@ interface Transcription {
 /** What was dictated into the current draft, so the message can be stored as spoken. */
 type Dictation = Omit<VoiceInput, "transcriptEdited">;
 
-export function Composer({
+export type Notify = (kind: "error" | "info", message: string) => void;
+
+const toastNotify: Notify = (kind, message) => toast[kind](message);
+
+/**
+ * The composer's draft, dictation and recorder. It lives in `ChatView` rather than in `Composer`,
+ * so the draft (and a dictation in progress) survives moving between the tab and the floating window.
+ */
+export function useComposer({
   onSend,
   disabled,
-  canDictate,
+  notify = toastNotify,
+  canDictate = false,
   autoSend = false,
+  keyWindow,
 }: {
   onSend: (text: string, voice?: VoiceInput) => Promise<boolean>;
   disabled: boolean;
-  canDictate: boolean;
+  notify?: Notify;
+  /** Whether push-to-talk (Ctrl+Space) can start a dictation. */
+  canDictate?: boolean;
   /** Voice mode: send what was dictated as soon as it's transcribed, without reviewing it. */
   autoSend?: boolean;
+  /** Another window whose keys also trigger push-to-talk (the floating window). */
+  keyWindow?: Window | null;
 }) {
   const [text, setText] = useState("");
   const [dictation, setDictation] = useState<Dictation | null>(null);
   const [transcribing, setTranscribing] = useState(false);
   const recorder = useRecorder();
+
+  function edit(value: string) {
+    setText(value);
+    // Clearing the draft means starting over: it's no longer a dictated message.
+    if (!value.trim()) setDictation(null);
+  }
 
   async function submit() {
     if (disabled || recorder.recording || transcribing) return;
@@ -69,7 +89,7 @@ export function Composer({
     try {
       await recorder.start();
     } catch (error) {
-      toast.error(`Couldn't use the microphone: ${(error as Error).message}`);
+      notify("error", `Couldn't use the microphone: ${(error as Error).message}`);
     }
   }
 
@@ -82,7 +102,7 @@ export function Composer({
       const data = (await res.json().catch(() => ({}))) as Partial<Transcription> & { error?: string };
       if (!res.ok || data.text === undefined) throw new Error(data.error ?? `Error ${res.status}`);
       if (!data.text) {
-        toast.info("I didn't hear anything. Try again a bit closer to the microphone.");
+        notify("info", "I didn't hear anything. Try again a bit closer to the microphone.");
         return;
       }
       const spoken = data.text;
@@ -102,7 +122,7 @@ export function Composer({
         setDictation(nextDictation);
       }
     } catch (error) {
-      toast.error(`Couldn't transcribe: ${(error as Error).message}`);
+      notify("error", `Couldn't transcribe: ${(error as Error).message}`);
     } finally {
       setTranscribing(false);
     }
@@ -113,9 +133,27 @@ export function Composer({
     recording: recorder.recording,
     onStart: startRecording,
     onStop: finishRecording,
+    keyWindow,
   });
 
-  const placeholder = recorder.recording
+  return {
+    text,
+    edit,
+    submit,
+    toggleRecording,
+    cancelRecording: recorder.cancel,
+    recording: recorder.recording,
+    transcribing,
+    disabled,
+  };
+}
+
+export type ComposerState = ReturnType<typeof useComposer>;
+
+export function Composer({ composer, canDictate }: { composer: ComposerState; canDictate: boolean }) {
+  const { text, recording, transcribing, disabled } = composer;
+
+  const placeholder = recording
     ? `Listening… release ${PUSH_TO_TALK_KEYS} or click the microphone to stop, Esc to cancel`
     : transcribing
       ? "Transcribing…"
@@ -125,18 +163,14 @@ export function Composer({
     <div className="flex items-end gap-2">
       <Textarea
         value={text}
-        onChange={(e) => {
-          setText(e.target.value);
-          // Clearing the draft means starting over: it's no longer a dictated message.
-          if (!e.target.value.trim()) setDictation(null);
-        }}
+        onChange={(e) => composer.edit(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === "Escape" && recorder.recording) {
+          if (e.key === "Escape" && recording) {
             e.preventDefault();
-            recorder.cancel();
+            composer.cancelRecording();
           } else if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault();
-            submit();
+            composer.submit();
           }
         }}
         placeholder={placeholder}
@@ -150,25 +184,25 @@ export function Composer({
       />
       <div className="flex flex-col gap-2">
         <Button
-          onClick={toggleRecording}
+          onClick={composer.toggleRecording}
           disabled={!canDictate || disabled || transcribing}
           size="icon-lg"
-          variant={recorder.recording ? "destructive" : "outline"}
-          aria-label={recorder.recording ? "Stop dictating" : "Dictate"}
+          variant={recording ? "destructive" : "outline"}
+          aria-label={recording ? "Stop dictating" : "Dictate"}
           title={
             canDictate
-              ? recorder.recording
+              ? recording
                 ? "Stop and transcribe"
                 : `Dictate (hold ${PUSH_TO_TALK_KEYS}): speak in English, your mistakes are kept`
               : "Dictation needs a Groq API key: add it in Settings"
           }
-          className={cn(recorder.recording && "animate-pulse")}
+          className={cn(recording && "animate-pulse")}
         >
-          {transcribing ? <Loader2 className="animate-spin" /> : recorder.recording ? <Square /> : <Mic />}
+          {transcribing ? <Loader2 className="animate-spin" /> : recording ? <Square /> : <Mic />}
         </Button>
         <Button
-          onClick={submit}
-          disabled={disabled || !text.trim() || recorder.recording || transcribing}
+          onClick={composer.submit}
+          disabled={disabled || !text.trim() || recording || transcribing}
           size="icon-lg"
           aria-label="Send"
         >

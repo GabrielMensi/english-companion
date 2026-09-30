@@ -21,13 +21,16 @@ export function usePushToTalk({
   recording,
   onStart,
   onStop,
+  keyWindow,
 }: {
   enabled: boolean;
   recording: boolean;
   onStart: () => void;
   onStop: () => void;
+  /** Another window to listen to as well (keys in the floating window don't reach this one). */
+  keyWindow?: Window | null;
 }) {
-  // The listeners are attached once; they read the latest props from here.
+  // The listeners are only reattached when the windows change; they read the latest props from here.
   const latest = useRef({ enabled, recording, onStart, onStop });
   useEffect(() => {
     latest.current = { enabled, recording, onStart, onStop };
@@ -62,13 +65,17 @@ export function usePushToTalk({
       pressedAt = null;
     }
 
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onBlur);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onBlur);
-    };
-  }, []);
+    const targets = [window, ...(keyWindow ? [keyWindow] : [])];
+    targets.forEach((t) => {
+      t.addEventListener("keydown", onKeyDown);
+      t.addEventListener("keyup", onKeyUp);
+      t.addEventListener("blur", onBlur);
+    });
+    return () =>
+      targets.forEach((t) => {
+        t.removeEventListener("keydown", onKeyDown);
+        t.removeEventListener("keyup", onKeyUp);
+        t.removeEventListener("blur", onBlur);
+      });
+  }, [keyWindow]);
 }
