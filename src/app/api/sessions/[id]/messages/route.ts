@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { addUserMessage, analyzeStoredMessage, getMessages, getSession } from "@/lib/chat";
+import { FLUENCY_VERSION } from "@/lib/fluency";
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) {
   const { id } = await ctx.params;
@@ -17,6 +18,18 @@ const bodySchema = z.object({
       transcriptionProvider: z.string().max(40),
       transcriptionModel: z.string().max(100),
       audioDurationMs: z.number().int().nonnegative(),
+      fluency: z
+        .object({
+          version: z.literal(FLUENCY_VERSION),
+          words: z.number().int().nonnegative(),
+          speechMs: z.number().int().nonnegative(),
+          pauses: z.number().int().nonnegative(),
+          pauseMs: z.number().int().nonnegative(),
+          longestPauseMs: z.number().int().nonnegative(),
+          fillers: z.record(z.string().max(20), z.number().int().nonnegative()),
+        })
+        .nullable()
+        .default(null),
     })
     .optional(),
 });

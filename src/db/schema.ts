@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import { type AnySQLiteColumn, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { FallbackAttempt } from "@/lib/ai/fallback";
+import type { FluencyMetrics } from "@/lib/fluency";
 import type { TenseCounts } from "@/lib/tenses-core";
 import type { ErrorCategory, Severity, Tense } from "@/lib/taxonomy";
 
@@ -66,6 +67,8 @@ export const messages = sqliteTable(
     transcriptionProvider: text("transcription_provider"),
     transcriptionModel: text("transcription_model"),
     audioDurationMs: integer("audio_duration_ms"),
+    /** Pace, long pauses and fillers, from the transcription's word timestamps. */
+    fluency: text("fluency", { mode: "json" }).$type<FluencyMetrics>(),
     /** Tenses in the corrected text, filled in by the dashboard; recomputed when the counter's version changes. */
     tenseCounts: text("tense_counts", { mode: "json" }).$type<{ version: number; counts: TenseCounts }>(),
     createdAt: createdAt(),

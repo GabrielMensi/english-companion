@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { CategoryChart } from "@/components/dashboard/category-chart";
 import { CategoryTable } from "@/components/dashboard/category-table";
 import { ClassificationStatus } from "@/components/dashboard/classification-status";
+import { FluencyPanel } from "@/components/dashboard/fluency-panel";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { TensePanel } from "@/components/dashboard/tense-panel";
 import { TimelineChart } from "@/components/dashboard/timeline-chart";
@@ -20,7 +21,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const { range: rawRange, input: rawInput } = await searchParams;
   const range: RangeKey = typeof rawRange === "string" && rawRange in RANGES ? (rawRange as RangeKey) : "30";
   const input: InputFilter = INPUT_FILTERS.includes(rawInput as InputFilter) ? (rawInput as InputFilter) : "all";
-  const { stats, tenses, vocabulary, countTypos, hasSpoken } = getDashboardData(range, input);
+  const { stats, tenses, vocabulary, fluency, countTypos, hasSpoken } = getDashboardData(range, input);
   const href = (next: { range?: RangeKey; input?: InputFilter }) => {
     const params = new URLSearchParams({ range: next.range ?? range });
     const nextInput = next.input ?? input;
@@ -106,6 +107,12 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             >
               <TensePanel stats={tenses} />
             </Panel>
+
+            {hasSpoken && input !== "typed" && (
+              <Panel title="Fluency" subtitle="How you speak when you dictate: pace, long pauses and filler words">
+                <FluencyPanel stats={fluency} />
+              </Panel>
+            )}
 
             <Panel
               title="Vocabulary"

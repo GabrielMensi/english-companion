@@ -1,8 +1,9 @@
 import "server-only";
 
-import { and, eq, gte, lt } from "drizzle-orm";
+import { and, eq, gte, isNotNull, lt } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { db, schema } from "@/db";
+import { computeFluencyStats } from "@/lib/fluency";
 import { getSettings } from "@/lib/settings";
 import { computeStats, type StatCorrection, type StatMessage } from "@/lib/stats-core";
 import { computeTenseStats, type TenseStatCorrection } from "@/lib/tense-stats";
@@ -51,10 +52,23 @@ export function getDashboardData(range: RangeKey, input: InputFilter = "all") {
     previousCorrections: previous.corrections,
   });
 
+  // Fluency only exists for dictated messages, so the written/spoken filter doesn't change it.
+  const fluency = computeFluencyStats(
+    loadFluency(from, null),
+    from !== null ? loadFluency(previousFrom, from) : [],
+  );
+
   // Words looked up with [brackets] during the period, grouped and newest first.
   const vocabulary = getVocabulary().filter((w) => from === null || w.lastSeen >= from);
 
-  return { stats, tenses, vocabulary, countTypos: settings.countTyposInStats, hasSpoken: hasSpokenMessages() };
+  return {
+    stats,
+    tenses,
+    vocabulary,
+    fluency,
+    countTypos: settings.countTyposInStats,
+    hasSpoken: hasSpokenMessages(),
+  };
 }
 
 function hasSpokenMessages(): boolean {
@@ -66,6 +80,21 @@ function hasSpokenMessages(): boolean {
       .limit(1)
       .get() !== undefined
   );
+}
+
+function loadFluency(from: number | null, to: number | null) {
+  return db
+    .select({ fluency: schema.messages.fluency })
+    .from(schema.messages)
+    .where(
+      and(
+        eq(schema.messages.role, "user"),
+        eq(schema.messages.inputMode, "spoken"),
+        isNotNull(schema.messages.fluency),
+        ...rangeFilter(schema.messages.createdAt, from, to),
+      ),
+    )
+    .all();
 }
 
 function inputFilter(input: InputFilter) {

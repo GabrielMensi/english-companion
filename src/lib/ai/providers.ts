@@ -2,7 +2,7 @@ import "server-only";
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
-import type { generateText, TranscriptionModel } from "ai";
+import type { generateText } from "ai";
 import { createOllama } from "ollama-ai-provider-v2";
 import { DEFAULT_OLLAMA_BASE_URL, type KeyProvider, maskKey, normalizeBaseUrl } from "@/lib/credentials";
 import { resolveApiKey } from "@/lib/secrets";
@@ -161,7 +161,9 @@ export function withFallback<T>(
  */
 export const TRANSCRIPTION_MODEL = { provider: "groq", modelId: "whisper-large-v3-turbo" } as const;
 
-export function resolveTranscriptionModel(): { model: TranscriptionModel; provider: string; modelId: string } | null {
+type GroqTranscriptionModel = ReturnType<ReturnType<typeof createGroq>["transcription"]>;
+
+export function resolveTranscriptionModel(): { model: GroqTranscriptionModel; provider: string; modelId: string } | null {
   const resolved = resolveApiKey("groq");
   if (!resolved) return null;
   return {

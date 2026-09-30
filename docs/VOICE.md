@@ -173,12 +173,20 @@ Plan original:
 - **Pendiente**:
   - elegir el motor de STT en Configuración (se suma al rediseño de esa página);
   - whisper.cpp local como fallback;
-  - un atajo de teclado para dictar.
+  - ~~un atajo de teclado para dictar~~ (hecho en la Fase 2: Ctrl+Space).
 
-### Fase 2 — Escuchar y conversar
-- TTS con `speechSynthesis` (botones ▶), después Kokoro opcional.
-- Modo conversación por voz: auto-leer respuestas y push-to-talk con una tecla.
-- Métricas de fluidez (puras, con tests) y su panel en el dashboard.
+### Fase 2 — Escuchar y conversar ✅ implementada (2026-09-30)
+- **Escuchar**: `speechSynthesis` del navegador (`src/components/audio/speech.ts`), leído oración por oración porque algunas voces se cortan a los ~15 s. Botón ▶ (`SpeakButton`) en el texto corregido ("Listen"), la versión nativa, cada palabra del Vocabulary (en el chat y en `/vocabulary`) y cada respuesta del tutor. Por defecto elige la mejor voz en inglés (primero las "Natural" de Edge, después en-US).
+- **Configuración**: sección "Listening" en Settings con la voz y la velocidad. Se guardan en `localStorage` y no en la base, porque cada navegador tiene sus propias voces.
+- **Push-to-talk**: mantener **Ctrl+Space** en cualquier parte de la página graba y al soltar transcribe; un toque corto empieza a grabar y el siguiente para (`use-push-to-talk.ts`). Funciona también fuera del modo voz: ahí la transcripción va al borrador, como con el botón del micrófono. Empezar a hablar corta la voz del tutor, para no grabarla.
+- **Modo voz** (botón "Voice" en el header, solo en modo conversación y con key de Groq): la transcripción se manda sola al soltar la tecla, sin revisarla, y la respuesta se lee en voz alta. Las correcciones aparecen en el chat igual que siempre, pero no se leen. Se recuerda por navegador.
+- **Fluidez** (`src/lib/fluency.ts`, puro y con tests): Whisper se pide con `verbose_json` y timestamps por palabra (se llama a `doGenerate` del modelo, porque `transcribe()` descarta la respuesta cruda). Por cada toma se calcula: palabras (sin muletillas), tiempo de habla (de la primera a la última palabra), pausas de 1 s o más y muletillas (*um/uh/eh*, y las españolas *este*, *o sea*, *bueno*, *pues*; no se cuentan palabras con significado como *like* o *well*). Las tomas se suman y se guardan en `messages.fluency` como sumas crudas; las tasas (palabras por minuto, pausas por minuto, muletillas cada 100 palabras) se derivan al mostrarlas.
+- **Dónde se ve**: en el mensaje ("Spoken · 0:09 · 99 wpm · 1 long pause · 2 fillers") y en el panel "Fluency" del dashboard (filtros Todo / Hablado), con la comparación contra el período anterior y las muletillas más usadas.
+- **Limitaciones**:
+  - Whisper omite parte de las vacilaciones, así que las muletillas son una cota mínima. Con la prueba de TTS de Windows sí transcribió *um* y *eh*.
+  - Los mensajes dictados antes de la Fase 2 no tienen métricas de fluidez.
+  - Grabaciones de menos de 2 s no dan ritmo (el número diría más del redondeo que de la fluidez).
+- **Pendiente**: Kokoro como voz local opcional (en el tablero).
 
 ### Fase 3 — Pronunciación
 - Página "Read aloud" con diff por palabra; fuentes: correcciones, vocabulario, unidad del libro.

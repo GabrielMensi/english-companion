@@ -3,10 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Headphones } from "lucide-react";
+import { speak, stopSpeaking, useSpeechSupported, useVoiceMode } from "@/components/audio/speech";
+import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AssistantMessage } from "@/components/chat/assistant-message";
 import { Composer } from "@/components/chat/composer";
 import { type ModelOption, ModelSelect } from "@/components/chat/model-select";
 import { UserMessage } from "@/components/chat/user-message";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SessionMode } from "@/db/schema";
 import type { ProviderId } from "@/lib/ai/provider-info";
@@ -30,6 +34,10 @@ export function ChatView({
   const [messages, setMessages] = useState(initialMessages);
   const [mode, setMode] = useState(session.mode);
   const [sending, setSending] = useState(false);
+  const [voiceMode, setVoiceMode] = useVoiceMode();
+  const speechSupported = useSpeechSupported();
+  // Talking by voice only makes sense when the tutor answers.
+  const voiceConversation = voiceMode && mode === "conversation" && canDictate && speechSupported;
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,12 +56,13 @@ export function ChatView({
   }
 
   async function send(text: string, voice?: VoiceInput) {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = `temp-${crypto.randomUUID()}`;
     setMessages((prev) => [...prev, optimisticMessage(tempId, session.id, text, voice)]);
     setSending(true);
     try {
       const turn = await api<ChatMessage[]>(`/api/sessions/${session.id}/messages`, { body: { text, voice } });
       mergeTurn(turn, tempId);
+      readReplyAloud(turn);
       if (messages.length === 0) router.refresh(); // first message sets the chat title
       return true;
     } catch (error) {
@@ -68,10 +77,23 @@ export function ChatView({
   async function retry(messageId: string) {
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, status: "pending" } : m)));
     try {
-      mergeTurn(await api<ChatMessage[]>(`/api/messages/${messageId}/retry`, { method: "POST" }));
+      const turn = await api<ChatMessage[]>(`/api/messages/${messageId}/retry`, { method: "POST" });
+      mergeTurn(turn);
+      readReplyAloud(turn);
     } catch (error) {
       toast.error((error as Error).message);
     }
+  }
+
+  /** In voice mode the reply is read aloud; the corrections just show up in the chat. */
+  function readReplyAloud(turn: ChatMessage[]) {
+    const reply = turn.find((m) => m.role === "assistant");
+    if (voiceConversation && reply) speak(reply.content, reply.id);
+  }
+
+  function toggleVoiceMode() {
+    if (voiceMode) stopSpeaking();
+    setVoiceMode(!voiceMode);
   }
 
   function updateMessage(updated: Partial<ChatMessage> & { id: string }) {
@@ -93,6 +115,23 @@ export function ChatView({
       <header className="flex items-center justify-between gap-4 border-b px-6 py-2.5">
         <h1 className="truncate font-medium">{session.title}</h1>
         <div className="flex items-center gap-3">
+          {mode === "conversation" && speechSupported && (
+            <Button
+              variant={voiceConversation ? "secondary" : "ghost"}
+              size="sm"
+              onClick={toggleVoiceMode}
+              disabled={!canDictate}
+              aria-pressed={voiceConversation}
+              title={
+                canDictate
+                  ? `Voice mode: replies are read aloud, hold ${PUSH_TO_TALK_KEYS} to answer`
+                  : "Voice mode needs a Groq API key for dictation: add it in Settings"
+              }
+            >
+              <Headphones />
+              Voice
+            </Button>
+          )}
           <ModelSelect key={selectedProvider} options={models} selected={selectedProvider} />
           <Select value={mode} onValueChange={(v) => changeMode(v as SessionMode)}>
             <SelectTrigger size="sm" className="w-40">
@@ -128,7 +167,13 @@ export function ChatView({
 
       <div className="border-t">
         <div className="mx-auto max-w-3xl px-6 py-4">
-          <Composer onSend={send} disabled={sending} canDictate={canDictate} />
+          <Composer onSend={send} disabled={sending} canDictate={canDictate} autoSend={voiceConversation} />
+          {voiceConversation && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Voice mode: hold <kbd className="rounded border px-1 font-sans">{PUSH_TO_TALK_KEYS}</kbd> to talk and
+              release to send (or tap it to start and stop). Replies are read aloud; corrections stay in the chat.
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -161,8 +206,10 @@ function optimisticMessage(id: string, sessionId: string, text: string, voice?: 
     transcriptionProvider: voice?.transcriptionProvider ?? null,
     transcriptionModel: voice?.transcriptionModel ?? null,
     audioDurationMs: voice?.audioDurationMs ?? null,
+    fluency: voice?.fluency ?? null,
     createdAt: Date.now(),
     corrections: [],
     vocabulary: [],
   };
 }
+
