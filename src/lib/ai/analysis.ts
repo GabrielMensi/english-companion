@@ -37,7 +37,8 @@ export const analysisSchema = z.object({
 export type Analysis = z.infer<typeof analysisSchema>;
 
 export interface HistoryTurn {
-  learner: string;
+  /** Null for a question the tutor opened the chat with. */
+  learner: string | null;
   assistant: string | null;
 }
 
@@ -48,17 +49,19 @@ export interface AnalysisPromptInput {
   history: HistoryTurn[];
   /** Dictated messages come from speech-to-text; defaults to typed. */
   inputMode?: InputMode;
+  /** Extra reply rule for tense practice conversations (see src/lib/tense-practice.ts). */
+  practiceRule?: string;
 }
 
 export function buildAnalysisInstructions(
-  input: Pick<AnalysisPromptInput, "mode" | "explanationLanguage" | "inputMode">,
+  input: Pick<AnalysisPromptInput, "mode" | "explanationLanguage" | "inputMode" | "practiceRule">,
 ) {
   const language = input.explanationLanguage === "es" ? "Spanish (Rioplatense, neutral tone)" : "English";
   const categories = ERROR_CATEGORIES.map((c) => `- ${c}: ${CATEGORY_HINTS[c]}`).join("\n");
 
   const replyRule =
     input.mode === "conversation"
-      ? `8. reply: answer the learner's message in English as a friendly conversation partner, continuing the conversation. Keep it short (2-5 sentences), use B1-B2 level vocabulary and ask a follow-up question when natural. Do NOT mention the corrections in the reply.`
+      ? `8. reply: answer the learner's message in English as a friendly conversation partner, continuing the conversation. Keep it short (2-5 sentences), use B1-B2 level vocabulary and ask a follow-up question when natural. Do NOT mention the corrections in the reply.${input.practiceRule ? `\n   ${input.practiceRule}` : ""}`
       : `8. reply: always null.`;
 
   return `You are an English writing tutor for a native Spanish speaker. You analyze ONE message the learner wrote in English and return a JSON object.
@@ -104,7 +107,7 @@ export function buildAnalysisPrompt(input: AnalysisPromptInput): string {
   const parts: string[] = [];
   if (input.mode === "conversation" && input.history.length > 0) {
     const history = input.history
-      .map((t) => `Learner: ${t.learner}${t.assistant ? `\nYou: ${t.assistant}` : ""}`)
+      .map((t) => [t.learner !== null && `Learner: ${t.learner}`, t.assistant && `You: ${t.assistant}`].filter(Boolean).join("\n"))
       .join("\n\n");
     parts.push(`Conversation so far (context only, do not analyze it):\n${history}`);
   }
