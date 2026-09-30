@@ -17,6 +17,7 @@ Corre 100% local y está pensado para ser gratis: por defecto usa un modelo loca
 - **Sugerencias, no errores**: contracciones ("is not" / "isn't"), puntuación opcional o comma splices en texto informal se muestran aparte como sugerencias y nunca cuentan en las estadísticas.
 - **"Cómo lo diría un nativo"**: una versión más natural cuando la corrección es correcta pero suena traducida.
 - **Escape al español**: si no sabés cómo decir algo, escribilo entre corchetes (`I want to [aprovechar] this`) y te da opciones en inglés. Queda guardado en la página **Vocabulary** (agrupado por palabra, con las veces que la buscaste y las oraciones donde la usaste) y en un panel del dashboard.
+- **Flashcards con repaso espaciado** (página **Flashcards**): dos mazos, las palabras que buscaste entre corchetes (español → inglés, con la oración donde la usaste como pista) y tus errores reales (el original como pregunta, la corrección como respuesta). Escribís la respuesta (opcional), la ves y la calificás con Again / Hard / Good / Easy; un algoritmo tipo SM-2 decide cuándo vuelve cada tarjeta. Los errores se pueden repasar por tiempo verbal o por tipo.
 - **Convertir en prompt**: sobre un mensaje corregido, lo reestructura como un prompt claro para una IA, listo para copiar.
 - **Selector de modelo** en el chat y nota en cada respuesta con el modelo que la generó y cuánto tardó.
 - **Fallback automático**: si el modelo elegido falla (offline, cuota, sobrecarga), prueba con los otros modelos configurados, en orden, y deja registrado cuál falló.
@@ -107,6 +108,8 @@ src/
     stats-core.ts      cálculo de estadísticas (puro, testeado)
     tenses-core.ts     conteo de tiempos verbales en un texto (puro, testeado)
     tense-stats.ts     precisión por tiempo verbal (puro, testeado)
+    srs.ts             repaso espaciado tipo SM-2 (puro, testeado)
+    flashcards-core.ts tarjetas de vocabulario y de errores, cola de repaso (puro, testeado)
 drizzle/               migraciones SQL
 docs/ROADMAP.md        próximas features e ideas
 ```
