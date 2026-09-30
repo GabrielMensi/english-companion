@@ -5,7 +5,12 @@ describe("fallbackOrder", () => {
   const all = () => true;
 
   it("puts the selected provider first and skips it among the fallbacks", () => {
-    expect(fallbackOrder("gemini", ["ollama", "gemini", "groq"], all)).toEqual(["gemini", "ollama", "groq"]);
+    expect(fallbackOrder("gemini", ["ollama", "gemini", "groq"], all)).toEqual(["gemini", "groq", "ollama"]);
+  });
+
+  it("tries remote fallbacks before the local model, whatever the saved order", () => {
+    expect(fallbackOrder("groq", ["ollama", "gemini"], all)).toEqual(["groq", "gemini", "ollama"]);
+    expect(fallbackOrder("ollama", ["groq", "gemini"], all)).toEqual(["ollama", "groq", "gemini"]);
   });
 
   it("skips fallbacks that are not configured or not enabled", () => {

@@ -3,7 +3,7 @@
  * fallbacks in order. Kept free of server-only imports so it can be tested.
  */
 import { NoObjectGeneratedError } from "ai";
-import type { ProviderId } from "./provider-info";
+import { type ProviderId, PROVIDERS } from "./provider-info";
 
 export interface FallbackAttempt {
   provider: ProviderId;
@@ -12,13 +12,21 @@ export interface FallbackAttempt {
   reason: string;
 }
 
-/** Primary first, then each enabled fallback that is configured, without duplicates. */
+/**
+ * Order in which fallbacks are tried: remote providers first, local ones
+ * last, because a local model is slower and takes the GPU.
+ */
+export function byFallbackPriority(providers: readonly ProviderId[]): ProviderId[] {
+  return [...providers].sort((a, b) => Number(PROVIDERS[a].local) - Number(PROVIDERS[b].local));
+}
+
+/** Primary first, then each enabled fallback that is configured (local ones last), without duplicates. */
 export function fallbackOrder(
   primary: ProviderId,
   fallbacks: readonly ProviderId[],
   isConfigured: (provider: ProviderId) => boolean,
 ): ProviderId[] {
-  const order = [primary, ...fallbacks.filter((p) => p !== primary && isConfigured(p))];
+  const order = [primary, ...byFallbackPriority(fallbacks.filter((p) => p !== primary && isConfigured(p)))];
   return [...new Set(order)];
 }
 

@@ -39,6 +39,21 @@ A partir de las 3 categorías más flojas del dashboard, generar ejercicios cort
 ### Reporte semanal / plan de estudio
 La IA lee las estadísticas de la semana (categorías, tendencias, errores frecuentes, vocabulario) y arma un plan concreto: qué temas practicar, con qué tipo de ejercicios y ejemplos. Comparte base con el [reporte para la clase](#1-reporte-para-llevar-a-clase-prioridad-1).
 
+### Rediseño de Configuración
+La página de Configuración confunde. Problemas detectados (2026-09-30):
+- **Elegir un proveedor y configurarlo es la misma acción.** La API key y el modelo solo aparecen para el proveedor seleccionado como principal. Para cargar la key de Groq o cambiar su modelo hay que convertirlo en principal y acordarse de volver al anterior. Así terminó Groq como principal sin querer.
+- **Dos formas de guardar.** La API key se guarda al instante ("Save key") y todo lo demás con el botón "Save" de abajo. No hay aviso de cambios sin guardar y se pierden si salís de la página.
+- **La cadena de modelos no se ve completa.** Principal y fallbacks están en secciones separadas. Desde 2026-09-30 el orden es fijo (remotos primero, local al final), pero no se puede cambiar.
+- **"Test connection" solo prueba el principal.** No hay forma de saber si un fallback funciona hasta que hace falta.
+- **Falta información para elegir**: el puntaje en `eval:models`, la velocidad y el límite diario gratis de cada modelo.
+
+Propuesta:
+- Una tarjeta por proveedor con su key, su modelo, un botón de prueba y su estado, todo editable sin cambiar el principal.
+- Una sección "Cadena de modelos" que muestre el orden completo (principal → fallbacks), con la opción de reordenar o desactivar cada paso.
+- Guardado automático, o una barra fija con "cambios sin guardar".
+- Datos de cada modelo: puntaje, velocidad y límite gratis.
+- La configuración de voz (motor de speech-to-text, voz de TTS) va a sumarse acá, así que conviene rediseñar antes o junto con la Fase 1 de voz.
+
 ### Streaming de la corrección
 Mostrar la corrección a medida que se genera (`streamText` + `Output.object`) para que los modelos locales se sientan más rápidos.
 
