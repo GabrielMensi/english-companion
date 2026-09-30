@@ -17,6 +17,7 @@
 - Rediseño de Configuración: una tarjeta por proveedor (key, modelo, prueba y estado) editable sin cambiar el principal, una "cadena de modelos" que se puede reordenar y desactivar, guardado automático y puntaje, velocidad y límite gratis de cada modelo.
 - Nivel `suggestion` para mejoras opcionales (contracciones, puntuación opcional), que no cuentan como errores, y tiempo de respuesta en cada mensaje.
 - Ventana flotante (Document Picture-in-Picture, como Google Meet): composer con dictado, última corrección y "Copy & close" siempre visibles sobre otras apps. Se abre con el botón del chat o Alt+P, y sola al cambiar de pestaña mientras dictás (por eso `pnpm dev` usa HTTPS).
+- Voz, fase 2: botones ▶ para escuchar correcciones, versión nativa, vocabulario y respuestas; push-to-talk con Ctrl+Space; modo voz en conversación (manda al soltar y lee la respuesta); métricas de fluidez (ritmo, pausas largas, muletillas) por mensaje y en el dashboard ([VOICE.md](VOICE.md)).
 
 ## Próximo
 
@@ -27,7 +28,7 @@ Con el diagnóstico ya hecho: ejercicios de contraste para las confusiones más 
 La clasificación en dos etapas ya está hecha con el LLM. Falta evaluar Kev-0.8B (o Jev / Jeeves) como backend cuando haya etiquetas reales de "Wrong type?". Ver [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md).
 
 ### Voz
-Dictado con Whisper (local con whisper.cpp, fallback Groq/Gemini), estadísticas escritas vs habladas, conversación por voz, lectura en voz alta y pronunciación. Investigación y plan en [VOICE.md](VOICE.md).
+Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). Falta: lectura en voz alta y pronunciación (fase 3), whisper.cpp local como fallback, Kokoro como voz local y las clases (fase 4). Investigación y plan en [VOICE.md](VOICE.md).
 
 ### Flashcards de vocabulario
 Practicar las palabras de la página Vocabulary (lo que escribiste entre [corchetes]): español → inglés, con la oración original como pista. Cada palabra agrupada (`VocabularyWord`) es una tarjeta.
