@@ -23,3 +23,15 @@ The user runs the app every day from this folder (`pnpm dev` on port 3737, `deve
 - If the merge adds or updates dependencies, run `pnpm install` in this folder right after pulling (in the same command), or the running app breaks on the missing package.
 - Before removing a worktree, move anything the user created there that git doesn't track (recordings in `data/asr-samples/`, eval results in `.eval-results/`) into this folder: removing the worktree deletes it.
 - Schema changes must be additive and migrations safe on existing data (nullable columns or defaults, backfills that don't lose rows).
+
+## Project board (mandatory)
+
+Task status lives in the GitHub Project **English Companion**: https://github.com/users/GabrielMensi/projects/1 (project #1, owner `GabrielMensi`, linked to this repo). Keep it up to date in every session without being asked, using `gh project` / `gh issue` (the token has the `project` scope; get field and option IDs with `gh project field-list 1 --owner GabrielMensi --format json`).
+- **Fields**: Status (Backlog → Ready → In progress → In review → Done), Priority (P0 next or blocking, P1 important, P2 later), Size (XS to XL), Start date and Target date (for the Roadmap view).
+- **Before starting a task**: find its item on the board (or create it). If it's a draft, convert it to an issue. Move it to *In progress* and set its Start date.
+- **Pull requests**: put `Closes #N` in the PR body so the merge closes the issue, and move the item to *In review* when the PR is opened.
+- **After merging**: make sure the item is *Done* (merged PRs are on the board too, as *Done*), with the merge date as its Target date. Also update "Hecho" in `docs/ROADMAP.md`.
+- **New ideas and follow-ups** found while working (limitations, TODOs, things the user asks to "leave for later") go on the board as *Backlog* drafts with a Priority and a Size, not only in the docs. Docs keep the detail; the board tracks the status.
+- **Issues vs drafts**: the next 3–4 tasks are real issues (label `enhancement` or `bug`, plus `voice`, `stats` or `practice` when it applies); the rest of the backlog stays as drafts.
+- If an item's scope or priority changes (the user decides something isn't important right now, or a finding changes the plan), update the item and its issue body; don't leave stale plans.
+- Small housekeeping (docs-only fixes, config) doesn't need an item.
