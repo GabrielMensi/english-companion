@@ -36,7 +36,20 @@ export function normalizeTranscript(text: string): string {
 export function scoreTranscript(sample: AsrSample, transcript: string): AsrScore {
   const said = ` ${normalizeTranscript(transcript)} `;
   const has = (fragment: string) => said.includes(` ${normalizeTranscript(fragment)} `);
-  const outcome: MistakeOutcome = has(sample.mistake) ? "kept" : has(sample.fix) ? "fixed" : "lost";
+  // When the fix contains the mistake ("is very important" → "it is very important"),
+  // finding the mistake alone proves nothing: check the fix first.
+  const fixFirst = ` ${normalizeTranscript(sample.fix)} `.includes(` ${normalizeTranscript(sample.mistake)} `);
+  const outcome: MistakeOutcome = fixFirst
+    ? has(sample.fix)
+      ? "fixed"
+      : has(sample.mistake)
+        ? "kept"
+        : "lost"
+    : has(sample.mistake)
+      ? "kept"
+      : has(sample.fix)
+        ? "fixed"
+        : "lost";
   return { outcome, wer: wordErrorRate(sample.text, transcript) };
 }
 

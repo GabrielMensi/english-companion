@@ -55,18 +55,22 @@ if (specs.length === 0) {
 }
 console.log(`${samples.length} of ${ASR_SAMPLES.length} sentences recorded.`);
 
-type Transcriber = (audio: Buffer) => Promise<string>;
+/** A provider that never answers must not hang the whole run. */
+const REQUEST_TIMEOUT_MS = 60_000;
+
+type Transcriber = (audio: Buffer, abortSignal: AbortSignal) => Promise<string>;
 
 function transcriber(engine: string, model: string): Transcriber {
   switch (engine) {
     case "groq":
     case "groq-verbatim": {
       const groq = createGroq({ apiKey: requireKey("groq") });
-      return async (audio) =>
+      return async (audio, abortSignal) =>
         (
           await transcribe({
             model: groq.transcription(model),
             audio,
+            abortSignal,
             providerOptions: {
               groq: { language: "en", temperature: 0, ...(engine === "groq-verbatim" ? { prompt: VERBATIM_PROMPT } : {}) },
             },
@@ -76,22 +80,24 @@ function transcriber(engine: string, model: string): Transcriber {
     case "gemini":
     case "gemini-smart": {
       const google = createGoogleGenerativeAI({ apiKey: requireKey("gemini") });
-      return async (audio) =>
+      return async (audio, abortSignal) =>
         (
           await transcribe({
             model: google.transcription(model),
             audio,
+            abortSignal,
             providerOptions: { google: { mode: engine === "gemini" ? "VERBATIM" : "SMART", languageCodes: ["en-US"] } },
           })
         ).text;
     }
     case "gemini-llm": {
       const google = createGoogleGenerativeAI({ apiKey: requireKey("gemini") });
-      return async (audio) =>
+      return async (audio, abortSignal) =>
         (
           await generateText({
             model: google(model),
             temperature: 0,
+            abortSignal,
             messages: [
               {
                 role: "user",
@@ -108,13 +114,13 @@ function transcriber(engine: string, model: string): Transcriber {
         ).text;
     }
     case "whisper-cpp": {
-      return async (audio) => {
+      return async (audio, abortSignal) => {
         const form = new FormData();
         form.append("file", new Blob([new Uint8Array(audio)], { type: "audio/wav" }), "audio.wav");
         form.append("temperature", "0");
         form.append("language", "en");
         form.append("response_format", "json");
-        const res = await fetch(`${model.replace(/\/$/, "")}/inference`, { method: "POST", body: form });
+        const res = await fetch(`${model.replace(/\/$/, "")}/inference`, { method: "POST", body: form, signal: abortSignal });
         if (!res.ok) throw new Error(`whisper.cpp responded ${res.status}`);
         return ((await res.json()) as { text: string }).text;
       };
@@ -156,7 +162,7 @@ for (const spec of specs) {
     const audio = fs.readFileSync(path.join(ASR_SAMPLES_DIR, `${sample.id}.wav`));
     const started = Date.now();
     try {
-      const transcript = (await run(audio)).trim();
+      const transcript = (await run(audio, AbortSignal.timeout(REQUEST_TIMEOUT_MS))).trim();
       times.push(Date.now() - started);
       const score = scoreTranscript(sample, transcript);
       outcomes[score.outcome]++;

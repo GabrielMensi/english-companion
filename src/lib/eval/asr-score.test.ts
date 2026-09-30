@@ -17,6 +17,12 @@ describe("scoreTranscript", () => {
     expect(scoreTranscript(sample, "Yesterday I haven't gone to the park").outcome).toBe("lost");
   });
 
+  it("checks the fix first when it contains the mistake", () => {
+    const important = ASR_SAMPLES.find((s) => s.id === "is-important")!;
+    expect(scoreTranscript(important, "It's very important to test this feature.").outcome).toBe("fixed");
+    expect(scoreTranscript(important, "Is very important to test this feature.").outcome).toBe("kept");
+  });
+
   it("matches whole words only", () => {
     const he = ASR_SAMPLES.find((s) => s.id === "he-go")!;
     expect(scoreTranscript(he, "My brother goes to the gym every morning.").outcome).toBe("fixed");
