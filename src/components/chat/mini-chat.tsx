@@ -9,11 +9,12 @@ import {
   ClipboardCheck,
   Headphones,
   Loader2,
+  MessageCircleHeart,
   Mic,
   RotateCcw,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { SpeakButton } from "@/components/audio/speak-button";
 import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { Composer, type ComposerState, type Notify } from "@/components/chat/composer";
@@ -143,6 +144,8 @@ function LastCorrection({
   onRetry: (id: string) => void;
   onClose: () => void;
 }) {
+  const [showNative, setShowNative] = useShowNative();
+
   if (message.status === "pending") {
     return (
       <div className="flex flex-col gap-2">
@@ -226,11 +229,36 @@ function LastCorrection({
         </ul>
       )}
 
+      {message.naturalText && showNative && (
+        <div className="flex flex-col gap-1 rounded-lg bg-muted/50 px-3 py-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <MessageCircleHeart className="size-3.5" />
+            How a native speaker would say it
+          </div>
+          <div className="flex items-start gap-1">
+            <p className="flex-1 leading-relaxed whitespace-pre-wrap">{message.naturalText}</p>
+            <SpeakButton text={message.naturalText} />
+          </div>
+        </div>
+      )}
+
       <div className="-mb-1 flex flex-wrap gap-1 border-t pt-2">
         <SpeakButton text={corrected} label="Listen" />
         <CopyButton text={corrected} label="Copy corrected" onError={copyFailed} />
         {message.improvedPrompt && <CopyButton text={message.improvedPrompt} label="Copy prompt" onError={copyFailed} />}
         <CopyAndCloseButton text={corrected} onClose={onClose} onError={copyFailed} />
+        {message.naturalText && (
+          <Button
+            variant={showNative ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setShowNative(!showNative)}
+            aria-pressed={showNative}
+            title="Show or hide how a native speaker would say it"
+          >
+            <MessageCircleHeart />
+            Native
+          </Button>
+        )}
       </div>
 
       {reply && (
@@ -244,6 +272,41 @@ function LastCorrection({
       )}
     </div>
   );
+}
+
+const SHOW_NATIVE_KEY = "floating-show-native";
+const showNativeListeners = new Set<() => void>();
+/** Used when storage is blocked, so the button still works until the page reloads. */
+let showNativeInMemory = false;
+
+function readShowNative() {
+  try {
+    return localStorage.getItem(SHOW_NATIVE_KEY) === "on";
+  } catch {
+    return showNativeInMemory;
+  }
+}
+
+/** Whether the floating window shows the native version, remembered in this browser. Hidden by default to save space. */
+function useShowNative(): [boolean, (on: boolean) => void] {
+  const on = useSyncExternalStore(
+    (listener) => {
+      showNativeListeners.add(listener);
+      return () => showNativeListeners.delete(listener);
+    },
+    readShowNative,
+    () => false,
+  );
+  const set = (value: boolean) => {
+    showNativeInMemory = value;
+    try {
+      localStorage.setItem(SHOW_NATIVE_KEY, value ? "on" : "off");
+    } catch {
+      // Storage blocked: remembered in memory only.
+    }
+    showNativeListeners.forEach((l) => l());
+  };
+  return [on, set];
 }
 
 /**
