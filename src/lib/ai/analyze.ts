@@ -32,7 +32,7 @@ export async function analyzeMessage(input: Omit<AnalysisPromptInput, "explanati
   });
 
   return {
-    analysis: normalizeAnalysis(result.output, input.mode, input.text),
+    analysis: normalizeAnalysis(result.output, input.mode, input.text, input.inputMode),
     provider: used.provider,
     modelId: used.modelId,
     fallbackAttempts: failed,

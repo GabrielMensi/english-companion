@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Loader2, RotateCcw } from "lucide-react";
+import { AlertTriangle, Loader2, Mic, RotateCcw } from "lucide-react";
 import { AnalysisCard } from "@/components/chat/analysis-card";
 import { Button } from "@/components/ui/button";
 import type { ChatMessage } from "@/lib/types";
@@ -19,6 +19,16 @@ export function UserMessage({
       <div className="max-w-[85%] self-end rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-primary-foreground">
         <p className="leading-relaxed whitespace-pre-wrap">{message.content}</p>
       </div>
+      {message.inputMode === "spoken" && (
+        <div
+          className="-mt-1 flex items-center gap-1 self-end text-xs text-muted-foreground"
+          title="Dictated. Spelling, punctuation and capitalization come from the transcription, so they're not corrected. Articles, prepositions, pronouns, plurals and questions are corrected but don't count in the stats."
+        >
+          <Mic className="size-3" />
+          Spoken{message.audioDurationMs ? ` · ${formatDuration(message.audioDurationMs)}` : ""}
+          {message.transcriptEdited && " · transcript edited"}
+        </div>
+      )}
 
       {message.status === "pending" && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -42,4 +52,9 @@ export function UserMessage({
       {message.status === "done" && <AnalysisCard message={message} onUpdate={onUpdate} />}
     </div>
   );
+}
+
+function formatDuration(ms: number) {
+  const seconds = Math.round(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }

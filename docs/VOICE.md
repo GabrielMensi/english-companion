@@ -162,11 +162,18 @@ Plan original:
 - Comparar whisper.cpp `large-v3-turbo` (con y sin prompt verbatim), Groq Whisper y Gemini Transcribe `VERBATIM`.
 - **Criterio**: si un proveedor preserva ≥ 80 % de los errores gramaticales, seguimos con errores hablados. Si ninguno llega, el foco pasa a lectura en voz alta y fluidez, donde la normalización molesta menos.
 
-### Fase 1 — Dictado (MVP)
-- `speech.ts`, `/api/transcribe`, botón de micrófono en `composer.tsx` con estados (grabando / transcribiendo / error), columnas `inputMode` y `transcript*`, configuración de STT.
-- Nota de modelo y tiempo en el mensaje (como `model-note.tsx`) también para la transcripción.
-- Filtro Escrito / Hablado en el dashboard.
-- Docs: README (setup de whisper.cpp en Windows) y ROADMAP.
+### Fase 1 — Dictado (MVP) ✅ implementada (2026-09-30)
+- **Motor**: Whisper `large-v3-turbo` en Groq (`resolveTranscriptionModel` en `providers.ts`, `transcribeSpeech` en `src/lib/ai/transcribe.ts`), con `language: "en"` y `temperature: 0`. Sin key de Groq, el micrófono queda deshabilitado con una explicación.
+- **Grabación**: el hook `useRecorder` (`src/components/audio/use-recorder.ts`) graba en el navegador y convierte a WAV mono de 16 kHz. Lo comparten el composer y `/eval/asr`. El audio nunca se guarda.
+- **Composer**: botón de micrófono (clic para empezar y para terminar, Esc cancela). La transcripción se agrega al borrador, así se puede dictar en varias tomas, y se puede editar antes de enviar.
+- **Guardado**: en `messages` se guardan `input_mode`, `transcript_raw` (lo que devolvió Whisper), `transcript_edited`, el proveedor y modelo de transcripción, y la duración del audio.
+- **Análisis**: el prompt sabe que el mensaje fue dictado. En los mensajes hablados nunca se reportan errores de ortografía, puntuación, mayúsculas ni typos; `normalizeAnalysis` los descarta si el modelo igual los devuelve.
+- **Estadísticas**: los errores hablados de artículos, preposiciones, pronombres, plurales y preguntas se muestran en el chat pero no cuentan (`NOT_MEASURABLE_WHEN_SPOKEN` / `countsInStats` en `taxonomy.ts`). El dashboard tiene un filtro Todo / Escrito / Hablado, que aparece cuando hay mensajes dictados.
+- **Chat**: los mensajes dictados muestran "Spoken · 0:07" y, si se editó la transcripción, "transcript edited".
+- **Pendiente**:
+  - elegir el motor de STT en Configuración (se suma al rediseño de esa página);
+  - whisper.cpp local como fallback;
+  - un atajo de teclado para dictar.
 
 ### Fase 2 — Escuchar y conversar
 - TTS con `speechSynthesis` (botones ▶), después Kokoro opcional.

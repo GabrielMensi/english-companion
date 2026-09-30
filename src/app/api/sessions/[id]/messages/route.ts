@@ -7,7 +7,19 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/sessions/[i
   return Response.json(getMessages(id));
 }
 
-const bodySchema = z.object({ text: z.string().trim().min(1).max(20_000) });
+const bodySchema = z.object({
+  text: z.string().trim().min(1).max(20_000),
+  /** Present when the message was dictated. */
+  voice: z
+    .object({
+      transcriptRaw: z.string().max(20_000),
+      transcriptEdited: z.boolean(),
+      transcriptionProvider: z.string().max(40),
+      transcriptionModel: z.string().max(100),
+      audioDurationMs: z.number().int().nonnegative(),
+    })
+    .optional(),
+});
 
 /** Stores the message, analyzes it and returns the resulting turn (message + reply). */
 export async function POST(request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) {
@@ -15,7 +27,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/sessions/[i
   const body = bodySchema.safeParse(await request.json().catch(() => null));
   if (!body.success) return Response.json({ error: "The message is empty" }, { status: 400 });
 
-  const message = addUserMessage(id, body.data.text);
+  const message = addUserMessage(id, body.data.text, body.data.voice);
   if (!message) return Response.json({ error: "Chat not found" }, { status: 404 });
 
   return Response.json(await analyzeStoredMessage(message.id));

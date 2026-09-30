@@ -11,6 +11,7 @@ function correction(partial: Partial<TenseStatCorrection>): TenseStatCorrection 
     classification: "done",
     original: "I lived",
     correction: "I have lived",
+    inputMode: "typed",
     ...partial,
   };
 }

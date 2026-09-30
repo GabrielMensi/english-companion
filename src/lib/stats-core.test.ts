@@ -11,6 +11,7 @@ function correction(partial: Partial<StatCorrection>): StatCorrection {
     category: "articles",
     subcategory: "missing_article",
     subtype: null,
+    inputMode: "typed",
     severity: "minor",
     original: "go to park",
     correction: "go to the park",
@@ -55,6 +56,24 @@ describe("computeStats", () => {
     );
     expect(stats.totals.errors).toBe(1);
     expect(stats.categories.map((c) => c.category)).toEqual(["articles"]);
+  });
+
+  it("doesn't count spoken mistakes in categories speech-to-text can't measure", () => {
+    const stats = computeStats(
+      input({
+        messages: [{ createdAt: now - DAY, wordCount: 50 }],
+        corrections: [
+          correction({ inputMode: "spoken" }),
+          correction({ inputMode: "spoken", category: "verb_tense" }),
+          correction({ inputMode: "typed" }),
+        ],
+      }),
+    );
+    expect(stats.totals.errors).toBe(2);
+    expect(stats.categories.map((c) => [c.category, c.count])).toEqual([
+      ["verb_tense", 1],
+      ["articles", 1],
+    ]);
   });
 
   it("ranks categories by severity-weighted score", () => {

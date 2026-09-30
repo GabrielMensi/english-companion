@@ -8,6 +8,7 @@ Local-only, free-first AI English tutor (see README.md). Not meant to be deploye
 - The error taxonomy in `src/lib/taxonomy.ts` is fixed on purpose so stats group consistently: add categories there, never let the model invent them.
 - Fine error types (`SUBTYPES`, `TENSES`) are assigned later by the deferred classifier (`src/lib/classification.ts`), never in the chat prompt. Chat AI calls go through `withChatPriority` so classification batches wait for them.
 - Tense uses are counted without AI in `src/lib/tenses-core.ts` and stored in `messages.tense_counts`; bump `TENSE_COUNTER_VERSION` when the rules change so stored counts get recomputed.
+- Dictated messages (`input_mode = "spoken"`): speech-to-text decides spelling, punctuation and capitalization, so those are never reported, and categories it fills in (`NOT_MEASURABLE_WHEN_SPOKEN`) never count in the stats. Use `countsInStats` in any new statistic.
 - Keep AI calls behind `src/lib/ai/providers.ts` (`resolveModel`); every provider must work with local Ollama models, so prefer simple, flat output schemas.
 - Pure logic (analysis normalization, stats) lives in files without `server-only` and has vitest tests: `pnpm test`.
 - After changing `src/db/schema.ts`, run `pnpm db:generate`; migrations apply automatically on startup.
@@ -20,4 +21,5 @@ The user runs the app every day from this folder (`pnpm dev` on port 3737, `deve
 - Never point a development server, script or migration at `data/companion.db`.
 - Merge a feature into `develop` only after the user has tested it in the worktree and accepted it. Back up `data/companion.db` first: the running app hot-reloads and applies the new migrations to the real data.
 - If the merge adds or updates dependencies, run `pnpm install` in this folder right after pulling (in the same command), or the running app breaks on the missing package.
+- Before removing a worktree, move anything the user created there that git doesn't track (recordings in `data/asr-samples/`, eval results in `.eval-results/`) into this folder: removing the worktree deletes it.
 - Schema changes must be additive and migrations safe on existing data (nullable columns or defaults, backfills that don't lose rows).

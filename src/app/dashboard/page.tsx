@@ -9,16 +9,24 @@ import { TimelineChart } from "@/components/dashboard/timeline-chart";
 import { TopMistakes } from "@/components/dashboard/top-mistakes";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { getClassificationStatus } from "@/lib/classification";
-import { getDashboardData, RANGES, type RangeKey } from "@/lib/stats";
+import { getDashboardData, INPUT_FILTERS, type InputFilter, RANGES, type RangeKey } from "@/lib/stats";
 import { cn } from "@/lib/utils";
 
 const RANGE_LABELS: Record<RangeKey, string> = { "7": "7 days", "30": "30 days", "90": "90 days", all: "All" };
+const INPUT_LABELS: Record<InputFilter, string> = { all: "All", typed: "Written", spoken: "Spoken" };
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   await connection();
-  const { range: rawRange } = await searchParams;
+  const { range: rawRange, input: rawInput } = await searchParams;
   const range: RangeKey = typeof rawRange === "string" && rawRange in RANGES ? (rawRange as RangeKey) : "30";
-  const { stats, tenses, vocabulary, countTypos } = getDashboardData(range);
+  const input: InputFilter = INPUT_FILTERS.includes(rawInput as InputFilter) ? (rawInput as InputFilter) : "all";
+  const { stats, tenses, vocabulary, countTypos, hasSpoken } = getDashboardData(range, input);
+  const href = (next: { range?: RangeKey; input?: InputFilter }) => {
+    const params = new URLSearchParams({ range: next.range ?? range });
+    const nextInput = next.input ?? input;
+    if (nextInput !== "all") params.set("input", nextInput);
+    return `/dashboard?${params}`;
+  };
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -31,21 +39,46 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               {!countTypos && " Typos don’t count as mistakes."}
             </p>
           </div>
-          <nav className="flex rounded-lg border p-0.5" aria-label="Period">
-            {(Object.keys(RANGES) as RangeKey[]).map((key) => (
-              <Link
-                key={key}
-                href={`/dashboard?range=${key}`}
-                className={cn(
-                  "rounded-md px-3 py-1 text-sm text-muted-foreground hover:text-foreground",
-                  key === range && "bg-muted font-medium text-foreground",
-                )}
-              >
-                {RANGE_LABELS[key]}
-              </Link>
-            ))}
-          </nav>
+          <div className="flex flex-wrap gap-2">
+            {hasSpoken && (
+              <nav className="flex rounded-lg border p-0.5" aria-label="Written or spoken">
+                {INPUT_FILTERS.map((key) => (
+                  <Link
+                    key={key}
+                    href={href({ input: key })}
+                    className={cn(
+                      "rounded-md px-3 py-1 text-sm text-muted-foreground hover:text-foreground",
+                      key === input && "bg-muted font-medium text-foreground",
+                    )}
+                  >
+                    {INPUT_LABELS[key]}
+                  </Link>
+                ))}
+              </nav>
+            )}
+            <nav className="flex rounded-lg border p-0.5" aria-label="Period">
+              {(Object.keys(RANGES) as RangeKey[]).map((key) => (
+                <Link
+                  key={key}
+                  href={href({ range: key })}
+                  className={cn(
+                    "rounded-md px-3 py-1 text-sm text-muted-foreground hover:text-foreground",
+                    key === range && "bg-muted font-medium text-foreground",
+                  )}
+                >
+                  {RANGE_LABELS[key]}
+                </Link>
+              ))}
+            </nav>
+          </div>
         </div>
+
+        {hasSpoken && input !== "typed" && (
+          <p className="text-sm text-muted-foreground">
+            In spoken messages, articles, prepositions, pronouns, plurals, questions, spelling and punctuation aren’t
+            counted: speech-to-text fills them in or decides them, so they don’t show what you actually said.
+          </p>
+        )}
 
         <ClassificationStatus initial={getClassificationStatus()} />
 

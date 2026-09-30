@@ -10,7 +10,7 @@ import { improvePrompt } from "@/lib/ai/improve-prompt";
 import { withChatPriority } from "@/lib/classification";
 import { getSettings } from "@/lib/settings";
 import { countWords, makeTitle } from "@/lib/text";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, VoiceInput } from "@/lib/types";
 
 const HISTORY_TURNS = 10;
 
@@ -74,7 +74,7 @@ function toChatMessage(row: Message & { corrections: Correction[]; vocabulary: V
 }
 
 /** Stores the learner's message; the analysis runs in {@link analyzeStoredMessage}. */
-export function addUserMessage(sessionId: string, text: string) {
+export function addUserMessage(sessionId: string, text: string, voice?: VoiceInput) {
   const session = getSession(sessionId);
   if (!session) return undefined;
 
@@ -93,6 +93,7 @@ export function addUserMessage(sessionId: string, text: string) {
       content: text,
       status: "pending",
       wordCount: countWords(text),
+      ...(voice && { inputMode: "spoken" as const, ...voice }),
     })
     .returning()
     .get();
@@ -116,7 +117,10 @@ export async function analyzeStoredMessage(messageId: string): Promise<ChatMessa
   try {
     const started = Date.now();
     const { analysis, provider, modelId, fallbackAttempts } = await withChatPriority(() =>
-      analyzeMessage({ text: message.content, mode: session.mode, history: getHistory(message) }, settings),
+      analyzeMessage(
+        { text: message.content, mode: session.mode, history: getHistory(message), inputMode: message.inputMode },
+        settings,
+      ),
     );
     const durationMs = Date.now() - started;
 
