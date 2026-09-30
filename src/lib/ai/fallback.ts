@@ -1,9 +1,9 @@
 /**
  * Pure fallback logic: try the selected model first, then the configured
- * fallbacks in order. Kept free of server-only imports so it can be tested.
+ * fallbacks in the order the user chose. Kept free of server-only imports so it can be tested.
  */
 import { NoObjectGeneratedError } from "ai";
-import { type ProviderId, PROVIDERS } from "./provider-info";
+import { PROVIDER_IDS, type ProviderId, PROVIDERS } from "./provider-info";
 
 export interface FallbackAttempt {
   provider: ProviderId;
@@ -13,21 +13,71 @@ export interface FallbackAttempt {
 }
 
 /**
- * Order in which fallbacks are tried: remote providers first, local ones
- * last, because a local model is slower and takes the GPU.
+ * Remote providers first, local ones last, because a local model is slower and
+ * takes the GPU. Only used to migrate settings saved before the order was editable.
  */
 export function byFallbackPriority(providers: readonly ProviderId[]): ProviderId[] {
   return [...providers].sort((a, b) => Number(PROVIDERS[a].local) - Number(PROVIDERS[b].local));
 }
 
-/** Primary first, then each enabled fallback that is configured (local ones last), without duplicates. */
+/** The primary model and its fallbacks, in the order they're tried. */
+export interface Chain {
+  provider: ProviderId;
+  fallbacks: ProviderId[];
+}
+
+/** Primary first, then each enabled fallback that is configured, in the saved order, without duplicates. */
 export function fallbackOrder(
   primary: ProviderId,
   fallbacks: readonly ProviderId[],
   isConfigured: (provider: ProviderId) => boolean,
 ): ProviderId[] {
-  const order = [primary, ...byFallbackPriority(fallbacks.filter((p) => p !== primary && isConfigured(p)))];
-  return [...new Set(order)];
+  return [...new Set([primary, ...fallbacks.filter((p) => p !== primary && isConfigured(p))])];
+}
+
+/** Drops duplicates and the primary from the fallbacks. */
+export function normalizeChain({ provider, fallbacks }: Chain): Chain {
+  return { provider, fallbacks: [...new Set(fallbacks)].filter((p) => p !== provider) };
+}
+
+/** Every provider as a step of the chain: enabled ones in order, then the disabled ones. */
+export function chainSteps(chain: Chain): { provider: ProviderId; enabled: boolean }[] {
+  const { provider, fallbacks } = normalizeChain(chain);
+  const enabled = [provider, ...fallbacks];
+  return [
+    ...enabled.map((p) => ({ provider: p, enabled: true })),
+    ...PROVIDER_IDS.filter((p) => !enabled.includes(p)).map((p) => ({ provider: p, enabled: false })),
+  ];
+}
+
+function fromList([provider, ...fallbacks]: ProviderId[]): Chain {
+  return { provider, fallbacks };
+}
+
+/** Moves an enabled step one place up or down. Moving to the top makes it the primary. */
+export function moveStep(chain: Chain, id: ProviderId, direction: -1 | 1): Chain {
+  const { provider, fallbacks } = normalizeChain(chain);
+  const list = [provider, ...fallbacks];
+  const from = list.indexOf(id);
+  const to = from + direction;
+  if (from === -1 || to < 0 || to >= list.length) return chain;
+  [list[from], list[to]] = [list[to], list[from]];
+  return fromList(list);
+}
+
+/** Makes a provider the primary; the previous primary becomes the first fallback. */
+export function setPrimary(chain: Chain, id: ProviderId): Chain {
+  const { provider, fallbacks } = normalizeChain(chain);
+  if (id === provider) return { provider, fallbacks };
+  return fromList([id, provider, ...fallbacks.filter((p) => p !== id)]);
+}
+
+/** Turns a fallback on (added last) or off. The primary can't be turned off. */
+export function toggleStep(chain: Chain, id: ProviderId, on: boolean): Chain {
+  const { provider, fallbacks } = normalizeChain(chain);
+  if (id === provider) return { provider, fallbacks };
+  const rest = fallbacks.filter((p) => p !== id);
+  return { provider, fallbacks: on ? [...rest, id] : rest };
 }
 
 export class AllModelsFailedError extends Error {

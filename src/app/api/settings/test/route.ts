@@ -1,17 +1,21 @@
 import { generateText } from "ai";
+import { z } from "zod";
 import { errorToMessage } from "@/lib/ai/fallback";
+import { PROVIDER_IDS } from "@/lib/ai/provider-info";
 import { resolveModel } from "@/lib/ai/providers";
-import { settingsSchema } from "@/lib/settings";
+import { getSettings } from "@/lib/settings";
 
-/** Sends a tiny request with the given (unsaved) settings to check the connection. */
+const bodySchema = z.object({ provider: z.enum(PROVIDER_IDS) });
+
+/** Sends a tiny request to one provider, with its saved key and model, to check the connection. */
 export async function POST(request: Request) {
-  const body = settingsSchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) return Response.json({ error: "Invalid settings" }, { status: 400 });
+  const body = bodySchema.safeParse(await request.json().catch(() => null));
+  if (!body.success) return Response.json({ error: "Invalid provider" }, { status: 400 });
 
   const started = Date.now();
   try {
     const { text } = await generateText({
-      ...resolveModel(body.data).call({ temperature: 0 }),
+      ...resolveModel(getSettings(), body.data.provider).call({ temperature: 0, retry: false }),
       prompt: "Reply with exactly: OK",
       maxOutputTokens: 20,
     });

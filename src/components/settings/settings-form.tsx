@@ -1,26 +1,21 @@
 "use client";
 
-import { CheckCircle2, Loader2, PlugZap, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { byFallbackPriority } from "@/lib/ai/fallback";
-import { modelLabel, PROVIDER_IDS, PROVIDERS, type ProviderId } from "@/lib/ai/provider-info";
+import { PROVIDER_IDS, type ProviderId } from "@/lib/ai/provider-info";
 import { api } from "@/lib/api";
-import type { ProviderStatus } from "@/lib/ai/providers";
-import { DEFAULT_OLLAMA_BASE_URL, KEY_ENV_VARS, type KeyProvider } from "@/lib/credentials";
 import type { Settings } from "@/lib/settings";
-import { cn } from "@/lib/utils";
+import { ModelChain } from "./model-chain";
+import { ProviderCard, type Providers, type TestState } from "./provider-card";
 
-type Providers = Record<ProviderId, ProviderStatus>;
-type TestResult = { ok: true; reply: string; ms: number } | { ok: false; error: string };
+type TestResponse = { ok: true; reply: string; ms: number } | { ok: false; error: string };
 
+/** Every change is saved as soon as it's made (text fields when they lose focus). */
 export function SettingsForm({
   initialSettings,
   initialProviders,
@@ -31,211 +26,98 @@ export function SettingsForm({
   const router = useRouter();
   const [settings, setSettings] = useState(initialSettings);
   const [providers, setProviders] = useState(initialProviders);
-  // Bumped when credentials change, so the model list is fetched again.
-  const [credentialsVersion, setCredentialsVersion] = useState(0);
-  // The Ollama URL used to list models; updated when the URL field loses focus.
-  const [listedOllamaUrl, setListedOllamaUrl] = useState(initialSettings.ollamaBaseUrl ?? "");
-  const [models, setModels] = useState<{ list: string[]; error?: string } | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [test, setTest] = useState<TestResult | null>(null);
-
-  const provider = settings.provider;
-  const status = providers[provider];
+  const [tests, setTests] = useState<Partial<Record<ProviderId, TestState>>>({});
+  const [pending, setPending] = useState(0);
+  const [failed, setFailed] = useState(false);
+  // Saves run one after another, so they reach the server in the order they were made.
+  const queue = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
-    let cancelled = false;
-    const query = new URLSearchParams({ provider });
-    if (provider === "ollama" && listedOllamaUrl) query.set("ollamaBaseUrl", listedOllamaUrl);
-    fetch(`/api/models?${query}`)
-      .then((res) => res.json())
-      .then((data: { models: string[]; error?: string }) => {
-        if (!cancelled) setModels({ list: data.models, error: data.error });
-      })
-      .catch(() => !cancelled && setModels({ list: [], error: "Couldn't get the model list" }));
-    return () => {
-      cancelled = true;
-    };
-  }, [provider, credentialsVersion, listedOllamaUrl]);
+    if (pending === 0) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [pending]);
 
-  function update(patch: Partial<Settings>) {
+  function clearTests(ids: ProviderId[]) {
+    setTests((t) => Object.fromEntries(Object.entries(t).filter(([id]) => !ids.includes(id as ProviderId))));
+  }
+
+  function save(patch: Partial<Settings>) {
     setSettings((s) => ({ ...s, ...patch }));
-    setTest(null);
-  }
+    if (patch.models) clearTests(PROVIDER_IDS.filter((id) => patch.models?.[id] !== settings.models[id]));
+    if (patch.ollamaBaseUrl !== undefined) clearTests(["ollama"]);
 
-  function setProvider(value: ProviderId) {
-    setModels(null);
-    update({ provider: value });
-  }
-
-  function toggleFallback(id: ProviderId, on: boolean) {
-    const enabled = new Set(settings.fallbacks);
-    if (on) enabled.add(id);
-    else enabled.delete(id);
-    update({ fallbacks: PROVIDER_IDS.filter((p) => enabled.has(p)) });
-  }
-
-  function setModel(value: string) {
-    update({ models: { ...settings.models, [provider]: value } });
-  }
-
-  async function save() {
-    setSaving(true);
-    try {
-      const result = await api<{ providers: Providers }>("/api/settings", { method: "PUT", body: settings });
-      setProviders(result.providers);
-      toast.success("Settings saved");
-      router.refresh();
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function runTest() {
-    setTesting(true);
-    setTest(null);
-    const res = await fetch("/api/settings/test", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
+    setPending((n) => n + 1);
+    queue.current = queue.current.then(async () => {
+      try {
+        const result = await api<{ providers: Providers }>("/api/settings", { method: "PATCH", body: patch });
+        setProviders(result.providers);
+        setFailed(false);
+        router.refresh();
+      } catch (error) {
+        toast.error(`Couldn't save: ${(error as Error).message}`);
+        setFailed(true);
+        // Show what's actually saved instead of the change that failed.
+        const saved = await api<{ settings: Settings }>("/api/settings").catch(() => null);
+        if (saved) setSettings(saved.settings);
+      } finally {
+        setPending((n) => n - 1);
+      }
     });
-    setTest(await res.json());
-    setTesting(false);
+  }
+
+  function runTest(id: ProviderId) {
+    setTests((t) => ({ ...t, [id]: { status: "testing" } }));
+    // Test what's saved, including changes still on their way.
+    queue.current.then(async () => {
+      const result = await api<TestResponse>("/api/settings/test", { body: { provider: id } }).catch(
+        (error: Error): TestResponse => ({ ok: false, error: error.message }),
+      );
+      setTests((t) => ({
+        ...t,
+        [id]: result.ok ? { status: "ok", ms: result.ms } : { status: "error", error: result.error },
+      }));
+    });
+  }
+
+  function onProvidersChange(next: Providers) {
+    setProviders(next);
+    clearTests(PROVIDER_IDS.filter((id) => next[id].detail !== providers[id].detail));
+    router.refresh();
   }
 
   return (
     <div className="space-y-8">
-      <section className="space-y-3">
-        <h2 className="font-medium">Provider</h2>
-        <div className="grid gap-2">
-          {PROVIDER_IDS.map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setProvider(id)}
-              className={cn(
-                "flex items-start justify-between gap-4 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
-                provider === id && "border-primary ring-1 ring-primary",
-              )}
-            >
-              <div>
-                <div className="font-medium">{PROVIDERS[id].label}</div>
-                <div className="text-sm text-muted-foreground">{PROVIDERS[id].description}</div>
-              </div>
-              {PROVIDERS[id].local ? (
-                <Badge variant="secondary">Local</Badge>
-              ) : providers[id].configured ? (
-                <Badge variant="secondary">API key set</Badge>
-              ) : (
-                <Badge variant="outline">No API key</Badge>
-              )}
-            </button>
-          ))}
-        </div>
-      </section>
+      <SaveStatus pending={pending > 0} failed={failed} />
 
-      {provider === "ollama" ? (
-        <section className="space-y-2">
-          <Label htmlFor="ollama-url" className="font-medium">
-            Ollama URL
-          </Label>
-          <Input
-            id="ollama-url"
-            value={settings.ollamaBaseUrl ?? ""}
-            placeholder={status.source === "env" && status.detail ? status.detail : DEFAULT_OLLAMA_BASE_URL}
-            onChange={(e) => update({ ollamaBaseUrl: e.target.value.trim() || null })}
-            onBlur={() => setListedOllamaUrl(settings.ollamaBaseUrl ?? "")}
-          />
-          <p className="text-sm text-muted-foreground">
-            Leave it empty to use {status.source === "env" ? <code>OLLAMA_BASE_URL</code> : "the default"}.
-          </p>
-        </section>
-      ) : (
-        <ApiKeyField
-          provider={provider}
-          status={status}
-          onChange={(next) => {
-            setProviders(next);
-            setModels(null);
-            setTest(null);
-            setCredentialsVersion((v) => v + 1);
-          }}
-        />
-      )}
-
-      <section className="space-y-3">
-        <Label htmlFor="model" className="font-medium">
-          Model
-        </Label>
-        {models && models.list.length > 0 ? (
-          <Select value={settings.models[provider]} onValueChange={setModel}>
-            <SelectTrigger id="model" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {!models.list.includes(settings.models[provider]) && (
-                <SelectItem value={settings.models[provider]}>{settings.models[provider]} (not found)</SelectItem>
-              )}
-              {models.list.map((m) => (
-                <SelectItem key={m} value={m}>
-                  {m}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Input id="model" value={settings.models[provider]} onChange={(e) => setModel(e.target.value)} />
-        )}
-        {models === null && <p className="text-sm text-muted-foreground">Looking for available models…</p>}
-        {models?.error && <p className="text-sm text-muted-foreground">{models.error}. You can type the name manually.</p>}
-
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={runTest} disabled={testing}>
-            {testing ? <Loader2 className="animate-spin" /> : <PlugZap />}
-            Test connection
-          </Button>
-          {test?.ok === true && (
-            <span className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
-              <CheckCircle2 className="size-4" /> Working ({(test.ms / 1000).toFixed(1)}s)
-            </span>
-          )}
-          {test?.ok === false && (
-            <span className="flex items-center gap-1.5 text-sm text-destructive">
-              <XCircle className="size-4 shrink-0" /> {test.error}
-            </span>
-          )}
-        </div>
-      </section>
+      <ModelChain
+        settings={settings}
+        providers={providers}
+        tests={tests}
+        onChange={(chain) => save(chain)}
+        onTestAll={(ids) => ids.forEach(runTest)}
+      />
 
       <section className="space-y-3">
         <div>
-          <h2 className="font-medium">Fallbacks</h2>
+          <h2 className="font-medium">Providers</h2>
           <p className="text-sm text-muted-foreground">
-            If {PROVIDERS[provider].name} fails (offline, quota exceeded, overloaded…), try these models in this order.
-            The local model always goes last: it’s slower and uses your GPU.
+            Set up each provider’s key and model. Changing them here doesn’t change the order above.
           </p>
         </div>
-        <div className="grid gap-2">
-          {byFallbackPriority(PROVIDER_IDS.filter((id) => id !== provider)).map((id) => {
-            const configured = providers[id].configured;
-            return (
-              <div key={id} className="flex items-center justify-between gap-4 rounded-lg border px-3 py-2">
-                <Label htmlFor={`fallback-${id}`} className="flex flex-col items-start gap-0.5 font-normal">
-                  <span>{modelLabel(id, settings.models[id])}</span>
-                  {!configured && <span className="text-xs text-muted-foreground">Add an API key to use it</span>}
-                </Label>
-                <Switch
-                  id={`fallback-${id}`}
-                  disabled={!configured}
-                  checked={configured && settings.fallbacks.includes(id)}
-                  onCheckedChange={(on) => toggleFallback(id, on)}
-                />
-              </div>
-            );
-          })}
-        </div>
+        {PROVIDER_IDS.map((id) => (
+          <ProviderCard
+            key={id}
+            id={id}
+            settings={settings}
+            status={providers[id]}
+            test={tests[id]}
+            onSave={save}
+            onProvidersChange={onProvidersChange}
+            onTest={() => runTest(id)}
+          />
+        ))}
       </section>
 
       <section className="space-y-4">
@@ -247,7 +129,7 @@ export function SettingsForm({
           </div>
           <Select
             value={settings.explanationLanguage}
-            onValueChange={(v) => update({ explanationLanguage: v as Settings["explanationLanguage"] })}
+            onValueChange={(v) => save({ explanationLanguage: v as Settings["explanationLanguage"] })}
           >
             <SelectTrigger className="w-32">
               <SelectValue />
@@ -265,107 +147,29 @@ export function SettingsForm({
               Typos are always highlighted in corrections, but they don’t reflect a lack of knowledge.
             </p>
           </div>
-          <Switch
-            id="typos"
-            checked={settings.countTyposInStats}
-            onCheckedChange={(v) => update({ countTyposInStats: v })}
-          />
+          <Switch id="typos" checked={settings.countTyposInStats} onCheckedChange={(v) => save({ countTyposInStats: v })} />
         </div>
       </section>
-
-      <Button onClick={save} disabled={saving}>
-        {saving && <Loader2 className="animate-spin" />}
-        Save
-      </Button>
     </div>
   );
 }
 
-const KEY_URLS: Record<KeyProvider, string> = {
-  gemini: "https://aistudio.google.com/apikey",
-  groq: "https://console.groq.com/keys",
-};
-
-function ApiKeyField({
-  provider,
-  status,
-  onChange,
-}: {
-  provider: KeyProvider;
-  status: ProviderStatus;
-  onChange: (providers: Providers) => void;
-}) {
-  const [value, setValue] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  async function save(apiKey: string | null) {
-    setSaving(true);
-    try {
-      const result = await api<{ providers: Providers }>("/api/settings/keys", {
-        method: "PUT",
-        body: { provider, apiKey },
-      });
-      setValue("");
-      onChange(result.providers);
-      toast.success(apiKey ? "API key saved" : "API key removed");
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
+function SaveStatus({ pending, failed }: { pending: boolean; failed: boolean }) {
   return (
-    <section className="space-y-2">
-      <Label htmlFor="api-key" className="font-medium">
-        {PROVIDERS[provider].label} API key
-      </Label>
-
-      {status.source === "app" && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm">
-          <span>
-            Saved in the app: <code>{status.detail}</code>
-          </span>
-          <Button variant="ghost" size="sm" onClick={() => save(null)} disabled={saving}>
-            Remove
-          </Button>
-        </div>
+    <p className="flex items-center gap-1.5 text-sm text-muted-foreground" aria-live="polite">
+      {pending ? (
+        <>
+          <Loader2 className="size-4 animate-spin" /> Saving…
+        </>
+      ) : failed ? (
+        <span className="flex items-center gap-1.5 text-destructive">
+          <XCircle className="size-4" /> The last change wasn’t saved
+        </span>
+      ) : (
+        <>
+          <CheckCircle2 className="size-4" /> Changes are saved automatically
+        </>
       )}
-      {status.source === "env" && (
-        <p className="text-sm text-muted-foreground">
-          Using <code>{KEY_ENV_VARS[provider]}</code> from the environment (<code>{status.detail}</code>). A key saved
-          here takes priority.
-        </p>
-      )}
-
-      <form
-        className="flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (value.trim()) save(value);
-        }}
-      >
-        <Input
-          id="api-key"
-          type="password"
-          autoComplete="off"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder={status.source === "app" ? "Paste a new key to replace it" : "Paste your API key"}
-        />
-        <Button type="submit" variant="outline" disabled={saving || !value.trim()}>
-          {saving && <Loader2 className="animate-spin" />}
-          Save key
-        </Button>
-      </form>
-      <p className="text-sm text-muted-foreground">
-        It’s only stored in your local database and never shown in full.{" "}
-        {!status.configured && (
-          <a href={KEY_URLS[provider]} target="_blank" rel="noreferrer" className="underline underline-offset-4">
-            Get a free key
-          </a>
-        )}
-      </p>
-    </section>
+    </p>
   );
 }

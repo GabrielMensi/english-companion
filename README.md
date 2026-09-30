@@ -34,7 +34,7 @@ ollama pull gemma4:12b       # modelo local recomendado (requiere Ollama recient
 pnpm dev
 ```
 
-Abrí http://localhost:3737 y elegí proveedor y modelo en **Configuración** (el botón "Probar conexión" verifica que todo ande). Ahí mismo se cargan las API keys de Gemini o Groq y la URL de Ollama: las keys se guardan solo en tu base local y nunca se muestran completas.
+Abrí http://localhost:3737 y armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key (Gemini, Groq) o la URL (Ollama), el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
 
 Si preferís configurarlo por entorno, copiá `.env.example` a `.env.local`: esas variables se usan cuando no hay nada guardado en la app.
 
@@ -44,7 +44,7 @@ La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migr
 
 ### Modelos recomendados
 
-Configuración recomendada: **Gemini Flash-Lite como principal, `qwen/qwen3.8-27b` en Groq como primer fallback y `gemma4:12b` local al final**. Los fallbacks remotos siempre se prueban antes que el local, que es más lento y ocupa la GPU. Resultados de `pnpm eval:models` (septiembre 2026, 16 oraciones con errores típicos de hispanohablantes, GPU de 16 GB):
+Configuración recomendada: **Gemini Flash-Lite como principal, `qwen/qwen3.8-27b` en Groq como primer fallback y `gemma4:12b` local al final**. Conviene dejar el local al final de la cadena: es más lento y ocupa la GPU. Estos datos (puntaje, velocidad y límite gratis) se muestran en Configuración desde `MODEL_INFO` en `src/lib/ai/provider-info.ts`; actualizalos juntos. Resultados de `pnpm eval:models` (septiembre 2026, 16 oraciones con errores típicos de hispanohablantes, GPU de 16 GB):
 
 | Modelo | Puntaje | Tiempo promedio | Notas |
 |---|---|---|---|
