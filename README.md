@@ -44,14 +44,16 @@ La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migr
 
 ### Modelos recomendados
 
-Configuración recomendada: **Gemini Flash-Lite como principal y `gemma4:12b` como fallback local**. Resultados de `pnpm eval:models` (septiembre 2026, 16 oraciones con errores típicos de hispanohablantes, GPU de 16 GB):
+Configuración recomendada: **Gemini Flash-Lite como principal, `qwen/qwen3.8-27b` en Groq como primer fallback y `gemma4:12b` local al final**. Los fallbacks remotos siempre se prueban antes que el local, que es más lento y ocupa la GPU. Resultados de `pnpm eval:models` (septiembre 2026, 16 oraciones con errores típicos de hispanohablantes, GPU de 16 GB):
 
 | Modelo | Puntaje | Tiempo promedio | Notas |
 |---|---|---|---|
 | `gemini-flash-lite-latest` (API) | 96 % | 2 s | ~500 requests/día gratis. El más preciso. |
+| `qwen/qwen3.8-27b` (Groq) | 93 % | ~2 s | ~110 correcciones/día gratis (200K tokens/día, 8K tokens/minuto). Sin tokens de razonamiento. |
 | `gemma4:12b` (local, 7,6 GB) | 93 % | 9 s | El mejor local; detecta falsos amigos ("actually") y errores de significado. |
 | `qwen3:14b` (local) | 91 % | 7 s | Bueno, pero se le escapan errores de significado. |
 | `qwen2.5:14b-instruct` (local) | 89 % | 8 s | |
+| `openai/gpt-oss-120b` (Groq) | 81 % | ~13 s | Gasta ~1.100 tokens de razonamiento por corrección (~60/día) y a veces devuelve JSON inválido. |
 | `gpt-oss:20b` (local) | 84 % | 34 s | Razona siempre: demasiado lento para chatear. |
 | Gemma 4 26B / 31B (API) | 44–63 % | 7–44 s | Lentos y con timeouts en el free tier. |
 
