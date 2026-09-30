@@ -16,6 +16,7 @@
 - Diagnóstico de tiempos verbales: precisión por tiempo, errores de uso vs forma, confusiones y tiempos poco usados ([VERB_TENSES.md](VERB_TENSES.md)).
 - Rediseño de Configuración: una tarjeta por proveedor (key, modelo, prueba y estado) editable sin cambiar el principal, una "cadena de modelos" que se puede reordenar y desactivar, guardado automático y puntaje, velocidad y límite gratis de cada modelo.
 - Nivel `suggestion` para mejoras opcionales (contracciones, puntuación opcional), que no cuentan como errores, y tiempo de respuesta en cada mensaje.
+- Ventana flotante (Document Picture-in-Picture, como Google Meet): composer con dictado, última corrección y "Copy & close" siempre visibles sobre otras apps. Se abre con el botón del chat o Alt+P, y sola al cambiar de pestaña mientras dictás (por eso `pnpm dev` usa HTTPS).
 
 ## Próximo
 
@@ -87,6 +88,8 @@ Google Meet puede generar transcripciones, pero en general solo en cuentas pagas
 
 ### Claude Code como paso intermedio
 Objetivo: escribir el prompt una sola vez, en inglés, directamente en Claude Code, y obtener igual todo el beneficio de la app.
+
+> La ventana flotante ya cubre buena parte de esto sin integrar nada: escribir o dictar el prompt ahí, copiar la versión corregida y pegarla en Claude Code. El hook solo vale la pena si ese paso de copiar y pegar molesta.
 
 Flujo:
 1. Escribo el prompt en Claude Code.
