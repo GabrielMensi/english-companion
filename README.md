@@ -18,7 +18,7 @@ Corre 100% local y está pensado para ser gratis: por defecto usa un modelo loca
 - **Sugerencias, no errores**: contracciones ("is not" / "isn't"), puntuación opcional o comma splices en texto informal se muestran aparte como sugerencias y nunca cuentan en las estadísticas.
 - **"Cómo lo diría un nativo"**: una versión más natural cuando la corrección es correcta pero suena traducida.
 - **Escape al español**: si no sabés cómo decir algo, escribilo entre corchetes (`I want to [aprovechar] this`) y te da opciones en inglés. Queda guardado en la página **Vocabulary** (agrupado por palabra, con las veces que la buscaste y las oraciones donde la usaste) y en un panel del dashboard.
-- **Flashcards con repaso espaciado** (página **Flashcards**): dos mazos, las palabras que buscaste entre corchetes (español → inglés, con la oración donde la usaste como pista) y tus errores reales (el original como pregunta, la corrección como respuesta). Escribís la respuesta (opcional), la ves y la calificás con Again / Hard / Good / Easy; un algoritmo tipo SM-2 decide cuándo vuelve cada tarjeta. Los errores se pueden repasar por tiempo verbal o por tipo.
+- **Flashcards con repaso espaciado** (página **Flashcards**): dos mazos, las palabras que buscaste entre corchetes (español → inglés, con la oración donde la usaste como pista) y tus errores reales (el original como pregunta, la corrección como respuesta). Escribís la respuesta (opcional), la ves y la calificás con Again / Hard / Good / Easy; un algoritmo tipo SM-2 decide cuándo vuelve cada tarjeta. Los errores se pueden repasar por tiempo verbal o por tipo (el tipo de error es una pista opcional, para no regalar la respuesta). Cada tarjeta se puede suspender (se recupera desde la página Flashcards) o borrar; la cantidad de tarjetas nuevas por sesión se elige en Settings. El dashboard muestra tarjetas pendientes, retención, repasos por día y racha (con historial desde que existe la tabla `review_log`).
 - **Convertir en prompt**: sobre un mensaje corregido, lo reestructura como un prompt claro para una IA, listo para copiar.
 - **Selector de modelo** en el chat y nota en cada respuesta con el modelo que la generó y cuánto tardó.
 - **Fallback automático**: si el modelo elegido falla (offline, cuota, sobrecarga), prueba con los otros modelos configurados, en orden, y deja registrado cuál falló.
@@ -111,6 +111,8 @@ src/
     tense-stats.ts     precisión por tiempo verbal (puro, testeado)
     srs.ts             repaso espaciado tipo SM-2 (puro, testeado)
     flashcards-core.ts tarjetas de vocabulario y de errores, cola de repaso (puro, testeado)
+    flashcards-upkeep*.ts suspender / borrar tarjetas y limpiar reviews huérfanas
+    review-stats*.ts   retención, repasos por día, racha y pendientes de las flashcards (core puro, testeado)
     tense-practice.ts  qué tiempos practicar, preguntas y feedback de ejercicios (puro, testeado)
     practice*.ts       chats de práctica: estado, ejercicios generados y conversación dirigida
 drizzle/               migraciones SQL
