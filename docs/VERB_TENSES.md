@@ -1,6 +1,6 @@
 # Tiempos verbales: diagnóstico por tiempo
 
-Estado (2026-09-29): **implementado** (ver "Implementado" al final). Quedan la estrategia de mejora (ejercicios, conversación dirigida) y la comparación escrito / hablado. Los tiempos verbales son uno de los temas más importantes para un hispanohablante, pero hoy la app solo sabe **cuántos** errores hay en `verb_tense`, no **en qué tiempo** ni **cuáles domino**.
+Estado (2026-09-30): **implementado** el diagnóstico (ver "Implementado") y la práctica (ver "Práctica", al final). Queda la comparación escrito / hablado. Los tiempos verbales son uno de los temas más importantes para un hispanohablante, pero hoy la app solo sabe **cuántos** errores hay en `verb_tense`, no **en qué tiempo** ni **cuáles domino**.
 
 ## Qué pasa hoy
 
@@ -167,3 +167,19 @@ Después: ejercicios de contraste y conversación dirigida, que se apoyan en est
 - **Dashboard**: card "Verb tenses", con un resumen (el más fuerte, el que necesita trabajo y los poco usados), la tabla por familia y las confusiones más comunes con un ejemplo real.
 
 Umbrales iniciales: precisión recién con 5 usos; `strong` con ≥ 90 % suavizado y ≥ 15 usos; `weak` < 75 %; `avoided` si un tiempo común aparece ≤ 1 vez en ≥ 1000 palabras.
+
+## Práctica
+
+Página **Practice** (también desde "Practice →" en la card "Verb tenses" del dashboard). Usa el diagnóstico para practicar, no solo para medir.
+
+- **Qué practicar**: `selectPracticeTargets` en `src/lib/tense-practice.ts` (puro, con tests) toma las estadísticas por tiempo de los últimos 90 días y elige hasta 3 tiempos: puntaje = errores + un extra para `weak` (5), `avoided` (4) y `shaky` (2). Los `strong` y los `shaky` sin errores quedan afuera; los que tienen pocos usos entran solo con ≥ 2 errores. Un par confundido en los dos sentidos (past simple ↔ present perfect) aparece una sola vez. Sin datos, sugiere los clásicos del hispanohablante (present perfect vs past simple, past continuous vs past simple, going to vs will).
+- **Tipo de ejercicio** según el problema: **contraste** con el tiempo usado en su lugar si fallás al elegirlo (errores de uso ≥ de forma), **forma** (drill de conjugación: negativas, preguntas, irregulares) si lo elegís bien pero lo armás mal, y **uso** (tareas cortas para escribir oraciones propias) si es un tiempo evitado.
+- **Ejercicios**: se generan con IA (`src/lib/ai/exercises.ts`, schema plano `items: [{sentence, answer, why}]`, con fallback entre modelos y `withChatPriority`). Para los pares comunes, el prompt incluye las pistas que deciden el tiempo (*yesterday / ago* vs *since / for / ever / just / yet*…). `normalizeExercises` descarta ítems sin hueco, respuestas sin completar, duplicados y respuestas en un tiempo que no se practica (según `countTenses`). El `why` sigue el idioma de las explicaciones.
+- **Chat de ejercicios**: es un chat normal en modo corrección cuyo primer mensaje es la consigna con el ítem 1. Cada respuesta pasa por el pipeline de corrección de siempre (corrige, cuenta en las estadísticas y en `tense_counts`); en lugar de la respuesta de la IA, la respuesta es determinística: si el tiempo es el correcto (comparando los tiempos de tu respuesta con los de la esperada con `countTenses`), la respuesta esperada, el porqué y el ítem siguiente. Al final, un resumen ("the right tense in 4 of 6"). La n-ésima respuesta analizada corresponde al ítem n, así que reintentar da el mismo resultado.
+- **Conversación dirigida**: un chat en modo conversación que abre con una pregunta que solo se contesta natural con ese tiempo (`TENSE_QUESTIONS`, 3 por tiempo) y agrega una regla a la respuesta del modelo para que cada pregunta de seguimiento también lo necesite, sin hablar de gramática. Funciona con el modo voz.
+- **Sin migración**: qué practica cada chat se guarda en la tabla `settings` (clave `practice:<session id>`); los chats sin esa clave son chats normales. Se borra con el chat.
+
+Limitaciones:
+- El chequeo del tiempo depende de `countTenses`: si no reconoce el verbo, muestra la respuesta sugerida sin marcar ✓/✗. En los drills de forma no marca "tiempo correcto" (el tiempo viene dado); los errores de forma los muestra la corrección.
+- Las respuestas a ejercicios son oraciones guiadas: suben los usos del tiempo practicado en las estadísticas, igual que cualquier mensaje.
+- Los ejercicios se generan cada vez (no hay banco guardado ni repaso espaciado de ítems fallados; eso encaja con el repaso espaciado del roadmap).

@@ -12,6 +12,7 @@ Corre 100% local y está pensado para ser gratis: por defecto usa un modelo loca
 - **Correcciones detalladas**: diff del texto, lista de errores con categoría (taxonomía fija: tiempos verbales, preposiciones, falsos amigos…), gravedad (`typo`, leve, moderado, grave) y explicación.
 - **Tipos de error detallados**: además de la categoría, cada error recibe un tipo fijo (p. ej. *Preposiciones › Verbo + preposición*) y, en los errores verbales, qué tiempo correspondía y cuál usaste. Se clasifica después, en lotes, al abrir el dashboard o cuando la app está inactiva, así el chat no se hace más lento. Si un tipo está mal, "Wrong type?" lo corrige a mano.
 - **Tiempos verbales**: el dashboard muestra, para cada tiempo, cuántas veces lo necesitaste y con qué precisión lo usaste, si fallás al elegirlo o al formarlo, qué tiempo usás en su lugar y cuáles casi no usás. Los usos se cuentan en el texto corregido sin IA (con [compromise](https://github.com/spencermountain/compromise)).
+- **Práctica de tiempos verbales** (página **Practice**): elige los tiempos flojos o poco usados a partir de ese diagnóstico y propone ejercicios de contraste (p. ej. past simple vs present perfect con *yesterday / since / ever*), drills de forma o tareas para usar un tiempo que evitás, y conversaciones cuyas preguntas obligan a usarlo. Las respuestas se corrigen y suman a las estadísticas como cualquier mensaje.
 - **Dictado**: con el botón de micrófono hablás en inglés y Whisper (Groq, gratis) lo transcribe tal cual, con tus errores. El mensaje se corrige como cualquier otro, pero no se marcan la ortografía ni la puntuación (las decide el transcriptor) y en el dashboard podés ver tus errores escritos y hablados por separado. Requiere una API key de Groq.
 - **Tolerante a typos**: los errores de tipeo se marcan, pero no cuentan en las estadísticas (se puede cambiar en Configuración).
 - **Sugerencias, no errores**: contracciones ("is not" / "isn't"), puntuación opcional o comma splices en texto informal se muestran aparte como sugerencias y nunca cuentan en las estadísticas.
@@ -107,6 +108,8 @@ src/
     stats-core.ts      cálculo de estadísticas (puro, testeado)
     tenses-core.ts     conteo de tiempos verbales en un texto (puro, testeado)
     tense-stats.ts     precisión por tiempo verbal (puro, testeado)
+    tense-practice.ts  qué tiempos practicar, preguntas y feedback de ejercicios (puro, testeado)
+    practice*.ts       chats de práctica: estado, ejercicios generados y conversación dirigida
 drizzle/               migraciones SQL
 docs/ROADMAP.md        próximas features e ideas
 ```

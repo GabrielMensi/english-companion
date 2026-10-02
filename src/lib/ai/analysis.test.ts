@@ -211,6 +211,21 @@ describe("prompts", () => {
       "Conversation so far",
     );
   });
+
+  it("includes the question the tutor opened a practice chat with", () => {
+    const history = [{ learner: null, assistant: "What were you doing at 8 pm yesterday?" }];
+    const prompt = buildAnalysisPrompt({ text: "I was cooking", mode: "conversation", explanationLanguage: "es", history });
+    expect(prompt).toContain("Conversation so far (context only, do not analyze it):\nYou: What were you doing");
+    expect(prompt).not.toContain("Learner: null");
+  });
+
+  it("adds the practice rule to the conversation reply only", () => {
+    const practiceRule = "This is a practice conversation";
+    expect(buildAnalysisInstructions({ mode: "conversation", explanationLanguage: "es", practiceRule })).toContain(practiceRule);
+    expect(buildAnalysisInstructions({ mode: "correction", explanationLanguage: "es", practiceRule })).not.toContain(
+      practiceRule,
+    );
+  });
 });
 
 describe("toSnakeCase", () => {

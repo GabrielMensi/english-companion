@@ -8,6 +8,7 @@ import { errorToMessage } from "@/lib/ai/fallback";
 import type { HistoryTurn } from "@/lib/ai/analysis";
 import { improvePrompt } from "@/lib/ai/improve-prompt";
 import { withChatPriority } from "@/lib/classification";
+import { deletePractice, exerciseReplyFor, getPractice, practiceReplyRule } from "@/lib/practice";
 import { getSettings } from "@/lib/settings";
 import { countWords, makeTitle } from "@/lib/text";
 import type { ChatMessage, VoiceInput } from "@/lib/types";
@@ -41,6 +42,7 @@ export function updateSession(id: string, data: { title?: string; mode?: Session
 
 export function deleteSession(id: string) {
   db.delete(schema.sessions).where(eq(schema.sessions.id, id)).run();
+  deletePractice(id);
 }
 
 export function getMessages(sessionId: string): ChatMessage[] {
@@ -114,17 +116,29 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
   if (!session) throw new Error("Chat not found");
 
   const settings = getSettings();
+  // Tense practice chats (see src/lib/practice.ts): steered follow-up questions, or exercise feedback.
+  const practice = getPractice(session.id);
 
   try {
     const started = Date.now();
     const { analysis, provider, modelId, fallbackAttempts } = await withChatPriority(() =>
       analyzeMessage(
-        { text: message.content, mode: session.mode, history: getHistory(message), inputMode: message.inputMode },
+        {
+          text: message.content,
+          mode: session.mode,
+          history: getHistory(message),
+          inputMode: message.inputMode,
+          practiceRule: practiceReplyRule(practice),
+        },
         settings,
         onPreview,
       ),
     );
     const durationMs = Date.now() - started;
+    const exerciseReply = exerciseReplyFor(practice, message);
+    const reply = exerciseReply
+      ? { content: exerciseReply, provider: null, model: null, durationMs: null }
+      : analysis.reply && { content: analysis.reply, provider, model: modelId, durationMs };
 
     db.transaction((tx) => {
       // Retrying replaces any previous result for this message.
@@ -166,17 +180,14 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
           )
           .run();
       }
-      if (analysis.reply) {
+      if (reply) {
         tx.insert(schema.messages)
           .values({
             id: crypto.randomUUID(),
             sessionId: message.sessionId,
             role: "assistant",
             replyToId: message.id,
-            content: analysis.reply,
-            provider,
-            model: modelId,
-            durationMs,
+            ...reply,
             // Sort the reply right after the message it answers, even on retries.
             createdAt: new Date(message.createdAt.getTime() + 1),
           })
@@ -221,6 +232,9 @@ function getHistory(message: Message): HistoryTurn[] {
       turns.push({ learner: m.correctedText ?? m.content, assistant: null });
     } else if (turns.length > 0) {
       turns[turns.length - 1].assistant = m.content;
+    } else {
+      // A chat that starts with a question from the tutor (tense practice).
+      turns.push({ learner: null, assistant: m.content });
     }
   }
   return turns;
