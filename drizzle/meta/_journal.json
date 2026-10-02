@@ -64,6 +64,13 @@
       "when": 1790804191551,
       "tag": "0008_flashcard_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790909591038,
+      "tag": "0009_missed_exercises",
+      "breakpoints": true
     }
   ]
 }

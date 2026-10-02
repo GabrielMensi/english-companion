@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildExerciseInstructions, type ExerciseRequest, normalizeExercises } from "./exercises-core";
+import {
+  buildCategoryExerciseInstructions,
+  buildExerciseInstructions,
+  type CategoryExerciseRequest,
+  type ExerciseRequest,
+  normalizeCategoryExercises,
+  normalizeExercises,
+} from "./exercises-core";
 
 const contrast: ExerciseRequest = {
   kind: "contrast",
@@ -68,5 +75,56 @@ describe("normalizeExercises", () => {
       { ...contrast, kind: "use", contrastWith: null },
     );
     expect(items).toHaveLength(3);
+  });
+});
+
+describe("category exercises", () => {
+  const request: CategoryExerciseRequest = {
+    category: "prepositions",
+    subtype: "dependent_preposition",
+    explanationLanguage: "es",
+    mistakes: [{ original: "depend of", correction: "depend on" }],
+    count: 6,
+  };
+
+  it("describes the category, the focus, the formats and the learner's mistakes", () => {
+    const instructions = buildCategoryExerciseInstructions(request);
+    expect(instructions).toContain("practice prepositions");
+    expect(instructions).toContain("Focus on this type of mistake: Verb / adjective + preposition");
+    expect(instructions).toContain("2 fill-in-the-gap, 2 multiple choice, 2 fix-the-mistake");
+    expect(instructions).toContain('"depend of" → "depend on"');
+    expect(instructions).toContain("Spanish");
+    expect(buildCategoryExerciseInstructions({ ...request, subtype: null, mistakes: [] })).toContain("Time (in / on / at)");
+  });
+
+  it("keeps valid items of each format and drops broken ones", () => {
+    const items = normalizeCategoryExercises(
+      {
+        items: [
+          { sentence: "She is interested ____ machine learning.", options: "", answer: "She is interested in machine learning.", why: " Rule. " },
+          { sentence: "It depends ___ the weather.", options: "of / on/in", answer: "It depends on the weather.", why: "" },
+          // Options already in the sentence.
+          { sentence: "He is good ___ (at / in) maths.", options: "at / in", answer: "He is good at maths.", why: "" },
+          { sentence: "Fix the mistake: We discussed about the plan.", options: "", answer: "We discussed the plan.", why: "" },
+          // The answer doesn't follow the sentence.
+          { sentence: "He is good ___ chess.", options: "", answer: "She is good at chess.", why: "" },
+          // The answer isn't one of the options.
+          { sentence: "I arrived ___ (to / at) the office.", options: "", answer: "I arrived in the office.", why: "" },
+          // Nothing to fix.
+          { sentence: "Fix the mistake: I agree.", options: "", answer: "I agree.", why: "" },
+          // The gap is left empty.
+          { sentence: "We discussed ___ the plan.", options: "", answer: "We discussed the plan.", why: "" },
+          // Duplicate.
+          { sentence: "She is interested ___ machine learning.", options: "", answer: "She is interested in machine learning.", why: "" },
+        ],
+      },
+      request,
+    );
+    expect(items).toEqual([
+      { sentence: "She is interested ___ machine learning.", answer: "She is interested in machine learning.", why: "Rule.", format: "fill" },
+      { sentence: "It depends ___ (of / on / in) the weather.", answer: "It depends on the weather.", why: "", format: "choice" },
+      { sentence: "He is good ___ (at / in) maths.", answer: "He is good at maths.", why: "", format: "choice" },
+      { sentence: "Fix the mistake: We discussed about the plan.", answer: "We discussed the plan.", why: "", format: "rewrite" },
+    ]);
   });
 });

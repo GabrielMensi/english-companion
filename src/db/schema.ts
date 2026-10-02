@@ -150,6 +150,34 @@ export const reviews = sqliteTable(
   (t) => [uniqueIndex("reviews_card_idx").on(t.kind, t.cardKey), index("reviews_due_idx").on(t.dueAt)],
 );
 
+/**
+ * Exercise items the learner got wrong in a practice chat (tense or category
+ * exercises), kept for spaced review as the "Missed exercises" flashcard deck.
+ * One row per item of a chat: answering it again (a retry) updates or removes it.
+ * Rows outlive the chat, so deleting a practice chat keeps its cards.
+ */
+export const missedExercises = sqliteTable(
+  "missed_exercises",
+  {
+    id: text("id").primaryKey(),
+    sessionId: text("session_id").references(() => sessions.id, { onDelete: "set null" }),
+    /** Position of the item in the chat's set (0-based). */
+    itemIndex: integer("item_index").notNull(),
+    /** What was practiced: "Present perfect vs past simple", "Prepositions"... */
+    topic: text("topic").notNull(),
+    category: text("category").$type<ErrorCategory>(),
+    subtype: text("subtype"),
+    tense: text("tense").$type<Tense>(),
+    /** The exercise as shown ("I ___ (live) here since 2020."). */
+    sentence: text("sentence").notNull(),
+    answer: text("answer").notNull(),
+    why: text("why").notNull(),
+    learnerAnswer: text("learner_answer").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("missed_exercises_item_idx").on(t.sessionId, t.itemIndex)],
+);
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).notNull(),
@@ -178,3 +206,4 @@ export type Message = typeof messages.$inferSelect;
 export type Correction = typeof corrections.$inferSelect;
 export type VocabularyEntry = typeof vocabulary.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
+export type MissedExercise = typeof missedExercises.$inferSelect;

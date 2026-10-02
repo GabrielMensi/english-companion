@@ -16,7 +16,13 @@ import {
   TENSES,
 } from "@/lib/taxonomy";
 
-const DECKS: Record<string, CardKind> = { vocabulary: "vocabulary", mistakes: "mistake" };
+const DECKS: Record<string, CardKind> = { vocabulary: "vocabulary", mistakes: "mistake", exercises: "exercise" };
+
+const DECK_SUBTITLES: Record<CardKind, string> = {
+  vocabulary: "Spanish → English",
+  mistake: "Fix your own mistakes",
+  exercise: "Exercise items you got wrong in Practice",
+};
 
 function parseFilter(params: Record<string, string | string[] | undefined>): MistakeFilter {
   const filter: MistakeFilter = {};
@@ -47,7 +53,7 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
   if (kind) {
     const filter = kind === "mistake" ? parseFilter(params) : {};
     const queue = getStudyQueue(kind, filter);
-    const title = kind === "vocabulary" ? "Vocabulary" : filterTitle(filter);
+    const title = kind === "vocabulary" ? "Vocabulary" : kind === "exercise" ? "Missed exercises" : filterTitle(filter);
     return (
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl space-y-6 px-6 py-8">
@@ -62,7 +68,7 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
             <div>
               <h1 className="text-xl font-semibold">{title}</h1>
               <p className="text-sm text-muted-foreground">
-                {kind === "vocabulary" ? "Spanish → English" : "Fix your own mistakes"}
+                {DECK_SUBTITLES[kind]}
               </p>
             </div>
           </div>
@@ -79,7 +85,7 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
         <div>
           <h1 className="text-2xl font-semibold">Flashcards</h1>
           <p className="text-muted-foreground">
-            Review the words you looked up and the mistakes you made, spaced out so they stick.
+            Review the words you looked up, the mistakes you made and the exercises you missed, spaced out so they stick.
           </p>
         </div>
         <DeckOverview overview={overview} />

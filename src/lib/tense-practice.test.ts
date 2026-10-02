@@ -7,8 +7,10 @@ import {
   exerciseOpening,
   exerciseReply,
   focusTenses,
+  isTenseMiss,
   pickQuestion,
   practiceTitle,
+  practiceTopic,
   selectPracticeTargets,
   SUGGESTED_TARGETS,
   TENSE_QUESTIONS,
@@ -247,5 +249,22 @@ describe("exerciseReply", () => {
     expect(reply?.check).toBe("unknown");
     expect(reply?.text).toContain("Example: I had already walked the dog.");
     expect(reply?.text).toContain("That’s the whole set.");
+  });
+});
+
+describe("isTenseMiss", () => {
+  it("saves wrong tenses and form drill answers with verb mistakes, never open tasks", () => {
+    expect(isTenseMiss("contrast", "wrong_tense", 0)).toBe(true);
+    expect(isTenseMiss("contrast", "right_tense", 1)).toBe(false);
+    expect(isTenseMiss("form", "right_tense", 1)).toBe(true);
+    expect(isTenseMiss("form", "exact", 0)).toBe(false);
+    expect(isTenseMiss("form", "unknown", 0)).toBe(false);
+    expect(isTenseMiss("use", "wrong_tense", 2)).toBe(false);
+  });
+
+  it("names the topic for the flashcards", () => {
+    expect(practiceTopic({ kind: "contrast", tense: "present_perfect", contrastWith: "past_simple" })).toBe(
+      "Present perfect vs past simple",
+    );
   });
 });

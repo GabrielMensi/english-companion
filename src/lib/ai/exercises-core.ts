@@ -1,11 +1,20 @@
 /**
- * Pure parts of the tense exercise generation: output schema, prompt building
- * and normalization. Kept free of server-only imports so it can be unit tested.
+ * Pure parts of the exercise generation (tense exercises and exercises for an
+ * error category): output schema, prompt building and normalization. Kept free of server-only imports so it can be unit tested.
  */
 import { z } from "zod";
-import { type Tense, TENSE_HINTS, TENSE_LABELS } from "@/lib/taxonomy";
+import {
+  type CategoryExerciseItem,
+  categoryDescription,
+  type ExerciseFormat,
+  formatOf,
+  gapFills,
+  parseGaps,
+  rewriteSource,
+} from "@/lib/category-practice";
+import { type ErrorCategory, SUBTYPES, type Tense, TENSE_HINTS, TENSE_LABELS } from "@/lib/taxonomy";
 import { countTenses } from "@/lib/tenses-core";
-import { type ExerciseItem, type ExerciseKind, focusTenses, tensesAmong } from "@/lib/tense-practice";
+import { comparable, type ExerciseItem, type ExerciseKind, focusTenses, tensesAmong } from "@/lib/tense-practice";
 
 export const EXERCISE_COUNT = 6;
 /** Fewer usable items than this and the set is rejected (and the next model in the chain tried). */
@@ -128,6 +137,126 @@ export function normalizeExercises(raw: RawExercises, request: ExerciseRequest):
     if (seen.has(key)) continue;
     seen.add(key);
     items.push({ sentence, answer, why, tenses });
+    if (items.length === count) break;
+  }
+  return items;
+}
+
+// ---------------------------------------------------------------------------
+// Exercises for an error category (the weakest categories of the dashboard)
+
+/** Like {@link exercisesSchema}, plus the options of multiple choice items in their own field (small models leave them out of the sentence). */
+export const categoryExercisesSchema = z.object({
+  items: z.array(
+    z.object({
+      sentence: z.string().describe("The exercise: a sentence with a ___ gap, or \"Fix the mistake: \" and a sentence with one mistake."),
+      options: z.string().describe("Multiple choice only: 2 or 3 options for the gap separated by \" / \". Empty for the other formats."),
+      answer: z.string().describe("The full correct sentence, with the gap filled in."),
+      why: z.string().describe("One short sentence explaining the rule."),
+    }),
+  ),
+});
+
+export type RawCategoryExercises = z.infer<typeof categoryExercisesSchema>;
+
+export interface CategoryExerciseRequest {
+  category: ErrorCategory;
+  subtype: string | null;
+  explanationLanguage: "es" | "en";
+  /** Real mistakes of the learner in this category, as material: "original → correction". */
+  mistakes?: { original: string; correction: string }[];
+  count?: number;
+}
+
+/** How many items of each format a set of `count` asks for: fill, choice, then rewrite. */
+function formatCounts(count: number): Record<ExerciseFormat, number> {
+  const rewrite = Math.max(1, Math.floor(count / 3));
+  const choice = Math.max(1, Math.floor((count - rewrite) / 2));
+  return { fill: count - rewrite - choice, choice, rewrite };
+}
+
+export function buildCategoryExerciseInstructions(input: CategoryExerciseRequest): string {
+  const language = input.explanationLanguage === "es" ? "Spanish (Rioplatense, neutral tone)" : "English";
+  const count = input.count ?? EXERCISE_COUNT;
+  const n = formatCounts(count);
+  const subtype = input.subtype ? SUBTYPES[input.category][input.subtype] : null;
+  const points = Object.entries(SUBTYPES[input.category])
+    .filter(([key]) => key !== "other")
+    .map(([, info]) => `- ${info.label}: ${info.hint}`)
+    .join("\n");
+  const focus = subtype
+    ? `Focus on this type of mistake: ${subtype.label} (${subtype.hint}).`
+    : points
+      ? `Cover several of these types of mistakes:\n${points}`
+      : "";
+  const mistakes = (input.mistakes ?? []).slice(0, 6);
+  const material =
+    mistakes.length > 0
+      ? `\n\nMistakes the learner actually made (original → correction). Test the same points in new sentences; rewrite items may reuse one of these sentences:\n${mistakes.map((m) => `- "${m.original}" → "${m.correction}"`).join("\n")}`
+      : "";
+
+  return `You write short English grammar exercises for a native Spanish speaker at B1-B2 level who works as a software developer. Use everyday topics (work, travel, family, hobbies, technology), natural sentences of 6 to 14 words, and varied subjects (I, you, he, she, we, they, names).
+
+The exercises practice ${categoryDescription(input.category)}. ${focus}${material}
+
+Return a JSON object with "items": exactly ${count} items, in this order: ${n.fill} fill-in-the-gap, ${n.choice} multiple choice, ${n.rewrite} fix-the-mistake. Each item has:
+- sentence: the exercise, as described below.
+- options: only for multiple choice, the options for the gap separated by " / " (one right, the others the mistakes a Spanish speaker would make). An empty string for the other formats.
+- answer: the complete correct sentence, with the gap filled in: never ___. Only one answer should be natural.
+- why: one short sentence in ${language} explaining the rule.
+
+Formats:
+- fill-in-the-gap: one sentence with one gap written as ___ where a word is missing. The gap is never empty in the answer. E.g. {"sentence": "My sister is ___ engineer at Google.", "options": "", "answer": "My sister is an engineer at Google.", "why": "..."}
+- multiple choice: one sentence with one gap written as ___, and 2 or 3 options in "options". The answer uses exactly one of the options. E.g. {"sentence": "It depends ___ the weather.", "options": "of / on / in", "answer": "It depends on the weather.", "why": "..."}
+- fix-the-mistake: "Fix the mistake: " followed by a sentence with exactly one mistake of this kind, the kind a Spanish speaker makes. No gaps. E.g. {"sentence": "Fix the mistake: I am agree with you.", "options": "", "answer": "I agree with you.", "why": "..."}`;
+}
+
+export function buildCategoryExercisePrompt(input: CategoryExerciseRequest): string {
+  return `Write ${input.count ?? EXERCISE_COUNT} new exercises. Don't reuse the example sentences.`;
+}
+
+/**
+ * Drops items small models commonly get wrong: an answer that doesn't follow
+ * the gapped sentence, an empty gap, a choice answer that isn't one of the
+ * options, a "mistake" that is already correct, and duplicates.
+ */
+export function normalizeCategoryExercises(raw: RawCategoryExercises, request: CategoryExerciseRequest): CategoryExerciseItem[] {
+  const count = request.count ?? EXERCISE_COUNT;
+  const seen = new Set<string>();
+  const items: CategoryExerciseItem[] = [];
+
+  for (const item of raw.items) {
+    let sentence = item.sentence.trim().replace(GAP, "___").replace(/\s+/g, " ");
+    // The options go right after the only gap, unless the sentence already has them.
+    const options = (item.options ?? "")
+      .split("/")
+      .map((o) => o.trim())
+      .filter(Boolean);
+    if (options.length > 1 && sentence.split("___").length === 2 && !/___\s*\(/.test(sentence)) {
+      sentence = sentence.replace("___", `___ (${options.join(" / ")})`);
+    }
+    const answer = item.answer.trim().replace(/\s+/g, " ");
+    const why = item.why.trim();
+    if (!sentence || !answer || /_{2,}/.test(answer)) continue;
+
+    const format = formatOf(sentence);
+    if (format === "rewrite") {
+      const source = rewriteSource(sentence);
+      if (!source || comparable(source) === comparable(answer)) continue;
+    } else {
+      const fills = gapFills(sentence, answer);
+      if (!fills || fills.some((f) => !f)) continue;
+      if (format === "choice") {
+        const { options } = parseGaps(sentence);
+        const valid = fills.every((f, i) => options[i].length === 0 || options[i].some((o) => comparable(o) === f));
+        if (!valid) continue;
+      }
+    }
+
+    const key = sentence.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    items.push({ sentence, answer, why, format });
     if (items.length === count) break;
   }
   return items;
