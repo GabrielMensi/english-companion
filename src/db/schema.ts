@@ -1,6 +1,8 @@
 import { relations } from "drizzle-orm";
-import { type AnySQLiteColumn, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { type AnySQLiteColumn, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { FallbackAttempt } from "@/lib/ai/fallback";
+import type { CardKind } from "@/lib/flashcards-core";
+import type { Grade } from "@/lib/srs";
 import type { FluencyMetrics } from "@/lib/fluency";
 import type { TenseCounts } from "@/lib/tenses-core";
 import type { ErrorCategory, Severity, Tense } from "@/lib/taxonomy";
@@ -124,6 +126,30 @@ export const vocabulary = sqliteTable(
   (t) => [index("vocabulary_created_idx").on(t.createdAt)],
 );
 
+/**
+ * Spaced repetition state of each flashcard (see src/lib/srs.ts). Cards aren't
+ * stored: they're built from vocabulary lookups and corrections, and matched
+ * here by `card_key` (a vocabulary word key, or "original → correction").
+ */
+export const reviews = sqliteTable(
+  "reviews",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").$type<CardKind>().notNull(),
+    cardKey: text("card_key").notNull(),
+    ease: real("ease").notNull(),
+    intervalDays: integer("interval_days").notNull().default(0),
+    repetitions: integer("repetitions").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
+    dueAt: integer("due_at", { mode: "timestamp_ms" }).notNull(),
+    reviewCount: integer("review_count").notNull().default(0),
+    lastGrade: text("last_grade").$type<Grade>(),
+    lastReviewedAt: integer("last_reviewed_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("reviews_card_idx").on(t.kind, t.cardKey), index("reviews_due_idx").on(t.dueAt)],
+);
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).notNull(),
@@ -151,3 +177,4 @@ export type Session = typeof sessions.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Correction = typeof corrections.$inferSelect;
 export type VocabularyEntry = typeof vocabulary.$inferSelect;
+export type Review = typeof reviews.$inferSelect;

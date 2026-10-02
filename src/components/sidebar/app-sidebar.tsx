@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, BookOpen, Dumbbell, GraduationCap, Lightbulb, PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
+import { BarChart3, BookOpen, Dumbbell, GraduationCap, Layers, Lightbulb, PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -18,6 +18,7 @@ const NAV = [
   { href: "/insights", label: "Insights", icon: Lightbulb },
   { href: "/practice", label: "Practice", icon: Dumbbell },
   { href: "/vocabulary", label: "Vocabulary", icon: BookOpen },
+  { href: "/flashcards", label: "Flashcards", icon: Layers },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
