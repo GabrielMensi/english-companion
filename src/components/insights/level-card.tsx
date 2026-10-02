@@ -61,7 +61,9 @@ export function LevelCard({
                 </td>
                 <td className="py-2 pr-4">{s.value}</td>
                 <td className="py-2 pr-4 font-medium">{s.level}</td>
-                <td className="py-2 text-right tabular-nums text-muted-foreground">{Math.round(s.weight * 100)}%</td>
+                <td className="py-2 text-right tabular-nums text-muted-foreground">
+                  {s.weight > 0 ? `${Math.round(s.weight * 100)}%` : "Context"}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -92,9 +94,11 @@ export function LevelCard({
       )}
 
       <p className="text-xs text-muted-foreground">
-        This is a rough estimate from fixed rules, not a test: it only sees what you write (or dictate) here, not your
-        reading, listening or speaking, and the thresholds are approximations. Chat messages and prompts are informal,
-        so it may underestimate you. Use it to see the trend, not as a certificate.
+        This is an estimate from fixed rules, not a test: it only sees what you write (or dictate) here, not your
+        reading, listening or speaking. The rules were checked against essays graded A1–C2 by Cambridge examiners, where
+        they matched the grade about 6 times in 10 and were within one level more than 9 times in 10; here the mistakes are
+        found by the AI and chats and prompts aren&apos;t essays, so expect about one level of error either way. Use it
+        to see the trend, not as a certificate.
       </p>
 
       <LevelExplanationPanel initial={explanation} />

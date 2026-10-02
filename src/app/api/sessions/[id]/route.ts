@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { deleteSession, getSession, updateSession } from "@/lib/chat";
+import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
 
 const bodySchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
@@ -18,5 +19,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/sessions/[
 export async function DELETE(_request: Request, ctx: RouteContext<"/api/sessions/[id]">) {
   const { id } = await ctx.params;
   deleteSession(id);
+  // Its mistakes and words are gone: so are their flashcards.
+  cleanOrphanReviews();
   return new Response(null, { status: 204 });
 }

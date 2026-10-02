@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { PROVIDER_IDS, type ProviderId } from "@/lib/ai/provider-info";
 import { api } from "@/lib/api";
+import { NEW_CARD_LIMIT_OPTIONS } from "@/lib/flashcards-upkeep-core";
 import type { Settings } from "@/lib/settings";
 import { ModelChain } from "./model-chain";
 import { ProviderCard, type Providers, type TestState } from "./provider-card";
@@ -148,6 +149,35 @@ export function SettingsForm({
             </p>
           </div>
           <Switch id="typos" checked={settings.countTyposInStats} onCheckedChange={(v) => save({ countTyposInStats: v })} />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="font-medium">Flashcards</h2>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <Label>New cards per session</Label>
+            <p className="text-sm text-muted-foreground">
+              Never-seen cards added after the ones due. Fewer keeps the daily reviews light.
+            </p>
+          </div>
+          <Select
+            value={String(settings.newCardsPerSession)}
+            onValueChange={(v) => save({ newCardsPerSession: Number(v) })}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[...new Set([...NEW_CARD_LIMIT_OPTIONS, settings.newCardsPerSession])]
+                .sort((a, b) => a - b)
+                .map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n === 0 ? "None" : n}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
         </div>
       </section>
     </div>
