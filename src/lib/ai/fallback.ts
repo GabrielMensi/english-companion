@@ -137,6 +137,26 @@ export function shortReason(error: unknown): string {
   return message.length > 80 ? `${message.slice(0, 77)}…` : message;
 }
 
+// Failures that would happen again with the same model without streaming, so it's better to move on.
+const SAME_WITHOUT_STREAMING = new Set([
+  "unreachable",
+  "timed out",
+  "quota exceeded",
+  "overloaded",
+  "invalid API key",
+  "model not found",
+  "missing API key",
+]);
+
+/**
+ * Whether a failed streaming call is worth repeating with the same model without streaming. Invalid
+ * output and provider-specific streaming problems are; a server that is down or out of quota isn't:
+ * that model is skipped right away, as it is when not streaming.
+ */
+export function canRetryWithoutStreaming(error: unknown): boolean {
+  return !SAME_WITHOUT_STREAMING.has(shortReason(error));
+}
+
 /** Full, user-facing error message. */
 export function errorToMessage(error: unknown): string {
   if (error instanceof AllModelsFailedError) {

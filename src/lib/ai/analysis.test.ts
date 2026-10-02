@@ -6,6 +6,7 @@ import {
   containsLoosely,
   isOptionalChange,
   normalizeAnalysis,
+  previewAnalysis,
   toSnakeCase,
 } from "./analysis";
 
@@ -275,5 +276,66 @@ describe("suggestions", () => {
       "It is not a problem, it depend of teh model.",
     );
     expect(result.errors.map((e) => e.severity)).toEqual(["suggestion", "typo", "moderate"]);
+  });
+});
+
+describe("previewAnalysis", () => {
+  const text = "Yesterday I have went to teh store";
+
+  it("is empty before the model writes anything", () => {
+    expect(previewAnalysis(undefined, "correction", text)).toEqual({
+      correctedText: null,
+      correctedDone: false,
+      naturalText: null,
+      errors: [],
+      reply: null,
+    });
+  });
+
+  it("shows the corrected text as it grows and marks it done when the model moves on", () => {
+    const growing = previewAnalysis({ correctedText: "Yesterday I we" }, "correction", text);
+    expect(growing).toMatchObject({ correctedText: "Yesterday I we", correctedDone: false });
+    const done = previewAnalysis({ correctedText: "Yesterday I went", errors: [] }, "correction", text);
+    expect(done.correctedDone).toBe(true);
+  });
+
+  it("only shows mistakes once their explanation has started", () => {
+    const preview = previewAnalysis(
+      {
+        correctedText: "Yesterday I went to the store",
+        errors: [
+          { original: "I have went", correction: "I went", category: "verb_tense", severity: "moderate", explanation: "Past sim" },
+          // Cut mid-string: partial JSON can hold half an enum value.
+          { original: "teh", correction: "the", category: "spell" as never },
+        ],
+      },
+      "correction",
+      text,
+    );
+    expect(preview.errors).toEqual([
+      { original: "I have went", correction: "I went", category: "verb_tense", severity: "moderate", explanation: "Past sim" },
+    ]);
+  });
+
+  it("applies the same filters as the final result", () => {
+    const preview = previewAnalysis(
+      {
+        errors: [
+          { original: "teh", correction: "the", category: "spelling", severity: "typo", explanation: "" },
+          { original: "for buy", correction: "to buy", category: "gerund_infinitive", severity: "moderate", explanation: "" },
+          { original: "I have went", correction: "I have went", category: "verb_tense", severity: "minor", explanation: "" },
+        ],
+      },
+      "correction",
+      text,
+      "spoken",
+    );
+    // Typos in dictated messages, fragments that aren't in the text and no-op changes are dropped.
+    expect(preview.errors).toEqual([]);
+  });
+
+  it("only shows the reply in conversation mode", () => {
+    expect(previewAnalysis({ reply: "Nice! What" }, "conversation", text).reply).toBe("Nice! What");
+    expect(previewAnalysis({ reply: "Nice! What" }, "correction", text).reply).toBeNull();
   });
 });
