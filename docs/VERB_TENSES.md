@@ -182,4 +182,4 @@ Página **Practice** (también desde "Practice →" en la card "Verb tenses" del
 Limitaciones:
 - El chequeo del tiempo depende de `countTenses`: si no reconoce el verbo, muestra la respuesta sugerida sin marcar ✓/✗. En los drills de forma no marca "tiempo correcto" (el tiempo viene dado); los errores de forma los muestra la corrección.
 - Las respuestas a ejercicios son oraciones guiadas: suben los usos del tiempo practicado en las estadísticas, igual que cualquier mensaje.
-- Los ejercicios se generan cada vez (no hay banco guardado ni repaso espaciado de ítems fallados; eso encaja con el repaso espaciado del roadmap).
+- Los ejercicios se generan cada vez (no hay banco guardado). Los ítems fallados sí se guardan y vuelven como flashcards en el mazo **Missed exercises** (ver "Ejercicios dirigidos" en docs/ROADMAP.md).
