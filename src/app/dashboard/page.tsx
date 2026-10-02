@@ -104,6 +104,11 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <Panel
               title="Verb tenses"
               subtitle="How often you needed each tense and how often you got it right"
+              action={
+                <Link href="/practice" className="text-sm text-muted-foreground hover:text-foreground">
+                  Practice →
+                </Link>
+              }
             >
               <TensePanel stats={tenses} />
             </Panel>

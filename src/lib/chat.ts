@@ -3,11 +3,12 @@ import "server-only";
 import { and, asc, desc, eq, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Correction, Message, SessionMode, VocabularyEntry } from "@/db/schema";
-import { analyzeMessage } from "@/lib/ai/analyze";
+import { analyzeMessage, type OnPreview } from "@/lib/ai/analyze";
 import { errorToMessage } from "@/lib/ai/fallback";
 import type { HistoryTurn } from "@/lib/ai/analysis";
 import { improvePrompt } from "@/lib/ai/improve-prompt";
 import { withChatPriority } from "@/lib/classification";
+import { deletePractice, exerciseReplyFor, getPractice, practiceReplyRule } from "@/lib/practice";
 import { getSettings } from "@/lib/settings";
 import { countWords, makeTitle } from "@/lib/text";
 import type { ChatMessage, VoiceInput } from "@/lib/types";
@@ -41,6 +42,7 @@ export function updateSession(id: string, data: { title?: string; mode?: Session
 
 export function deleteSession(id: string) {
   db.delete(schema.sessions).where(eq(schema.sessions.id, id)).run();
+  deletePractice(id);
 }
 
 export function getMessages(sessionId: string): ChatMessage[] {
@@ -105,24 +107,38 @@ export function addUserMessage(sessionId: string, text: string, voice?: VoiceInp
 /**
  * Runs the AI analysis for a stored user message and persists corrections,
  * vocabulary and (in conversation mode) the assistant reply. Also used to retry.
+ * `onPreview` streams the analysis while it's generated; what gets saved is the same.
  */
-export async function analyzeStoredMessage(messageId: string): Promise<ChatMessage[]> {
+export async function analyzeStoredMessage(messageId: string, onPreview?: OnPreview): Promise<ChatMessage[]> {
   const message = db.select().from(schema.messages).where(eq(schema.messages.id, messageId)).get();
   if (!message || message.role !== "user") throw new Error("Message not found");
   const session = getSession(message.sessionId);
   if (!session) throw new Error("Chat not found");
 
   const settings = getSettings();
+  // Tense practice chats (see src/lib/practice.ts): steered follow-up questions, or exercise feedback.
+  const practice = getPractice(session.id);
 
   try {
     const started = Date.now();
     const { analysis, provider, modelId, fallbackAttempts } = await withChatPriority(() =>
       analyzeMessage(
-        { text: message.content, mode: session.mode, history: getHistory(message), inputMode: message.inputMode },
+        {
+          text: message.content,
+          mode: session.mode,
+          history: getHistory(message),
+          inputMode: message.inputMode,
+          practiceRule: practiceReplyRule(practice),
+        },
         settings,
+        onPreview,
       ),
     );
     const durationMs = Date.now() - started;
+    const exerciseReply = exerciseReplyFor(practice, message);
+    const reply = exerciseReply
+      ? { content: exerciseReply, provider: null, model: null, durationMs: null }
+      : analysis.reply && { content: analysis.reply, provider, model: modelId, durationMs };
 
     db.transaction((tx) => {
       // Retrying replaces any previous result for this message.
@@ -164,17 +180,14 @@ export async function analyzeStoredMessage(messageId: string): Promise<ChatMessa
           )
           .run();
       }
-      if (analysis.reply) {
+      if (reply) {
         tx.insert(schema.messages)
           .values({
             id: crypto.randomUUID(),
             sessionId: message.sessionId,
             role: "assistant",
             replyToId: message.id,
-            content: analysis.reply,
-            provider,
-            model: modelId,
-            durationMs,
+            ...reply,
             // Sort the reply right after the message it answers, even on retries.
             createdAt: new Date(message.createdAt.getTime() + 1),
           })
@@ -219,6 +232,9 @@ function getHistory(message: Message): HistoryTurn[] {
       turns.push({ learner: m.correctedText ?? m.content, assistant: null });
     } else if (turns.length > 0) {
       turns[turns.length - 1].assistant = m.content;
+    } else {
+      // A chat that starts with a question from the tutor (tense practice).
+      turns.push({ learner: null, assistant: m.content });
     }
   }
   return turns;

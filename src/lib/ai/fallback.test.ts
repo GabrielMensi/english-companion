@@ -1,7 +1,9 @@
+import { NoObjectGeneratedError } from "ai";
 import { describe, expect, it } from "vitest";
 import {
   AllModelsFailedError,
   byFallbackPriority,
+  canRetryWithoutStreaming,
   chainSteps,
   errorToMessage,
   fallbackOrder,
@@ -129,5 +131,19 @@ describe("shortReason", () => {
     expect(shortReason(new Error("model 'foo' not found"))).toBe("model not found");
     expect(shortReason(new Error("The operation was aborted due to timeout"))).toBe("timed out");
     expect(shortReason(new Error("x".repeat(100)))).toHaveLength(78);
+  });
+});
+
+describe("canRetryWithoutStreaming", () => {
+  it("retries invalid output and unknown streaming errors with the same model", () => {
+    expect(canRetryWithoutStreaming(new NoObjectGeneratedError({ message: "bad json" } as never))).toBe(true);
+    expect(canRetryWithoutStreaming(new Error("Streaming is not supported with response_format"))).toBe(true);
+  });
+
+  it("moves on when the model would fail the same way", () => {
+    expect(canRetryWithoutStreaming(new Error("fetch failed"))).toBe(false);
+    expect(canRetryWithoutStreaming(new Error("The operation was aborted due to timeout"))).toBe(false);
+    expect(canRetryWithoutStreaming(new Error("429 RESOURCE_EXHAUSTED"))).toBe(false);
+    expect(canRetryWithoutStreaming(new Error("model 'foo' not found"))).toBe(false);
   });
 });

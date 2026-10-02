@@ -17,6 +17,7 @@ import {
 import { useState, useSyncExternalStore } from "react";
 import { SpeakButton } from "@/components/audio/speak-button";
 import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
+import { AnalysisPreviewView } from "@/components/chat/analysis-preview";
 import { Composer, type ComposerState, type Notify } from "@/components/chat/composer";
 import { DiffText } from "@/components/chat/diff-text";
 import { CopyButton, copyText } from "@/components/copy-button";
@@ -24,6 +25,7 @@ import { FluencyNote } from "@/components/chat/user-message";
 import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
 import type { SessionMode } from "@/db/schema";
+import type { AnalysisPreview } from "@/lib/ai/analysis";
 import { categoryLabel, SEVERITIES } from "@/lib/taxonomy";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,7 @@ export function MiniChat({
   title,
   mode,
   message,
+  preview,
   reply,
   composer,
   canDictate,
@@ -56,6 +59,8 @@ export function MiniChat({
   mode: SessionMode;
   /** The last message the user sent, if any. */
   message: ChatMessage | undefined;
+  /** Its analysis while it streams. */
+  preview: AnalysisPreview | undefined;
   /** The tutor's reply to it (conversation mode). */
   reply: ChatMessage | undefined;
   composer: ComposerState;
@@ -96,7 +101,7 @@ export function MiniChat({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {message ? (
-          <LastCorrection message={message} reply={reply} notify={notify} onRetry={onRetry} onClose={onClose} />
+          <LastCorrection message={message} preview={preview} reply={reply} notify={notify} onRetry={onRetry} onClose={onClose} />
         ) : (
           <p className="py-8 text-center text-muted-foreground">
             Write or dictate something in English: the correction shows up here, ready to copy.
@@ -133,18 +138,32 @@ export function MiniChat({
 
 function LastCorrection({
   message,
+  preview,
   reply,
   notify,
   onRetry,
   onClose,
 }: {
   message: ChatMessage;
+  preview: AnalysisPreview | undefined;
   reply: ChatMessage | undefined;
   notify: Notify;
   onRetry: (id: string) => void;
   onClose: () => void;
 }) {
   const [showNative, setShowNative] = useShowNative();
+
+  // The corrected text appears as it's written; the copy buttons wait for the final version.
+  if (message.status === "pending" && preview?.correctedText) {
+    return (
+      <div className="flex flex-col gap-2">
+        {!preview.correctedDone && (
+          <p className="leading-relaxed whitespace-pre-wrap text-muted-foreground">{message.content}</p>
+        )}
+        <AnalysisPreviewView original={message.content} preview={preview} compact />
+      </div>
+    );
+  }
 
   if (message.status === "pending") {
     return (
