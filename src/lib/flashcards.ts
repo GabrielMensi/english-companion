@@ -16,30 +16,33 @@ import {
   type VocabularyCard,
   vocabularyCards,
 } from "@/lib/flashcards-core";
+import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
 import { getSettings } from "@/lib/settings";
 import { type Grade, newReviewState, type ReviewState, schedule } from "@/lib/srs";
 import { categoryLabel, countsInStats, subtypeLabel, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
 import { getVocabulary } from "@/lib/vocabulary";
 
-function loadStates(kind: CardKind): Map<string, ReviewState> {
+/**
+ * Review state of each card of a deck, by card key. A null state means the
+ * card is new (a row created only to suspend it). Suspended cards are listed
+ * apart, so the decks can leave them out.
+ */
+function loadStates(kind: CardKind): { states: Map<string, ReviewState | null>; suspended: Set<string> } {
   const rows = db.select().from(schema.reviews).where(eq(schema.reviews.kind, kind)).all();
-  return new Map(
-    rows.map((r) => [
-      r.cardKey,
-      {
-        ease: r.ease,
-        intervalDays: r.intervalDays,
-        repetitions: r.repetitions,
-        lapses: r.lapses,
-        dueAt: r.dueAt.getTime(),
-      },
-    ]),
-  );
+  return {
+    states: new Map(rows.map((r) => [r.cardKey, r.reviewCount > 0 ? toState(r) : null])),
+    suspended: new Set(rows.filter((r) => r.suspendedAt !== null).map((r) => r.cardKey)),
+  };
 }
 
+function toState(r: typeof schema.reviews.$inferSelect): ReviewState {
+  return { ease: r.ease, intervalDays: r.intervalDays, repetitions: r.repetitions, lapses: r.lapses, dueAt: r.dueAt.getTime() };
+}
+
+/** The deck's cards with their review state; suspended cards are left out. */
 function withStates<C extends Card>(cards: C[], kind: CardKind): QueuedCard<C>[] {
-  const states = loadStates(kind);
-  return cards.map((card) => ({ card, state: states.get(card.key) ?? null }));
+  const { states, suspended } = loadStates(kind);
+  return cards.filter((card) => !suspended.has(card.key)).map((card) => ({ card, state: states.get(card.key) ?? null }));
 }
 
 /** Every real mistake (the ones that count in the stats) as a card, newest first. */
@@ -89,7 +92,9 @@ export interface FilterOption {
 
 /** Overview of both decks, plus the tenses and error types the mistake deck can be narrowed to. */
 export function getFlashcardsOverview() {
+  cleanOrphanReviews();
   const now = Date.now();
+  const { newCardsPerSession: newLimit } = getSettings();
   const mistakes = withStates(loadMistakeCards(), "mistake");
 
   const option = (filter: MistakeFilter, label: string): FilterOption => {
@@ -97,7 +102,7 @@ export function getFlashcardsOverview() {
       mistakes.filter((c) => matchesFilter(c.card, filter)),
       now,
     );
-    return { filter, label, toStudy: counts.due + counts.new, total: counts.total };
+    return { filter, label, toStudy: counts.due + Math.min(counts.new, newLimit), total: counts.total };
   };
 
   const present = <T,>(values: T[]) => [...new Set(values)];
@@ -116,6 +121,8 @@ export function getFlashcardsOverview() {
 
   return {
     now,
+    /** New cards a study session adds (a setting). */
+    newLimit,
     vocabulary: deckCounts(getVocabularyDeck(), now),
     mistakes: deckCounts(mistakes, now),
     tenses,
@@ -125,7 +132,10 @@ export function getFlashcardsOverview() {
 
 export function getStudyQueue(kind: CardKind, filter: MistakeFilter = {}): QueuedCard[] {
   const now = Date.now();
-  return kind === "vocabulary" ? buildQueue(getVocabularyDeck(), now) : buildQueue(getMistakeDeck(filter), now);
+  const { newCardsPerSession } = getSettings();
+  return kind === "vocabulary"
+    ? buildQueue(getVocabularyDeck(), now, newCardsPerSession)
+    : buildQueue(getMistakeDeck(filter), now, newCardsPerSession);
 }
 
 /** Stores the learner's grade for a card and returns its new state. */
@@ -133,9 +143,8 @@ export function recordReview(kind: CardKind, cardKey: string, grade: Grade): Rev
   const now = Date.now();
   const where = and(eq(schema.reviews.kind, kind), eq(schema.reviews.cardKey, cardKey));
   const row = db.select().from(schema.reviews).where(where).get();
-  const previous: ReviewState = row
-    ? { ease: row.ease, intervalDays: row.intervalDays, repetitions: row.repetitions, lapses: row.lapses, dueAt: row.dueAt.getTime() }
-    : newReviewState(now);
+  // A row with no reviews was only created to suspend the card: it's still new.
+  const previous: ReviewState = row && row.reviewCount > 0 ? toState(row) : newReviewState(now);
   const next = schedule(previous, grade, now);
   const values = {
     ease: next.ease,
@@ -157,6 +166,17 @@ export function recordReview(kind: CardKind, cardKey: string, grade: Grade): Rev
       .values({ id: crypto.randomUUID(), kind, cardKey, reviewCount: 1, createdAt: new Date(now), ...values })
       .run();
   }
+  db.insert(schema.reviewLog)
+    .values({
+      id: crypto.randomUUID(),
+      kind,
+      cardKey,
+      grade,
+      wasNew: !row || row.reviewCount === 0,
+      intervalDays: next.intervalDays,
+      reviewedAt: new Date(now),
+    })
+    .run();
   return next;
 }
 

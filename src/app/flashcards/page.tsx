@@ -3,8 +3,10 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { DeckOverview } from "@/components/flashcards/deck-overview";
 import { ReviewSession } from "@/components/flashcards/review-session";
+import { SuspendedCards } from "@/components/flashcards/suspended-cards";
 import type { CardKind, MistakeFilter } from "@/lib/flashcards-core";
 import { getFlashcardsOverview, getStudyQueue } from "@/lib/flashcards";
+import { getSuspendedCards } from "@/lib/flashcards-upkeep";
 import {
   categoryLabel,
   ERROR_CATEGORIES,
@@ -83,6 +85,7 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
           </p>
         </div>
         <DeckOverview overview={overview} />
+        <SuspendedCards cards={getSuspendedCards()} />
       </div>
     </div>
   );
