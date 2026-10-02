@@ -64,6 +64,13 @@
       "when": 1790804191551,
       "tag": "0008_flashcard_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790909442259,
+      "tag": "0009_flashcards_upkeep",
+      "breakpoints": true
     }
   ]
 }

@@ -145,9 +145,36 @@ export const reviews = sqliteTable(
     reviewCount: integer("review_count").notNull().default(0),
     lastGrade: text("last_grade").$type<Grade>(),
     lastReviewedAt: integer("last_reviewed_at", { mode: "timestamp_ms" }),
+    /**
+     * When the learner suspended the card (null = active). Suspended cards are
+     * left out of every deck until unsuspended. Suspending a card that was never
+     * reviewed creates a row with `review_count` 0, which still counts as new.
+     */
+    suspendedAt: integer("suspended_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("reviews_card_idx").on(t.kind, t.cardKey), index("reviews_due_idx").on(t.dueAt)],
+);
+
+/**
+ * One row per flashcard answer, for the review stats (retention, reviews per
+ * day, streak). `reviews` only keeps each card's latest state, so this history
+ * starts when the table was added. Rows stay when a card is deleted.
+ */
+export const reviewLog = sqliteTable(
+  "review_log",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").$type<CardKind>().notNull(),
+    cardKey: text("card_key").notNull(),
+    grade: text("grade").$type<Grade>().notNull(),
+    /** Whether it was the card's first review. */
+    wasNew: integer("was_new", { mode: "boolean" }).notNull(),
+    /** Days until the next review, after this answer. */
+    intervalDays: integer("interval_days").notNull(),
+    reviewedAt: integer("reviewed_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("review_log_reviewed_idx").on(t.reviewedAt)],
 );
 
 export const settings = sqliteTable("settings", {
@@ -178,3 +205,4 @@ export type Message = typeof messages.$inferSelect;
 export type Correction = typeof corrections.$inferSelect;
 export type VocabularyEntry = typeof vocabulary.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
+export type ReviewLogEntry = typeof reviewLog.$inferSelect;
