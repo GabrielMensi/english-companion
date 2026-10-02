@@ -2,6 +2,9 @@ ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
   - esbuild
+  # Pulled in by kokoro-js (transformers.js) for Node; the app only runs Kokoro in the browser.
+  - onnxruntime-node
+  - protobufjs
 
 onlyBuiltDependencies:
   - better-sqlite3
