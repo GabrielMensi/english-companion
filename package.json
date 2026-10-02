@@ -12,7 +12,8 @@
     "db:generate": "drizzle-kit generate",
     "eval:models": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/run.mts",
     "eval:classify": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/classify.mts",
-    "eval:asr": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/asr.mts"
+    "eval:asr": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/asr.mts",
+    "eval:level": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/level.mts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.82",

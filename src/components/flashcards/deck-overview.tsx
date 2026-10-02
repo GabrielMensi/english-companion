@@ -22,6 +22,7 @@ export function DeckOverview({ overview }: { overview: FlashcardsOverview }) {
           icon={BookOpen}
           counts={overview.vocabulary}
           now={overview.now}
+          newLimit={overview.newLimit}
           href={studyHref("vocabulary")}
           empty="No words yet. Write a word in Spanish between [brackets] in a chat."
         />
@@ -31,6 +32,7 @@ export function DeckOverview({ overview }: { overview: FlashcardsOverview }) {
           icon={PencilLine}
           counts={overview.mistakes}
           now={overview.now}
+          newLimit={overview.newLimit}
           href={studyHref("mistakes")}
           empty="No mistakes to review yet."
         />
@@ -40,6 +42,7 @@ export function DeckOverview({ overview }: { overview: FlashcardsOverview }) {
           icon={Dumbbell}
           counts={overview.exercises}
           now={overview.now}
+          newLimit={overview.newLimit}
           href={studyHref("exercises")}
           empty="Nothing missed yet. Items you get wrong in Practice show up here."
         />
@@ -83,6 +86,7 @@ function Deck({
   icon: Icon,
   counts,
   now,
+  newLimit,
   href,
   empty,
 }: {
@@ -91,10 +95,11 @@ function Deck({
   icon: React.ComponentType<{ className?: string }>;
   counts: DeckCounts;
   now: number;
+  newLimit: number;
   href: string;
   empty: string;
 }) {
-  const toStudy = counts.due + counts.new;
+  const toStudy = counts.due + Math.min(counts.new, newLimit);
   return (
     <div className="flex flex-col gap-3 rounded-xl border bg-card p-4">
       <div className="flex items-center gap-2 font-medium">

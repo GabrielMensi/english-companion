@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { byFallbackPriority, normalizeChain } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, PROVIDERS } from "@/lib/ai/provider-info";
+import { MAX_SESSION_CARDS, NEW_CARDS_PER_SESSION } from "@/lib/flashcards-core";
 
 /** 2: the fallback order is the user's (before, remote providers were always tried first). */
 const SETTINGS_VERSION = 2;
@@ -24,6 +25,8 @@ export const settingsSchema = z.object({
   fallbacks: z.array(z.enum(PROVIDER_IDS)),
   /** Ollama server URL; null uses OLLAMA_BASE_URL or the default. */
   ollamaBaseUrl: z.url({ protocol: /^https?$/ }).nullable(),
+  /** How many never-seen flashcards a study session adds after the due ones. */
+  newCardsPerSession: z.number().int().min(0).max(MAX_SESSION_CARDS),
   /** Format version, to migrate settings saved by older versions. */
   version: z.literal(SETTINGS_VERSION),
 });
@@ -41,6 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
   countTyposInStats: false,
   fallbacks: PROVIDER_IDS.filter((p) => p !== "ollama"),
   ollamaBaseUrl: null,
+  newCardsPerSession: NEW_CARDS_PER_SESSION,
   version: SETTINGS_VERSION,
 };
 

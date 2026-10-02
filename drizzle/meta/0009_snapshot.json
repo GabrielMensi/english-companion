@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "9724dec6-adc0-42e1-b25c-61dcba57abc7",
+  "id": "a515314d-259e-4ab3-a6ed-83f813e6fdfb",
   "prevId": "71e34f37-0131-4966-9492-f55144cc4639",
   "tables": {
     "corrections": {
@@ -395,8 +395,8 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "missed_exercises": {
-      "name": "missed_exercises",
+    "review_log": {
+      "name": "review_log",
       "columns": {
         "id": {
           "name": "id",
@@ -405,78 +405,43 @@
           "notNull": true,
           "autoincrement": false
         },
-        "session_id": {
-          "name": "session_id",
+        "kind": {
+          "name": "kind",
           "type": "text",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "autoincrement": false
         },
-        "item_index": {
-          "name": "item_index",
+        "card_key": {
+          "name": "card_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "grade": {
+          "name": "grade",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "was_new": {
+          "name": "was_new",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "topic": {
-          "name": "topic",
-          "type": "text",
+        "interval_days": {
+          "name": "interval_days",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
         },
-        "category": {
-          "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "subtype": {
-          "name": "subtype",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "tense": {
-          "name": "tense",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sentence": {
-          "name": "sentence",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "answer": {
-          "name": "answer",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "why": {
-          "name": "why",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "learner_answer": {
-          "name": "learner_answer",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "created_at": {
-          "name": "created_at",
+        "reviewed_at": {
+          "name": "reviewed_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -484,30 +449,15 @@
         }
       },
       "indexes": {
-        "missed_exercises_item_idx": {
-          "name": "missed_exercises_item_idx",
+        "review_log_reviewed_idx": {
+          "name": "review_log_reviewed_idx",
           "columns": [
-            "session_id",
-            "item_index"
+            "reviewed_at"
           ],
-          "isUnique": true
+          "isUnique": false
         }
       },
-      "foreignKeys": {
-        "missed_exercises_session_id_sessions_id_fk": {
-          "name": "missed_exercises_session_id_sessions_id_fk",
-          "tableFrom": "missed_exercises",
-          "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -591,6 +541,13 @@
         },
         "last_reviewed_at": {
           "name": "last_reviewed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "suspended_at": {
+          "name": "suspended_at",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,

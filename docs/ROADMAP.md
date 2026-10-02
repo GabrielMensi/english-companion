@@ -22,6 +22,8 @@
 - Práctica de tiempos verbales (página Practice): ejercicios de contraste, de forma y "usalo" generados para los tiempos más flojos, y conversación dirigida que obliga a usarlos. Las respuestas se corrigen y suman a las estadísticas ([VERB_TENSES.md](VERB_TENSES.md#práctica)).
 - Flashcards (página Flashcards): vocabulario español → inglés y repaso espaciado de tus errores reales con un algoritmo tipo SM-2 (tabla `reviews`), filtrable por tiempo verbal o tipo de error.
 - Insights: reporte de la semana o del mes, plan de estudio escrito por la IA (exportable en Markdown, base para el reporte de clase) y nivel CEFR estimado con reglas fijas y transparentes.
+- Flashcards, mantenimiento: suspender o borrar tarjetas, limpieza de repasos huérfanos, el tipo de error pasa a ser una pista y "nuevas por sesión" configurable. Panel de repasos en el dashboard (retención, repasos por día, racha, pendientes) con la tabla `review_log`.
+- Nivel CEFR calibrado con ~3.300 textos de Write & Improve corregidos por Cambridge (`pnpm eval:level`): coincidencia exacta del 20% al 59% y siempre a ±1 nivel con 1.000 palabras ([LEVEL_CALIBRATION.md](LEVEL_CALIBRATION.md)).
 
 ## Próximo
 

@@ -1,11 +1,25 @@
 "use client";
 
-import { Lightbulb, MessageSquare } from "lucide-react";
+import { Lightbulb, MessageSquare, MoreHorizontal, PauseCircle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { SpeakButton } from "@/components/audio/speak-button";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import {
@@ -43,6 +57,7 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
   const [revealedAt, setRevealedAt] = useState<number | null>(null);
   const [showHint, setShowHint] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const current = queue[0];
@@ -56,8 +71,34 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
     setRevealedAt(Date.now());
   }
 
-  async function grade(g: Grade) {
+  function resetCard() {
+    setTyped("");
+    setShowHint(false);
+    setRevealedAt(null);
+    inputRef.current?.focus();
+  }
+
+  /** Suspends or deletes the current card and moves on to the next one. */
+  async function removeCurrent(action: "suspend" | "delete") {
     if (!current || saving) return;
+    setSaving(true);
+    try {
+      const body = { kind, key: current.card.key };
+      if (action === "suspend") await api("/api/flashcards/cards", { method: "PATCH", body: { ...body, suspended: true } });
+      else await api("/api/flashcards/cards", { method: "DELETE", body });
+      setConfirmDelete(false);
+      setQueue((q) => q.filter((c) => c.card.key !== current.card.key));
+      resetCard();
+      toast.success(action === "suspend" ? "Card suspended. Bring it back from the Flashcards page." : "Card deleted.");
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function grade(g: Grade) {
+    if (!current || saving || confirmDelete) return;
     setSaving(true);
     try {
       const state = await api<ReviewState>("/api/flashcards/reviews", {
@@ -67,10 +108,7 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
       if (g === "again") setForgotten((n) => n + 1);
       // A forgotten card comes back at the end of this session.
       setQueue(([, ...rest]) => (g === "again" ? [...rest, { card: current.card, state }] : rest));
-      setTyped("");
-      setShowHint(false);
-      setRevealedAt(null);
-      inputRef.current?.focus();
+      resetCard();
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -128,8 +166,50 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
           {queue.length} {queue.length === 1 ? "card" : "cards"} left
           {reviewed > 0 && ` · ${reviewed} reviewed`}
         </span>
-        <span>{current.state === null ? "New" : current.state.repetitions === 0 ? "Relearning" : "Review"}</span>
+        <span className="flex items-center gap-1">
+          {current.state === null ? "New" : current.state.repetitions === 0 ? "Relearning" : "Review"}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-xs" aria-label="Card actions" disabled={saving}>
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => removeCurrent("suspend")}>
+                <PauseCircle /> Suspend card
+              </DropdownMenuItem>
+              <DropdownMenuItem variant="destructive" onSelect={() => setConfirmDelete(true)}>
+                <Trash2 /> {card.kind === "vocabulary" ? "Delete word…" : "Delete mistake…"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </span>
       </div>
+
+      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{card.kind === "vocabulary" ? "Delete this word?" : "Delete this mistake?"}</DialogTitle>
+            <DialogDescription>
+              {card.kind === "vocabulary"
+                ? "Every lookup of the word is deleted, also from the Vocabulary page."
+                : "Its corrections are deleted from your chats and stop counting in the dashboard. Use it for corrections that were wrong."}{" "}
+              To just stop reviewing it, suspend the card instead.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDelete(false)}>
+              Cancel
+            </Button>
+            <Button variant="outline" disabled={saving} onClick={() => removeCurrent("suspend")}>
+              Suspend instead
+            </Button>
+            <Button variant="destructive" disabled={saving} onClick={() => removeCurrent("delete")}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="space-y-5 rounded-xl border bg-card p-6">
         {card.kind === "vocabulary" ? (
@@ -137,7 +217,7 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
         ) : card.kind === "exercise" ? (
           <ExerciseFront card={card} />
         ) : (
-          <MistakeFront card={card} />
+          <MistakeFront card={card} showHint={showHint} onHint={() => setShowHint(true)} />
         )}
 
         <form
@@ -275,25 +355,29 @@ function VocabularyBack({ card }: { card: VocabularyCard }) {
   );
 }
 
-function MistakeFront({ card }: { card: MistakeCard }) {
+/** What kind of mistake it is: shown as a hint, since it can give the answer away. */
+function mistakeType(card: MistakeCard): string {
   const type = subtypeLabel(card.category, card.subtype);
   const tense = tenseLabel(card.tense);
+  return `${categoryLabel(card.category)}${type && type !== "Other" ? `: ${type}` : ""}${tense ? ` · ${tense}` : ""}`;
+}
+
+function MistakeFront({ card, showHint, onHint }: { card: MistakeCard; showHint: boolean; onHint: () => void }) {
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-        <span>Fix the mistake</span>
-        <span>·</span>
-        <span>
-          {categoryLabel(card.category)}
-          {type && type !== "Other" && `: ${type}`}
-          {tense && ` · ${tense}`}
-        </span>
-      </div>
+      <div className="text-sm text-muted-foreground">Fix the mistake</div>
       <div className="text-2xl font-semibold">{card.original}</div>
       {card.sentence !== card.original && (
         <p className="text-sm text-muted-foreground italic">
           <Marked text={card.sentence} terms={[card.original]} tone="bad" />
         </p>
+      )}
+      {showHint ? (
+        <p className="text-sm text-muted-foreground">Type of mistake: {mistakeType(card)}</p>
+      ) : (
+        <Button variant="ghost" size="sm" onClick={onHint} className="-ml-2 text-muted-foreground">
+          <Lightbulb /> Show the type of mistake
+        </Button>
       )}
     </div>
   );
@@ -307,6 +391,7 @@ function MistakeBack({ card }: { card: MistakeCard }) {
         <SpeakButton text={card.correction} />
       </div>
       <p className="text-sm">{card.explanation}</p>
+      <p className="text-xs text-muted-foreground">{mistakeType(card)}</p>
       {card.fixedSentence !== card.sentence && (
         <SourceSentence sessionId={card.sessionId}>
           <Marked text={card.fixedSentence} terms={[card.correction]} tone="good" />
