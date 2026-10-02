@@ -46,7 +46,7 @@ Consecuencias de diseño:
 | Opción | Dónde | Notas |
 |---|---|---|
 | `speechSynthesis` del navegador | Navegador | Cero setup. En Edge/Windows las voces "Natural" son buenas. **Default.** |
-| **Kokoro-82M** | Navegador (`kokoro-js`) o servidor local | Calidad casi humana, liviano, gratis. Mejor opción local |
+| **Kokoro-82M** | Navegador (`kokoro-js`) o servidor local | Calidad casi humana, liviano, gratis. Mejor opción local. **Implementado como opcional** (ver "Kokoro" más abajo) |
 | Gemini TTS (`gemini-3.8-flash-lite-tts`) | API | Muy natural, con límites del free tier. Ya soportado por `generateSpeech` + `@ai-sdk/google` |
 
 Usos: leer las respuestas del modo conversación, escuchar el `correctedText` / `naturalText` de cada mensaje, y la pronunciación de cada palabra del Vocabulary.
@@ -99,7 +99,7 @@ textarea ◀── { text, words[], durationMs, provider, model }
 - **`src/lib/ai/speech.ts`** (server-only): `resolveTranscriptionModel(settings, provider)` y `withTranscriptionFallback`, con la misma forma que `providers.ts` (timeouts, fallback, registro del modelo usado). Usa `transcribe()` del AI SDK (estable en `ai` v7). Para whisper.cpp: `@ai-sdk/openai` con `baseURL` al servidor local, o un `fetch` directo si la compatibilidad falla.
 - **Partes puras con tests** (sin `server-only`): el prompt verbatim, las métricas de fluidez a partir de palabras con timestamps, el diff de lectura en voz alta y la normalización de la respuesta de cada proveedor a `{ text, words: { word, start, end, confidence? }[] }`.
 - **Audio en disco**: opcional (`data/audio/<messageId>.webm`, `data/` ya está ignorado en git). Setting "Keep recordings" apagado por defecto; sirve para volver a escuchar y para re-transcribir con otro modelo.
-- **Configuración**: proveedor y modelo de STT, URL de whisper.cpp, fallback de STT, voz de TTS, y "enviar sin revisar" (off por defecto).
+- **Configuración**: proveedor y modelo de STT, URL de whisper.cpp, fallback de STT, voz de TTS (motor navegador o Kokoro), y "enviar sin revisar" (off por defecto).
 
 Cambios de schema (`src/db/schema.ts` + `pnpm db:generate`):
 
@@ -186,7 +186,33 @@ Plan original:
   - Whisper omite parte de las vacilaciones, así que las muletillas son una cota mínima. Con la prueba de TTS de Windows sí transcribió *um* y *eh*.
   - Los mensajes dictados antes de la Fase 2 no tienen métricas de fluidez.
   - Grabaciones de menos de 2 s no dan ritmo (el número diría más del redondeo que de la fluidez).
-- **Pendiente**: Kokoro como voz local opcional (en el tablero).
+- ~~Pendiente: Kokoro como voz local opcional~~ (hecho, ver abajo).
+
+### Kokoro como voz local ✅ implementada (2026-10-02, issue #33)
+
+Settings → Listening tiene un **Engine**: *Browser voice* (default, `speechSynthesis`) o *Kokoro (local model)*, con su propia lista de voces y la misma velocidad. Todo pasa por `speak()` / `stopSpeaking()` de `src/components/audio/speech.ts`, así que los ▶, el modo voz y la ventana flotante usan el motor elegido sin cambios.
+
+**Qué se eligió y por qué**: [`kokoro-js`](https://www.npmjs.com/package/kokoro-js) 1.2.1 (Apache-2.0) corriendo **en el navegador**, en un Web Worker, sobre transformers.js 3.8 / ONNX Runtime Web. Alternativas descartadas:
+- *Servidor local* (Kokoro-FastAPI en Docker, o Python con `kokoro`): mejor rendimiento en CPU, pero es otro proceso que instalar y mantener vivo en Windows (la GPU AMD no tiene ROCm cómodo en WSL), y otro endpoint del que depender. En el navegador no hay nada que instalar: se elige en Settings y anda.
+- *Kokoro en Node dentro de Next* (`onnxruntime-node`): bloquea el servidor de la app mientras sintetiza y usa solo CPU.
+- *transformers.js 4 sin `kokoro-js`*: no trae el fonemizador ni las voces; habría que reimplementar lo que `kokoro-js` ya hace.
+
+**Cómo funciona** (`src/components/audio/kokoro.ts` + `kokoro.worker.ts`):
+- **Carga diferida**: el worker y el modelo no se cargan hasta que se usa Kokoro (un ▶, "Try it"), se elige en Settings o se prende el modo voz con Kokoro elegido (precarga, para que la primera respuesta no espere). El ▶ muestra un spinner hasta que suena el primer audio; un click lo cancela.
+- **Dispositivo**: si hay WebGPU, `fp32` en la GPU (los modelos cuantizados suenan mal en WebGPU); si no, o si falla, WASM con el modelo `q8`. Una síntesis corta de prueba al cargar confirma que el dispositivo anda. Settings muestra en cuál quedó.
+- **Streaming**: se sintetiza oración por oración y cada una se encola en un `AudioContext` apenas está, así una respuesta larga empieza a sonar con la primera oración.
+- **Ventana flotante**: comparte el realm de JS de la página, así que usa el mismo worker y el mismo `AudioContext`; el sonido sale de la pestaña.
+- **Fallback**: si el modelo no carga (sin red la primera vez, el worker falla, etc.), lee la voz del navegador, avisa con un toast y sigue con la del navegador el resto de la sesión. "Retry" en Settings (o volver a elegir Kokoro) lo reintenta.
+
+**Descarga y caché**: los pesos se bajan una sola vez de Hugging Face (`onnx-community/Kokoro-82M-v1.0-ONNX`) y quedan en la **Cache Storage del navegador** (caché `transformers-cache` para el modelo y `kokoro-voices` para las voces, por origen: `https://localhost:3737`). Tamaños: `model.onnx` (fp32, WebGPU) **326 MB**; `model_quantized.onnx` (q8, WASM) **92 MB**; cada voz ~0,5 MB. Se borran desde DevTools → Application → Cache storage. El runtime de ONNX (`ort-wasm-simd-threaded.jsep.wasm`, 21 MB) lo sirve la propia app desde `node_modules` (`/api/tts/runtime/[file]`) en vez del CDN de jsDelivr que usa transformers.js por defecto.
+
+**Dependencia**: `kokoro-js` (trae `@huggingface/transformers`, `onnxruntime-web` y `phonemizer`; también `onnxruntime-node` y `sharp` para Node, que no se usan: sus scripts de build quedan ignorados en `pnpm-workspace.yaml`).
+
+**Limitaciones**:
+- En WASM corre en un solo hilo (los hilos necesitan *cross-origin isolation*, que la app no tiene), así que sin GPU puede ser más lento que tiempo real: en WSL, headless, la primera oración tardó ~13 s con el modelo en caché y cada oración ~2× su duración, con pausas entre oraciones. Con WebGPU debería ir muy por delante del audio; falta medirlo en la RX 9070 XT.
+- Una oración de más de ~510 tokens fonéticos se corta (límite del modelo); en la práctica las respuestas del tutor son oraciones cortas.
+- `kokoro-js` no se actualiza desde 2025-05 (sigue en transformers.js 3.x). Si hace falta, se puede pasar a transformers.js 4 copiando su lógica (fonemizar + voces).
+- `stream()` de `kokoro-js` con un string nunca entrega la última oración: el worker arma y cierra el `TextSplitterStream` a mano.
 
 ### Fase 3 — Pronunciación
 - Página "Read aloud" con diff por palabra; fuentes: correcciones, vocabulario, unidad del libro.
