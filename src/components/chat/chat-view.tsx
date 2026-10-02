@@ -1,16 +1,24 @@
 "use client";
 
+import { Headphones, PictureInPicture2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
+import { speak, stopSpeaking, useSpeechSupported, useVoiceMode } from "@/components/audio/speech";
+import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AssistantMessage } from "@/components/chat/assistant-message";
-import { Composer } from "@/components/chat/composer";
+import { Composer, type Notify, useComposer } from "@/components/chat/composer";
+import { MiniChat, type Notice } from "@/components/chat/mini-chat";
 import { type ModelOption, ModelSelect } from "@/components/chat/model-select";
 import { UserMessage } from "@/components/chat/user-message";
+import { usePipWindow } from "@/components/pip/use-pip-window";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SessionMode } from "@/db/schema";
+import type { AnalysisPreview } from "@/lib/ai/analysis";
 import type { ProviderId } from "@/lib/ai/provider-info";
-import { api } from "@/lib/api";
+import { api, streamTurn } from "@/lib/api";
 import type { ChatMessage, SessionSummary, VoiceInput } from "@/lib/types";
 
 export function ChatView({
@@ -30,11 +38,113 @@ export function ChatView({
   const [messages, setMessages] = useState(initialMessages);
   const [mode, setMode] = useState(session.mode);
   const [sending, setSending] = useState(false);
+  /** Analyses being streamed, by message id. */
+  const [previews, setPreviews] = useState<Record<string, AnalysisPreview>>({});
   const bottomRef = useRef<HTMLDivElement>(null);
+  const pip = usePipWindow();
+  const [voiceMode, setVoiceMode] = useVoiceMode();
+  const speechSupported = useSpeechSupported();
+  // Talking by voice only makes sense when the tutor answers.
+  const voiceConversation = voiceMode && mode === "conversation" && canDictate && speechSupported;
+  // Tied to the window it was shown in, so it doesn't come back when the window is reopened.
+  const [notice, setNotice] = useState<(Notice & { window: Window }) | null>(null);
 
+  /** Toasts render in the tab, which is hidden while the floating window is open: show them there instead. */
+  const notify: Notify = (kind, message) => {
+    const floating = window.documentPictureInPicture?.window;
+    if (floating) setNotice({ kind, message, window: floating });
+    else toast[kind](message);
+  };
+
+  const composer = useComposer({
+    onSend: send,
+    disabled: sending,
+    notify,
+    canDictate,
+    autoSend: voiceConversation,
+    keyWindow: pip.window,
+  });
+  const lastSent = messages.findLast((m) => m.role === "user");
+  const reply = lastSent && messages.find((m) => m.replyToId === lastSent.id);
+
+  // Info notices go away on their own; errors stay until dismissed or replaced.
+  useEffect(() => {
+    if (notice?.kind !== "info") return;
+    const timer = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  // Alt+P pops the composer out into a floating window, or brings it back.
+  const { window: pipWindow, open: openPip, close: closePip } = pip;
+  useEffect(() => {
+    if (!pip.supported) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.code !== "KeyP" || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      event.preventDefault();
+      if (pipWindow) closePip();
+      else void openPip().catch((error: Error) => toast.error(`Couldn't open the floating window: ${error.message}`));
+    }
+    // Keys pressed in the floating window don't reach the tab's listeners.
+    const targets = [window, ...(pipWindow ? [pipWindow] : [])];
+    targets.forEach((t) => t.addEventListener("keydown", onKeyDown));
+    return () => targets.forEach((t) => t.removeEventListener("keydown", onKeyDown));
+  }, [pip.supported, pipWindow, openPip, closePip]);
+
+  // Switching tabs while dictating pops the window out on its own (like Google Meet), so you can keep
+  // talking while looking at something else. Chrome only allows it while the page uses the microphone.
+  useEffect(() => {
+    if (!pip.supported || !composer.recording || pipWindow) return;
+    const action = "enterpictureinpicture" as MediaSessionAction;
+    try {
+      navigator.mediaSession.setActionHandler(action, () => void openPip({ auto: true }).catch(() => {}));
+    } catch {
+      return; // This browser doesn't support automatic picture-in-picture.
+    }
+    return () => navigator.mediaSession.setActionHandler(action, null);
+  }, [pip.supported, composer.recording, pipWindow, openPip]);
+
+  // Also follow the streamed correction as it grows, but only on coarse changes to avoid jitter.
+  const previewShape = Object.values(previews)
+    .map((p) => `${p.correctedDone}:${p.errors.length}:${!!p.naturalText}:${!!p.reply}`)
+    .join();
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, sending]);
+  }, [messages.length, sending, previewShape]);
+
+  function setPreview(id: string, preview: AnalysisPreview | null) {
+    setPreviews((prev) => {
+      const next = { ...prev };
+      if (preview) next[id] = preview;
+      else delete next[id];
+      return next;
+    });
+  }
+
+  /**
+   * Posts to a route that analyzes a message, showing the correction while it's generated.
+   * `target.id` is the message being analyzed; the optimistic one is swapped for the stored one
+   * as soon as the server sends it, and `target.id` follows.
+   */
+  async function analyze(url: string, body: unknown, target: { id: string }) {
+    try {
+      return await streamTurn(url, body, (event) => {
+        if (event.type === "message") {
+          const { id } = target;
+          setMessages((prev) => prev.map((m) => (m.id === id ? event.message : m)));
+          target.id = event.message.id;
+        } else {
+          setPreview(target.id, event.preview);
+        }
+      });
+    } finally {
+      setPreview(target.id, null);
+    }
+  }
+
+  /** Shows an error on a message whose analysis didn't come back, so it can be retried. */
+  function markFailed(id: string, errorMessage: string) {
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, status: "error", errorMessage } : m)));
+  }
 
   /** Replaces the turn's messages (by id) or appends them. */
   function mergeTurn(turn: ChatMessage[], replaceId?: string) {
@@ -48,17 +158,21 @@ export function ChatView({
   }
 
   async function send(text: string, voice?: VoiceInput) {
-    const tempId = `temp-${Date.now()}`;
+    const tempId = `temp-${crypto.randomUUID()}`;
     setMessages((prev) => [...prev, optimisticMessage(tempId, session.id, text, voice)]);
     setSending(true);
+    const target = { id: tempId };
     try {
-      const turn = await api<ChatMessage[]>(`/api/sessions/${session.id}/messages`, { body: { text, voice } });
+      const turn = await analyze(`/api/sessions/${session.id}/messages`, { text, voice }, target);
       mergeTurn(turn, tempId);
+      readReplyAloud(turn);
       if (messages.length === 0) router.refresh(); // first message sets the chat title
       return true;
     } catch (error) {
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      toast.error((error as Error).message);
+      // Once stored, the message stays (with the error and a retry button), as after a reload.
+      if (target.id === tempId) setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      else markFailed(target.id, (error as Error).message);
+      notify("error", (error as Error).message);
       return false;
     } finally {
       setSending(false);
@@ -68,10 +182,24 @@ export function ChatView({
   async function retry(messageId: string) {
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, status: "pending" } : m)));
     try {
-      mergeTurn(await api<ChatMessage[]>(`/api/messages/${messageId}/retry`, { method: "POST" }));
+      const turn = await analyze(`/api/messages/${messageId}/retry`, undefined, { id: messageId });
+      mergeTurn(turn);
+      readReplyAloud(turn);
     } catch (error) {
-      toast.error((error as Error).message);
+      markFailed(messageId, (error as Error).message);
+      notify("error", (error as Error).message);
     }
+  }
+
+  /** In voice mode the reply is read aloud; the corrections just show up in the chat. */
+  function readReplyAloud(turn: ChatMessage[]) {
+    const reply = turn.find((m) => m.role === "assistant");
+    if (voiceConversation && reply) speak(reply.content, reply.id);
+  }
+
+  function toggleVoiceMode() {
+    if (voiceMode) stopSpeaking();
+    setVoiceMode(!voiceMode);
   }
 
   function updateMessage(updated: Partial<ChatMessage> & { id: string }) {
@@ -93,6 +221,42 @@ export function ChatView({
       <header className="flex items-center justify-between gap-4 border-b px-6 py-2.5">
         <h1 className="truncate font-medium">{session.title}</h1>
         <div className="flex items-center gap-3">
+          {mode === "conversation" && speechSupported && (
+            <Button
+              variant={voiceConversation ? "secondary" : "ghost"}
+              size="sm"
+              onClick={toggleVoiceMode}
+              disabled={!canDictate}
+              aria-pressed={voiceConversation}
+              title={
+                canDictate
+                  ? `Voice mode: replies are read aloud, hold ${PUSH_TO_TALK_KEYS} to answer`
+                  : "Voice mode needs a Groq API key for dictation: add it in Settings"
+              }
+            >
+              <Headphones />
+              Voice
+            </Button>
+          )}
+          {pip.supported && (
+            <Button
+              variant={pipWindow ? "secondary" : "ghost"}
+              size="icon-sm"
+              onClick={() =>
+                pipWindow
+                  ? closePip()
+                  : openPip().catch((error: Error) => toast.error(`Couldn't open the floating window: ${error.message}`))
+              }
+              aria-label={pipWindow ? "Bring the composer back" : "Pop out"}
+              title={
+                pipWindow
+                  ? "Bring the composer back to the tab (Alt+P)"
+                  : "Pop out: a floating window to write or dictate while you work in other apps (Alt+P)"
+              }
+            >
+              <PictureInPicture2 />
+            </Button>
+          )}
           <ModelSelect key={selectedProvider} options={models} selected={selectedProvider} />
           <Select value={mode} onValueChange={(v) => changeMode(v as SessionMode)}>
             <SelectTrigger size="sm" className="w-40">
@@ -117,7 +281,7 @@ export function ChatView({
           )}
           {messages.map((m) =>
             m.role === "user" ? (
-              <UserMessage key={m.id} message={m} onRetry={retry} onUpdate={updateMessage} />
+              <UserMessage key={m.id} message={m} preview={previews[m.id]} onRetry={retry} onUpdate={updateMessage} />
             ) : (
               <AssistantMessage key={m.id} message={m} />
             ),
@@ -128,9 +292,53 @@ export function ChatView({
 
       <div className="border-t">
         <div className="mx-auto max-w-3xl px-6 py-4">
-          <Composer onSend={send} disabled={sending} canDictate={canDictate} />
+          {pipWindow ? (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+              <span className="flex items-center gap-2">
+                <PictureInPicture2 className="size-4" />
+                Popped out: write in the floating window.
+              </span>
+              <Button variant="outline" size="sm" onClick={closePip}>
+                Back in the tab
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Composer composer={composer} canDictate={canDictate} />
+              {voiceConversation && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Voice mode: hold <kbd className="rounded border px-1 font-sans">{PUSH_TO_TALK_KEYS}</kbd> to talk and
+                  release to send (or tap it to start and stop). Replies are read aloud; corrections stay in the chat.
+                </p>
+              )}
+            </>
+          )}
         </div>
       </div>
+
+      {pipWindow &&
+        createPortal(
+          <MiniChat
+            title={session.title}
+            mode={mode}
+            message={lastSent}
+            preview={lastSent && previews[lastSent.id]}
+            reply={reply}
+            composer={composer}
+            canDictate={canDictate}
+            notice={notice?.window === pipWindow ? notice : null}
+            onDismissNotice={() => setNotice(null)}
+            notify={notify}
+            onRetry={retry}
+            onClose={closePip}
+            voice={
+              mode === "conversation" && speechSupported
+                ? { on: voiceConversation, canTurnOn: canDictate, toggle: toggleVoiceMode }
+                : null
+            }
+          />,
+          pipWindow.document.body,
+        )}
     </div>
   );
 }
@@ -161,6 +369,7 @@ function optimisticMessage(id: string, sessionId: string, text: string, voice?: 
     transcriptionProvider: voice?.transcriptionProvider ?? null,
     transcriptionModel: voice?.transcriptionModel ?? null,
     audioDurationMs: voice?.audioDurationMs ?? null,
+    fluency: voice?.fluency ?? null,
     createdAt: Date.now(),
     corrections: [],
     vocabulary: [],

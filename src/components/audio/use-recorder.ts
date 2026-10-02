@@ -14,8 +14,19 @@ export function useRecorder() {
   const [recording, setRecording] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
+  // Opening the microphone takes a moment; stopping before it's open waits for it.
+  const starting = useRef<Promise<void> | null>(null);
 
-  async function start() {
+  function start() {
+    if (starting.current) return starting.current;
+    if (recorder.current) return Promise.resolve();
+    starting.current = open().finally(() => {
+      starting.current = null;
+    });
+    return starting.current;
+  }
+
+  async function open() {
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
     });
@@ -28,11 +39,12 @@ export function useRecorder() {
   }
 
   /** Stops and converts the recording; null if nothing was being recorded. */
-  function stop(): Promise<Recording | null> {
+  async function stop(): Promise<Recording | null> {
+    await starting.current?.catch(() => {});
     const media = recorder.current;
     recorder.current = null;
     setRecording(false);
-    if (!media || media.state === "inactive") return Promise.resolve(null);
+    if (!media || media.state === "inactive") return null;
 
     return new Promise((resolve, reject) => {
       media.onstop = async () => {
@@ -48,7 +60,8 @@ export function useRecorder() {
   }
 
   /** Stops without keeping anything (e.g. the user pressed Escape). */
-  function cancel() {
+  async function cancel() {
+    await starting.current?.catch(() => {});
     const media = recorder.current;
     recorder.current = null;
     setRecording(false);

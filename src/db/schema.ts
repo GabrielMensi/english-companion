@@ -1,6 +1,9 @@
 import { relations } from "drizzle-orm";
-import { type AnySQLiteColumn, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { type AnySQLiteColumn, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { FallbackAttempt } from "@/lib/ai/fallback";
+import type { CardKind } from "@/lib/flashcards-core";
+import type { Grade } from "@/lib/srs";
+import type { FluencyMetrics } from "@/lib/fluency";
 import type { TenseCounts } from "@/lib/tenses-core";
 import type { ErrorCategory, Severity, Tense } from "@/lib/taxonomy";
 
@@ -66,6 +69,8 @@ export const messages = sqliteTable(
     transcriptionProvider: text("transcription_provider"),
     transcriptionModel: text("transcription_model"),
     audioDurationMs: integer("audio_duration_ms"),
+    /** Pace, long pauses and fillers, from the transcription's word timestamps. */
+    fluency: text("fluency", { mode: "json" }).$type<FluencyMetrics>(),
     /** Tenses in the corrected text, filled in by the dashboard; recomputed when the counter's version changes. */
     tenseCounts: text("tense_counts", { mode: "json" }).$type<{ version: number; counts: TenseCounts }>(),
     createdAt: createdAt(),
@@ -121,6 +126,57 @@ export const vocabulary = sqliteTable(
   (t) => [index("vocabulary_created_idx").on(t.createdAt)],
 );
 
+/**
+ * Spaced repetition state of each flashcard (see src/lib/srs.ts). Cards aren't
+ * stored: they're built from vocabulary lookups and corrections, and matched
+ * here by `card_key` (a vocabulary word key, or "original → correction").
+ */
+export const reviews = sqliteTable(
+  "reviews",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").$type<CardKind>().notNull(),
+    cardKey: text("card_key").notNull(),
+    ease: real("ease").notNull(),
+    intervalDays: integer("interval_days").notNull().default(0),
+    repetitions: integer("repetitions").notNull().default(0),
+    lapses: integer("lapses").notNull().default(0),
+    dueAt: integer("due_at", { mode: "timestamp_ms" }).notNull(),
+    reviewCount: integer("review_count").notNull().default(0),
+    lastGrade: text("last_grade").$type<Grade>(),
+    lastReviewedAt: integer("last_reviewed_at", { mode: "timestamp_ms" }),
+    /**
+     * When the learner suspended the card (null = active). Suspended cards are
+     * left out of every deck until unsuspended. Suspending a card that was never
+     * reviewed creates a row with `review_count` 0, which still counts as new.
+     */
+    suspendedAt: integer("suspended_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("reviews_card_idx").on(t.kind, t.cardKey), index("reviews_due_idx").on(t.dueAt)],
+);
+
+/**
+ * One row per flashcard answer, for the review stats (retention, reviews per
+ * day, streak). `reviews` only keeps each card's latest state, so this history
+ * starts when the table was added. Rows stay when a card is deleted.
+ */
+export const reviewLog = sqliteTable(
+  "review_log",
+  {
+    id: text("id").primaryKey(),
+    kind: text("kind").$type<CardKind>().notNull(),
+    cardKey: text("card_key").notNull(),
+    grade: text("grade").$type<Grade>().notNull(),
+    /** Whether it was the card's first review. */
+    wasNew: integer("was_new", { mode: "boolean" }).notNull(),
+    /** Days until the next review, after this answer. */
+    intervalDays: integer("interval_days").notNull(),
+    reviewedAt: integer("reviewed_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [index("review_log_reviewed_idx").on(t.reviewedAt)],
+);
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).notNull(),
@@ -148,3 +204,5 @@ export type Session = typeof sessions.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Correction = typeof corrections.$inferSelect;
 export type VocabularyEntry = typeof vocabulary.$inferSelect;
+export type Review = typeof reviews.$inferSelect;
+export type ReviewLogEntry = typeof reviewLog.$inferSelect;

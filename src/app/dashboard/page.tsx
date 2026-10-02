@@ -3,12 +3,15 @@ import { connection } from "next/server";
 import { CategoryChart } from "@/components/dashboard/category-chart";
 import { CategoryTable } from "@/components/dashboard/category-table";
 import { ClassificationStatus } from "@/components/dashboard/classification-status";
+import { FluencyPanel } from "@/components/dashboard/fluency-panel";
+import { ReviewPanel } from "@/components/dashboard/review-panel";
 import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { TensePanel } from "@/components/dashboard/tense-panel";
 import { TimelineChart } from "@/components/dashboard/timeline-chart";
 import { TopMistakes } from "@/components/dashboard/top-mistakes";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { getClassificationStatus } from "@/lib/classification";
+import { getReviewDashboard } from "@/lib/review-stats";
 import { getDashboardData, INPUT_FILTERS, type InputFilter, RANGES, type RangeKey } from "@/lib/stats";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +23,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const { range: rawRange, input: rawInput } = await searchParams;
   const range: RangeKey = typeof rawRange === "string" && rawRange in RANGES ? (rawRange as RangeKey) : "30";
   const input: InputFilter = INPUT_FILTERS.includes(rawInput as InputFilter) ? (rawInput as InputFilter) : "all";
-  const { stats, tenses, vocabulary, countTypos, hasSpoken } = getDashboardData(range, input);
+  const { stats, tenses, vocabulary, fluency, countTypos, hasSpoken } = getDashboardData(range, input);
+  const reviews = getReviewDashboard(range);
   const href = (next: { range?: RangeKey; input?: InputFilter }) => {
     const params = new URLSearchParams({ range: next.range ?? range });
     const nextInput = next.input ?? input;
@@ -103,9 +107,20 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <Panel
               title="Verb tenses"
               subtitle="How often you needed each tense and how often you got it right"
+              action={
+                <Link href="/practice" className="text-sm text-muted-foreground hover:text-foreground">
+                  Practice →
+                </Link>
+              }
             >
               <TensePanel stats={tenses} />
             </Panel>
+
+            {hasSpoken && input !== "typed" && (
+              <Panel title="Fluency" subtitle="How you speak when you dictate: pace, long pauses and filler words">
+                <FluencyPanel stats={fluency} />
+              </Panel>
+            )}
 
             <Panel
               title="Vocabulary"
@@ -151,6 +166,20 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             </Panel>
 
           </>
+        )}
+
+        {(reviews.totalCards > 0 || reviews.stats.since !== null) && (
+          <Panel
+            title="Flashcards"
+            subtitle="Cards due, and how your reviews went in this period"
+            action={
+              <Link href="/flashcards" className="text-sm text-muted-foreground hover:text-foreground">
+                Study →
+              </Link>
+            }
+          >
+            <ReviewPanel data={reviews} />
+          </Panel>
         )}
       </div>
     </div>

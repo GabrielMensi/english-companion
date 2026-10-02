@@ -3,6 +3,7 @@
 import { ArrowRight, BookOpen, CheckCircle2, Lightbulb, Loader2, MessageCircleHeart, RefreshCw, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { SpeakButton } from "@/components/audio/speak-button";
 import { ClassificationDialog } from "@/components/chat/classification-dialog";
 import { DiffText } from "@/components/chat/diff-text";
 import { ModelNote } from "@/components/chat/model-note";
@@ -96,7 +97,10 @@ export function AnalysisCard({
 
       {message.naturalText && (
         <Section icon={<MessageCircleHeart className="size-4" />} title="How a native speaker would say it">
-          <p className="leading-relaxed whitespace-pre-wrap">{message.naturalText}</p>
+          <div className="flex items-start gap-1">
+            <p className="flex-1 leading-relaxed whitespace-pre-wrap">{message.naturalText}</p>
+            <SpeakButton text={message.naturalText} />
+          </div>
         </Section>
       )}
 
@@ -106,7 +110,10 @@ export function AnalysisCard({
             {message.vocabulary.map((v) => (
               <li key={v.id}>
                 <span className="text-muted-foreground">{v.spanish}</span> →{" "}
-                <span className="font-medium">{v.english.join(" / ")}</span>
+                <span className="font-medium">{v.english.join(" / ")}</span>{" "}
+                <span className="inline-block align-middle">
+                  <SpeakButton text={v.english.join(", ")} />
+                </span>
                 {v.note && <span className="text-muted-foreground"> — {v.note}</span>}
               </li>
             ))}
@@ -137,6 +144,7 @@ export function AnalysisCard({
       />
 
       <div className="-mb-1 flex flex-wrap gap-1 border-t pt-2">
+        <SpeakButton text={corrected} label="Listen" />
         <CopyButton text={corrected} label="Copy corrected" />
         {message.improvedPrompt ? (
           <>

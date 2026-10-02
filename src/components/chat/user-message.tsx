@@ -2,15 +2,21 @@
 
 import { AlertTriangle, Loader2, Mic, RotateCcw } from "lucide-react";
 import { AnalysisCard } from "@/components/chat/analysis-card";
+import { AnalysisPreviewView } from "@/components/chat/analysis-preview";
 import { Button } from "@/components/ui/button";
+import type { AnalysisPreview } from "@/lib/ai/analysis";
+import { fluencySummary } from "@/lib/fluency";
 import type { ChatMessage } from "@/lib/types";
 
 export function UserMessage({
   message,
+  preview,
   onRetry,
   onUpdate,
 }: {
   message: ChatMessage;
+  /** The analysis while it streams. */
+  preview?: AnalysisPreview;
   onRetry: (id: string) => void;
   onUpdate: (message: Partial<ChatMessage> & { id: string }) => void;
 }) {
@@ -27,10 +33,16 @@ export function UserMessage({
           <Mic className="size-3" />
           Spoken{message.audioDurationMs ? ` · ${formatDuration(message.audioDurationMs)}` : ""}
           {message.transcriptEdited && " · transcript edited"}
+          {message.fluency && <FluencyNote fluency={message.fluency} />}
         </div>
       )}
 
-      {message.status === "pending" && (
+      {/* Until the model writes something, the plain spinner (an empty card would just flash). */}
+      {message.status === "pending" && preview?.correctedText && (
+        <AnalysisPreviewView original={message.content} preview={preview} />
+      )}
+
+      {message.status === "pending" && !preview?.correctedText && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
           Correcting…
@@ -57,4 +69,25 @@ export function UserMessage({
 function formatDuration(ms: number) {
   const seconds = Math.round(ms / 1000);
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+/** Pace, long pauses and fillers of a dictated message, e.g. "· 118 wpm · 1 long pause · 2 fillers". */
+export function FluencyNote({ fluency }: { fluency: NonNullable<ChatMessage["fluency"]> }) {
+  const { wpm, fillerCount, topFillers } = fluencySummary(fluency);
+  const parts = [
+    wpm !== null && `${wpm} wpm`,
+    fluency.pauses > 0 && `${fluency.pauses} long ${fluency.pauses === 1 ? "pause" : "pauses"}`,
+    fillerCount > 0 && `${fillerCount} ${fillerCount === 1 ? "filler" : "fillers"}`,
+  ].filter(Boolean);
+  if (parts.length === 0) return null;
+
+  const title = [
+    wpm !== null && `Pace: ${wpm} words per minute while speaking.`,
+    fluency.pauses > 0 &&
+      `Silences of a second or more: ${fluency.pauses} (longest ${(fluency.longestPauseMs / 1000).toFixed(1)} s).`,
+    fillerCount > 0 && `Fillers: ${topFillers.map((f) => `${f.filler} ×${f.count}`).join(", ")}.`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return <span title={title}> · {parts.join(" · ")}</span>;
 }

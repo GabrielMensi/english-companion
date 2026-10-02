@@ -12,11 +12,13 @@ Corre 100% local y está pensado para ser gratis: por defecto usa un modelo loca
 - **Correcciones detalladas**: diff del texto, lista de errores con categoría (taxonomía fija: tiempos verbales, preposiciones, falsos amigos…), gravedad (`typo`, leve, moderado, grave) y explicación.
 - **Tipos de error detallados**: además de la categoría, cada error recibe un tipo fijo (p. ej. *Preposiciones › Verbo + preposición*) y, en los errores verbales, qué tiempo correspondía y cuál usaste. Se clasifica después, en lotes, al abrir el dashboard o cuando la app está inactiva, así el chat no se hace más lento. Si un tipo está mal, "Wrong type?" lo corrige a mano.
 - **Tiempos verbales**: el dashboard muestra, para cada tiempo, cuántas veces lo necesitaste y con qué precisión lo usaste, si fallás al elegirlo o al formarlo, qué tiempo usás en su lugar y cuáles casi no usás. Los usos se cuentan en el texto corregido sin IA (con [compromise](https://github.com/spencermountain/compromise)).
+- **Práctica de tiempos verbales** (página **Practice**): elige los tiempos flojos o poco usados a partir de ese diagnóstico y propone ejercicios de contraste (p. ej. past simple vs present perfect con *yesterday / since / ever*), drills de forma o tareas para usar un tiempo que evitás, y conversaciones cuyas preguntas obligan a usarlo. Las respuestas se corrigen y suman a las estadísticas como cualquier mensaje.
 - **Dictado**: con el botón de micrófono hablás en inglés y Whisper (Groq, gratis) lo transcribe tal cual, con tus errores. El mensaje se corrige como cualquier otro, pero no se marcan la ortografía ni la puntuación (las decide el transcriptor) y en el dashboard podés ver tus errores escritos y hablados por separado. Requiere una API key de Groq.
 - **Tolerante a typos**: los errores de tipeo se marcan, pero no cuentan en las estadísticas (se puede cambiar en Configuración).
 - **Sugerencias, no errores**: contracciones ("is not" / "isn't"), puntuación opcional o comma splices en texto informal se muestran aparte como sugerencias y nunca cuentan en las estadísticas.
 - **"Cómo lo diría un nativo"**: una versión más natural cuando la corrección es correcta pero suena traducida.
 - **Escape al español**: si no sabés cómo decir algo, escribilo entre corchetes (`I want to [aprovechar] this`) y te da opciones en inglés. Queda guardado en la página **Vocabulary** (agrupado por palabra, con las veces que la buscaste y las oraciones donde la usaste) y en un panel del dashboard.
+- **Flashcards con repaso espaciado** (página **Flashcards**): dos mazos, las palabras que buscaste entre corchetes (español → inglés, con la oración donde la usaste como pista) y tus errores reales (el original como pregunta, la corrección como respuesta). Escribís la respuesta (opcional), la ves y la calificás con Again / Hard / Good / Easy; un algoritmo tipo SM-2 decide cuándo vuelve cada tarjeta. Los errores se pueden repasar por tiempo verbal o por tipo (el tipo de error es una pista opcional, para no regalar la respuesta). Cada tarjeta se puede suspender (se recupera desde la página Flashcards) o borrar; la cantidad de tarjetas nuevas por sesión se elige en Settings. El dashboard muestra tarjetas pendientes, retención, repasos por día y racha (con historial desde que existe la tabla `review_log`).
 - **Convertir en prompt**: sobre un mensaje corregido, lo reestructura como un prompt claro para una IA, listo para copiar.
 - **Selector de modelo** en el chat y nota en cada respuesta con el modelo que la generó y cuánto tardó.
 - **Fallback automático**: si el modelo elegido falla (offline, cuota, sobrecarga), prueba con los otros modelos configurados, en orden, y deja registrado cuál falló.
@@ -35,11 +37,20 @@ ollama pull gemma4:12b       # modelo local recomendado (requiere Ollama recient
 pnpm dev
 ```
 
-Abrí http://localhost:3737 y armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key (Gemini, Groq) o la URL (Ollama), el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
+Abrí https://localhost:3737 y armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key (Gemini, Groq) o la URL (Ollama), el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
 
 Si preferís configurarlo por entorno, copiá `.env.example` a `.env.local`: esas variables se usan cuando no hay nada guardado en la app.
 
 La app usa el puerto **3737** para no chocar con el 3000 de otros proyectos. Para cambiarlo, editá los scripts `dev` y `start` en `package.json`.
+
+`pnpm dev` sirve la app por **HTTPS** (`next dev --experimental-https`, certificado local de [mkcert](https://github.com/FiloSottile/mkcert) en `certificates/`): Chrome solo abre la ventana flotante sola al cambiar de pestaña mientras dictás si la página es `https://`, y `localhost` no es excepción. Como el navegador corre en Windows y el certificado se genera en WSL, hay que confiar una vez en la CA de mkcert desde Windows:
+
+```powershell
+# en WSL: cp ~/.local/share/mkcert/rootCA.pem /mnt/c/Users/<usuario>/Downloads/mkcert-rootCA.pem
+certutil -user -addstore Root $env:USERPROFILE\Downloads\mkcert-rootCA.pem
+```
+
+Después reiniciá Chrome. Solo se importa el certificado público; la clave queda en WSL.
 
 La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migra solo al arrancar.
 
@@ -77,6 +88,7 @@ Ollama corre en Windows (donde está la GPU) y la app en WSL. Con `networkingMod
 | `pnpm eval:models <provider>:<model> …` | Compara modelos sobre un set de oraciones con errores conocidos (ej. `ollama:qwen3:14b gemini:gemini-flash-lite-latest`) |
 | `pnpm eval:classify <provider>:<model> …` | Compara modelos clasificando errores ya detectados (tipo fino y tiempos verbales). `--with-user-labels` suma los tipos corregidos a mano en la app |
 | `pnpm eval:asr [engine:model …]` | Transcribe las grabaciones de `/eval/asr` con cada motor de speech-to-text y mide si conservan tus errores o los "corrigen" (ver [docs/VOICE.md](docs/VOICE.md)) |
+| `pnpm eval:level` | Compara el nivel CEFR estimado con textos de alumnos calificados por Cambridge (Write & Improve, se descarga aparte; ver [docs/LEVEL_CALIBRATION.md](docs/LEVEL_CALIBRATION.md)) |
 | `pnpm db:generate` | Genera una migración después de cambiar `src/db/schema.ts` |
 
 ## Stack
@@ -98,6 +110,12 @@ src/
     stats-core.ts      cálculo de estadísticas (puro, testeado)
     tenses-core.ts     conteo de tiempos verbales en un texto (puro, testeado)
     tense-stats.ts     precisión por tiempo verbal (puro, testeado)
+    srs.ts             repaso espaciado tipo SM-2 (puro, testeado)
+    flashcards-core.ts tarjetas de vocabulario y de errores, cola de repaso (puro, testeado)
+    flashcards-upkeep*.ts suspender / borrar tarjetas y limpiar reviews huérfanas
+    review-stats*.ts   retención, repasos por día, racha y pendientes de las flashcards (core puro, testeado)
+    tense-practice.ts  qué tiempos practicar, preguntas y feedback de ejercicios (puro, testeado)
+    practice*.ts       chats de práctica: estado, ejercicios generados y conversación dirigida
 drizzle/               migraciones SQL
 docs/ROADMAP.md        próximas features e ideas
 ```

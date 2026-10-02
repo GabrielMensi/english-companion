@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { addUserMessage, analyzeStoredMessage, getMessages, getSession } from "@/lib/chat";
+import { addUserMessage, analyzeStoredMessage, getMessage, getMessages, getSession } from "@/lib/chat";
+import { FLUENCY_VERSION } from "@/lib/fluency";
+import { turnStreamResponse, wantsTurnStream } from "@/lib/turn-stream";
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) {
   const { id } = await ctx.params;
@@ -17,11 +19,26 @@ const bodySchema = z.object({
       transcriptionProvider: z.string().max(40),
       transcriptionModel: z.string().max(100),
       audioDurationMs: z.number().int().nonnegative(),
+      fluency: z
+        .object({
+          version: z.literal(FLUENCY_VERSION),
+          words: z.number().int().nonnegative(),
+          speechMs: z.number().int().nonnegative(),
+          pauses: z.number().int().nonnegative(),
+          pauseMs: z.number().int().nonnegative(),
+          longestPauseMs: z.number().int().nonnegative(),
+          fillers: z.record(z.string().max(20), z.number().int().nonnegative()),
+        })
+        .nullable()
+        .default(null),
     })
     .optional(),
 });
 
-/** Stores the message, analyzes it and returns the resulting turn (message + reply). */
+/**
+ * Stores the message, analyzes it and returns the resulting turn (message + reply). With
+ * `Accept: application/x-ndjson` the analysis is streamed while it's generated.
+ */
 export async function POST(request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) {
   const { id } = await ctx.params;
   const body = bodySchema.safeParse(await request.json().catch(() => null));
@@ -30,5 +47,11 @@ export async function POST(request: Request, ctx: RouteContext<"/api/sessions/[i
   const message = addUserMessage(id, body.data.text, body.data.voice);
   if (!message) return Response.json({ error: "Chat not found" }, { status: 404 });
 
+  if (wantsTurnStream(request)) {
+    return turnStreamResponse((onPreview) => analyzeStoredMessage(message.id, onPreview), {
+      type: "message",
+      message: getMessage(message.id)!,
+    });
+  }
   return Response.json(await analyzeStoredMessage(message.id));
 }
