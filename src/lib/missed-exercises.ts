@@ -7,32 +7,35 @@ import type { ExerciseCard } from "@/lib/flashcards-core";
 import type { ExerciseTurn } from "@/lib/practice";
 
 /**
- * Saves or clears the result of an exercise answer: a missed item is kept for
- * spaced review (the "Missed exercises" flashcard deck); answering it right on
- * a retry removes it, with its review state.
+ * Saves or clears the result of each graded item: a missed item is kept for
+ * spaced review (the "Missed exercises" flashcard deck), one row per item of
+ * the chat; an item that is right, can't be checked or isn't answered on a
+ * retry loses its row, with its review state.
  */
 export function recordExerciseResult(sessionId: string, turn: ExerciseTurn) {
-  const where = and(
-    eq(schema.missedExercises.sessionId, sessionId),
-    eq(schema.missedExercises.itemIndex, turn.index),
-  );
-  if (turn.missed) {
-    db.insert(schema.missedExercises)
-      .values({ id: crypto.randomUUID(), sessionId, itemIndex: turn.index, ...turn.missed })
-      .onConflictDoUpdate({
-        target: [schema.missedExercises.sessionId, schema.missedExercises.itemIndex],
-        set: turn.missed,
-      })
-      .run();
-    return;
-  }
-  const row = db.select({ id: schema.missedExercises.id }).from(schema.missedExercises).where(where).get();
-  if (!row) return;
   db.transaction((tx) => {
-    tx.delete(schema.missedExercises).where(eq(schema.missedExercises.id, row.id)).run();
-    tx.delete(schema.reviews)
-      .where(and(eq(schema.reviews.kind, "exercise"), eq(schema.reviews.cardKey, row.id)))
-      .run();
+    for (const { index, missed } of turn.outcomes) {
+      if (missed) {
+        tx.insert(schema.missedExercises)
+          .values({ id: crypto.randomUUID(), sessionId, itemIndex: index, ...missed })
+          .onConflictDoUpdate({
+            target: [schema.missedExercises.sessionId, schema.missedExercises.itemIndex],
+            set: missed,
+          })
+          .run();
+        continue;
+      }
+      const row = tx
+        .select({ id: schema.missedExercises.id })
+        .from(schema.missedExercises)
+        .where(and(eq(schema.missedExercises.sessionId, sessionId), eq(schema.missedExercises.itemIndex, index)))
+        .get();
+      if (!row) continue;
+      tx.delete(schema.missedExercises).where(eq(schema.missedExercises.id, row.id)).run();
+      tx.delete(schema.reviews)
+        .where(and(eq(schema.reviews.kind, "exercise"), eq(schema.reviews.cardKey, row.id)))
+        .run();
+    }
   });
 }
 

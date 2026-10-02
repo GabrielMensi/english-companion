@@ -1,39 +1,14 @@
 import "server-only";
 
-import { and, asc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, lt } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import type { InputMode, Message } from "@/db/schema";
-import {
-  type AnswerSignals,
-  type CategoryCheck,
-  categoryExerciseReply,
-  type CategoryPractice,
-  categoryTopic,
-  checkCategoryAnswer,
-  EXERCISE_FORMATS,
-} from "@/lib/category-practice";
+import type { Message } from "@/db/schema";
+import { categoryTopic, EXERCISE_FORMATS } from "@/lib/category-practice";
+import { gradeCategorySet, gradeTenseSet, setSummary } from "@/lib/exercise-set";
 import { getSettings } from "@/lib/settings";
-import {
-  countsInStats,
-  ERROR_CATEGORIES,
-  type ErrorCategory,
-  type Severity,
-  type Tense,
-  TENSE_CATEGORIES,
-  TENSES,
-} from "@/lib/taxonomy";
-import {
-  type AnswerCheck,
-  checkAnswer,
-  conversationPracticeRule,
-  EXERCISE_KINDS,
-  type ExercisePractice,
-  exerciseReply,
-  focusTenses,
-  isTenseMiss,
-  practiceTopic,
-} from "@/lib/tense-practice";
+import { countsInStats, ERROR_CATEGORIES, type ErrorCategory, type Severity, type Tense, TENSES } from "@/lib/taxonomy";
+import { conversationPracticeRule, EXERCISE_KINDS, exerciseReply, practiceTopic } from "@/lib/tense-practice";
 
 /**
  * What a practice chat is practicing. Stored in the key-value `settings` table
@@ -93,6 +68,8 @@ export function practiceReplyRule(practice: Practice | null): string | undefined
 export interface FoundMistake {
   category: ErrorCategory;
   severity: Severity;
+  /** The fragment of the message it corrects. */
+  original: string;
 }
 
 /** An item the learner got wrong, to save for spaced review (src/lib/missed-exercises.ts). */
@@ -108,30 +85,23 @@ export interface MissedItem {
 }
 
 export interface ExerciseTurn {
-  /** The fixed reply: feedback and the next item. */
+  /** The fixed reply: the results of the set, or feedback and the next task. */
   text: string;
-  /** The item this answer answers. */
-  index: number;
-  /** Set when the answer was wrong. */
-  missed: MissedItem | null;
+  /** Each graded item (its index in the set) and whether it was missed. */
+  outcomes: { index: number; missed: MissedItem | null }[];
 }
 
-/**
- * In an exercise chat, the reply to a learner's answer: feedback and the next
- * item, plus whether the item was missed. The n-th analyzed answer in the chat
- * answers the n-th item, so retrying a message gives the same reply. `mistakes`
- * are what the correction found in this answer. Null outside exercise chats and
- * after the last item.
- */
-export function exerciseReplyFor(
-  practice: Practice | null,
-  message: Message,
-  mistakes: readonly FoundMistake[],
-): ExerciseTurn | null {
-  if (!practice || practice.kind === "conversation") return null;
+/** Practices whose whole set is shown at once and answered in one message. */
+export type SetPractice = Extract<Practice, { kind: "category" | "contrast" | "form" }>;
 
-  const earlier = db
-    .select({ id: schema.messages.id, content: schema.messages.content, inputMode: schema.messages.inputMode })
+export function isSetPractice(practice: Practice | null): practice is SetPractice {
+  return practice !== null && (practice.kind === "category" || practice.kind === "contrast" || practice.kind === "form");
+}
+
+/** The learner's earlier analyzed messages in the chat, oldest first. */
+function earlierAnswers(message: Message) {
+  return db
+    .select({ id: schema.messages.id })
     .from(schema.messages)
     .where(
       and(
@@ -143,96 +113,72 @@ export function exerciseReplyFor(
     )
     .orderBy(asc(schema.messages.createdAt))
     .all();
-  const index = earlier.length;
-  const item = practice.items[index];
-  if (!item) return null;
+}
+
+/**
+ * In an exercise chat, the fixed (non-AI) reply to a learner's message.
+ * Category sets and tense contrast / form drills: the first message answers the
+ * whole set (src/lib/exercise-set.ts), graded from the text and the mistakes the
+ * correction found in it, so retrying it regrades it the same way; later
+ * messages are normal corrections. "Use it" tasks go one at a time: the n-th
+ * answer answers the n-th task. Null outside exercise chats and when there's
+ * nothing left to answer.
+ */
+export function exerciseReplyFor(
+  practice: Practice | null,
+  message: Message,
+  mistakes: readonly FoundMistake[],
+): ExerciseTurn | null {
+  if (!practice || practice.kind === "conversation") return null;
+  const earlier = earlierAnswers(message);
+
+  if (practice.kind === "use") {
+    const result = exerciseReply({ practice, index: earlier.length, learnerText: message.content, previousChecks: [] });
+    // Open tasks are never saved as missed.
+    return result && { text: result.text, outcomes: [] };
+  }
+  if (earlier.length > 0) return null;
 
   // Only mistakes that count in the stats decide whether an answer is wrong.
   const { countTyposInStats } = getSettings();
-  const counted = (found: readonly FoundMistake[], inputMode: InputMode) =>
-    found.filter((m) => countsInStats({ ...m, inputMode }, countTyposInStats));
-  const answered = earlier.slice(0, practice.items.length);
-  const earlierMistakes = mistakesOf(answered.map((m) => m.id));
-  const previous = answered.map((m) => ({ ...m, mistakes: counted(earlierMistakes.get(m.id) ?? [], m.inputMode) }));
-  const current = counted(mistakes, message.inputMode);
+  const counted = mistakes.filter((m) => countsInStats({ ...m, inputMode: message.inputMode }, countTyposInStats));
+  const results =
+    practice.kind === "category"
+      ? gradeCategorySet(practice, message.content, counted)
+      : gradeTenseSet(practice, message.content, counted);
 
-  if (practice.kind === "category") {
-    const signals = (found: FoundMistake[]): AnswerSignals => ({
-      categoryErrors: found.filter((m) => m.category === practice.category).length,
-      errors: found.length,
-    });
-    const previousChecks: CategoryCheck[] = previous.map((m, i) =>
-      checkCategoryAnswer(m.content, practice.items[i], signals(m.mistakes)),
-    );
-    const result = categoryExerciseReply({
-      practice: practice satisfies CategoryPractice,
-      index,
-      learnerText: message.content,
-      signals: signals(current),
-      previousChecks,
-    });
-    if (!result) return null;
+  const topic = practice.kind === "category" ? categoryTopic(practice) : practiceTopic(practice);
+  const outcomes = results.map((result, index) => {
+    const item = practice.items[index];
     const missed: MissedItem | null =
-      result.check === "wrong"
+      result.mark === "wrong"
         ? {
-            topic: categoryTopic(practice),
-            category: practice.category,
-            subtype: practice.subtype,
-            tense: null,
+            topic,
+            category: practice.kind === "category" ? practice.category : null,
+            subtype: practice.kind === "category" ? practice.subtype : null,
+            tense: practice.kind === "category" ? null : (practice.items[index].tenses[0] ?? practice.tense),
             sentence: item.sentence,
             answer: item.answer,
             why: item.why,
-            learnerAnswer: message.content,
+            learnerAnswer: result.learnerAnswer ?? "",
           }
         : null;
-    return { text: result.text, index, missed };
-  }
-
-  const exercise: ExercisePractice = practice;
-  const focus = focusTenses(exercise);
-  const verbErrors = (found: FoundMistake[]) => found.filter((m) => TENSE_CATEGORIES.includes(m.category)).length;
-  const previousChecks: AnswerCheck[] = previous.map((m, i) => checkAnswer(m.content, exercise.items[i], focus));
-  const check = checkAnswer(message.content, exercise.items[index], focus);
-  const isMissed = isTenseMiss(exercise.kind, check, verbErrors(current));
-  const missedAny =
-    isMissed || previous.some((m, i) => isTenseMiss(exercise.kind, previousChecks[i], verbErrors(m.mistakes)));
-
-  const result = exerciseReply({
-    practice: exercise,
-    index,
-    learnerText: message.content,
-    previousChecks,
-    missedAny,
+    return { index, missed };
   });
-  if (!result) return null;
-  const missed: MissedItem | null = isMissed
-    ? {
-        topic: practiceTopic(exercise),
-        category: null,
-        subtype: null,
-        tense: exercise.tense,
-        sentence: exercise.items[index].sentence,
-        answer: exercise.items[index].answer,
-        why: exercise.items[index].why,
-        learnerAnswer: message.content,
-      }
-    : null;
-  return { text: result.text, index, missed };
+  return { text: setSummary(results), outcomes };
 }
 
-/** The corrections of each message. */
-function mistakesOf(messageIds: string[]): Map<string, FoundMistake[]> {
-  const map = new Map<string, FoundMistake[]>();
-  if (messageIds.length === 0) return map;
-  const rows = db
-    .select({
-      messageId: schema.corrections.messageId,
-      category: schema.corrections.category,
-      severity: schema.corrections.severity,
-    })
-    .from(schema.corrections)
-    .where(inArray(schema.corrections.messageId, messageIds))
-    .all();
-  for (const { messageId, ...mistake } of rows) map.set(messageId, [...(map.get(messageId) ?? []), mistake]);
-  return map;
+/**
+ * Whether the chat is waiting for the answer to its set, and how many items it
+ * has: for the composer's numbered draft.
+ */
+export function pendingSetSize(sessionId: string): number | null {
+  const practice = getPractice(sessionId);
+  if (!isSetPractice(practice)) return null;
+  const answered = db
+    .select({ id: schema.messages.id })
+    .from(schema.messages)
+    .where(and(eq(schema.messages.sessionId, sessionId), eq(schema.messages.role, "user")))
+    .get();
+  return answered ? null : practice.items.length;
 }

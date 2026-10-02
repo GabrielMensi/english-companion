@@ -4,19 +4,21 @@ import { and, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { generateCategoryExercises, generateExercises } from "@/lib/ai/exercises";
 import {
-  categoryExerciseOpening,
+  categoryExerciseIntro,
   categoryPracticeTitle,
   selectCategoryTargets,
   validSubtype,
 } from "@/lib/category-practice";
 import { createSession, updateSession } from "@/lib/chat";
 import { withChatPriority } from "@/lib/classification";
+import { setOpening } from "@/lib/exercise-set";
 import { type Practice, savePractice } from "@/lib/practice";
 import { getSettings } from "@/lib/settings";
 import { getDashboardData } from "@/lib/stats";
 import { countsInStats, type ErrorCategory, type Tense } from "@/lib/taxonomy";
 import {
   type ExerciseKind,
+  exerciseIntro,
   exerciseOpening,
   pickQuestion,
   practiceTitle,
@@ -45,9 +47,10 @@ export interface StartPracticeInput {
 
 /**
  * Creates a practice chat and its opening message: a question that needs the
- * tense (conversation mode), or the first of a set of generated exercises
- * (correction mode, where the next item comes as the reply to each answer).
- * The learner's answers go through the normal correction pipeline.
+ * tense (conversation mode), or a set of generated exercises (correction mode):
+ * contrast and form drills show the whole set, answered in one message; "use
+ * it" tasks come one at a time, the next one as the reply to each answer. The
+ * learner's answers go through the normal correction pipeline.
  */
 export async function startPractice(input: StartPracticeInput) {
   let practice: Exclude<Practice, { kind: "category" }>;
@@ -63,7 +66,8 @@ export async function startPractice(input: StartPracticeInput) {
       generateExercises({ kind: input.kind as ExerciseKind, tense: input.tense, contrastWith }, getSettings()),
     );
     practice = { kind: input.kind, tense: input.tense, contrastWith, items: generated.items };
-    opening = exerciseOpening(practice);
+    // "Use it" tasks go one at a time; the drills show the whole set, answered in one message.
+    opening = input.kind === "use" ? exerciseOpening(practice) : setOpening(exerciseIntro(practice), practice.items);
     origin = { provider: generated.provider, model: generated.modelId };
   }
 
@@ -123,7 +127,7 @@ function recentMistakes(category: ErrorCategory, subtype: string | null) {
 /**
  * Creates an exercise chat for an error category: fill in the gap, multiple
  * choice and fix the mistake, using the learner's own mistakes as material.
- * Works like the tense exercise chats: correction mode, fixed feedback replies.
+ * The whole set is shown at once and answered in one message, like the tense drills.
  */
 export async function startCategoryPractice(input: StartCategoryPracticeInput) {
   const subtype = validSubtype(input.category, input.subtype);
@@ -142,7 +146,7 @@ export async function startCategoryPractice(input: StartCategoryPracticeInput) {
       id: crypto.randomUUID(),
       sessionId: session.id,
       role: "assistant",
-      content: categoryExerciseOpening(practice),
+      content: setOpening(categoryExerciseIntro(practice), practice.items),
       provider: generated.provider,
       model: generated.modelId,
     })

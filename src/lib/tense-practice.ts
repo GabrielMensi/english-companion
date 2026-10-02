@@ -337,10 +337,10 @@ export function exerciseIntro(practice: Pick<ExercisePractice, "kind" | "tense" 
   switch (practice.kind) {
     case "contrast": {
       const other = practice.contrastWith ? TENSE_LABELS[practice.contrastWith].toLowerCase() : "another tense";
-      return `Let’s practice the ${label} vs the ${other}: ${n} sentences. Write each full sentence with the right form of the verb in brackets. Watch the time words (yesterday, since, ever, just…).`;
+      return `Let’s practice the ${label} vs the ${other}: ${n} sentences. Complete each one with the right form of the verb in brackets. Watch the time words (yesterday, since, ever, just…).`;
     }
     case "form":
-      return `Let’s practice building the ${label} (${TENSE_HINTS[practice.tense]}): ${n} sentences. Write each full sentence with the verb in brackets in the ${label}.`;
+      return `Let’s practice building the ${label} (${TENSE_HINTS[practice.tense]}): ${n} sentences. Complete each one with the verb in brackets in the ${label}.`;
     case "use":
       return `Let’s practice using the ${label} (${TENSE_HINTS[practice.tense]}): ${n} short tasks. Answer each one with a full sentence about you.`;
   }
@@ -350,13 +350,14 @@ export function formatItem(item: Pick<ExerciseItem, "sentence">, index: number, 
   return `${index + 1}/${total}. ${item.sentence}`;
 }
 
-/** The first message of an exercise chat. */
+/** The first message of a "use it" chat, whose tasks go one at a time (the other kinds show the whole set: src/lib/exercise-set.ts). */
 export function exerciseOpening(practice: ExercisePractice): string {
   return `${exerciseIntro(practice)}\n\n${formatItem(practice.items[0], 0, practice.items.length)}`;
 }
 
 /**
- * The reply to the learner's answer to item `index`: whether the tense was
+ * In a chat whose items go one at a time ("use it" tasks), the reply to the
+ * learner's answer to item `index`: whether the tense was
  * right, the expected answer and why, then the next item (or a summary at the
  * end). Null past the last item: from there on it's a normal correction chat.
  * `previousChecks` are the checks of the earlier answers, for the final score.

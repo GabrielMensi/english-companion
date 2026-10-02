@@ -1,10 +1,9 @@
 /**
  * Pure parts of the targeted exercises for the weakest error categories (see
- * docs/ROADMAP.md, "Ejercicios dirigidos"): which categories to practice, how
- * the learner's answers are checked and the fixed feedback shown after each
- * one. The exercise chats work like the tense ones (src/lib/tense-practice.ts):
- * a correction chat whose n-th answer answers the n-th item. Kept free of
- * server-only imports so it can be unit tested.
+ * docs/ROADMAP.md, "Ejercicios dirigidos"): which categories to practice and
+ * how each answer is checked. The set is shown and answered in one message,
+ * like the tense drills (src/lib/exercise-set.ts). Kept free of server-only
+ * imports so it can be unit tested.
  */
 import type { Stats } from "@/lib/stats-core";
 import {
@@ -14,7 +13,7 @@ import {
   isValidSubtype,
   subtypeLabel,
 } from "@/lib/taxonomy";
-import { comparable, formatItem } from "@/lib/tense-practice";
+import { comparable } from "@/lib/tense-practice";
 
 /**
  * - fill: a sentence with a gap ("I am ___ engineer.").
@@ -245,8 +244,6 @@ export function checkCategoryAnswer(learnerText: string, item: CategoryExerciseI
   return "unknown";
 }
 
-export const isMiss = (check: CategoryCheck) => check === "wrong";
-
 // ---------------------------------------------------------------------------
 // The exercise chat
 
@@ -256,52 +253,8 @@ export function categoryExerciseIntro(practice: Pick<CategoryPractice, "category
   const how = [
     formats.has("fill") && "fill in the gap",
     formats.has("choice") && "choose the right option",
-    formats.has("rewrite") && "fix the mistake",
+    formats.has("rewrite") && "fix the mistake (write the whole sentence)",
   ].filter(Boolean);
   const list = how.length > 1 ? `${how.slice(0, -1).join(", ")} or ${how.at(-1)}` : (how[0] ?? "answer");
-  return `Let’s practice ${categoryTopic(practice).toLowerCase()}: ${n} short exercises. For each one, ${list}, and write the full sentence (for gaps, just the missing words is fine too).`;
-}
-
-/** The first message of a category exercise chat. */
-export function categoryExerciseOpening(practice: CategoryPractice): string {
-  return `${categoryExerciseIntro(practice)}\n\n${formatItem(practice.items[0], 0, practice.items.length)}`;
-}
-
-/**
- * The reply to the learner's answer to item `index`: ✓/✗, the expected answer
- * and why, then the next item (or the score at the end). Null past the last item.
- */
-export function categoryExerciseReply(input: {
-  practice: CategoryPractice;
-  index: number;
-  learnerText: string;
-  signals: AnswerSignals;
-  previousChecks: CategoryCheck[];
-}): { text: string; check: CategoryCheck } | null {
-  const { practice, index } = input;
-  const item = practice.items[index];
-  if (!item) return null;
-
-  const check = checkCategoryAnswer(input.learnerText, item, input.signals);
-  const lines: string[] = [];
-  if (check === "exact") lines.push("✓ Correct!");
-  else if (check === "right") lines.push(`✓ No mistakes found. Suggested answer: ${item.answer}`);
-  else if (check === "wrong") lines.push(`✗ Answer: ${item.answer}`);
-  else lines.push(`Answer: ${item.answer}`);
-  if (item.why) lines.push(item.why);
-
-  const next = practice.items[index + 1];
-  if (next) {
-    lines.push("", formatItem(next, index + 1, practice.items.length));
-  } else {
-    const checks = [...input.previousChecks, check];
-    const graded = checks.filter((c) => c !== "unknown");
-    const score = graded.length > 0 ? `: right in ${graded.filter((c) => c !== "wrong").length} of ${graded.length}` : "";
-    const missed = checks.some(isMiss) ? " The ones you missed are now in your flashcards (Missed exercises)." : "";
-    lines.push(
-      "",
-      `That’s the whole set${score}. Your corrections count in the stats as usual.${missed} Start another set from Practice whenever you like.`,
-    );
-  }
-  return { text: lines.join("\n"), check };
+  return `Let’s practice ${categoryTopic(practice).toLowerCase()}: ${n} short exercises. For each one, ${list}.`;
 }

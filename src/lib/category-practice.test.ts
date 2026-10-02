@@ -3,8 +3,7 @@ import {
   acceptedAnswers,
   type CategoryExerciseItem,
   type CategoryPractice,
-  categoryExerciseOpening,
-  categoryExerciseReply,
+  categoryExerciseIntro,
   categoryPracticeTitle,
   checkCategoryAnswer,
   formatOf,
@@ -174,31 +173,11 @@ describe("checkCategoryAnswer", () => {
 describe("category exercise chat", () => {
   const practice: CategoryPractice = { kind: "category", category: "articles", subtype: "missing_a_an", items: [fill, choice, rewrite] };
 
-  it("opens with the instructions and the first item", () => {
-    const opening = categoryExerciseOpening(practice);
-    expect(opening).toContain("Let’s practice articles: missing a / an: 3 short exercises");
-    expect(opening).toContain("fill in the gap, choose the right option or fix the mistake");
-    expect(opening).toContain("1/3. My sister is ___ engineer.");
+  it("explains the formats in the set", () => {
+    const intro = categoryExerciseIntro(practice);
+    expect(intro).toContain("Let’s practice articles: missing a / an: 3 short exercises");
+    expect(intro).toContain("fill in the gap, choose the right option or fix the mistake");
     expect(categoryPracticeTitle(practice)).toBe("Practice: articles: missing a / an");
-  });
-
-  it("replies with the result, the rule and the next item", () => {
-    const reply = categoryExerciseReply({ practice, index: 0, learnerText: "My sister is engineer.", signals: clean, previousChecks: [] });
-    expect(reply?.check).toBe("wrong");
-    expect(reply?.text).toBe("✗ Answer: My sister is an engineer.\nProfesiones llevan a/an.\n\n2/3. It depends ___ (of / on / in) the weather.");
-  });
-
-  it("ends with the score and points to the flashcards when something was missed", () => {
-    const reply = categoryExerciseReply({
-      practice,
-      index: 2,
-      learnerText: "I agree with you.",
-      signals: clean,
-      previousChecks: ["wrong", "unknown"],
-    });
-    expect(reply?.text).toContain("That’s the whole set: right in 1 of 2.");
-    expect(reply?.text).toContain("Missed exercises");
-    expect(categoryExerciseReply({ practice, index: 3, learnerText: "x", signals: clean, previousChecks: [] })).toBeNull();
   });
 });
 

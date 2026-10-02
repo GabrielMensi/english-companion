@@ -27,12 +27,15 @@ export function ChatView({
   models,
   selectedProvider,
   canDictate,
+  answerTemplate = null,
 }: {
   session: SessionSummary;
   initialMessages: ChatMessage[];
   models: ModelOption[];
   selectedProvider: ProviderId;
   canDictate: boolean;
+  /** In an exercise chat waiting for the answers to its set: numbered lines to fill in. */
+  answerTemplate?: string | null;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
@@ -63,6 +66,9 @@ export function ChatView({
     canDictate,
     autoSend: voiceConversation,
     keyWindow: pip.window,
+    initialText: answerTemplate ?? "",
+    // Until the set is answered, the answers go on several lines.
+    multiline: answerTemplate !== null && !messages.some((m) => m.role === "user"),
   });
   const lastSent = messages.findLast((m) => m.role === "user");
   const reply = lastSent && messages.find((m) => m.replyToId === lastSent.id);
