@@ -2,16 +2,21 @@
 
 import { AlertTriangle, Loader2, Mic, RotateCcw } from "lucide-react";
 import { AnalysisCard } from "@/components/chat/analysis-card";
+import { AnalysisPreviewView } from "@/components/chat/analysis-preview";
 import { Button } from "@/components/ui/button";
+import type { AnalysisPreview } from "@/lib/ai/analysis";
 import { fluencySummary } from "@/lib/fluency";
 import type { ChatMessage } from "@/lib/types";
 
 export function UserMessage({
   message,
+  preview,
   onRetry,
   onUpdate,
 }: {
   message: ChatMessage;
+  /** The analysis while it streams. */
+  preview?: AnalysisPreview;
   onRetry: (id: string) => void;
   onUpdate: (message: Partial<ChatMessage> & { id: string }) => void;
 }) {
@@ -32,7 +37,12 @@ export function UserMessage({
         </div>
       )}
 
-      {message.status === "pending" && (
+      {/* Until the model writes something, the plain spinner (an empty card would just flash). */}
+      {message.status === "pending" && preview?.correctedText && (
+        <AnalysisPreviewView original={message.content} preview={preview} />
+      )}
+
+      {message.status === "pending" && !preview?.correctedText && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
           Correcting…

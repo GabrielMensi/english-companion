@@ -2,6 +2,7 @@
  * Pure parts of the message analysis: output schema, prompt building and
  * normalization. Kept free of server-only imports so it can be unit tested.
  */
+import type { DeepPartial } from "ai";
 import { z } from "zod";
 import type { InputMode, SessionMode } from "@/db/schema";
 import { CATEGORY_HINTS, ERROR_CATEGORIES, SEVERITIES, TRANSCRIBER_CATEGORIES } from "@/lib/taxonomy";
@@ -37,7 +38,8 @@ export const analysisSchema = z.object({
 export type Analysis = z.infer<typeof analysisSchema>;
 
 export interface HistoryTurn {
-  learner: string;
+  /** Null for a question the tutor opened the chat with. */
+  learner: string | null;
   assistant: string | null;
 }
 
@@ -48,17 +50,19 @@ export interface AnalysisPromptInput {
   history: HistoryTurn[];
   /** Dictated messages come from speech-to-text; defaults to typed. */
   inputMode?: InputMode;
+  /** Extra reply rule for tense practice conversations (see src/lib/tense-practice.ts). */
+  practiceRule?: string;
 }
 
 export function buildAnalysisInstructions(
-  input: Pick<AnalysisPromptInput, "mode" | "explanationLanguage" | "inputMode">,
+  input: Pick<AnalysisPromptInput, "mode" | "explanationLanguage" | "inputMode" | "practiceRule">,
 ) {
   const language = input.explanationLanguage === "es" ? "Spanish (Rioplatense, neutral tone)" : "English";
   const categories = ERROR_CATEGORIES.map((c) => `- ${c}: ${CATEGORY_HINTS[c]}`).join("\n");
 
   const replyRule =
     input.mode === "conversation"
-      ? `8. reply: answer the learner's message in English as a friendly conversation partner, continuing the conversation. Keep it short (2-5 sentences), use B1-B2 level vocabulary and ask a follow-up question when natural. Do NOT mention the corrections in the reply.`
+      ? `8. reply: answer the learner's message in English as a friendly conversation partner, continuing the conversation. Keep it short (2-5 sentences), use B1-B2 level vocabulary and ask a follow-up question when natural. Do NOT mention the corrections in the reply.${input.practiceRule ? `\n   ${input.practiceRule}` : ""}`
       : `8. reply: always null.`;
 
   return `You are an English writing tutor for a native Spanish speaker. You analyze ONE message the learner wrote in English and return a JSON object.
@@ -104,7 +108,7 @@ export function buildAnalysisPrompt(input: AnalysisPromptInput): string {
   const parts: string[] = [];
   if (input.mode === "conversation" && input.history.length > 0) {
     const history = input.history
-      .map((t) => `Learner: ${t.learner}${t.assistant ? `\nYou: ${t.assistant}` : ""}`)
+      .map((t) => [t.learner !== null && `Learner: ${t.learner}`, t.assistant && `You: ${t.assistant}`].filter(Boolean).join("\n"))
       .join("\n\n");
     parts.push(`Conversation so far (context only, do not analyze it):\n${history}`);
   }
@@ -119,20 +123,51 @@ export function normalizeAnalysis(
   originalText: string,
   inputMode: InputMode = "typed",
 ): Analysis {
-  const clean = (s: string) => s.trim();
   const correctedText = raw.correctedText.trim() || originalText;
+  const errors = normalizeErrors(raw.errors, originalText, inputMode);
 
-  // Text the learner wrote between [brackets] is a vocabulary lookup, never a mistake.
-  const lookups = [...originalText.matchAll(/\[([^\]]+)\]/g)].map((m) => ` ${normalizeWords(m[1])} `);
-  // Whole words only: a short fragment like "a" must not match inside "[aprovechar]".
-  const overlapsLookup = (fragment: string) => {
-    const words = ` ${normalizeWords(fragment.replace(/[[\]]/g, " "))} `;
-    return words.trim().length > 0 && lookups.some((l) => l.includes(words) || words.includes(l));
+  const naturalText = raw.naturalText?.trim() || null;
+
+  return {
+    correctedText,
+    naturalText: naturalText && !sameText(naturalText, correctedText) ? naturalText : null,
+    errors,
+    spanishPhrases: raw.spanishPhrases
+      .map((p) => ({
+        spanish: p.spanish.replace(/^\[|\]$/g, "").trim(),
+        english: p.english.map((e) => e.trim()).filter(Boolean).slice(0, 3),
+        note: p.note?.trim() || null,
+      }))
+      // Only what the learner explicitly asked for, between [brackets]. Models also
+      // "translate" misspelled English words, which would pollute the vocabulary.
+      .filter((p) => p.spanish && p.english.length > 0 && overlapsLookup(originalText, p.spanish)),
+    reply: mode === "conversation" ? raw.reply?.trim() || null : null,
   };
+}
+
+type AnalysisError = Analysis["errors"][number];
+
+/** Text the learner wrote between [brackets] (a vocabulary lookup), as padded normalized words. */
+function lookupsOf(originalText: string): string[] {
+  return [...originalText.matchAll(/\[([^\]]+)\]/g)].map((m) => ` ${normalizeWords(m[1])} `);
+}
+
+// Whole words only: a short fragment like "a" must not match inside "[aprovechar]".
+function overlapsLookup(originalText: string, fragment: string): boolean {
+  const lookups = lookupsOf(originalText);
+  const words = ` ${normalizeWords(fragment.replace(/[[\]]/g, " "))} `;
+  return words.trim().length > 0 && lookups.some((l) => l.includes(words) || words.includes(l));
+}
+
+/** Cleans up the reported mistakes: shared by the final result and the streamed preview. */
+function normalizeErrors(raw: AnalysisError[], originalText: string, inputMode: InputMode): AnalysisError[] {
+  const clean = (s: string) => s.trim();
+  // Text the learner wrote between [brackets] is a vocabulary lookup, never a mistake.
+  const lookups = lookupsOf(originalText);
   const isLookupError = (fragment: string) => fragment.includes("[") || lookups.includes(` ${normalizeWords(fragment)} `);
 
   const seen = new Set<string>();
-  const errors = raw.errors
+  return raw
     .map((e) => ({
       ...e,
       // Models often flag contractions or optional punctuation as mistakes.
@@ -155,23 +190,63 @@ export function normalizeAnalysis(
       seen.add(key);
       return true;
     });
+}
 
-  const naturalText = raw.naturalText?.trim() || null;
+/** What the model has written so far while the analysis streams. */
+export type PartialAnalysis = DeepPartial<Analysis>;
+
+/** A partial analysis cleaned up for display. Only shown while streaming: the saved result comes from {@link normalizeAnalysis}. */
+export interface AnalysisPreview {
+  /** Null until the model starts writing it. */
+  correctedText: string | null;
+  /** True once the model moved past correctedText, so it's safe to diff it against the original. */
+  correctedDone: boolean;
+  naturalText: string | null;
+  /** Mistakes whose fragment, correction, category and severity are complete; the explanation may still be growing. */
+  errors: Omit<AnalysisError, "subcategory">[];
+  reply: string | null;
+}
+
+/**
+ * Turns a partial analysis into something safe to show. Strings may be cut mid-word and the last
+ * array element may be incomplete, so a mistake only shows once its explanation has started (the
+ * fields before it are then complete) and it passes the same filters as the final result.
+ */
+export function previewAnalysis(
+  partial: PartialAnalysis | undefined,
+  mode: SessionMode,
+  originalText: string,
+  inputMode: InputMode = "typed",
+): AnalysisPreview {
+  const p = partial ?? {};
+  const complete = (p.errors ?? []).filter(
+    (e): e is AnalysisError =>
+      !!e &&
+      typeof e.original === "string" &&
+      typeof e.correction === "string" &&
+      ERROR_CATEGORIES.includes(e.category as AnalysisError["category"]) &&
+      SEVERITIES.includes(e.severity as AnalysisError["severity"]) &&
+      typeof e.explanation === "string",
+  );
+  const errors = normalizeErrors(
+    complete.map((e) => ({ ...e, subcategory: e.subcategory ?? "" })),
+    originalText,
+    inputMode,
+  ).map(({ original, correction, category, severity, explanation }) => ({
+    original,
+    correction,
+    category,
+    severity,
+    explanation,
+  }));
 
   return {
-    correctedText,
-    naturalText: naturalText && !sameText(naturalText, correctedText) ? naturalText : null,
+    correctedText: typeof p.correctedText === "string" ? p.correctedText : null,
+    correctedDone:
+      p.naturalText !== undefined || p.errors !== undefined || p.spanishPhrases !== undefined || p.reply !== undefined,
+    naturalText: p.naturalText?.trim() || null,
     errors,
-    spanishPhrases: raw.spanishPhrases
-      .map((p) => ({
-        spanish: p.spanish.replace(/^\[|\]$/g, "").trim(),
-        english: p.english.map(clean).filter(Boolean).slice(0, 3),
-        note: p.note?.trim() || null,
-      }))
-      // Only what the learner explicitly asked for, between [brackets]. Models also
-      // "translate" misspelled English words, which would pollute the vocabulary.
-      .filter((p) => p.spanish && p.english.length > 0 && overlapsLookup(p.spanish)),
-    reply: mode === "conversation" ? raw.reply?.trim() || null : null,
+    reply: mode === "conversation" ? p.reply?.trim() || null : null,
   };
 }
 
