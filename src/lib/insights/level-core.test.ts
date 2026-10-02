@@ -7,6 +7,7 @@ import {
   levelEvolution,
   levelOf,
   mattr,
+  measureLevel,
   MIN_WORDS,
   recentWindow,
   scoreDecreasing,
@@ -126,6 +127,73 @@ describe("estimateLevel", () => {
     expect(many.confidence).toBe("high");
     const width = (e: typeof few) => e.range!.to.localeCompare(e.range!.from);
     expect(width(few)).toBeGreaterThanOrEqual(width(many));
+  });
+
+  it("maps the calibrated mistake rates to levels", () => {
+    // SIMPLE has 25 words: 20 messages are 500 words.
+    const messages = repeat(SIMPLE, 20);
+    const accuracy = (perMessage: number) =>
+      estimateLevel({ messages, corrections: messages.flatMap((m) => mistakes(m.id, perMessage)), countTypos: false })
+        .signals.find((s) => s.id === "accuracy")!;
+    expect(accuracy(0).level).toBe("C2");
+    expect(accuracy(1).level).toBe("B2"); // 4 per 100 words
+    expect(accuracy(2).level).toBe("A1"); // 8 per 100 words
+  });
+
+  it("shows tense range for context without scoring it", () => {
+    const plain = repeat(ADVANCED, 15);
+    const tenses = repeat(ADVANCED, 15, 0, { tenseCounts: { future_perfect: 2, past_perfect: 2, present_perfect: 2 } });
+    const a = estimateLevel({ messages: plain, corrections: [], countTypos: false });
+    const b = estimateLevel({ messages: tenses, corrections: [], countTypos: false });
+    expect(b.signals.find((s) => s.id === "grammar")!.score).toBeGreaterThan(a.signals.find((s) => s.id === "grammar")!.score);
+    expect(b.signals.find((s) => s.id === "grammar")!.weight).toBe(0);
+    expect(b.score).toBe(a.score);
+  });
+
+  it("doesn't let dictated punctuation decide sentence complexity", () => {
+    const run = ADVANCED.replace(/,/g, "") + " " + ADVANCED.replace(/,/g, "");
+    const chopped = ADVANCED.replace(/,/g, ".");
+    const spokenRun = estimateLevel({ messages: repeat(run, 10, 0, { inputMode: "spoken" }), corrections: [], countTypos: false });
+    const spokenChopped = estimateLevel({
+      messages: repeat(chopped, 20, 0, { inputMode: "spoken" }),
+      corrections: [],
+      countTypos: false,
+    });
+    const complexity = (e: typeof spokenRun) => e.signals.find((s) => s.id === "complexity")!;
+    expect(complexity(spokenRun).weight).toBe(0);
+    expect(complexity(spokenRun).value).toMatch(/dictated/);
+    expect(spokenRun.score).toBeCloseTo(spokenChopped.score!, 0);
+
+    // Half typed: complexity counts with half its weight, measured on the typed half only.
+    const mixed = estimateLevel({
+      messages: [...repeat(SIMPLE, 10), ...repeat(run, 5, 10, { inputMode: "spoken" })],
+      corrections: [],
+      countTypos: false,
+    });
+    const typedOnly = estimateLevel({ messages: repeat(SIMPLE, 20), corrections: [], countTypos: false });
+    expect(complexity(mixed).weight).toBeGreaterThan(0);
+    expect(complexity(mixed).weight).toBeLessThan(complexity(typedOnly).weight);
+    expect(complexity(mixed).value).toBe(complexity(typedOnly).value);
+  });
+
+  it("counts each dictated mistake double, since half the categories aren't measured when speaking", () => {
+    const typed = repeat(SIMPLE, 20);
+    const spoken = repeat(SIMPLE, 20, 0, { inputMode: "spoken" });
+    const typedRate = measureLevel(typed, typed.map((m) => mistakes(m.id, 1)[0]), false).errorRate;
+    const spokenRate = measureLevel(
+      spoken,
+      spoken.map((m) => mistakes(m.id, 1, { inputMode: "spoken", category: "verb_tense" })[0]),
+      false,
+    ).errorRate;
+    expect(spokenRate).toBe(typedRate * 2);
+  });
+
+  it("ignores one-line replies when measuring sentence complexity", () => {
+    const essays = repeat(ADVANCED, 15);
+    const replies = repeat("Ok, go ahead.", 30, 15);
+    const a = measureLevel(essays, [], false);
+    const b = measureLevel([...essays, ...replies], [], false);
+    expect(b.sentenceLength).toBe(a.sentenceLength);
   });
 
   it("reports lookups as context only", () => {

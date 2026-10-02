@@ -99,7 +99,8 @@ export function buildLevelPrompt(estimate: LevelEstimate, evolution: LevelWindow
     "",
     "Signals:",
     ...estimate.signals.map(
-      (s) => `- ${s.label} (weight ${Math.round(s.weight * 100)}%): ${s.value} → ${s.level} (score ${s.score}). ${s.basis}`,
+      (s) =>
+        `- ${s.label} (${s.weight > 0 ? `weight ${Math.round(s.weight * 100)}%` : "context only, not scored"}): ${s.value} → ${s.level} (score ${s.score}). ${s.basis}`,
     ),
   ];
   if (estimate.lookupsPer1000Words !== null) {
