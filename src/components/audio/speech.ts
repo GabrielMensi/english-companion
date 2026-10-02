@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
-import { getKokoroStatus, kokoroSupported, loadKokoro, synthesize } from "@/components/audio/kokoro";
+import { getKokoroStatus, kokoroSupported, loadKokoro, setKokoroDevice, synthesize } from "@/components/audio/kokoro";
 import { parseSpeechPrefs, type SpeechPrefs } from "@/components/audio/speech-prefs";
 
 /**
@@ -33,6 +33,7 @@ export function saveSpeechPrefs(prefs: SpeechPrefs) {
   }
   // Choosing Kokoro again is also how to retry it after it failed.
   if (prefs.engine === "kokoro") kokoroFailed = false;
+  setKokoroDevice(prefs.kokoroDevice);
 }
 
 function browserSpeechSupported() {
@@ -86,7 +87,10 @@ export function speak(text: string, id: string = text): Promise<void> {
   stopEngines();
   const prefs = getSpeechPrefs();
   const current = ++turn;
-  if (prefs.engine === "kokoro" && !kokoroFailed && kokoroSupported()) return speakKokoro(text, id, prefs, current);
+  if (prefs.engine === "kokoro" && !kokoroFailed && kokoroSupported()) {
+    setKokoroDevice(prefs.kokoroDevice);
+    return speakKokoro(text, id, prefs, current);
+  }
   return speakBrowser(text, id, prefs, current);
 }
 
@@ -227,12 +231,16 @@ export function stopSpeaking() {
  * turned on), so the first reply doesn't wait for the model.
  */
 export function preloadSpeech() {
-  if (getSpeechPrefs().engine === "kokoro" && !kokoroFailed && kokoroSupported()) loadKokoro().catch(() => {});
+  const prefs = getSpeechPrefs();
+  if (prefs.engine !== "kokoro" || kokoroFailed || !kokoroSupported()) return;
+  setKokoroDevice(prefs.kokoroDevice);
+  loadKokoro().catch(() => {});
 }
 
 /** Tries loading Kokoro again after it failed (Settings' "Retry"); speaking uses it again if it works. */
 export function retryKokoro() {
   kokoroFailed = false;
+  setKokoroDevice(getSpeechPrefs().kokoroDevice);
   loadKokoro().catch(() => {});
 }
 

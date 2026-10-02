@@ -5,6 +5,12 @@
 
 export type SpeechEngine = "browser" | "kokoro";
 
+/**
+ * Where Kokoro runs. "auto" tries the GPU (WebGPU) and checks its output, falling back to the CPU
+ * (WebAssembly) when it fails; the other two force a device.
+ */
+export type KokoroDevicePref = "auto" | "webgpu" | "wasm";
+
 export interface SpeechPrefs {
   /** Which voice reads aloud: the browser's `speechSynthesis` or Kokoro running locally. */
   engine: SpeechEngine;
@@ -12,6 +18,8 @@ export interface SpeechPrefs {
   voice: string | null;
   /** Kokoro voice id (see `KOKORO_VOICES`). */
   kokoroVoice: string;
+  /** Where Kokoro runs (see `KokoroDevicePref`). */
+  kokoroDevice: KokoroDevicePref;
   /** Speed for both engines; 1 is normal. */
   rate: number;
 }
@@ -49,6 +57,7 @@ export const DEFAULT_SPEECH_PREFS: SpeechPrefs = {
   engine: "browser",
   voice: null,
   kokoroVoice: "af_heart",
+  kokoroDevice: "auto",
   rate: 1,
 };
 
@@ -72,6 +81,34 @@ export function parseSpeechPrefs(raw: string | null): SpeechPrefs {
       typeof stored.kokoroVoice === "string" && KOKORO_VOICES.some((v) => v.id === stored.kokoroVoice)
         ? stored.kokoroVoice
         : d.kokoroVoice,
+    kokoroDevice:
+      stored.kokoroDevice === "auto" || stored.kokoroDevice === "webgpu" || stored.kokoroDevice === "wasm"
+        ? stored.kokoroDevice
+        : d.kokoroDevice,
     rate: typeof stored.rate === "number" && stored.rate >= 0.5 && stored.rate <= 2 ? stored.rate : d.rate,
   };
+}
+
+/**
+ * Remembered when Kokoro's WebGPU output failed the audio check in this browser, so "auto" goes
+ * straight to the CPU next time instead of downloading and testing the GPU model again.
+ */
+export interface GpuRejection {
+  /** Why the output was rejected (from `checkSpeechAudio`). */
+  reason: string;
+  /** When, as an ISO date. */
+  at: string;
+}
+
+export function parseGpuRejection(raw: string | null): GpuRejection | null {
+  try {
+    const parsed: unknown = JSON.parse(raw ?? "null");
+    if (parsed && typeof parsed === "object") {
+      const { reason, at } = parsed as Record<string, unknown>;
+      if (typeof reason === "string" && typeof at === "string") return { reason, at };
+    }
+  } catch {
+    // Corrupted value: as if nothing was remembered.
+  }
+  return null;
 }
