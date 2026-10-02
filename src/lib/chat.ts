@@ -3,7 +3,7 @@ import "server-only";
 import { and, asc, desc, eq, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Correction, Message, SessionMode, VocabularyEntry } from "@/db/schema";
-import { analyzeMessage } from "@/lib/ai/analyze";
+import { analyzeMessage, type OnPreview } from "@/lib/ai/analyze";
 import { errorToMessage } from "@/lib/ai/fallback";
 import type { HistoryTurn } from "@/lib/ai/analysis";
 import { improvePrompt } from "@/lib/ai/improve-prompt";
@@ -105,8 +105,9 @@ export function addUserMessage(sessionId: string, text: string, voice?: VoiceInp
 /**
  * Runs the AI analysis for a stored user message and persists corrections,
  * vocabulary and (in conversation mode) the assistant reply. Also used to retry.
+ * `onPreview` streams the analysis while it's generated; what gets saved is the same.
  */
-export async function analyzeStoredMessage(messageId: string): Promise<ChatMessage[]> {
+export async function analyzeStoredMessage(messageId: string, onPreview?: OnPreview): Promise<ChatMessage[]> {
   const message = db.select().from(schema.messages).where(eq(schema.messages.id, messageId)).get();
   if (!message || message.role !== "user") throw new Error("Message not found");
   const session = getSession(message.sessionId);
@@ -120,6 +121,7 @@ export async function analyzeStoredMessage(messageId: string): Promise<ChatMessa
       analyzeMessage(
         { text: message.content, mode: session.mode, history: getHistory(message), inputMode: message.inputMode },
         settings,
+        onPreview,
       ),
     );
     const durationMs = Date.now() - started;
