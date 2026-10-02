@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import type { SuspendedCard } from "@/lib/flashcards-upkeep";
 
-const DECK_LABELS: Record<string, string> = { vocabulary: "Vocabulary", mistake: "Mistake" };
+const DECK_LABELS: Record<string, string> = { vocabulary: "Vocabulary", mistake: "Mistake", exercise: "Exercise" };
 
 /** Cards the learner suspended, with a button to bring each one back to its deck. */
 export function SuspendedCards({ cards }: { cards: SuspendedCard[] }) {

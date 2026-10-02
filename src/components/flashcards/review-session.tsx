@@ -179,7 +179,7 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
                 <PauseCircle /> Suspend card
               </DropdownMenuItem>
               <DropdownMenuItem variant="destructive" onSelect={() => setConfirmDelete(true)}>
-                <Trash2 /> {card.kind === "vocabulary" ? "Delete word…" : "Delete mistake…"}
+                <Trash2 /> {card.kind === "vocabulary" ? "Delete word…" : card.kind === "exercise" ? "Delete exercise…" : "Delete mistake…"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -189,11 +189,19 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{card.kind === "vocabulary" ? "Delete this word?" : "Delete this mistake?"}</DialogTitle>
+            <DialogTitle>
+              {card.kind === "vocabulary"
+                ? "Delete this word?"
+                : card.kind === "exercise"
+                  ? "Delete this exercise?"
+                  : "Delete this mistake?"}
+            </DialogTitle>
             <DialogDescription>
               {card.kind === "vocabulary"
                 ? "Every lookup of the word is deleted, also from the Vocabulary page."
-                : "Its corrections are deleted from your chats and stop counting in the dashboard. Use it for corrections that were wrong."}{" "}
+                : card.kind === "exercise"
+                  ? "The missed item is deleted; the practice chat and its corrections stay. Use it for exercises that were wrong or not worth reviewing."
+                  : "Its corrections are deleted from your chats and stop counting in the dashboard. Use it for corrections that were wrong."}{" "}
               To just stop reviewing it, suspend the card instead.
             </DialogDescription>
           </DialogHeader>
