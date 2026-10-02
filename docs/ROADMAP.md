@@ -18,11 +18,12 @@
 - Nivel `suggestion` para mejoras opcionales (contracciones, puntuación opcional), que no cuentan como errores, y tiempo de respuesta en cada mensaje.
 - Ventana flotante (Document Picture-in-Picture, como Google Meet): composer con dictado, última corrección y "Copy & close" siempre visibles sobre otras apps; el botón "Native" muestra u oculta cómo lo diría un nativo (se recuerda en el navegador). Se abre con el botón del chat o Alt+P, y sola al cambiar de pestaña mientras dictás (por eso `pnpm dev` usa HTTPS).
 - Voz, fase 2: botones ▶ para escuchar correcciones, versión nativa, vocabulario y respuestas; push-to-talk con Ctrl+Space; modo voz en conversación (manda al soltar y lee la respuesta); métricas de fluidez (ritmo, pausas largas, muletillas) por mensaje y en el dashboard. También en la ventana flotante ([VOICE.md](VOICE.md)).
+- Streaming de la corrección: se ve mientras se genera (en el chat y en la ventana flotante); lo que se guarda sale siempre del objeto completo y validado.
+- Práctica de tiempos verbales (página Practice): ejercicios de contraste, de forma y "usalo" generados para los tiempos más flojos, y conversación dirigida que obliga a usarlos. Las respuestas se corrigen y suman a las estadísticas ([VERB_TENSES.md](VERB_TENSES.md#práctica)).
+- Flashcards (página Flashcards): vocabulario español → inglés y repaso espaciado de tus errores reales con un algoritmo tipo SM-2 (tabla `reviews`), filtrable por tiempo verbal o tipo de error.
+- Insights: reporte de la semana o del mes, plan de estudio escrito por la IA (exportable en Markdown, base para el reporte de clase) y nivel CEFR estimado con reglas fijas y transparentes.
 
 ## Próximo
-
-### Práctica de tiempos verbales
-Con el diagnóstico ya hecho: ejercicios de contraste para las confusiones más comunes y preguntas en el modo conversación que obliguen a usar los tiempos débiles o poco usados. Implementado en `feature/tense-practice` (página Practice); pendiente de probar y mergear. Ver [VERB_TENSES.md](VERB_TENSES.md#práctica).
 
 ### Kev como clasificador
 La clasificación en dos etapas ya está hecha con el LLM. Falta evaluar Kev-0.8B (o Jev / Jeeves) como backend cuando haya etiquetas reales de "Wrong type?". Ver [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md).
@@ -30,20 +31,8 @@ La clasificación en dos etapas ya está hecha con el LLM. Falta evaluar Kev-0.8
 ### Voz
 Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). Falta: lectura en voz alta y pronunciación (fase 3), whisper.cpp local como fallback, Kokoro como voz local y las clases (fase 4). Investigación y plan en [VOICE.md](VOICE.md).
 
-### Flashcards de vocabulario
-Practicar las palabras de la página Vocabulary (lo que escribiste entre [corchetes]): español → inglés, con la oración original como pista. Cada palabra agrupada (`VocabularyWord`) es una tarjeta.
-
-### Repaso espaciado de tus errores
-Flashcards generadas desde tus correcciones reales (el original como pregunta, la corrección como respuesta), con un algoritmo tipo SM-2. Se guarda el estado de cada tarjeta en una tabla `reviews`.
-
 ### Ejercicios dirigidos
 A partir de las 3 categorías más flojas del dashboard, generar ejercicios cortos: completar huecos, reescribir oraciones o elegir la opción correcta. La respuesta del usuario también se corrige y suma a las estadísticas.
-
-### Reporte semanal / plan de estudio
-La IA lee las estadísticas de la semana (categorías, tendencias, errores frecuentes, vocabulario) y arma un plan concreto: qué temas practicar, con qué tipo de ejercicios y ejemplos. Comparte base con el [reporte para la clase](#1-reporte-para-llevar-a-clase-prioridad-1).
-
-### Streaming de la corrección
-Mostrar la corrección a medida que se genera (`streamText` + `Output.object`) para que los modelos locales se sientan más rápidos.
 
 ## Integración con las clases
 
@@ -109,4 +98,3 @@ Consideraciones:
 
 ### Otras
 - Exportar/importar la base de datos para mover el historial entre PCs. El export tiene que excluir la fila `api-keys` de `settings`, para no compartir keys por accidente.
-- Nivel estimado (CEFR) según la evolución de errores y el vocabulario usado.
