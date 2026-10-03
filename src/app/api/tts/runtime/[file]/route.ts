@@ -12,10 +12,13 @@ const FILES: Record<string, string> = {
   "ort-wasm-simd-threaded.jsep.wasm": "application/wasm",
 };
 
-/** transformers.js is a dependency of kokoro-js, so it's found next to it (pnpm doesn't hoist it). */
+/**
+ * The onnxruntime-web that transformers.js imports (found next to it: pnpm doesn't hoist it), so
+ * the WASM always matches the JS runtime, even when its version is overridden in pnpm-workspace.yaml.
+ */
 async function runtimeDir() {
-  const kokoro = await realpath(path.join(process.cwd(), "node_modules", "kokoro-js"));
-  return path.join(kokoro, "..", "@huggingface", "transformers", "dist");
+  const transformers = await realpath(path.join(process.cwd(), "node_modules", "@huggingface", "transformers"));
+  return path.join(transformers, "..", "..", "onnxruntime-web", "dist");
 }
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/tts/runtime/[file]">) {

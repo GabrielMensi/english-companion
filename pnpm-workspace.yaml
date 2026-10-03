@@ -8,3 +8,9 @@ ignoredBuiltDependencies:
 
 onlyBuiltDependencies:
   - better-sqlite3
+
+overrides:
+  # transformers.js 3.8.1 pins onnxruntime-web 1.22-dev, whose WebGPU backend gives noise on some
+  # GPUs (see docs/VOICE.md, "Kokoro suena a ruido"). 1.30 works the same on WASM and SwiftShader;
+  # whether it fixes the AMD noise is to be confirmed on the real GPU (the audio check stays).
+  onnxruntime-web: 1.30.0
