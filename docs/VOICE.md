@@ -198,19 +198,47 @@ Settings → Listening tiene un **Engine**: *Browser voice* (default, `speechSyn
 - *transformers.js 4 sin `kokoro-js`*: no trae el fonemizador ni las voces; habría que reimplementar lo que `kokoro-js` ya hace.
 
 **Cómo funciona** (`src/components/audio/kokoro.ts` + `kokoro.worker.ts`):
-- **Carga diferida**: el worker y el modelo no se cargan hasta que se usa Kokoro (un ▶, "Try it"), se elige en Settings o se prende el modo voz con Kokoro elegido (precarga, para que la primera respuesta no espere). El ▶ muestra un spinner hasta que suena el primer audio; un click lo cancela.
+- **Precarga**: si Kokoro es el motor elegido, `SpeechPreloader` (en el layout) carga el modelo en segundo plano cuando la app abre, con `requestIdleCallback` para no competir con la carga de la página; también al elegirlo en Settings o prender el modo voz. Con Browser voice no se carga nada. El worker vive a nivel de módulo, así que navegar entre páginas (Settings → chat) no lo recarga; solo cambiar el *Device* lo reinicia (voz y velocidad son parámetros de cada síntesis; la voz nueva baja su archivo de ~0,5 MB la primera vez). El ▶ muestra un spinner hasta que suena el primer audio; un click lo cancela.
 - **Dispositivo** (Settings → Listening → *Device*, campo `kokoroDevice` de `speech-prefs`, default `auto`):
   - *Auto*: WebGPU con `fp32` si hay GPU; si no, o si falla, WASM con el modelo `q8`. Al cargar se sintetiza una frase de prueba y **se valida el audio**, no solo que corra (ver "Kokoro suena a ruido" abajo). Si el audio de la GPU no pasa, se descarta la GPU, se pasa a WASM y queda recordado en este navegador (`localStorage["kokoro-gpu-rejected"]`, con el motivo y la fecha), así la próxima vez *Auto* va directo a la CPU. Settings lo muestra con un botón *Try the GPU again*.
   - *GPU (WebGPU)*: fuerza la GPU aunque su audio no pase el chequeo (Settings muestra la advertencia); sirve para probarla a mano. Solo si no carga cae a la CPU.
-  - *CPU (WebAssembly)*: fuerza WASM `q8`.
-  - Settings muestra el dispositivo y el dtype en uso ("Ready, running on the GPU (WebGPU), fp32 · <fabricante y arquitectura de la GPU>", o "CPU (WebAssembly), q8"), y mientras carga, en cuál lo está intentando.
-- **Streaming**: se sintetiza oración por oración y cada una se encola en un `AudioContext` apenas está, así una respuesta larga empieza a sonar con la primera oración.
+  - *CPU (WebAssembly)*: fuerza WASM (`fp32` multihilo, o `q8` si la página no está aislada; ver "Rendimiento").
+  - Settings muestra el dispositivo y el dtype en uso ("Ready, running on the GPU (WebGPU), fp32 · <fabricante y arquitectura de la GPU>", o "CPU (WebAssembly), fp32, 8 threads"), y mientras carga, en cuál lo está intentando.
+- **Streaming**: se sintetiza por fragmentos y cada uno se encola en un `AudioContext` apenas está; el worker sigue sintetizando los siguientes mientras suena el actual. Los fragmentos salen de `speech-chunks.ts` (puro, con tests): el primero es corto (la primera oración se corta en una coma, punto y coma, guion o antes de una conjunción, ≤ 8 palabras) y cada uno puede tener el doble de palabras que el anterior (8, 16, 32…), cortando en cláusulas mientras haga falta. Como en la CPU sintetizar lleva ~la mitad de lo que dura el audio, el siguiente fragmento está listo antes de que termine el actual y no quedan silencios.
+- **Caché de audio** (`audio-cache.ts` + `audio-cache-core.ts`): lo sintetizado se guarda por (texto, voz, velocidad) con el dispositivo que lo hizo: en memoria (LRU, 40 MB ≈ 7 min de audio) y en IndexedDB (`kokoro-audio`, 60 MB, se borra lo menos usado). Un ▶ repetido suena al instante, incluso después de recargar y sin esperar al modelo. Solo se guardan síntesis completas (no las canceladas); con el modelo cargado solo se usa audio del dispositivo en uso.
 - **Ventana flotante**: comparte el realm de JS de la página, así que usa el mismo worker y el mismo `AudioContext`; el sonido sale de la pestaña.
 - **Fallback**: si el modelo no carga (sin red la primera vez, el worker falla, ni la CPU da un audio que pase el chequeo, etc.), lee la voz del navegador, avisa con un toast y sigue con la del navegador el resto de la sesión. "Retry" en Settings (o volver a elegir Kokoro) lo reintenta.
 
-**Descarga y caché**: los pesos se bajan una sola vez de Hugging Face (`onnx-community/Kokoro-82M-v1.0-ONNX`) y quedan en la **Cache Storage del navegador** (caché `transformers-cache` para el modelo y `kokoro-voices` para las voces, por origen: `https://localhost:3737`). Tamaños: `model.onnx` (fp32, WebGPU) **326 MB**; `model_quantized.onnx` (q8, WASM) **92 MB**; cada voz ~0,5 MB. Se borran desde DevTools → Application → Cache storage. El runtime de ONNX (`ort-wasm-simd-threaded.jsep.wasm`, 21 MB) lo sirve la propia app desde `node_modules` (`/api/tts/runtime/[file]`) en vez del CDN de jsDelivr que usa transformers.js por defecto.
+**Descarga y caché**: los pesos se bajan una sola vez de Hugging Face (`onnx-community/Kokoro-82M-v1.0-ONNX`) y quedan en la **Cache Storage del navegador** (caché `transformers-cache` para el modelo y `kokoro-voices` para las voces, por origen: `https://localhost:3737`). Tamaños: `model.onnx` (fp32, WebGPU y WASM multihilo) **326 MB**; `model_quantized.onnx` (q8, WASM de un hilo) **92 MB**; cada voz ~0,5 MB. Se borran desde DevTools → Application → Cache storage. El runtime de ONNX (`ort-wasm-simd-threaded.jsep.wasm`, 21 MB) lo sirve la propia app desde `node_modules` (`/api/tts/runtime/[file]`) en vez del CDN de jsDelivr que usa transformers.js por defecto.
 
 **Dependencia**: `kokoro-js` (trae `@huggingface/transformers`, `onnxruntime-web` y `phonemizer`; también `onnxruntime-node` y `sharp` para Node, que no se usan: sus scripts de build quedan ignorados en `pnpm-workspace.yaml`).
+
+**Rendimiento en la CPU** (2026-10-02, tras la primera prueba real: tardaba mucho en empezar, con pausas largas en medio y cada ▶ repetido volvía a esperar):
+- **Cross-origin isolation**: `next.config.ts` manda `Cross-Origin-Opener-Policy: same-origin` y `Cross-Origin-Embedder-Policy: credentialless` en todas las rutas, así `crossOriginIsolated` es `true` y ONNX Runtime puede usar WASM multihilo (`SharedArrayBuffer`). `credentialless` en vez de `require-corp`: los recursos de otros orígenes cargan igual (sin cookies), así que las descargas de Hugging Face siguen andando sin headers CORP. Verificado en Chromium headless con un perfil nuevo: descargas de modelo y voces desde Hugging Face, todas las páginas, fuentes, la ventana flotante (Document PiP, que también queda aislada) y el runtime de `/api/tts/runtime` (los hilos de ONNX Runtime cargan el mismo `ort-wasm-simd-threaded.jsep.mjs`, que ya es la build multihilo), sin errores. Safari no soporta `credentialless`: ahí sigue en un hilo.
+- **Hilos**: `numThreads` = la mitad de `navigator.hardwareConcurrency`, máximo 8 (ONNX Runtime usa 4 por defecto). Más de 8 casi no mejora y la máquina necesita núcleos para el navegador y Ollama. Se fija con `env.backends.onnx.wasm.numThreads` de `@huggingface/transformers`, que es dependencia directa en la misma versión que usa `kokoro-js` (3.8.1) para compartir la instancia.
+- **dtype en WASM**: con hilos, `fp32`; sin hilos, `q8`. Las ops cuantizadas de `q8` casi no ganan con hilos. Mediciones (respuesta de 20,6 s de audio, WSL headless, 16 hilos lógicos), como factor de tiempo real (síntesis / duración):
+
+| dtype WASM | 1 hilo | 4 hilos | 8 hilos | 16 hilos |
+|---|---|---|---|---|
+| `q8` (92 MB) | 1,56 | 0,98 | 0,98 | 1,08 |
+| `fp32` (326 MB) | 1,65 | 0,56 | 0,49 | 0,45 |
+| `fp16` (163 MB) | | | 0,50 | |
+| `q4` (305 MB) | | | 0,48 | |
+
+  `fp32` es la referencia de calidad y es el mismo archivo que usa WebGPU (si la GPU se probó antes, ya está en caché). `fp16` da NaN en algunos textos (kokoro#74), así que no se usa.
+- **Antes / después** (Chromium headless en WSL, CPU, modelo ya en Cache Storage):
+
+| | Antes (1 hilo, q8) | Después (8 hilos, fp32) |
+|---|---|---|
+| Primer audio de "Try it" con la página recién abierta | 11,5 s (carga + síntesis al hacer click) | 1,9 s (modelo precargado en idle) |
+| Carga del modelo + frase de prueba (worker nuevo) | 4,6 s | 3,0 s |
+| Primer audio de una respuesta de 4 oraciones, con el modelo listo | 2,3 s | 0,8 s |
+| Factor de tiempo real | 1,56 | 0,49 |
+| Silencios entre fragmentos en esa respuesta (20,6 s de audio) | 13,7 s | 0,1 s |
+| ▶ repetido, misma página | 6,2 s (sintetiza de nuevo) | 0,02 s (memoria) |
+| ▶ repetido tras recargar la página | igual que el primero | 0,07 s (IndexedDB) |
+
+- **Logs**: el worker escribe en la consola (nivel *Verbose*/debug) cuánto tardan la carga, la frase de prueba y cada fragmento, con su factor de tiempo real: `[kokoro] chunk 2/5 on wasm: 1.40 s for 2.80 s of audio (real-time factor 0.50)`.
 
 **Kokoro suena a ruido (WebGPU)** — bug encontrado en la primera prueba real (2026-10-02): las voces del navegador andaban bien y Kokoro solo daba ruido.
 - **Causa (la más probable)**: la salida de ONNX Runtime Web (1.22-dev, la que trae transformers.js 3.8.1) en **WebGPU** es basura en algunas GPUs/drivers. Está reportado justo para **AMD**: [hexgrad/kokoro#98](https://github.com/hexgrad/kokoro/issues/98) ("audio distorsionado e inusable en WebGPU; WASM q8 anda bien"; Radeon 880M y 840M RDNA 3.5 en Windows rotas, NVIDIA y Apple bien), y también en Intel Iris Xe ([microsoft/onnxruntime#29807](https://github.com/microsoft/onnxruntime/issues/29807): fp32 corrompe algunas oraciones, fp16 todas, q8/q4f16 dan ruido) y Android ([hexgrad/kokoro#193](https://github.com/hexgrad/kokoro/issues/193), [transformers.js#1320](https://github.com/huggingface/transformers.js/issues/1320): en WebGPU ningún dtype anda). En la RX 9070 XT (RDNA 4) el camino de WebGPU es el que se activa por default.
@@ -221,7 +249,7 @@ Settings → Listening tiene un **Engine**: *Browser voice* (default, `speechSyn
 - **Para probar el fallback sin la GPU rota** (solo en desarrollo): `localStorage["kokoro-simulate-noise"]` = `"webgpu"` (la GPU falla la frase de prueba), `"webgpu-speech"` (pasa la prueba y falla en las oraciones reales), `"wasm"` o `"all"`; borrar la clave para volver a la normalidad.
 
 **Limitaciones**:
-- En WASM corre en un solo hilo (los hilos necesitan *cross-origin isolation*, que la app no tiene), así que sin GPU puede ser más lento que tiempo real: en WSL, headless, la primera oración tardó ~13 s con el modelo en caché y cada oración ~2× su duración, con pausas entre oraciones. Con WebGPU debería ir muy por delante del audio, pero en la RX 9070 XT Kokoro dio ruido, muy probablemente por WebGPU (ver arriba). Con SwiftShader (WebGPU por software, sin GPU) la primera carga con el modelo en caché tardó ~110 s.
+- Sin aislamiento (Safari, o si se quitan los headers) WASM corre en un solo hilo con `q8` y va más lento que tiempo real (factor ~1,6), con pausas entre fragmentos. Con WebGPU debería ir muy por delante del audio, pero en la RX 9070 XT Kokoro dio ruido, muy probablemente por WebGPU (ver arriba). Con SwiftShader (WebGPU por software, sin GPU) la primera carga con el modelo en caché tardó ~110 s.
 - Una oración de más de ~510 tokens fonéticos se corta (límite del modelo); en la práctica las respuestas del tutor son oraciones cortas.
 - `kokoro-js` no se actualiza desde 2025-05 (sigue en transformers.js 3.x). Si hace falta, se puede pasar a transformers.js 4 copiando su lógica (fonemizar + voces).
 - `stream()` de `kokoro-js` con un string nunca entrega la última oración: el worker arma y cierra el `TextSplitterStream` a mano.

@@ -2,6 +2,8 @@
 
 import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
+import { cacheKey } from "@/components/audio/audio-cache-core";
+import { cachedInMemory, getCachedAudio, putCachedAudio } from "@/components/audio/audio-cache";
 import { type GpuRejection, type KokoroDevicePref, parseGpuRejection } from "@/components/audio/speech-prefs";
 
 /**
@@ -22,6 +24,8 @@ export interface KokoroConfig {
    * ("webgpu-speech": the GPU passes the test sentence and fails on the real ones).
    */
   simulateNoise: KokoroDevice | "all" | "webgpu-speech" | null;
+  /** WASM threads (used only when the page is cross-origin isolated). */
+  threads: number;
 }
 
 export type KokoroRequest =
@@ -32,14 +36,21 @@ export type KokoroRequest =
 
 export type KokoroResponse =
   | { type: "progress"; device: KokoroDevice; dtype: KokoroDtype; loaded: number; total: number }
-  | { type: "ready"; device: KokoroDevice; dtype: KokoroDtype; adapter: string | null; warning: string | null }
+  | {
+      type: "ready";
+      device: KokoroDevice;
+      dtype: KokoroDtype;
+      adapter: string | null;
+      threads: number | null;
+      warning: string | null;
+    }
   /** The GPU's audio failed the check in auto mode; the worker is switching to the CPU. */
   | { type: "gpu-rejected"; reason: string; at: string }
   /** The GPU (forced in Settings) produced audio that failed the check. */
   | { type: "warning"; message: string }
   /** The model couldn't load: every pending request fails. */
   | { type: "error"; message: string }
-  | { type: "chunk"; id: number; samples: Float32Array; sampleRate: number }
+  | { type: "chunk"; id: number; samples: Float32Array; sampleRate: number; device: KokoroDevice }
   | { type: "done"; id: number }
   | { type: "failed"; id: number; message: string };
 
@@ -53,13 +64,19 @@ export type KokoroStatus =
       dtype: KokoroDtype;
       /** GPU name when running on WebGPU (when the browser exposes it). */
       adapter: string | null;
+      /** WASM threads in use (null on the GPU). */
+      threads: number | null;
       /** Something to show next to the status: a fallback to the CPU or a failed audio check. */
       warning: string | null;
     }
   | { state: "error"; message: string };
 
+type OnChunk = (samples: Float32Array, sampleRate: number) => void;
+
 interface Pending {
-  onChunk: (samples: Float32Array, sampleRate: number) => void;
+  onChunk: (samples: Float32Array, sampleRate: number, device: KokoroDevice) => void;
+  /** All chunks arrived (not called when cancelled or failed). */
+  onComplete: () => void;
   resolve: () => void;
   reject: (error: Error) => void;
 }
@@ -75,8 +92,8 @@ const pending = new Map<number, Pending>();
 let nextId = 1;
 let readyWaiters: { resolve: () => void; reject: (error: Error) => void }[] = [];
 let devicePref: KokoroDevicePref = "auto";
-/** The config the running worker was started with. */
-let workerConfigKey = "";
+/** The device setting the running worker was started with. */
+let workerDevice: KokoroDevicePref | null = null;
 
 function setStatus(next: KokoroStatus) {
   status = next;
@@ -100,9 +117,19 @@ export function getGpuRejection(): GpuRejection | null {
   return parseGpuRejection(readStorage(GPU_REJECTION_KEY));
 }
 
+/**
+ * WASM threads: ONNX Runtime's default is at most 4. Kokoro keeps speeding up to ~8 on a desktop
+ * CPU; past that the gain is small and the rest of the machine (the browser, Ollama) needs cores too.
+ */
+function wasmThreads() {
+  const cores = typeof navigator === "undefined" ? 1 : navigator.hardwareConcurrency || 1;
+  return Math.max(1, Math.min(8, Math.floor(cores / 2)));
+}
+
 function currentConfig(): KokoroConfig {
   const simulate = process.env.NODE_ENV === "production" ? null : readStorage(SIMULATE_NOISE_KEY);
   return {
+    threads: wasmThreads(),
     device: devicePref,
     gpuRejection: getGpuRejection(),
     simulateNoise:
@@ -113,12 +140,13 @@ function currentConfig(): KokoroConfig {
 }
 
 /**
- * Sets where Kokoro runs. If a worker is running with another setting, it's stopped (whatever it
- * was reading stops too) and the model loads again on the new device the next time it's needed.
+ * Sets where Kokoro runs. Only a different device restarts the worker (whatever it was reading
+ * stops too, and the model loads again on the new device): voice and speed are per-request
+ * parameters, and the GPU rejection is already known to the worker that made it.
  */
 export function setKokoroDevice(pref: KokoroDevicePref) {
   devicePref = pref;
-  if (worker && JSON.stringify(currentConfig()) !== workerConfigKey) restartWorker();
+  if (worker && workerDevice !== pref) restartWorker();
 }
 
 /** Forgets that the GPU failed the check, and loads the model again so "auto" tries the GPU. */
@@ -175,6 +203,7 @@ function handle(message: KokoroResponse) {
         device: message.device,
         dtype: message.dtype,
         adapter: message.adapter,
+        threads: message.threads,
         warning: message.warning,
       });
       readyWaiters.forEach((w) => w.resolve());
@@ -190,8 +219,6 @@ function handle(message: KokoroResponse) {
       } catch {
         // Storage blocked: the GPU is tested again next time.
       }
-      // The worker already knows; keep its config key current so it isn't restarted for this.
-      workerConfigKey = JSON.stringify(currentConfig());
       break;
     case "warning":
       if (status.state === "ready") setStatus({ ...status, warning: message.message });
@@ -200,9 +227,10 @@ function handle(message: KokoroResponse) {
       failAll(message.message);
       break;
     case "chunk":
-      pending.get(message.id)?.onChunk(message.samples, message.sampleRate);
+      pending.get(message.id)?.onChunk(message.samples, message.sampleRate, message.device);
       break;
     case "done":
+      pending.get(message.id)?.onComplete();
       pending.get(message.id)?.resolve();
       pending.delete(message.id);
       break;
@@ -229,7 +257,7 @@ function getWorker(): Worker {
     failAll(event.message || "The Kokoro worker stopped");
   });
   const config = currentConfig();
-  workerConfigKey = JSON.stringify(config);
+  workerDevice = config.device;
   w.postMessage({ type: "configure", config } satisfies KokoroRequest);
   return w;
 }
@@ -252,25 +280,66 @@ export function loadKokoro(): Promise<void> {
 }
 
 /**
- * Synthesizes `text` sentence by sentence; `onChunk` gets each sentence's audio as soon as it's
- * ready. `done` resolves after the last one, and rejects if the model can't load or synthesis fails.
+ * Synthesizes `text` chunk by chunk; `onChunk` gets each chunk's audio as soon as it's ready.
+ * `done` resolves after the last one, and rejects if the model can't load or synthesis fails.
+ * Audio already synthesized for the same text, voice and speed comes from the cache (memory, then
+ * IndexedDB) without touching the model.
  */
 export function synthesize(
   text: string,
   options: { voice: string; speed: number },
-  onChunk: Pending["onChunk"],
+  onChunk: OnChunk,
 ): { done: Promise<void>; cancel: () => void } {
-  const id = nextId++;
-  const done = new Promise<void>((resolve, reject) => {
-    pending.set(id, { onChunk, resolve, reject });
-  });
-  // Make sure the model is (being) loaded; a load failure rejects `done` through failAll.
-  loadKokoro().catch(() => {});
-  send({ type: "speak", id, text, ...options });
+  const key = cacheKey(text, options.voice, options.speed);
+  const running = status.state === "ready" ? status.device : null;
+  let cancelled = false;
+  let id: number | null = null;
+
+  const fromCache = (audio: { sampleRate: number; chunks: Float32Array[] }) => {
+    for (const chunk of audio.chunks) onChunk(chunk, audio.sampleRate);
+  };
+
+  const fromModel = () =>
+    new Promise<void>((resolve, reject) => {
+      const requestId = nextId++;
+      id = requestId;
+      const chunks: Float32Array[] = [];
+      let rate = 24000;
+      let device: KokoroDevice = "wasm";
+      pending.set(requestId, {
+        onChunk(samples, sampleRate, chunkDevice) {
+          chunks.push(samples);
+          rate = sampleRate;
+          device = chunkDevice;
+          onChunk(samples, sampleRate);
+        },
+        onComplete() {
+          if (chunks.length > 0) void putCachedAudio(key, { device, sampleRate: rate, chunks });
+        },
+        resolve,
+        reject,
+      });
+      // Make sure the model is (being) loaded; a load failure rejects through failAll.
+      loadKokoro().catch(() => {});
+      send({ type: "speak", id: requestId, text, ...options });
+    });
+
+  const inMemory = cachedInMemory(key, devicePref, running);
+  const done = inMemory
+    ? Promise.resolve().then(() => {
+        if (!cancelled) fromCache(inMemory);
+      })
+    : getCachedAudio(key, devicePref, running).then((stored) => {
+        if (cancelled) return;
+        if (stored) return fromCache(stored);
+        return fromModel();
+      });
+
   return {
     done,
     cancel() {
-      if (!pending.has(id)) return;
+      cancelled = true;
+      if (id === null || !pending.has(id)) return;
       pending.get(id)?.resolve();
       pending.delete(id);
       worker?.postMessage({ type: "cancel", id } satisfies KokoroRequest);

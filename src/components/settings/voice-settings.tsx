@@ -147,7 +147,9 @@ export function VoiceSettings() {
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" onClick={() => speak(SAMPLE)} disabled={trying}>
-            {trying ? <Loader2 className="animate-spin" /> : <Volume2 />} Try it
+            {trying ? <Loader2 className="animate-spin" /> : <Volume2 />}
+            {/* Waiting for the model only happens once; after that it's just synthesizing the sample. */}
+            {!trying ? "Try it" : kokoro.state === "loading" ? "Loading model…" : "Synthesizing…"}
           </Button>
         </div>
       </div>
@@ -166,7 +168,7 @@ function KokoroStatusLine({ status, devicePref }: { status: KokoroStatus; device
   switch (status.state) {
     case "idle":
       text =
-        "The model downloads the first time it’s used (about 330 MB for the GPU, 90 MB for the CPU) and stays cached in this browser.";
+        "The model downloads the first time it’s used (about 330 MB; 90 MB on browsers that can’t run it multithreaded) and stays cached in this browser.";
       break;
     case "loading": {
       const where = status.device && status.dtype ? ` on the ${deviceLabel(status.device, status.dtype)}` : "";
@@ -177,7 +179,9 @@ function KokoroStatusLine({ status, devicePref }: { status: KokoroStatus; device
       break;
     }
     case "ready":
-      text = `Ready, running on the ${deviceLabel(status.device, status.dtype)}${status.adapter ? ` · ${status.adapter}` : ""}.`;
+      text = `Ready, running on the ${deviceLabel(status.device, status.dtype)}${
+        status.threads ? `, ${status.threads} thread${status.threads === 1 ? "" : "s"}` : ""
+      }${status.adapter ? ` · ${status.adapter}` : ""}.`;
       break;
     case "error":
       text = `Couldn’t load the model (${status.message}). The browser voice reads instead.`;

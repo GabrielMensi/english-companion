@@ -4,8 +4,10 @@
  * synthesizing never freezes the UI. Started lazily by `kokoro.ts` the first time Kokoro is used,
  * and restarted when the device setting changes.
  */
+import { env as transformersEnv } from "@huggingface/transformers";
 import { env, KokoroTTS, TextSplitterStream } from "kokoro-js";
 import { checkSpeechAudio } from "./audio-check";
+import { speechChunks } from "./speech-chunks";
 import type { KokoroConfig, KokoroDevice, KokoroDtype, KokoroRequest, KokoroResponse } from "./kokoro";
 
 const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
@@ -30,7 +32,7 @@ interface Engine {
   dtype: KokoroDtype;
 }
 
-let config: KokoroConfig = { device: "auto", gpuRejection: null, simulateNoise: null };
+let config: KokoroConfig = { device: "auto", gpuRejection: null, simulateNoise: null, threads: 1 };
 let loading: Promise<Engine> | null = null;
 /** The request being synthesized; a newer request or a cancel makes the older one stop between sentences. */
 let current = 0;
@@ -92,20 +94,28 @@ const DEVICE_NAME: Record<KokoroDevice, string> = { webgpu: "GPU (WebGPU)", wasm
 /**
  * Loads the model on the device the setting asks for:
  * - auto: WebGPU at fp32 when there's a GPU and it hasn't failed the audio check in this browser,
- *   else WASM with the 8-bit model. If the GPU's test audio fails the check (noise, NaN…), it's
- *   rejected (and remembered by the page) and the CPU takes over.
+ *   else WASM. If the GPU's test audio fails the check (noise, NaN…), it's rejected (and
+ *   remembered by the page) and the CPU takes over.
  * - webgpu: forced, even if its audio fails the check (Settings shows the failure). Only an error
  *   loading it falls back to the CPU.
  * - wasm: forced.
  * fp32 on WebGPU: the fp16/quantized models are worse there (NaNs with fp16, garbage with q8/q4,
- * see VOICE.md). q8 on WASM: a quarter of the size and the same quality on the CPU.
+ * see VOICE.md). On WASM, fp32 when there are threads: ONNX Runtime parallelizes it well (real-time
+ * factor ~0.5 with 8 threads, vs ~1.0 for q8, whose quantized ops barely gain from threads), and
+ * it's the same file the GPU uses. With a single thread (page not isolated) both take ~1.6× the
+ * audio's length, so the 8-bit model wins by being 92 MB instead of 326 MB.
  */
 async function load(): Promise<Engine> {
+  // WASM threads only work when the page is cross-origin isolated (see next.config.ts); without
+  // it ONNX Runtime falls back to one thread whatever this says.
+  const threads = self.crossOriginIsolated ? config.threads : 1;
+  const wasm = transformersEnv.backends.onnx.wasm;
+  if (wasm) wasm.numThreads = threads;
   const gpu = config.device !== "wasm" && (await hasWebGpu());
   const tryGpu = gpu && (config.device === "webgpu" || !config.gpuRejection);
   const attempts: { device: KokoroDevice; dtype: KokoroDtype }[] = [];
   if (tryGpu) attempts.push({ device: "webgpu", dtype: "fp32" });
-  attempts.push({ device: "wasm", dtype: "q8" });
+  attempts.push({ device: "wasm", dtype: threads > 1 ? "fp32" : "q8" });
 
   let warning: string | null = null;
   if (config.device === "webgpu" && !gpu) warning = "This browser has no WebGPU adapter, so Kokoro runs on the CPU.";
@@ -118,13 +128,20 @@ async function load(): Promise<Engine> {
     let tts: KokoroTTS | null = null;
     try {
       post({ type: "progress", device, dtype, loaded: 0, total: 0 });
+      const started = performance.now();
       tts = await KokoroTTS.from_pretrained(MODEL_ID, {
         dtype,
         device,
         progress_callback: progressTracker(device, dtype),
       });
+      const loaded = performance.now();
       const engine: Engine = { tts, device, dtype };
-      const check = checkSpeechAudio(await synth(engine, TEST_SENTENCE, "af_heart", 1, true));
+      const test = await synth(engine, TEST_SENTENCE, "af_heart", 1, true);
+      const check = checkSpeechAudio(test);
+      console.debug(
+        `[kokoro] ${device}/${dtype}${device === "wasm" ? `, ${threads} thread(s)` : ""}: model ${secs(loaded - started)}, ` +
+          `test sentence ${secs(performance.now() - loaded)} for ${secs((test.length / SAMPLE_RATE) * 1000)} of audio`,
+      );
       if (!check.ok) {
         const message = `Kokoro's test audio on the ${DEVICE_NAME[device]} failed the check: ${check.reason}`;
         console.warn(message, check.metrics);
@@ -137,7 +154,14 @@ async function load(): Promise<Engine> {
         if (device === "webgpu") warning = `The GPU's test audio failed the check (${check.reason}): it may sound like noise.`;
         else throw new Error(message);
       }
-      post({ type: "ready", device, dtype, adapter: device === "webgpu" ? adapterName : null, warning });
+      post({
+        type: "ready",
+        device,
+        dtype,
+        adapter: device === "webgpu" ? adapterName : null,
+        threads: device === "wasm" ? threads : null,
+        warning,
+      });
       return engine;
     } catch (error) {
       console.warn(`Kokoro couldn't run on ${device}`, error);
@@ -173,6 +197,10 @@ function ensureLoaded() {
   return loading;
 }
 
+function secs(ms: number) {
+  return `${(ms / 1000).toFixed(2)} s`;
+}
+
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
@@ -185,15 +213,21 @@ async function speak({ id, text, voice, speed }: Extract<KokoroRequest, { type: 
     return; // Already reported by ensureLoaded.
   }
   try {
-    // Sentence by sentence, so the first one plays while the next ones are synthesized. The splitter
-    // is closed by hand: given a plain string, kokoro-js's `stream` never yields the last sentence.
-    const sentences = new TextSplitterStream();
-    sentences.push(text);
-    sentences.close();
-    for await (const sentence of sentences) {
+    // Chunk by chunk (sentences, with the first one cut at a clause so it's short), so the first
+    // one plays while the next ones are synthesized: the queue runs ahead of playback as far as
+    // synthesis allows. The splitter is closed by hand: given a plain string, kokoro-js's `stream`
+    // never yields the last sentence.
+    const splitter = new TextSplitterStream();
+    splitter.push(text);
+    splitter.close();
+    const sentences: string[] = [];
+    for await (const sentence of splitter) sentences.push(sentence);
+    const chunks = speechChunks(sentences);
+    for (const [index, chunk] of chunks.entries()) {
       if (current !== id) return;
       let engine = await ensureLoaded();
-      let samples = await synth(engine, sentence, voice, speed);
+      const started = performance.now();
+      let samples = await synth(engine, chunk, voice, speed);
       if (engine.device === "webgpu") {
         // The GPU passed the test sentence, but its bugs can depend on the input: check every one.
         const check = checkSpeechAudio(samples);
@@ -204,17 +238,23 @@ async function speak({ id, text, voice, speed }: Extract<KokoroRequest, { type: 
             rejectGpu(check.reason);
             loading = null;
             engine = await ensureLoaded(); // Now on the CPU.
-            samples = await synth(engine, sentence, voice, speed);
+            samples = await synth(engine, chunk, voice, speed);
           } else {
             post({ type: "warning", message: `The GPU's audio failed the check (${check.reason}).` });
           }
         }
       }
+      const took = performance.now() - started;
+      const duration = (samples.length / SAMPLE_RATE) * 1000;
+      console.debug(
+        `[kokoro] chunk ${index + 1}/${chunks.length} on ${engine.device}: ${secs(took)} for ${secs(duration)} of audio ` +
+          `(real-time factor ${(took / duration).toFixed(2)})`,
+      );
       if (current !== id) return;
-      // `generate` returns a fresh array per sentence; copy anyway, so the transferred buffer holds
+      // `generate` returns a fresh array per chunk; copy anyway, so the transferred buffer holds
       // exactly these samples (never a view into something bigger).
       const copy = samples.slice();
-      post({ type: "chunk", id, samples: copy, sampleRate: SAMPLE_RATE }, [copy.buffer]);
+      post({ type: "chunk", id, samples: copy, sampleRate: SAMPLE_RATE, device: engine.device }, [copy.buffer]);
     }
     if (current === id) post({ type: "done", id });
   } catch (error) {
