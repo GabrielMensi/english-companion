@@ -1,9 +1,21 @@
 "use client";
 
-import { BarChart3, BookOpen, Dumbbell, GraduationCap, Layers, Lightbulb, PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
+import {
+  BarChart3,
+  BookOpen,
+  Dumbbell,
+  GraduationCap,
+  Layers,
+  Lightbulb,
+  type LucideIcon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import type { Area } from "@/components/layout/page";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { SessionItem } from "@/components/sidebar/session-item";
 import { ThemeToggle } from "@/components/sidebar/theme-toggle";
@@ -13,24 +25,58 @@ import { SIDEBAR_COOKIE } from "@/lib/sidebar";
 import type { SessionSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
-  { href: "/insights", label: "Insights", icon: Lightbulb },
-  { href: "/practice", label: "Practice", icon: Dumbbell },
-  { href: "/vocabulary", label: "Vocabulary", icon: BookOpen },
-  { href: "/flashcards", label: "Flashcards", icon: Layers },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  /** A count shown next to the label, e.g. cards to study. */
+  count?: number;
+}
+
+interface NavGroup {
+  label: string;
+  area: Exclude<Area, "write">;
+  items: NavItem[];
+}
+
+/** Icon tint per area: the only place, besides page marks and primary buttons, where area colors appear. */
+const AREA_ICON: Record<NavGroup["area"], string> = { review: "text-review", train: "text-train" };
+const AREA_ACTIVE: Record<NavGroup["area"], string> = { review: "bg-review/10", train: "bg-train/10" };
+
+function navGroups(cardsToStudy: number): NavGroup[] {
+  return [
+    {
+      label: "Review",
+      area: "review",
+      items: [
+        { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
+        { href: "/insights", label: "Insights", icon: Lightbulb },
+      ],
+    },
+    {
+      label: "Train",
+      area: "train",
+      items: [
+        { href: "/practice", label: "Practice", icon: Dumbbell },
+        { href: "/flashcards", label: "Flashcards", icon: Layers, count: cardsToStudy },
+        { href: "/vocabulary", label: "Vocabulary", icon: BookOpen },
+      ],
+    },
+  ];
+}
 
 export function AppSidebar({
   sessions,
+  cardsToStudy,
   initialCollapsed,
 }: {
   sessions: SessionSummary[];
+  cardsToStudy: number;
   initialCollapsed: boolean;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const groups = navGroups(cardsToStudy);
 
   const toggle = useCallback(() => {
     setCollapsed((value) => {
@@ -52,6 +98,8 @@ export function AppSidebar({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [toggle]);
 
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
   const toggleButton = (
     <Hint label={`${collapsed ? "Expand" : "Collapse"} sidebar (Ctrl+B)`} side={collapsed ? "right" : "bottom"}>
       <Button
@@ -67,30 +115,51 @@ export function AppSidebar({
 
   if (collapsed) {
     return (
-      <aside className="flex w-14 shrink-0 flex-col items-center gap-1 border-r bg-sidebar py-3 text-sidebar-foreground">
+      <aside className="flex w-14 shrink-0 flex-col items-center border-r bg-sidebar py-3 text-sidebar-foreground">
         {toggleButton}
-        <Hint label="New chat" side="right">
-          <NewChatButton iconOnly className="mt-2" />
-        </Hint>
-        <nav className="mt-2 flex flex-col gap-1">
-          {NAV.map(({ href, label, icon: Icon }) => (
-            <Hint key={href} label={label} side="right">
-              <Link
-                href={href}
-                aria-label={label}
-                className={cn(
-                  "flex size-8 items-center justify-center rounded-md hover:bg-sidebar-accent",
-                  pathname === href && "bg-sidebar-accent",
-                )}
-              >
-                <Icon className="size-4" />
-              </Link>
-            </Hint>
-          ))}
-        </nav>
-        <Hint label="Toggle theme" side="right">
-          <ThemeToggle />
-        </Hint>
+        <div data-area="write" className="mt-3">
+          <Hint label="New chat" side="right">
+            <NewChatButton iconOnly />
+          </Hint>
+        </div>
+        {groups.map((group) => (
+          <nav key={group.label} aria-label={group.label} className="mt-3 flex flex-col gap-1 border-t pt-3">
+            {group.items.map(({ href, label, icon: Icon, count }) => (
+              <Hint key={href} label={count ? `${label} (${count} to study)` : label} side="right">
+                <Link
+                  href={href}
+                  aria-label={label}
+                  aria-current={isActive(href) ? "page" : undefined}
+                  className={cn(
+                    "relative flex size-8 items-center justify-center rounded-md hover:bg-sidebar-accent",
+                    isActive(href) && AREA_ACTIVE[group.area],
+                  )}
+                >
+                  <Icon className={cn("size-4", AREA_ICON[group.area])} />
+                  {count ? <span className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground" /> : null}
+                </Link>
+              </Hint>
+            ))}
+          </nav>
+        ))}
+        <div className="mt-auto flex flex-col items-center gap-1">
+          <Hint label="Settings" side="right">
+            <Link
+              href="/settings"
+              aria-label="Settings"
+              aria-current={isActive("/settings") ? "page" : undefined}
+              className={cn(
+                "flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+                isActive("/settings") && "bg-sidebar-accent text-foreground",
+              )}
+            >
+              <Settings className="size-4" />
+            </Link>
+          </Hint>
+          <Hint label="Toggle theme" side="right">
+            <ThemeToggle />
+          </Hint>
+        </div>
       </aside>
     );
   }
@@ -102,33 +171,47 @@ export function AppSidebar({
           <GraduationCap className="size-5 shrink-0" />
           <span className="truncate">English Companion</span>
         </Link>
-        <div className="flex items-center">
-          <ThemeToggle />
-          {toggleButton}
-        </div>
+        {toggleButton}
       </div>
 
-      <div className="px-3">
+      <div data-area="write" className="px-3">
         <NewChatButton className="w-full" />
       </div>
 
-      <nav className="mt-3 flex flex-col gap-0.5 px-3">
-        {NAV.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent",
-              pathname === href && "bg-sidebar-accent font-medium",
-            )}
-          >
-            <Icon className="size-4" />
-            {label}
-          </Link>
-        ))}
-      </nav>
+      {groups.map((group) => (
+        <nav key={group.label} aria-label={group.label} className="mt-4 px-3">
+          <GroupLabel>{group.label}</GroupLabel>
+          <ul className="flex flex-col gap-0.5">
+            {group.items.map(({ href, label, icon: Icon, count }) => (
+              <li key={href}>
+                <Link
+                  href={href}
+                  aria-current={isActive(href) ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent",
+                    isActive(href) && cn("font-medium", AREA_ACTIVE[group.area]),
+                  )}
+                >
+                  <Icon className={cn("size-4", AREA_ICON[group.area])} />
+                  <span className="flex-1">{label}</span>
+                  {count ? (
+                    <span
+                      className="rounded-full bg-sidebar-accent px-1.5 text-xs font-medium tabular-nums"
+                      title={`${count} ${count === 1 ? "card" : "cards"} to study`}
+                    >
+                      {count}
+                    </span>
+                  ) : null}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ))}
 
-      <div className="mt-4 px-5 pb-1 text-xs font-medium text-muted-foreground">Chats</div>
+      <div className="mt-4 px-3">
+        <GroupLabel>Chats</GroupLabel>
+      </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
         {sessions.length === 0 ? (
           <p className="px-2 py-1 text-sm text-muted-foreground">No chats yet.</p>
@@ -140,8 +223,27 @@ export function AppSidebar({
           </ul>
         )}
       </div>
+
+      <div className="flex items-center justify-between gap-1 border-t py-2 pr-2 pl-3">
+        <Link
+          href="/settings"
+          aria-current={isActive("/settings") ? "page" : undefined}
+          className={cn(
+            "flex flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
+            isActive("/settings") && "bg-sidebar-accent font-medium text-foreground",
+          )}
+        >
+          <Settings className="size-4" />
+          Settings
+        </Link>
+        <ThemeToggle />
+      </div>
     </aside>
   );
+}
+
+function GroupLabel({ children }: { children: React.ReactNode }) {
+  return <div className="px-2 pb-1 text-xs font-medium text-muted-foreground">{children}</div>;
 }
 
 function Hint({ label, side, children }: { label: string; side: "right" | "bottom"; children: React.ReactNode }) {

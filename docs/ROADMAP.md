@@ -27,6 +27,7 @@
 - Ejercicios dirigidos (página Practice, "Your weakest areas"): sets de completar huecos, elegir opción y corregir el error generados a partir de las 3 categorías más flojas y de tus errores reales; las respuestas se corrigen y suman a las estadísticas.
 - Mazo **Missed exercises** en Flashcards: los ítems fallados de los ejercicios (tiempos y categorías) vuelven con repaso espaciado.
 - Kokoro-82M como voz local opcional (Settings → Listening), en el navegador con `kokoro-js`; en CPU (WASM) anda bien y rápido. En WebGPU todavía no (bug #45), y cae al CPU o a la voz del navegador.
+- UI, fase 1 ([UI-PLAN.md](UI-PLAN.md)): Hanken Grotesk para la app y Newsreader para tu inglés, escala tipográfica, colores de área (Write, Review, Train) separados de los colores de datos, estructura de página compartida y un solo vocabulario de estados.
 
 ## Próximo
 

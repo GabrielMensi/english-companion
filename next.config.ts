@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  // Bottom-left would cover the sidebar's Settings link.
+  devIndicators: { position: "bottom-right" },
   /**
    * Cross-origin isolation, so Kokoro's ONNX Runtime can run multithreaded WASM (threads need
    * SharedArrayBuffer, which browsers only allow in isolated pages). `credentialless` instead of

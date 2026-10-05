@@ -29,7 +29,7 @@ export function ChatView({
   canDictate,
   answerTemplate = null,
 }: {
-  session: SessionSummary;
+  session: Omit<SessionSummary, "practice">;
   initialMessages: ChatMessage[];
   models: ModelOption[];
   selectedProvider: ProviderId;
