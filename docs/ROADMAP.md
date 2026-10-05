@@ -24,6 +24,9 @@
 - Insights: reporte de la semana o del mes, plan de estudio escrito por la IA (exportable en Markdown, base para el reporte de clase) y nivel CEFR estimado con reglas fijas y transparentes.
 - Flashcards, mantenimiento: suspender o borrar tarjetas, limpieza de repasos huérfanos, el tipo de error pasa a ser una pista y "nuevas por sesión" configurable. Panel de repasos en el dashboard (retención, repasos por día, racha, pendientes) con la tabla `review_log`.
 - Nivel CEFR calibrado con ~3.300 textos de Write & Improve corregidos por Cambridge (`pnpm eval:level`): coincidencia exacta del 20% al 59% y siempre a ±1 nivel con 1.000 palabras ([LEVEL_CALIBRATION.md](LEVEL_CALIBRATION.md)).
+- Ejercicios dirigidos (página Practice, "Your weakest areas"): sets de completar huecos, elegir opción y corregir el error generados a partir de las 3 categorías más flojas y de tus errores reales; las respuestas se corrigen y suman a las estadísticas.
+- Mazo **Missed exercises** en Flashcards: los ítems fallados de los ejercicios (tiempos y categorías) vuelven con repaso espaciado.
+- Kokoro-82M como voz local opcional (Settings → Listening), en el navegador con `kokoro-js`; en CPU (WASM) anda bien y rápido. En WebGPU todavía no (bug #45), y cae al CPU o a la voz del navegador.
 
 ## Próximo
 
@@ -31,12 +34,12 @@
 La clasificación en dos etapas ya está hecha con el LLM. Falta evaluar Kev-0.8B (o Jev / Jeeves) como backend cuando haya etiquetas reales de "Wrong type?". Ver [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md).
 
 ### Voz
-Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). Falta: lectura en voz alta y pronunciación (fase 3), whisper.cpp local como fallback, Kokoro como voz local y las clases (fase 4). Investigación y plan en [VOICE.md](VOICE.md).
+Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). Falta: lectura en voz alta y pronunciación (fase 3), whisper.cpp local como fallback y las clases (fase 4). Kokoro como voz local ya está (en CPU; WebGPU pendiente, #45). Investigación y plan en [VOICE.md](VOICE.md).
 
 ### Ejercicios dirigidos
 A partir de las 3 categorías más flojas del dashboard, generar ejercicios cortos: completar huecos, reescribir oraciones o elegir la opción correcta. La respuesta del usuario también se corrige y suma a las estadísticas.
 
-Estado: **implementado** (rama `feature/practice-exercises`), junto con el repaso espaciado de los ítems fallados.
+Estado: **hecho** (#39), junto con el repaso espaciado de los ítems fallados. El detalle queda acá como referencia.
 - **Qué practicar**: `selectCategoryTargets` (`src/lib/category-practice.ts`, puro, con tests) ordena las categorías de los últimos 90 días por errores que cuentan cada 100 palabras (`countsInStats`, vía las estadísticas del dashboard), deja afuera `verb_tense` (tiene su propia práctica), ortografía, puntuación, mayúsculas y "other", pide ≥ 2 errores y enfoca el tipo más frecuente si se repite. Sin datos sugiere artículos, preposiciones dependientes y verb patterns.
 - **Generación**: mismo motor que los tiempos (`generateItems` en `src/lib/ai/exercises.ts`, fallback entre modelos y `withChatPriority`), con un schema plano `items: [{sentence, options, answer, why}]` (`options` aparte porque los modelos chicos no las ponían en la oración). El prompt incluye hasta 6 errores reales del usuario en esa categoría/tipo. `normalizeCategoryExercises` descarta respuestas que no siguen la oración, huecos vacíos, opciones que no incluyen la respuesta, "errores" que ya están bien y duplicados; el formato (fill / choice / rewrite) se deduce de la oración.
 - **Chat**: el mismo chat de ejercicios que los drills de tiempos (modo corrección, `practice:<session id>` en `settings` con `kind: "category"`): el set completo se muestra de una vez y se responde en un solo mensaje, que pasa una vez por la corrección; la respuesta es un resumen fijo con ✓/✗ por ítem, la respuesta, el porqué y el puntaje (2 requests por set: generar + revisar; ver "Práctica" en docs/VERB_TENSES.md). El chequeo es determinístico (`src/lib/exercise-set.ts`): en los huecos compara lo que llena el hueco (vale escribir la oración o solo la palabra); si no se puede, deciden los errores que la corrección encontró en esa respuesta (uno de esa categoría = ✗; un rewrite sin errores = ✓).
