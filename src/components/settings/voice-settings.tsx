@@ -204,7 +204,7 @@ function KokoroStatusLine({ status, devicePref }: { status: KokoroStatus; device
       </div>
       {/* With a remembered rejection, the line below already says why the CPU is in use. */}
       {status.state === "ready" && status.warning && !rejection && (
-        <p className="text-amber-700 dark:text-amber-400">{status.warning}</p>
+        <p className="text-sev-minor-text">{status.warning}</p>
       )}
       {rejection && status.state !== "loading" && (
         <div className="flex items-center justify-between gap-4">

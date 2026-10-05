@@ -51,7 +51,7 @@ export function AnalysisCard({
   return (
     <div className="flex flex-col gap-4 rounded-xl border bg-card p-4">
       {perfect ? (
-        <div className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+        <div className="flex items-center gap-2 text-sm font-medium text-mark-right">
           <CheckCircle2 className="size-4" />
           {corrected === message.content ? "Perfect! No mistakes." : "No mistakes."}
         </div>
@@ -86,7 +86,7 @@ export function AnalysisCard({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-muted-foreground">{e.original}</span>
                   <ArrowRight className="size-3.5 text-muted-foreground" />
-                  <span className="font-medium text-sky-700 dark:text-sky-400">{e.correction}</span>
+                  <span className="font-medium">{e.correction}</span>
                 </div>
                 <p className="text-muted-foreground">{e.explanation}</p>
               </li>
@@ -98,7 +98,7 @@ export function AnalysisCard({
       {message.naturalText && (
         <Section icon={<MessageCircleHeart className="size-4" />} title="How a native speaker would say it">
           <div className="flex items-start gap-1">
-            <p className="flex-1 leading-relaxed whitespace-pre-wrap">{message.naturalText}</p>
+            <p className="flex-1 font-serif text-reading whitespace-pre-wrap">{message.naturalText}</p>
             <SpeakButton text={message.naturalText} />
           </div>
         </Section>
@@ -175,9 +175,9 @@ function ErrorItem({ error: e, onUpdate }: { error: ChatCorrection; onUpdate: (c
     <li className="group flex flex-col gap-1 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <SeverityBadge severity={e.severity} />
-        <span className="text-red-600/90 line-through dark:text-red-400/90">{e.original}</span>
+        <span className="text-mark-wrong line-through">{e.original}</span>
         <ArrowRight className="size-3.5 text-muted-foreground" />
-        <span className="font-medium text-emerald-700 dark:text-emerald-400">{e.correction}</span>
+        <span className="font-medium text-mark-right">{e.correction}</span>
         <span className="text-xs text-muted-foreground">
           · {categoryLabel(e.category)}
           {subtype && ` › ${subtype}`}
@@ -205,7 +205,7 @@ function ErrorItem({ error: e, onUpdate }: { error: ChatCorrection; onUpdate: (c
 function Section({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+      <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
         {icon}
         {title}
       </div>

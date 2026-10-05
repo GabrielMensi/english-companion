@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { DeckOverview } from "@/components/flashcards/deck-overview";
 import { ReviewSession } from "@/components/flashcards/review-session";
 import { SuspendedCards } from "@/components/flashcards/suspended-cards";
+import { Page, PageHeader } from "@/components/layout/page";
 import type { CardKind, MistakeFilter } from "@/lib/flashcards-core";
 import { getFlashcardsOverview, getStudyQueue } from "@/lib/flashcards";
 import { getSuspendedCards } from "@/lib/flashcards-upkeep";
@@ -57,42 +58,34 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
     const queue = getStudyQueue(kind, filter);
     const title = kind === "vocabulary" ? "Vocabulary" : kind === "exercise" ? "Missed exercises" : filterTitle(filter);
     return (
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl space-y-6 px-6 py-8">
-          <div className="flex items-center gap-3">
+      <Page area="train" width="md">
+        <PageHeader
+          title={title}
+          description={DECK_SUBTITLES[kind]}
+          leading={
             <Link
               href="/flashcards"
               aria-label="Back to flashcards"
-              className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <ArrowLeft className="size-4" />
             </Link>
-            <div>
-              <h1 className="text-xl font-semibold">{title}</h1>
-              <p className="text-sm text-muted-foreground">
-                {DECK_SUBTITLES[kind]}
-              </p>
-            </div>
-          </div>
-          <ReviewSession key={JSON.stringify(params)} kind={kind} initialQueue={queue} />
-        </div>
-      </div>
+          }
+        />
+        <ReviewSession key={JSON.stringify(params)} kind={kind} initialQueue={queue} />
+      </Page>
     );
   }
 
   const overview = getFlashcardsOverview();
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
-        <div>
-          <h1 className="text-2xl font-semibold">Flashcards</h1>
-          <p className="text-muted-foreground">
-            Review the words you looked up, the mistakes you made and the exercises you missed, spaced out so they stick.
-          </p>
-        </div>
-        <DeckOverview overview={overview} />
-        <SuspendedCards cards={getSuspendedCards()} />
-      </div>
-    </div>
+    <Page area="train">
+      <PageHeader
+        title="Flashcards"
+        description="Review the words you looked up, the mistakes you made and the exercises you missed, spaced out so they stick."
+      />
+      <DeckOverview overview={overview} />
+      <SuspendedCards cards={getSuspendedCards()} />
+    </Page>
   );
 }

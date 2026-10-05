@@ -44,13 +44,13 @@ export function ReportView({ digest }: { digest: StatsDigest }) {
             <ul className="space-y-1.5">
               {digest.worsened.map((a) => (
                 <li key={a.category} className="flex items-center gap-1.5">
-                  <ArrowUpRight className="size-3.5 text-red-600 dark:text-red-400" />
+                  <ArrowUpRight className="size-3.5 text-mark-wrong" />
                   {a.label} <span className="text-muted-foreground">+{a.trend}/100 words</span>
                 </li>
               ))}
               {digest.improved.map((a) => (
                 <li key={a.category} className="flex items-center gap-1.5">
-                  <ArrowDownRight className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <ArrowDownRight className="size-3.5 text-mark-right" />
                   {a.label} <span className="text-muted-foreground">{a.trend}/100 words</span>
                 </li>
               ))}
@@ -112,9 +112,9 @@ export function ReportView({ digest }: { digest: StatsDigest }) {
                     <span className="text-muted-foreground">· {m.category}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-red-600/90 line-through dark:text-red-400/90">{m.original}</span>
+                    <span className="text-mark-wrong line-through">{m.original}</span>
                     <ArrowRight className="size-3.5 text-muted-foreground" />
-                    <span className="text-emerald-700 dark:text-emerald-400">{m.correction}</span>
+                    <span className="text-mark-right">{m.correction}</span>
                   </div>
                 </div>
               </li>

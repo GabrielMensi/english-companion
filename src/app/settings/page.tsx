@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { Page, PageHeader } from "@/components/layout/page";
 import { SettingsForm } from "@/components/settings/settings-form";
 import { VoiceSettings } from "@/components/settings/voice-settings";
 import { providerStatus } from "@/lib/ai/providers";
@@ -8,15 +9,10 @@ export default async function SettingsPage() {
   await connection();
   const settings = getSettings();
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-2xl space-y-6 px-6 py-8">
-        <div>
-          <h1 className="text-2xl font-semibold">Settings</h1>
-          <p className="text-muted-foreground">Choose which AI models correct your messages and in what order.</p>
-        </div>
-        <SettingsForm initialSettings={settings} initialProviders={providerStatus(settings)} />
-        <VoiceSettings />
-      </div>
-    </div>
+    <Page width="md">
+      <PageHeader title="Settings" description="Choose which AI models correct your messages and in what order." />
+      <SettingsForm initialSettings={settings} initialProviders={providerStatus(settings)} />
+      <VoiceSettings />
+    </Page>
   );
 }

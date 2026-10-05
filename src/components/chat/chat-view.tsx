@@ -228,7 +228,7 @@ export function ChatView({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div data-area="write" className="flex h-full flex-col">
       <header className="flex items-center justify-between gap-4 border-b px-6 py-2.5">
         <h1 className="truncate font-medium">{session.title}</h1>
         <div className="flex items-center gap-3">

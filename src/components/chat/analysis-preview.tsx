@@ -38,10 +38,10 @@ export function AnalysisPreviewView({
           corrected !== original ? (
             <DiffText from={original} to={corrected} />
           ) : (
-            <p className="leading-relaxed whitespace-pre-wrap">{original}</p>
+            <p className="font-serif text-reading whitespace-pre-wrap">{original}</p>
           )
         ) : (
-          <p className="leading-relaxed whitespace-pre-wrap">
+          <p className="font-serif text-reading whitespace-pre-wrap">
             {corrected}
             <span className="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-muted-foreground/40 align-middle" />
           </p>
@@ -53,9 +53,9 @@ export function AnalysisPreviewView({
             <li key={i} className="flex flex-col gap-0.5">
               <div className={cn("flex flex-wrap items-center", compact ? "gap-1.5" : "gap-2")}>
                 {!compact && <SeverityBadge severity={e.severity} />}
-                <span className="text-red-600/90 line-through dark:text-red-400/90">{e.original}</span>
+                <span className="text-mark-wrong line-through">{e.original}</span>
                 <ArrowRight className="size-3.5 text-muted-foreground" />
-                <span className="font-medium text-emerald-700 dark:text-emerald-400">{e.correction}</span>
+                <span className="font-medium text-mark-right">{e.correction}</span>
                 <span className="text-xs text-muted-foreground">· {categoryLabel(e.category)}</span>
               </div>
               {e.explanation && <p className="text-muted-foreground">{e.explanation}</p>}
@@ -66,11 +66,11 @@ export function AnalysisPreviewView({
 
       {!compact && preview.naturalText && (
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
             <MessageCircleHeart className="size-4" />
             How a native speaker would say it
           </div>
-          <p className="leading-relaxed whitespace-pre-wrap">{preview.naturalText}</p>
+          <p className="font-serif text-reading whitespace-pre-wrap">{preview.naturalText}</p>
         </div>
       )}
 
@@ -79,7 +79,7 @@ export function AnalysisPreviewView({
           <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted">
             <Bot className="size-3.5" />
           </div>
-          <p className="flex-1 leading-relaxed whitespace-pre-wrap">{preview.reply}</p>
+          <p className="flex-1 font-serif text-reading whitespace-pre-wrap">{preview.reply}</p>
         </div>
       )}
     </div>

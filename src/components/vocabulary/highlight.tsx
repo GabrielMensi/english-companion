@@ -7,7 +7,7 @@ export function Highlight({ text, terms }: { text: string; terms: string[] }) {
       return (
         <>
           {text.slice(0, i)}
-          <mark className="rounded-sm bg-emerald-500/15 px-0.5 text-emerald-700 dark:text-emerald-400">
+          <mark className="rounded-sm bg-mark-right/12 px-0.5 text-mark-right">
             {text.slice(i, i + term.length)}
           </mark>
           {text.slice(i + term.length)}
