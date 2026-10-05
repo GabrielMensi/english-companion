@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { ThemeProvider } from "next-themes";
+import { SpeechPreloader } from "@/components/audio/speech-preloader";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -42,6 +43,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <AppSidebar sessions={sessions} initialCollapsed={sidebarCollapsed} />
             <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
             <Toaster richColors position="top-center" />
+            <SpeechPreloader />
           </TooltipProvider>
         </ThemeProvider>
       </body>
