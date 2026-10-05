@@ -3,11 +3,11 @@ import { type Severity, SEVERITY_LABELS } from "@/lib/taxonomy";
 import { cn } from "@/lib/utils";
 
 export const SEVERITY_CLASSES: Record<Severity, string> = {
-  suggestion: "bg-sky-500/15 text-sky-700 dark:text-sky-400",
+  suggestion: "border-dashed border-border bg-transparent text-muted-foreground",
   typo: "bg-muted text-muted-foreground",
-  minor: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-  moderate: "bg-orange-500/15 text-orange-700 dark:text-orange-400",
-  major: "bg-red-500/15 text-red-700 dark:text-red-400",
+  minor: "bg-sev-minor/18 text-sev-minor-text",
+  moderate: "bg-sev-moderate/15 text-sev-moderate-text",
+  major: "bg-sev-major/12 text-sev-major-text",
 };
 
 export function SeverityBadge({

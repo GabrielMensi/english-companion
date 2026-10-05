@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { LevelCard } from "@/components/insights/level-card";
 import { ReportView } from "@/components/insights/report-view";
 import { StudyPlan } from "@/components/insights/study-plan";
+import { Page, PageHeader, Section } from "@/components/layout/page";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { getLevelData, getReportDigest, getStoredPlan, REPORT_RANGES, type ReportRange } from "@/lib/insights/insights";
 import { cn } from "@/lib/utils";
@@ -17,16 +18,15 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
   const level = getLevelData();
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-4xl space-y-6 px-6 py-8">
-        <div>
-          <h1 className="text-2xl font-semibold">Insights</h1>
-          <p className="text-muted-foreground">Your report, a study plan for the week and an estimate of your level.</p>
-        </div>
+    <Page area="review" width="xl">
+      <PageHeader
+        title="Insights"
+        description="Your report, a study plan for the week and an estimate of your level."
+      />
 
-        <Panel
+        <Section
           title="Report"
-          subtitle="What went well and what didn’t, compared with the period before"
+          description="What went well and what didn’t, compared with the period before"
           action={
             <nav className="flex rounded-lg border p-0.5" aria-label="Period">
               {REPORT_RANGES.map((key) => (
@@ -52,43 +52,17 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
           ) : (
             <ReportView digest={digest} />
           )}
-        </Panel>
+        </Section>
 
         {digest.totals.messages > 0 && (
-          <Panel title="Study plan" subtitle="What to practice next, based on the report">
+          <Section title="Study plan" description="What to practice next, based on the report">
             <StudyPlan key={range} digest={digest} range={range} initial={getStoredPlan()} />
-          </Panel>
+          </Section>
         )}
 
-        <Panel title="Estimated level (CEFR)" subtitle="A rough estimate from your mistakes and the vocabulary you use">
+        <Section title="Estimated level (CEFR)" description="A rough estimate from your mistakes and the vocabulary you use">
           <LevelCard estimate={level.estimate} evolution={level.evolution} explanation={level.explanation} />
-        </Panel>
-      </div>
-    </div>
-  );
-}
-
-function Panel({
-  title,
-  subtitle,
-  action,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-4 rounded-xl border bg-card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="font-medium">{title}</h2>
-          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
+        </Section>
+    </Page>
   );
 }

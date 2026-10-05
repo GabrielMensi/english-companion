@@ -54,11 +54,11 @@ function Trend({ value }: { value: number | null }) {
     );
   }
   return value < 0 ? (
-    <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+    <span className="flex items-center gap-1 text-mark-right">
       <ArrowDownRight className="size-3.5" /> Improving
     </span>
   ) : (
-    <span className="flex items-center gap-1 text-red-700 dark:text-red-400">
+    <span className="flex items-center gap-1 text-mark-wrong">
       <ArrowUpRight className="size-3.5" /> Getting worse
     </span>
   );

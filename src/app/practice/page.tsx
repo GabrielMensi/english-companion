@@ -2,25 +2,25 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { CustomCategoryPractice, CustomPractice } from "@/components/practice/custom-practice";
 import { StartPracticeButton } from "@/components/practice/start-practice-button";
-import { Badge } from "@/components/ui/badge";
+import { Page, PageHeader, Section } from "@/components/layout/page";
+import { StatusBadge, type Tone } from "@/components/status-badge";
 import { type CategoryTarget, categoryTopic, NOT_PRACTICED } from "@/lib/category-practice";
 import { getPracticeSuggestions } from "@/lib/practice-start";
 import { ERROR_CATEGORIES, TENSE_LABELS } from "@/lib/taxonomy";
 import type { PracticeTarget } from "@/lib/tense-practice";
-import { cn } from "@/lib/utils";
 
-const STATUS: Record<PracticeTarget["status"], { label: string; className: string }> = {
-  weak: { label: "Needs work", className: "bg-red-500/15 text-red-700 dark:text-red-400" },
-  shaky: { label: "Getting there", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
-  avoided: { label: "Rarely used", className: "bg-sky-500/15 text-sky-700 dark:text-sky-400" },
-  not_enough_data: { label: "Few uses, some mistakes", className: "bg-muted text-muted-foreground" },
-  strong: { label: "Strong", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-  suggested: { label: "Suggested", className: "bg-muted text-muted-foreground" },
+const STATUS: Record<PracticeTarget["status"], { label: string; tone: Tone }> = {
+  weak: { label: "Needs work", tone: "bad" },
+  shaky: { label: "Getting there", tone: "warn" },
+  avoided: { label: "Rarely used", tone: "optional" },
+  not_enough_data: { label: "Few uses, some mistakes", tone: "neutral" },
+  strong: { label: "Strong", tone: "good" },
+  suggested: { label: "Suggested", tone: "neutral" },
 };
 
-const CATEGORY_STATUS: Record<CategoryTarget["status"], { label: string; className: string }> = {
-  weak: { label: "Most mistakes", className: "bg-red-500/15 text-red-700 dark:text-red-400" },
-  suggested: { label: "Suggested", className: "bg-muted text-muted-foreground" },
+const CATEGORY_STATUS: Record<CategoryTarget["status"], { label: string; tone: Tone }> = {
+  weak: { label: "Most mistakes", tone: "bad" },
+  suggested: { label: "Suggested", tone: "neutral" },
 };
 
 const EXERCISE_LABELS: Record<PracticeTarget["kind"], string> = {
@@ -36,11 +36,11 @@ export default async function PracticePage() {
   const suggested = targets.every((t) => t.status === "suggested");
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
-        <div>
-          <h1 className="text-2xl font-semibold">Practice</h1>
-          <p className="text-muted-foreground">
+    <Page area="train">
+      <PageHeader
+        title="Practice"
+        description={
+          <>
             Verb tenses and types of mistakes to work on, picked from your{" "}
             <Link href="/dashboard" className="underline underline-offset-2 hover:text-foreground">
               stats
@@ -51,22 +51,24 @@ export default async function PracticePage() {
               flashcards
             </Link>
             .
-          </p>
-        </div>
+          </>
+        }
+      />
 
-        <section className="space-y-3">
-          <h2 className="font-medium">{suggested ? "Suggested for you" : "Your weak spots"}</h2>
-          {suggested && (
-            <p className="text-sm text-muted-foreground">
-              Nothing stands out in your tenses yet (they need a few uses each, and verb mistakes need to be classified).
-              These are common for Spanish speakers.
-            </p>
-          )}
+        <Section
+          framed={false}
+          title={suggested ? "Suggested for you" : "Your weak spots"}
+          description={
+            suggested
+              ? "Nothing stands out in your tenses yet (they need a few uses each, and verb mistakes need to be classified). These are common for Spanish speakers."
+              : undefined
+          }
+        >
           <ul className="space-y-3">
             {targets.map((t) => (
               <li key={`${t.tense}/${t.contrastWith}`} className="space-y-3 rounded-xl border bg-card p-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-medium">
+                  <h3 className="text-base font-semibold">
                     {TENSE_LABELS[t.tense]}
                     {t.contrastWith && (
                       <span className="font-normal text-muted-foreground">
@@ -75,9 +77,7 @@ export default async function PracticePage() {
                       </span>
                     )}
                   </h3>
-                  <Badge variant="secondary" className={cn(STATUS[t.status].className)}>
-                    {STATUS[t.status].label}
-                  </Badge>
+                  <StatusBadge tone={STATUS[t.status].tone}>{STATUS[t.status].label}</StatusBadge>
                 </div>
                 <p className="text-sm text-muted-foreground">{t.reason}</p>
                 <div className="flex flex-wrap gap-2">
@@ -94,24 +94,26 @@ export default async function PracticePage() {
               </li>
             ))}
           </ul>
-        </section>
+        </Section>
 
-        <section className="space-y-3">
-          <h2 className="font-medium">{suggestedCategories ? "Other common mistakes" : "Your weakest areas"}</h2>
-          <p className="text-sm text-muted-foreground">
-            {suggestedCategories
-              ? "Not enough mistakes yet to pick from your stats. These are common for Spanish speakers."
-              : "The types of mistakes you make most often per 100 words (verb tenses are above)."}{" "}
-            Short exercises: fill in the gap, choose the right option and fix the mistake.
-          </p>
+        <Section
+          framed={false}
+          title={suggestedCategories ? "Other common mistakes" : "Your weakest areas"}
+          description={
+            <>
+              {suggestedCategories
+                ? "Not enough mistakes yet to pick from your stats. These are common for Spanish speakers."
+                : "The types of mistakes you make most often per 100 words (verb tenses are above)."}{" "}
+              Short exercises: fill in the gap, choose the right option and fix the mistake.
+            </>
+          }
+        >
           <ul className="space-y-3">
             {categories.map((c) => (
               <li key={`${c.category}/${c.subtype}`} className="space-y-3 rounded-xl border bg-card p-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-medium">{categoryTopic(c)}</h3>
-                  <Badge variant="secondary" className={cn(CATEGORY_STATUS[c.status].className)}>
-                    {CATEGORY_STATUS[c.status].label}
-                  </Badge>
+                  <h3 className="text-base font-semibold">{categoryTopic(c)}</h3>
+                  <StatusBadge tone={CATEGORY_STATUS[c.status].tone}>{CATEGORY_STATUS[c.status].label}</StatusBadge>
                 </div>
                 <p className="text-sm text-muted-foreground">{c.reason}</p>
                 <StartPracticeButton request={{ kind: "category", category: c.category, subtype: c.subtype }}>
@@ -120,29 +122,21 @@ export default async function PracticePage() {
               </li>
             ))}
           </ul>
-        </section>
+        </Section>
 
-        <section className="space-y-3 rounded-xl border bg-card p-5">
-          <div>
-            <h2 className="font-medium">Practice any tense</h2>
-            <p className="text-sm text-muted-foreground">
-              Contrast exercises mix two tenses; form drills practice building one; “use it” and conversation make you
-              use a tense you rarely write.
-            </p>
-          </div>
+        <Section
+          title="Practice any tense"
+          description="Contrast exercises mix two tenses; form drills practice building one; “use it” and conversation make you use a tense you rarely write."
+        >
           <CustomPractice />
-        </section>
+        </Section>
 
-        <section className="space-y-3 rounded-xl border bg-card p-5">
-          <div>
-            <h2 className="font-medium">Practice any type of mistake</h2>
-            <p className="text-sm text-muted-foreground">
-              Exercises for any category, using your own mistakes in it as material.
-            </p>
-          </div>
+        <Section
+          title="Practice any type of mistake"
+          description="Exercises for any category, using your own mistakes in it as material."
+        >
           <CustomCategoryPractice categories={ERROR_CATEGORIES.filter((c) => !NOT_PRACTICED.includes(c))} />
-        </section>
-      </div>
-    </div>
+        </Section>
+    </Page>
   );
 }

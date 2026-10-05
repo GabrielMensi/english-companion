@@ -56,7 +56,7 @@ export function AsrRecorder({ samples, initialRecorded }: { samples: AsrSample[]
             <li key={s.id} className={cn("flex flex-col gap-2 p-4", active && "bg-muted/40")}>
               <div className="flex items-start gap-3">
                 {recorded.has(s.id) ? (
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Recorded" />
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-mark-right" aria-label="Recorded" />
                 ) : (
                   <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-label="Not recorded" />
                 )}
@@ -97,7 +97,7 @@ function highlight(text: string, mistake: string) {
   return (
     <>
       {text.slice(0, at)}
-      <span className="underline decoration-red-500/70 decoration-wavy underline-offset-4">
+      <span className="underline decoration-mark-wrong/70 decoration-wavy underline-offset-4">
         {text.slice(at, at + mistake.length)}
       </span>
       {text.slice(at + mistake.length)}

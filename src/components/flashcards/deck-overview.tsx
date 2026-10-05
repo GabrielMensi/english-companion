@@ -112,8 +112,8 @@ function Deck({
       ) : (
         <>
           <div className="flex gap-6">
-            <Count label="Due" value={counts.due} className="text-amber-700 dark:text-amber-400" />
-            <Count label="New" value={counts.new} className="text-sky-700 dark:text-sky-400" />
+            <Count label="Due" value={counts.due} />
+            <Count label="New" value={counts.new} />
             <Count label="Learned" value={counts.learned} />
           </div>
           <div className="mt-auto flex items-center justify-between gap-2 pt-1">
@@ -135,10 +135,10 @@ function Deck({
   );
 }
 
-function Count({ label, value, className }: { label: string; value: number; className?: string }) {
+function Count({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <div className={cn("text-2xl font-semibold tabular-nums", value > 0 && className)}>{value}</div>
+      <div className={cn("text-2xl font-semibold tabular-nums", value === 0 && "text-muted-foreground")}>{value}</div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );

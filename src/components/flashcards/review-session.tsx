@@ -36,16 +36,16 @@ import { categoryLabel, subtypeLabel, tenseLabel } from "@/lib/taxonomy";
 import { cn } from "@/lib/utils";
 
 const GRADE_STYLES: Record<Grade, string> = {
-  again: "border-red-500/40 hover:bg-red-500/10",
-  hard: "border-amber-500/40 hover:bg-amber-500/10",
-  good: "border-emerald-500/40 hover:bg-emerald-500/10",
-  easy: "border-sky-500/40 hover:bg-sky-500/10",
+  again: "border-sev-major/40 hover:bg-sev-major/10",
+  hard: "border-sev-minor/50 hover:bg-sev-minor/10",
+  good: "border-mark-right/40 hover:bg-mark-right/10",
+  easy: "border-mark-right/70 hover:bg-mark-right/15",
 };
 
 const MATCH_STYLES: Record<AnswerMatch, { label: string; className: string }> = {
-  exact: { label: "Correct", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-  close: { label: "Almost: check the spelling", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
-  wrong: { label: "Different from the answer", className: "bg-red-500/15 text-red-700 dark:text-red-400" },
+  exact: { label: "Correct", className: "bg-mark-right/12 text-mark-right" },
+  close: { label: "Almost: check the spelling", className: "bg-sev-minor/18 text-sev-minor-text" },
+  wrong: { label: "Different from the answer", className: "bg-sev-major/12 text-sev-major-text" },
 };
 
 export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQueue: QueuedCard[] }) {
@@ -316,7 +316,7 @@ function ExerciseBack({ card }: { card: ExerciseCard }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1">
-        <span className="text-xl font-medium text-emerald-700 dark:text-emerald-400">{card.answer}</span>
+        <span className="text-xl font-medium text-mark-right">{card.answer}</span>
         <SpeakButton text={card.answer} />
       </div>
       {card.why && <p className="text-sm">{card.why}</p>}
@@ -395,7 +395,7 @@ function MistakeBack({ card }: { card: MistakeCard }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-1">
-        <span className="text-xl font-medium text-emerald-700 dark:text-emerald-400">{card.correction}</span>
+        <span className="text-xl font-medium text-mark-right">{card.correction}</span>
         <SpeakButton text={card.correction} />
       </div>
       <p className="text-sm">{card.explanation}</p>
@@ -440,8 +440,8 @@ function Marked({ text, terms, tone }: { text: string; terms: string[]; tone: "g
           className={cn(
             "rounded-sm px-0.5",
             tone === "good"
-              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-              : "bg-red-500/15 text-red-700 dark:text-red-400",
+              ? "bg-mark-right/12 text-mark-right"
+              : "bg-sev-major/12 text-sev-major-text",
           )}
         >
           {text.slice(i, i + term.length)}

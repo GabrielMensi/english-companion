@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Hanken_Grotesk, Newsreader } from "next/font/google";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { ThemeProvider } from "next-themes";
@@ -11,14 +11,18 @@ import { listSessions } from "@/lib/chat";
 import { SIDEBAR_COOKIE } from "@/lib/sidebar";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/** The app's own voice: navigation, labels, buttons, numbers. */
+const uiFont = Hanken_Grotesk({
+  variable: "--font-ui",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+/** The learner's English: messages, corrections, exercises and flashcards. */
+const readingFont = Newsreader({
+  variable: "--font-reading",
   subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["opsz"],
 });
 
 export const metadata: Metadata = {
@@ -35,7 +39,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${uiFont.variable} ${readingFont.variable} h-full antialiased`}
     >
       <body className="flex h-full overflow-hidden">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>

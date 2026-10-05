@@ -23,7 +23,7 @@ export function UserMessage({
   return (
     <div className="flex flex-col gap-2">
       <div className="max-w-[85%] self-end rounded-2xl rounded-br-sm bg-primary px-4 py-2.5 text-primary-foreground">
-        <p className="leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        <p className="font-serif text-reading whitespace-pre-wrap">{message.content}</p>
       </div>
       {message.inputMode === "spoken" && (
         <div

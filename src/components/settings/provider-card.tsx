@@ -91,7 +91,7 @@ export function ProviderCard({
 export function TestResult({ test, compact = false }: { test: TestState | undefined; compact?: boolean }) {
   if (test?.status === "ok") {
     return (
-      <span className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+      <span className="flex items-center gap-1.5 text-sm text-mark-right">
         <CheckCircle2 className="size-4 shrink-0" /> {compact ? "" : "Working "}({(test.ms / 1000).toFixed(1)}s)
       </span>
     );

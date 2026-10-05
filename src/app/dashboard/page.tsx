@@ -9,6 +9,7 @@ import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { TensePanel } from "@/components/dashboard/tense-panel";
 import { TimelineChart } from "@/components/dashboard/timeline-chart";
 import { TopMistakes } from "@/components/dashboard/top-mistakes";
+import { Page, PageHeader, Section, SectionLink } from "@/components/layout/page";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { getClassificationStatus } from "@/lib/classification";
 import { getReviewDashboard } from "@/lib/review-stats";
@@ -33,17 +34,17 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   };
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-5xl space-y-6 px-6 py-8">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold">Dashboard</h1>
-            <p className="text-muted-foreground">
+    <Page area="review" width="2xl">
+        <PageHeader
+          title="Dashboard"
+          description={
+            <>
               Where you’re strong, where you’re weak and what to practice next.
               {!countTypos && " Typos don’t count as mistakes."}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+            </>
+          }
+          actions={
+            <>
             {hasSpoken && (
               <nav className="flex rounded-lg border p-0.5" aria-label="Written or spoken">
                 {INPUT_FILTERS.map((key) => (
@@ -74,8 +75,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 </Link>
               ))}
             </nav>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         {hasSpoken && input !== "typed" && (
           <p className="text-sm text-muted-foreground">
@@ -96,39 +98,35 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <StatTiles totals={stats.totals} />
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <Panel title="Areas to work on" subtitle="Mistakes by category and severity">
+              <Section title="Areas to work on" description="Mistakes by category and severity">
                 <CategoryChart categories={stats.categories.filter((c) => c.count > 0)} />
-              </Panel>
-              <Panel title="Progress" subtitle="Mistakes per 100 words">
+              </Section>
+              <Section title="Progress" description="Mistakes per 100 words">
                 <TimelineChart data={stats.timeline} />
-              </Panel>
+              </Section>
             </div>
 
-            <Panel
+            <Section
               title="Verb tenses"
-              subtitle="How often you needed each tense and how often you got it right"
+              description="How often you needed each tense and how often you got it right"
               action={
-                <Link href="/practice" className="text-sm text-muted-foreground hover:text-foreground">
-                  Practice →
-                </Link>
+                <SectionLink href="/practice">Practice tenses</SectionLink>
               }
             >
               <TensePanel stats={tenses} />
-            </Panel>
+            </Section>
 
             {hasSpoken && input !== "typed" && (
-              <Panel title="Fluency" subtitle="How you speak when you dictate: pace, long pauses and filler words">
+              <Section title="Fluency" description="How you speak when you dictate: pace, long pauses and filler words">
                 <FluencyPanel stats={fluency} />
-              </Panel>
+              </Section>
             )}
 
-            <Panel
+            <Section
               title="Vocabulary"
-              subtitle="Words you looked up with [brackets] in this period"
+              description="Words you looked up with [brackets] in this period"
               action={
-                <Link href="/vocabulary" className="text-sm text-muted-foreground hover:text-foreground">
-                  See all →
-                </Link>
+                <SectionLink href="/vocabulary">See all words</SectionLink>
               }
             >
               {vocabulary.length === 0 ? (
@@ -152,61 +150,33 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                   )}
                 </ul>
               )}
-            </Panel>
+            </Section>
 
-            <Panel
+            <Section
               title="By category"
-              subtitle="Trend compared with the previous period of the same length"
+              description="Trend compared with the previous period of the same length"
             >
               <CategoryTable categories={stats.categories} />
-            </Panel>
+            </Section>
 
-            <Panel title="Most frequent mistakes" subtitle="With the most recent example">
+            <Section title="Most frequent mistakes" description="With the most recent example">
               <TopMistakes mistakes={stats.topMistakes} />
-            </Panel>
+            </Section>
 
           </>
         )}
 
         {(reviews.totalCards > 0 || reviews.stats.since !== null) && (
-          <Panel
+          <Section
             title="Flashcards"
-            subtitle="Cards due, and how your reviews went in this period"
+            description="Cards due, and how your reviews went in this period"
             action={
-              <Link href="/flashcards" className="text-sm text-muted-foreground hover:text-foreground">
-                Study →
-              </Link>
+              <SectionLink href="/flashcards">Study cards</SectionLink>
             }
           >
             <ReviewPanel data={reviews} />
-          </Panel>
+          </Section>
         )}
-      </div>
-    </div>
-  );
-}
-
-function Panel({
-  title,
-  subtitle,
-  action,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-4 rounded-xl border bg-card p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-medium">{title}</h2>
-          {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
+    </Page>
   );
 }
