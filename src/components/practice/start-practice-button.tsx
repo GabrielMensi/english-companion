@@ -7,14 +7,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { Session } from "@/db/schema";
 import { api } from "@/lib/api";
-import type { Tense } from "@/lib/taxonomy";
+import type { ErrorCategory, Tense } from "@/lib/taxonomy";
 import type { ExerciseKind } from "@/lib/tense-practice";
 
-export interface StartPracticeRequest {
-  kind: ExerciseKind | "conversation";
-  tense: Tense;
-  contrastWith: Tense | null;
-}
+export type StartPracticeRequest =
+  | { kind: ExerciseKind | "conversation"; tense: Tense; contrastWith: Tense | null }
+  | { kind: "category"; category: ErrorCategory; subtype: string | null };
 
 /** Creates a practice chat and opens it. Generating exercises can take a while with local models. */
 export function StartPracticeButton({

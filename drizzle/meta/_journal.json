@@ -71,6 +71,13 @@
       "when": 1790909442259,
       "tag": "0009_flashcards_upkeep",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790982052013,
+      "tag": "0010_missed_exercises",
+      "breakpoints": true
     }
   ]
 }

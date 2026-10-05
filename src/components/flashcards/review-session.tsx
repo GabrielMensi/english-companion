@@ -26,6 +26,7 @@ import {
   type AnswerMatch,
   type CardKind,
   checkAnswer,
+  type ExerciseCard,
   type MistakeCard,
   type QueuedCard,
   type VocabularyCard,
@@ -61,7 +62,9 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
 
   const current = queue[0];
   const accepted = current ? acceptedAnswers(current.card) : [];
-  const match = revealedAt !== null ? checkAnswer(typed, accepted) : null;
+  const rawMatch = revealedAt !== null ? checkAnswer(typed, accepted) : null;
+  // Exercises hinge on one small word (in / on, a / an): one letter off is a different answer, not a typo.
+  const match = rawMatch === "close" && current?.card.kind === "exercise" ? "wrong" : rawMatch;
   const previews = revealedAt !== null && current ? previewIntervals(current.state ?? newReviewState(revealedAt), revealedAt) : null;
 
   function reveal() {
@@ -176,7 +179,7 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
                 <PauseCircle /> Suspend card
               </DropdownMenuItem>
               <DropdownMenuItem variant="destructive" onSelect={() => setConfirmDelete(true)}>
-                <Trash2 /> {card.kind === "vocabulary" ? "Delete word…" : "Delete mistake…"}
+                <Trash2 /> {card.kind === "vocabulary" ? "Delete word…" : card.kind === "exercise" ? "Delete exercise…" : "Delete mistake…"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -186,11 +189,19 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{card.kind === "vocabulary" ? "Delete this word?" : "Delete this mistake?"}</DialogTitle>
+            <DialogTitle>
+              {card.kind === "vocabulary"
+                ? "Delete this word?"
+                : card.kind === "exercise"
+                  ? "Delete this exercise?"
+                  : "Delete this mistake?"}
+            </DialogTitle>
             <DialogDescription>
               {card.kind === "vocabulary"
                 ? "Every lookup of the word is deleted, also from the Vocabulary page."
-                : "Its corrections are deleted from your chats and stop counting in the dashboard. Use it for corrections that were wrong."}{" "}
+                : card.kind === "exercise"
+                  ? "The missed item is deleted; the practice chat and its corrections stay. Use it for exercises that were wrong or not worth reviewing."
+                  : "Its corrections are deleted from your chats and stop counting in the dashboard. Use it for corrections that were wrong."}{" "}
               To just stop reviewing it, suspend the card instead.
             </DialogDescription>
           </DialogHeader>
@@ -211,6 +222,8 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
       <div className="space-y-5 rounded-xl border bg-card p-6">
         {card.kind === "vocabulary" ? (
           <VocabularyFront card={card} showHint={showHint} onHint={() => setShowHint(true)} />
+        ) : card.kind === "exercise" ? (
+          <ExerciseFront card={card} />
         ) : (
           <MistakeFront card={card} showHint={showHint} onHint={() => setShowHint(true)} />
         )}
@@ -228,7 +241,13 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             readOnly={revealed}
-            placeholder={card.kind === "vocabulary" ? "Type it in English (optional)" : "Type the correct version (optional)"}
+            placeholder={
+              card.kind === "vocabulary"
+                ? "Type it in English (optional)"
+                : card.kind === "exercise"
+                  ? "Type your answer (optional)"
+                  : "Type the correct version (optional)"
+            }
             aria-label="Your answer"
             autoComplete="off"
             spellCheck={false}
@@ -243,7 +262,13 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
                 {MATCH_STYLES[match].label}
               </span>
             )}
-            {card.kind === "vocabulary" ? <VocabularyBack card={card} /> : <MistakeBack card={card} />}
+            {card.kind === "vocabulary" ? (
+              <VocabularyBack card={card} />
+            ) : card.kind === "exercise" ? (
+              <ExerciseBack card={card} />
+            ) : (
+              <MistakeBack card={card} />
+            )}
           </div>
         )}
       </div>
@@ -273,8 +298,35 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
   );
 }
 
-function acceptedAnswers(card: VocabularyCard | MistakeCard): string[] {
+function acceptedAnswers(card: VocabularyCard | MistakeCard | ExerciseCard): string[] {
+  if (card.kind === "exercise") return card.accepted;
   return card.kind === "vocabulary" ? card.english : [card.correction, card.fixedSentence];
+}
+
+function ExerciseFront({ card }: { card: ExerciseCard }) {
+  return (
+    <div className="space-y-3">
+      <div className="text-sm text-muted-foreground">Exercise · {card.topic}</div>
+      <div className="text-2xl font-semibold">{card.sentence}</div>
+    </div>
+  );
+}
+
+function ExerciseBack({ card }: { card: ExerciseCard }) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-1">
+        <span className="text-xl font-medium text-emerald-700 dark:text-emerald-400">{card.answer}</span>
+        <SpeakButton text={card.answer} />
+      </div>
+      {card.why && <p className="text-sm">{card.why}</p>}
+      {card.sessionId ? (
+        <SourceSentence sessionId={card.sessionId}>You wrote: {card.learnerAnswer}</SourceSentence>
+      ) : (
+        <p className="text-sm text-muted-foreground italic">You wrote: {card.learnerAnswer}</p>
+      )}
+    </div>
+  );
 }
 
 function VocabularyFront({ card, showHint, onHint }: { card: VocabularyCard; showHint: boolean; onHint: () => void }) {

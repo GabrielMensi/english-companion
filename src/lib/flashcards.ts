@@ -7,6 +7,7 @@ import {
   type Card,
   type CardKind,
   deckCounts,
+  type ExerciseCard,
   filterMistakes,
   matchesFilter,
   type MistakeCard,
@@ -17,6 +18,7 @@ import {
   vocabularyCards,
 } from "@/lib/flashcards-core";
 import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
+import { loadExerciseCards } from "@/lib/missed-exercises";
 import { getSettings } from "@/lib/settings";
 import { type Grade, newReviewState, type ReviewState, schedule } from "@/lib/srs";
 import { categoryLabel, countsInStats, subtypeLabel, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
@@ -82,6 +84,11 @@ export function getMistakeDeck(filter: MistakeFilter = {}): QueuedCard<MistakeCa
   return withStates(filterMistakes(loadMistakeCards(), filter), "mistake");
 }
 
+/** Exercise items missed in Practice, newest first. */
+export function getExerciseDeck(): QueuedCard<ExerciseCard>[] {
+  return withStates(loadExerciseCards(), "exercise");
+}
+
 export interface FilterOption {
   filter: MistakeFilter;
   label: string;
@@ -125,6 +132,7 @@ export function getFlashcardsOverview() {
     newLimit,
     vocabulary: deckCounts(getVocabularyDeck(), now),
     mistakes: deckCounts(mistakes, now),
+    exercises: deckCounts(getExerciseDeck(), now),
     tenses,
     categories,
   };
@@ -133,6 +141,7 @@ export function getFlashcardsOverview() {
 export function getStudyQueue(kind: CardKind, filter: MistakeFilter = {}): QueuedCard[] {
   const now = Date.now();
   const { newCardsPerSession } = getSettings();
+  if (kind === "exercise") return buildQueue(getExerciseDeck(), now, newCardsPerSession);
   return kind === "vocabulary"
     ? buildQueue(getVocabularyDeck(), now, newCardsPerSession)
     : buildQueue(getMistakeDeck(filter), now, newCardsPerSession);
