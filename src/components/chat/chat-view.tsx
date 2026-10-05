@@ -8,13 +8,12 @@ import { toast } from "sonner";
 import { preloadSpeech, speak, stopSpeaking, useSpeechSupported, useVoiceMode } from "@/components/audio/speech";
 import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AssistantMessage } from "@/components/chat/assistant-message";
+import { ChatMenu, type ModelOption, ModeSwitch } from "@/components/chat/chat-controls";
 import { Composer, type Notify, useComposer } from "@/components/chat/composer";
 import { MiniChat, type Notice } from "@/components/chat/mini-chat";
-import { type ModelOption, ModelSelect } from "@/components/chat/model-select";
 import { UserMessage } from "@/components/chat/user-message";
 import { usePipWindow } from "@/components/pip/use-pip-window";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SessionMode } from "@/db/schema";
 import type { AnalysisPreview } from "@/lib/ai/analysis";
 import type { ProviderId } from "@/lib/ai/provider-info";
@@ -213,6 +212,11 @@ export function ChatView({
     setVoiceMode(!voiceMode);
   }
 
+  function togglePip() {
+    if (pipWindow) closePip();
+    else openPip().catch((error: Error) => toast.error(`Couldn't open the floating window: ${error.message}`));
+  }
+
   function updateMessage(updated: Partial<ChatMessage> & { id: string }) {
     setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)));
   }
@@ -229,9 +233,9 @@ export function ChatView({
 
   return (
     <div data-area="write" className="flex h-full flex-col">
-      <header className="flex items-center justify-between gap-4 border-b px-6 py-2.5">
+      <header className="flex items-center justify-between gap-4 border-b px-6 py-2">
         <h1 className="truncate font-medium">{session.title}</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {mode === "conversation" && speechSupported && (
             <Button
               variant={voiceConversation ? "secondary" : "ghost"}
@@ -249,35 +253,13 @@ export function ChatView({
               Voice
             </Button>
           )}
-          {pip.supported && (
-            <Button
-              variant={pipWindow ? "secondary" : "ghost"}
-              size="icon-sm"
-              onClick={() =>
-                pipWindow
-                  ? closePip()
-                  : openPip().catch((error: Error) => toast.error(`Couldn't open the floating window: ${error.message}`))
-              }
-              aria-label={pipWindow ? "Bring the composer back" : "Pop out"}
-              title={
-                pipWindow
-                  ? "Bring the composer back to the tab (Alt+P)"
-                  : "Pop out: a floating window to write or dictate while you work in other apps (Alt+P)"
-              }
-            >
-              <PictureInPicture2 />
-            </Button>
-          )}
-          <ModelSelect key={selectedProvider} options={models} selected={selectedProvider} />
-          <Select value={mode} onValueChange={(v) => changeMode(v as SessionMode)}>
-            <SelectTrigger size="sm" className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="correction">Correction</SelectItem>
-              <SelectItem value="conversation">Conversation</SelectItem>
-            </SelectContent>
-          </Select>
+          <ModeSwitch value={mode} onChange={changeMode} />
+          <ChatMenu
+            key={selectedProvider}
+            models={models}
+            selected={selectedProvider}
+            pip={pip.supported ? { open: Boolean(pipWindow), toggle: togglePip } : null}
+          />
         </div>
       </header>
 
