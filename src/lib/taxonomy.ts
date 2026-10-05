@@ -401,3 +401,69 @@ export function countsInStats(
 ): boolean {
   return countsAsMistake(c.severity, countTypos) && isMeasurable(c.category, c.inputMode);
 }
+
+/**
+ * Fixed pronunciation taxonomy, for Spanish speakers (see docs/VOICE.md, Phase 3).
+ * Assigned by rules from read-aloud attempts (`src/lib/pronunciation-core.ts`),
+ * never by a model. Only sounds a transcript can reveal are here: word stress and
+ * schwa reduction don't change which word speech-to-text hears.
+ */
+export const PRONUNCIATION_CATEGORIES = [
+  "vowel_length",
+  "vowel_quality",
+  "th_sounds",
+  "b_v",
+  "h_j_sounds",
+  "initial_s_cluster",
+  "final_consonants",
+  "other",
+] as const;
+
+export type PronunciationCategory = (typeof PRONUNCIATION_CATEGORIES)[number];
+
+export const PRONUNCIATION_LABELS: Record<PronunciationCategory, string> = {
+  vowel_length: "Long and short vowels",
+  vowel_quality: "Vowel sounds",
+  th_sounds: "Th sounds",
+  b_v: "B and V",
+  h_j_sounds: "H, Y and J",
+  initial_s_cluster: "S at the start (st-, sp-)",
+  final_consonants: "Final consonants (-ed, -s)",
+  other: "Other",
+};
+
+/** How to fix each sound, in the explanation language. */
+export const PRONUNCIATION_TIPS: Record<PronunciationCategory, Record<"es" | "en", string>> = {
+  vowel_length: {
+    es: "La /iː/ de sheep es larga y tensa, con los labios estirados como al sonreír; la /ɪ/ de ship es corta y relajada, entre una i y una e. Lo mismo con /uː/ (fool) y /ʊ/ (full).",
+    en: "The /iː/ in sheep is long and tense, lips spread as in a smile; the /ɪ/ in ship is short and relaxed, between an i and an e. The same goes for /uː/ (fool) and /ʊ/ (full).",
+  },
+  vowel_quality: {
+    es: "El inglés tiene muchas más vocales que el español. La /ʌ/ de bug es una a corta con la boca poco abierta; la /æ/ de cat, una a con la boca bien abierta hacia los costados; la /ɔ/ de call, una o abierta y larga.",
+    en: "English has many more vowels than Spanish. The /ʌ/ in bug is a short a with the mouth barely open; the /æ/ in cat is an a with the mouth wide open to the sides; the /ɔ/ in call is an open, long o.",
+  },
+  th_sounds: {
+    es: "Poné la punta de la lengua entre los dientes y soplá: sin voz para think (/θ/, como la z de España), con voz para this (/ð/). No es t, d ni s.",
+    en: "Put the tip of your tongue between your teeth and blow: voiceless for think (/θ/), voiced for this (/ð/). It isn't a t, a d or an s.",
+  },
+  b_v: {
+    es: "En inglés la v no es una b: apoyá los dientes de arriba sobre el labio de abajo y hacé vibrar (very, vote). La b se hace con los dos labios (berry, boat).",
+    en: "In English, v isn't b: rest your top teeth on your bottom lip and let it buzz (very, vote). B is made with both lips (berry, boat).",
+  },
+  h_j_sounds: {
+    es: "La h inglesa es solo aire, suave, sin la fricción de la jota (hello, hate). No la saques: hate no es ate. La y de yes es una i rápida, no una ll ni una j (yes, no jess).",
+    en: "The English h is just a soft breath, without the friction of the Spanish j (hello, hate). Don't drop it: hate isn't ate. The y in yes is a quick i, not a j (yes, not jess).",
+  },
+  initial_s_cluster: {
+    es: "No agregues una e antes de s + consonante: student, no estudent; speak, no espeak. Empezá con una s larga (ssstudent) y pasá directo a la consonante.",
+    en: "Don't add an e before s + consonant: student, not estudent; speak, not espeak. Start with a long s (ssstudent) and go straight into the consonant.",
+  },
+  final_consonants: {
+    es: "Pronunciá la consonante final: worked termina en /t/ (workt), wanted en /ɪd/, cats en /s/. En español casi ninguna palabra termina así, por eso se pierde o se cambia (bed / bet).",
+    en: "Say the final consonant: worked ends in /t/ (workt), wanted in /ɪd/, cats in /s/. Few Spanish words end like this, so it gets dropped or changed (bed / bet).",
+  },
+  other: {
+    es: "Se escuchó otra palabra. Escuchá la oración, repetila más despacio y fijate en qué sonido cambia.",
+    en: "A different word was heard. Listen to the sentence, say it more slowly and notice which sound changes.",
+  },
+};

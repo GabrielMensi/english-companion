@@ -5,7 +5,7 @@ import type { CardKind } from "@/lib/flashcards-core";
 import type { Grade } from "@/lib/srs";
 import type { FluencyMetrics } from "@/lib/fluency";
 import type { TenseCounts } from "@/lib/tenses-core";
-import type { ErrorCategory, Severity, Tense } from "@/lib/taxonomy";
+import type { ErrorCategory, PronunciationCategory, Severity, Tense } from "@/lib/taxonomy";
 
 export type SessionMode = "correction" | "conversation";
 export type MessageRole = "user" | "assistant";
@@ -14,6 +14,8 @@ export type MessageStatus = "pending" | "done" | "error";
 export type InputMode = "typed" | "spoken";
 /** Fine classification of a correction, done later by the deferred classifier. */
 export type ClassificationStatus = "pending" | "done" | "failed" | "skipped";
+/** Where a read-aloud sentence came from: the built-in sound sets, the learner's corrections or vocabulary. */
+export type ReadAloudSource = "sounds" | "correction" | "vocabulary";
 
 const createdAt = () =>
   integer("created_at", { mode: "timestamp_ms" })
@@ -205,6 +207,52 @@ export const reviewLog = sqliteTable(
   (t) => [index("review_log_reviewed_idx").on(t.reviewedAt)],
 );
 
+/**
+ * One read-aloud attempt: the learner read `text` and speech-to-text heard
+ * `transcript`. Scored without AI (src/lib/pronunciation-core.ts). The audio is
+ * never kept.
+ */
+export const readAloudAttempts = sqliteTable(
+  "read_aloud_attempts",
+  {
+    id: text("id").primaryKey(),
+    source: text("source").$type<ReadAloudSource>().notNull(),
+    /** The message or vocabulary row the sentence came from (not a foreign key: attempts outlive them). */
+    sourceId: text("source_id"),
+    /** For built-in sentences: the sound they practice. */
+    focus: text("focus").$type<PronunciationCategory>(),
+    text: text("text").notNull(),
+    transcript: text("transcript").notNull(),
+    correctWords: integer("correct_words").notNull(),
+    totalWords: integer("total_words").notNull(),
+    audioDurationMs: integer("audio_duration_ms"),
+    transcriptionProvider: text("transcription_provider"),
+    transcriptionModel: text("transcription_model"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("read_aloud_attempts_created_idx").on(t.createdAt)],
+);
+
+/** A word heard differently in a read-aloud attempt, with its pronunciation category. */
+export const pronunciationIssues = sqliteTable(
+  "pronunciation_issues",
+  {
+    id: text("id").primaryKey(),
+    attemptId: text("attempt_id")
+      .notNull()
+      .references(() => readAloudAttempts.id, { onDelete: "cascade" }),
+    /** The word(s) as written in the sentence... */
+    expected: text("expected").notNull(),
+    /** ...and what speech-to-text heard. */
+    heard: text("heard").notNull(),
+    category: text("category").$type<PronunciationCategory>().notNull(),
+    /** The sound that changed, in IPA ("/ɪ/ → /iː/"). */
+    detail: text("detail"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("pronunciation_issues_attempt_idx").on(t.attemptId), index("pronunciation_issues_created_idx").on(t.createdAt)],
+);
+
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).notNull(),
@@ -235,3 +283,5 @@ export type VocabularyEntry = typeof vocabulary.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type MissedExercise = typeof missedExercises.$inferSelect;
 export type ReviewLogEntry = typeof reviewLog.$inferSelect;
+export type ReadAloudAttempt = typeof readAloudAttempts.$inferSelect;
+export type PronunciationIssueRow = typeof pronunciationIssues.$inferSelect;
