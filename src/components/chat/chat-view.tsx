@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
-import { speak, stopSpeaking, useSpeechSupported, useVoiceMode } from "@/components/audio/speech";
+import { preloadSpeech, speak, stopSpeaking, useSpeechSupported, useVoiceMode } from "@/components/audio/speech";
 import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AssistantMessage } from "@/components/chat/assistant-message";
 import { Composer, type Notify, useComposer } from "@/components/chat/composer";
@@ -27,12 +27,15 @@ export function ChatView({
   models,
   selectedProvider,
   canDictate,
+  answerTemplate = null,
 }: {
   session: SessionSummary;
   initialMessages: ChatMessage[];
   models: ModelOption[];
   selectedProvider: ProviderId;
   canDictate: boolean;
+  /** In an exercise chat waiting for the answers to its set: numbered lines to fill in. */
+  answerTemplate?: string | null;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
@@ -63,9 +66,17 @@ export function ChatView({
     canDictate,
     autoSend: voiceConversation,
     keyWindow: pip.window,
+    initialText: answerTemplate ?? "",
+    // Until the set is answered, the answers go on several lines.
+    multiline: answerTemplate !== null && !messages.some((m) => m.role === "user"),
   });
   const lastSent = messages.findLast((m) => m.role === "user");
   const reply = lastSent && messages.find((m) => m.replyToId === lastSent.id);
+
+  // With Kokoro, voice mode loads the model right away so the first reply isn't kept waiting.
+  useEffect(() => {
+    if (voiceConversation) preloadSpeech();
+  }, [voiceConversation]);
 
   // Info notices go away on their own; errors stay until dismissed or replaced.
   useEffect(() => {

@@ -9,6 +9,7 @@ import type { HistoryTurn } from "@/lib/ai/analysis";
 import { improvePrompt } from "@/lib/ai/improve-prompt";
 import { withChatPriority } from "@/lib/classification";
 import { deletePractice, exerciseReplyFor, getPractice, practiceReplyRule } from "@/lib/practice";
+import { recordExerciseResult } from "@/lib/missed-exercises";
 import { getSettings } from "@/lib/settings";
 import { countWords, makeTitle } from "@/lib/text";
 import type { ChatMessage, VoiceInput } from "@/lib/types";
@@ -116,7 +117,7 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
   if (!session) throw new Error("Chat not found");
 
   const settings = getSettings();
-  // Tense practice chats (see src/lib/practice.ts): steered follow-up questions, or exercise feedback.
+  // Practice chats (see src/lib/practice.ts): steered follow-up questions, or exercise feedback.
   const practice = getPractice(session.id);
 
   try {
@@ -135,9 +136,9 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
       ),
     );
     const durationMs = Date.now() - started;
-    const exerciseReply = exerciseReplyFor(practice, message);
-    const reply = exerciseReply
-      ? { content: exerciseReply, provider: null, model: null, durationMs: null }
+    const exercise = exerciseReplyFor(practice, message, analysis.errors);
+    const reply = exercise
+      ? { content: exercise.text, provider: null, model: null, durationMs: null }
       : analysis.reply && { content: analysis.reply, provider, model: modelId, durationMs };
 
     db.transaction((tx) => {
@@ -194,6 +195,8 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
           .run();
       }
     });
+    // Missed exercise items go to the "Missed exercises" flashcard deck.
+    if (exercise) recordExerciseResult(message.sessionId, exercise);
   } catch (error) {
     db.update(schema.messages)
       .set({ status: "error", errorMessage: errorToMessage(error) })

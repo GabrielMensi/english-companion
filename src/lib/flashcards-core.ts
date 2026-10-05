@@ -1,7 +1,7 @@
 /**
- * Pure flashcard logic shared by both decks: vocabulary (words looked up with
- * [brackets], Spanish → English) and mistakes (real corrections, original →
- * correction). Scheduling lives in `srs.ts`; review state is stored per card
+ * Pure flashcard logic shared by the decks: vocabulary (words looked up with
+ * [brackets], Spanish → English), mistakes (real corrections, original →
+ * correction) and missed exercises (items got wrong in Practice). Scheduling lives in `srs.ts`; review state is stored per card
  * in the `reviews` table, keyed by (kind, card key).
  */
 
@@ -9,7 +9,7 @@ import type { ReviewState } from "@/lib/srs";
 import type { ErrorCategory, Tense } from "@/lib/taxonomy";
 import type { VocabularyWord } from "@/lib/vocabulary-core";
 
-export const CARD_KINDS = ["vocabulary", "mistake"] as const;
+export const CARD_KINDS = ["vocabulary", "mistake", "exercise"] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
 
 export interface VocabularyCard {
@@ -42,7 +42,26 @@ export interface MistakeCard {
   lastSeen: number;
 }
 
-export type Card = VocabularyCard | MistakeCard;
+/** An exercise item the learner got wrong in Practice (see the `missed_exercises` table). */
+export interface ExerciseCard {
+  kind: "exercise";
+  key: string;
+  /** The exercise as shown in the practice chat. */
+  sentence: string;
+  answer: string;
+  why: string;
+  /** What the learner wrote back then. */
+  learnerAnswer: string;
+  /** What was practiced: "Present perfect vs past simple", "Prepositions"... */
+  topic: string;
+  /** Answers the typed answer is compared with: the sentence, or just what fills the gaps. */
+  accepted: string[];
+  /** The practice chat, unless it was deleted. */
+  sessionId: string | null;
+  missedAt: number;
+}
+
+export type Card = VocabularyCard | MistakeCard | ExerciseCard;
 
 /** A card with its review state; `state` is null for cards never reviewed. */
 export interface QueuedCard<C extends Card = Card> {

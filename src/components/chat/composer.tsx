@@ -37,6 +37,8 @@ export function useComposer({
   canDictate = false,
   autoSend = false,
   keyWindow,
+  initialText = "",
+  multiline = false,
 }: {
   onSend: (text: string, voice?: VoiceInput) => Promise<boolean>;
   disabled: boolean;
@@ -47,8 +49,12 @@ export function useComposer({
   autoSend?: boolean;
   /** Another window whose keys also trigger push-to-talk (the floating window). */
   keyWindow?: Window | null;
+  /** A starting draft, like the numbered lines to answer an exercise set. */
+  initialText?: string;
+  /** Answers on several lines: Enter adds a line and Ctrl+Enter sends. */
+  multiline?: boolean;
 }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const [dictation, setDictation] = useState<Dictation | null>(null);
   const [transcribing, setTranscribing] = useState(false);
   const recorder = useRecorder();
@@ -140,6 +146,7 @@ export function useComposer({
     text,
     edit,
     submit,
+    multiline,
     toggleRecording,
     cancelRecording: recorder.cancel,
     recording: recorder.recording,
@@ -151,13 +158,15 @@ export function useComposer({
 export type ComposerState = ReturnType<typeof useComposer>;
 
 export function Composer({ composer, canDictate }: { composer: ComposerState; canDictate: boolean }) {
-  const { text, recording, transcribing, disabled } = composer;
+  const { text, recording, transcribing, disabled, multiline } = composer;
 
   const placeholder = recording
     ? `Listening… release ${PUSH_TO_TALK_KEYS} or click the microphone to stop, Esc to cancel`
     : transcribing
       ? "Transcribing…"
-      : "Write in English… (Enter to send, Shift+Enter for a new line)";
+      : multiline
+        ? "One answer per line… (Ctrl+Enter to send)"
+        : "Write in English… (Enter to send, Shift+Enter for a new line)";
 
   return (
     <div className="flex items-end gap-2">
@@ -168,7 +177,10 @@ export function Composer({ composer, canDictate }: { composer: ComposerState; ca
           if (e.key === "Escape" && recording) {
             e.preventDefault();
             composer.cancelRecording();
-          } else if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+          } else if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+            // Exercise sets are answered on several lines, so Enter only sends with Ctrl (or Cmd).
+            const send = multiline ? e.ctrlKey || e.metaKey : !e.shiftKey;
+            if (!send) return;
             e.preventDefault();
             composer.submit();
           }
@@ -179,7 +191,7 @@ export function Composer({ composer, canDictate }: { composer: ComposerState; ca
         autoCorrect="off"
         autoCapitalize="off"
         autoFocus
-        rows={3}
+        rows={multiline ? 7 : 3}
         className="max-h-60 min-h-20 resize-none"
       />
       <div className="flex flex-col gap-2">

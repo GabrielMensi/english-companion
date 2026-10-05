@@ -36,6 +36,17 @@ Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y f
 ### Ejercicios dirigidos
 A partir de las 3 categorías más flojas del dashboard, generar ejercicios cortos: completar huecos, reescribir oraciones o elegir la opción correcta. La respuesta del usuario también se corrige y suma a las estadísticas.
 
+Estado: **implementado** (rama `feature/practice-exercises`), junto con el repaso espaciado de los ítems fallados.
+- **Qué practicar**: `selectCategoryTargets` (`src/lib/category-practice.ts`, puro, con tests) ordena las categorías de los últimos 90 días por errores que cuentan cada 100 palabras (`countsInStats`, vía las estadísticas del dashboard), deja afuera `verb_tense` (tiene su propia práctica), ortografía, puntuación, mayúsculas y "other", pide ≥ 2 errores y enfoca el tipo más frecuente si se repite. Sin datos sugiere artículos, preposiciones dependientes y verb patterns.
+- **Generación**: mismo motor que los tiempos (`generateItems` en `src/lib/ai/exercises.ts`, fallback entre modelos y `withChatPriority`), con un schema plano `items: [{sentence, options, answer, why}]` (`options` aparte porque los modelos chicos no las ponían en la oración). El prompt incluye hasta 6 errores reales del usuario en esa categoría/tipo. `normalizeCategoryExercises` descarta respuestas que no siguen la oración, huecos vacíos, opciones que no incluyen la respuesta, "errores" que ya están bien y duplicados; el formato (fill / choice / rewrite) se deduce de la oración.
+- **Chat**: el mismo chat de ejercicios que los drills de tiempos (modo corrección, `practice:<session id>` en `settings` con `kind: "category"`): el set completo se muestra de una vez y se responde en un solo mensaje, que pasa una vez por la corrección; la respuesta es un resumen fijo con ✓/✗ por ítem, la respuesta, el porqué y el puntaje (2 requests por set: generar + revisar; ver "Práctica" en docs/VERB_TENSES.md). El chequeo es determinístico (`src/lib/exercise-set.ts`): en los huecos compara lo que llena el hueco (vale escribir la oración o solo la palabra); si no se puede, deciden los errores que la corrección encontró en esa respuesta (uno de esa categoría = ✗; un rewrite sin errores = ✓).
+- **Repaso espaciado**: los ítems fallados (tiempos: tiempo equivocado en contraste o un error verbal en esa respuesta, o un drill de forma con otras palabras; categorías: ✗) se guardan en la tabla `missed_exercises` (una fila por ítem de cada chat; reintentar el mensaje y acertar, o dejarlo sin responder, la borra con su repaso). Los ítems sin responder no se guardan. Forman el mazo **Missed exercises** de Flashcards (`kind = "exercise"` en `reviews`), que cuenta en las tarjetas pendientes del dashboard, se puede suspender o borrar desde el menú de la tarjeta (borra solo el ítem fallado, no el chat) y entra en la limpieza de reviews huérfanas (la clave es el id de la fila). Las filas sobreviven al borrar el chat.
+
+Limitaciones:
+- Responder solo con la palabra del hueco ("on") es un mensaje sin contexto para la corrección: suma pocas palabras a las estadísticas y casi nunca errores.
+- Las tareas "use" de tiempos no se guardan como falladas (son respuestas abiertas).
+- Las tarjetas de ejercicios no tienen tolerancia a typos: "in" por "on" es otra respuesta.
+
 ## Integración con las clases
 
 Las clases son con un profesor por Google Meet, siguiendo un libro. La app ve cómo **escribís** todos los días y el profesor ve cómo **hablás**; hoy ninguno ve lo que ve el otro. La idea es cerrar ese círculo.

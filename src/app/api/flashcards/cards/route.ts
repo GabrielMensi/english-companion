@@ -17,11 +17,9 @@ export async function PATCH(request: Request) {
   return new Response(null, { status: 204 });
 }
 
-/** Deletes a card at its source: the word's lookups or the mistake's corrections. */
+/** Deletes a card at its source: the word's lookups, the mistake's corrections or the missed exercise item. */
 export async function DELETE(request: Request) {
-  const body = cardSchema
-    .extend({ kind: z.enum(["vocabulary", "mistake"]) })
-    .safeParse(await request.json().catch(() => null));
+  const body = cardSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) return Response.json({ error: "Invalid card" }, { status: 400 });
   deleteCard(body.data.kind, body.data.key);
   return new Response(null, { status: 204 });

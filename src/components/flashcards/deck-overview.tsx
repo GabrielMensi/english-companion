@@ -1,4 +1,4 @@
-import { BookOpen, PencilLine } from "lucide-react";
+import { BookOpen, Dumbbell, PencilLine } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { DeckCounts, MistakeFilter } from "@/lib/flashcards-core";
@@ -6,7 +6,7 @@ import type { FilterOption, FlashcardsOverview } from "@/lib/flashcards";
 import { formatDelay } from "@/lib/srs";
 import { cn } from "@/lib/utils";
 
-function studyHref(deck: "vocabulary" | "mistakes", filter: MistakeFilter = {}): string {
+function studyHref(deck: "vocabulary" | "mistakes" | "exercises", filter: MistakeFilter = {}): string {
   const params = new URLSearchParams({ deck });
   for (const [key, value] of Object.entries(filter)) if (value) params.set(key, value);
   return `/flashcards?${params}`;
@@ -35,6 +35,16 @@ export function DeckOverview({ overview }: { overview: FlashcardsOverview }) {
           newLimit={overview.newLimit}
           href={studyHref("mistakes")}
           empty="No mistakes to review yet."
+        />
+        <Deck
+          title="Missed exercises"
+          description="Practice items you got wrong: answer them again."
+          icon={Dumbbell}
+          counts={overview.exercises}
+          now={overview.now}
+          newLimit={overview.newLimit}
+          href={studyHref("exercises")}
+          empty="Nothing missed yet. Items you get wrong in Practice show up here."
         />
       </div>
 

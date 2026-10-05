@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, gt, isNotNull, min } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { getMistakeDeck, getVocabularyDeck } from "@/lib/flashcards";
+import { getExerciseDeck, getMistakeDeck, getVocabularyDeck } from "@/lib/flashcards";
 import { computeReviewStats, dueForecast } from "@/lib/review-stats-core";
 import { RANGES, type RangeKey } from "@/lib/stats";
 
@@ -22,7 +22,7 @@ export function getReviewDashboard(range: RangeKey) {
   const stats = computeReviewStats({ log, from, now });
 
   // Active cards of every deck (suspended ones are already left out).
-  const cards = [...getVocabularyDeck(), ...getMistakeDeck()];
+  const cards = [...getVocabularyDeck(), ...getMistakeDeck(), ...getExerciseDeck()];
   const due = dueForecast(
     cards.map((c) => c.state),
     now,

@@ -1,30 +1,41 @@
 import "server-only";
 
 import { generateText, NoObjectGeneratedError, Output } from "ai";
+import type { z } from "zod";
 import type { Settings } from "@/lib/settings";
 import {
+  buildCategoryExerciseInstructions,
+  buildCategoryExercisePrompt,
   buildExerciseInstructions,
   buildExercisePrompt,
+  type CategoryExerciseRequest,
+  categoryExercisesSchema,
   type ExerciseRequest,
   exercisesSchema,
   MIN_EXERCISES,
+  normalizeCategoryExercises,
   normalizeExercises,
 } from "./exercises-core";
 import { withFallback } from "./providers";
 
-/** Generates a set of tense exercises. Too few usable items counts as a failure, so the next model is tried. */
-export async function generateExercises(request: Omit<ExerciseRequest, "explanationLanguage">, settings: Settings) {
-  const input = { ...request, explanationLanguage: settings.explanationLanguage };
-
+/**
+ * Generates a set of exercise items with a flat schema and keeps
+ * the usable ones. Too few usable items counts as a failure, so the next model is tried.
+ */
+async function generateItems<Raw, T>(
+  settings: Settings,
+  prompt: { instructions: string; prompt: string; schema: z.ZodType<Raw> },
+  normalize: (raw: Raw) => T[],
+) {
   const { result, used } = await withFallback(settings, async (resolved, { isLast }) => {
     const run = async () => {
       const { output } = await generateText({
         ...resolved.call({ temperature: 0.7, retry: isLast }),
-        instructions: buildExerciseInstructions(input),
-        prompt: buildExercisePrompt(input),
-        output: Output.object({ schema: exercisesSchema }),
+        instructions: prompt.instructions,
+        prompt: prompt.prompt,
+        output: Output.object({ schema: prompt.schema }),
       });
-      const items = normalizeExercises(output, input);
+      const items = normalize(output);
       if (items.length < MIN_EXERCISES) throw new Error("The model didn't return enough usable exercises");
       return items;
     };
@@ -38,4 +49,31 @@ export async function generateExercises(request: Omit<ExerciseRequest, "explanat
   });
 
   return { items: result, provider: used.provider, modelId: used.modelId };
+}
+
+/** Generates a set of tense exercises. */
+export async function generateExercises(request: Omit<ExerciseRequest, "explanationLanguage">, settings: Settings) {
+  const input = { ...request, explanationLanguage: settings.explanationLanguage };
+  return generateItems(
+    settings,
+    { instructions: buildExerciseInstructions(input), prompt: buildExercisePrompt(input), schema: exercisesSchema },
+    (raw) => normalizeExercises(raw, input),
+  );
+}
+
+/** Generates a set of exercises (fill in, multiple choice, fix the mistake) for an error category. */
+export async function generateCategoryExercises(
+  request: Omit<CategoryExerciseRequest, "explanationLanguage">,
+  settings: Settings,
+) {
+  const input = { ...request, explanationLanguage: settings.explanationLanguage };
+  return generateItems(
+    settings,
+    {
+      instructions: buildCategoryExerciseInstructions(input),
+      prompt: buildCategoryExercisePrompt(input),
+      schema: categoryExercisesSchema,
+    },
+    (raw) => normalizeCategoryExercises(raw, input),
+  );
 }

@@ -3,6 +3,8 @@ import { connection } from "next/server";
 import { ChatView } from "@/components/chat/chat-view";
 import { availableModels, resolveTranscriptionModel } from "@/lib/ai/providers";
 import { getMessages, getSession } from "@/lib/chat";
+import { answerTemplate } from "@/lib/exercise-set";
+import { pendingSetSize } from "@/lib/practice";
 import { getSettings } from "@/lib/settings";
 
 export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
@@ -12,6 +14,7 @@ export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
   if (!session) notFound();
 
   const settings = getSettings();
+  const setSize = pendingSetSize(session.id);
 
   return (
     <ChatView
@@ -22,6 +25,7 @@ export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
       models={availableModels(settings)}
       selectedProvider={settings.provider}
       canDictate={resolveTranscriptionModel() !== null}
+      answerTemplate={setSize ? answerTemplate(setSize) : null}
     />
   );
 }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { type Tense, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
+import { CATEGORY_LABELS, type ErrorCategory, type Tense, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
 import type { ExerciseKind } from "@/lib/tense-practice";
 
 const KIND_LABELS: Record<ExerciseKind | "conversation", string> = {
@@ -72,6 +72,30 @@ export function CustomPractice() {
       >
         Start
       </StartPracticeButton>
+    </div>
+  );
+}
+
+/** Exercises for any error category, not only the ones the stats picked. */
+export function CustomCategoryPractice({ categories }: { categories: readonly ErrorCategory[] }) {
+  const [category, setCategory] = useState<ErrorCategory>(categories[0]);
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      <Field label="Type of mistake">
+        <Select value={category} onValueChange={(v) => setCategory(v as ErrorCategory)}>
+          <SelectTrigger className="w-64">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((c) => (
+              <SelectItem key={c} value={c}>
+                {CATEGORY_LABELS[c]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </Field>
+      <StartPracticeButton request={{ kind: "category", category, subtype: null }}>Start</StartPracticeButton>
     </div>
   );
 }

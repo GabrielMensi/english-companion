@@ -320,7 +320,8 @@ const EXPANSIONS: [RegExp, string][] = [
   [/\b(it|he|she|that|there|what|who)'s\b/g, "$1 is"],
 ];
 
-function comparable(text: string): string {
+/** Lowercase, contractions expanded, punctuation and extra spaces removed: for comparing answers. */
+export function comparable(text: string): string {
   let result = text.toLowerCase().replace(/[’‘]/g, "'");
   for (const [pattern, replacement] of EXPANSIONS) result = result.replace(pattern, replacement);
   return result
@@ -336,26 +337,27 @@ export function exerciseIntro(practice: Pick<ExercisePractice, "kind" | "tense" 
   switch (practice.kind) {
     case "contrast": {
       const other = practice.contrastWith ? TENSE_LABELS[practice.contrastWith].toLowerCase() : "another tense";
-      return `Let’s practice the ${label} vs the ${other}: ${n} sentences. Write each full sentence with the right form of the verb in brackets. Watch the time words (yesterday, since, ever, just…).`;
+      return `Let’s practice the ${label} vs the ${other}: ${n} sentences. Complete each one with the right form of the verb in brackets. Watch the time words (yesterday, since, ever, just…).`;
     }
     case "form":
-      return `Let’s practice building the ${label} (${TENSE_HINTS[practice.tense]}): ${n} sentences. Write each full sentence with the verb in brackets in the ${label}.`;
+      return `Let’s practice building the ${label} (${TENSE_HINTS[practice.tense]}): ${n} sentences. Complete each one with the verb in brackets in the ${label}.`;
     case "use":
       return `Let’s practice using the ${label} (${TENSE_HINTS[practice.tense]}): ${n} short tasks. Answer each one with a full sentence about you.`;
   }
 }
 
-export function formatItem(item: ExerciseItem, index: number, total: number): string {
+export function formatItem(item: Pick<ExerciseItem, "sentence">, index: number, total: number): string {
   return `${index + 1}/${total}. ${item.sentence}`;
 }
 
-/** The first message of an exercise chat. */
+/** The first message of a "use it" chat, whose tasks go one at a time (the other kinds show the whole set: src/lib/exercise-set.ts). */
 export function exerciseOpening(practice: ExercisePractice): string {
   return `${exerciseIntro(practice)}\n\n${formatItem(practice.items[0], 0, practice.items.length)}`;
 }
 
 /**
- * The reply to the learner's answer to item `index`: whether the tense was
+ * In a chat whose items go one at a time ("use it" tasks), the reply to the
+ * learner's answer to item `index`: whether the tense was
  * right, the expected answer and why, then the next item (or a summary at the
  * end). Null past the last item: from there on it's a normal correction chat.
  * `previousChecks` are the checks of the earlier answers, for the final score.
@@ -365,6 +367,8 @@ export function exerciseReply(input: {
   index: number;
   learnerText: string;
   previousChecks: AnswerCheck[];
+  /** Whether any item of the set was missed (saved for spaced review). */
+  missedAny?: boolean;
 }): { text: string; check: AnswerCheck } | null {
   const { practice, index } = input;
   const item = practice.items[index];
@@ -398,8 +402,26 @@ export function exerciseReply(input: {
           : "";
     lines.push(
       "",
-      `That’s the whole set${score}. Your corrections count in the stats as usual. Start another set from Practice whenever you like.`,
+      `That’s the whole set${score}. Your corrections count in the stats as usual.${input.missedAny ? " The ones you missed are now in your flashcards (Missed exercises)." : ""} Start another set from Practice whenever you like.`,
     );
   }
   return { text: lines.join("\n"), check };
+}
+
+/**
+ * Whether an answer counts as a missed item, saved for spaced review: the wrong
+ * tense in a contrast exercise, or a form drill answer that isn't right (the
+ * wrong tense, or mistakes with the verb found by the correction). "Use" tasks
+ * are open answers, so they're never saved.
+ */
+export function isTenseMiss(kind: ExerciseKind, check: AnswerCheck, verbErrors: number): boolean {
+  if (kind === "use") return false;
+  if (check === "wrong_tense") return true;
+  return kind === "form" && check !== "exact" && verbErrors > 0;
+}
+
+/** "Present perfect vs past simple", for the missed exercises deck. */
+export function practiceTopic(practice: { kind: ExerciseKind; tense: Tense; contrastWith: Tense | null }): string {
+  const topic = practiceTitle(practice).replace(/^Practice: /, "");
+  return topic.charAt(0).toUpperCase() + topic.slice(1);
 }
