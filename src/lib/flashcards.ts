@@ -97,6 +97,15 @@ export interface FilterOption {
   total: number;
 }
 
+/** Cards to study now across the three decks, for the sidebar badge. Read-only, unlike the overview. */
+export function countCardsToStudy(): number {
+  const now = Date.now();
+  const { newCardsPerSession } = getSettings();
+  return [getVocabularyDeck(), withStates(loadMistakeCards(), "mistake"), getExerciseDeck()]
+    .map((deck) => deckCounts(deck, now))
+    .reduce((sum, c) => sum + c.due + Math.min(c.new, newCardsPerSession), 0);
+}
+
 /** Overview of both decks, plus the tenses and error types the mistake deck can be narrowed to. */
 export function getFlashcardsOverview() {
   cleanOrphanReviews();

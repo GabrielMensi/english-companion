@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Dumbbell, MessagesSquare, MoreHorizontal, Pencil, PencilLine, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -24,6 +24,15 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import type { SessionSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+/** What kind of chat it is, at a glance: corrections only, a conversation, or practice from the Practice page. */
+function SessionIcon({ session }: { session: SessionSummary }) {
+  if (session.practice) return <Dumbbell className="size-3.5 shrink-0 text-train" aria-label="Practice" />;
+  if (session.mode === "conversation") {
+    return <MessagesSquare className="size-3.5 shrink-0 text-muted-foreground" aria-label="Conversation" />;
+  }
+  return <PencilLine className="size-3.5 shrink-0 text-muted-foreground" aria-label="Correction" />;
+}
 
 export function SessionItem({ session, active }: { session: SessionSummary; active: boolean }) {
   const router = useRouter();
@@ -61,7 +70,7 @@ export function SessionItem({ session, active }: { session: SessionSummary; acti
           active && "bg-sidebar-accent font-medium",
         )}
       >
-        <MessageSquare className="size-3.5 shrink-0 text-muted-foreground" />
+        <SessionIcon session={session} />
         <span className="truncate">{session.title}</span>
       </Link>
 

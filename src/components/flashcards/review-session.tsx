@@ -2,6 +2,7 @@
 
 import { Lightbulb, MessageSquare, MoreHorizontal, PauseCircle, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { SpeakButton } from "@/components/audio/speak-button";
@@ -61,6 +62,13 @@ export function ReviewSession({ kind, initialQueue }: { kind: CardKind; initialQ
   const inputRef = useRef<HTMLInputElement>(null);
 
   const current = queue[0];
+  const router = useRouter();
+
+  // The sidebar counts cards to study; refresh it once this session is through them.
+  const finished = !current && reviewed > 0;
+  useEffect(() => {
+    if (finished) router.refresh();
+  }, [finished, router]);
   const accepted = current ? acceptedAnswers(current.card) : [];
   const rawMatch = revealedAt !== null ? checkAnswer(typed, accepted) : null;
   // Exercises hinge on one small word (in / on, a / an): one letter off is a different answer, not a typo.

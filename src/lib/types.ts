@@ -12,7 +12,10 @@ export type ChatMessage = Omit<Message, "createdAt" | "tenseCounts"> & {
   vocabulary: ChatVocabulary[];
 };
 
-export type SessionSummary = Pick<Session, "id" | "title" | "mode">;
+export type SessionSummary = Pick<Session, "id" | "title" | "mode"> & {
+  /** An exercise set or a guided conversation started from Practice. */
+  practice: boolean;
+};
 
 /** How a dictated message was transcribed, sent along with its (possibly edited) text. */
 export interface VoiceInput {

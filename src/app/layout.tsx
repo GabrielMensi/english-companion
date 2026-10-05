@@ -8,6 +8,8 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { listSessions } from "@/lib/chat";
+import { countCardsToStudy } from "@/lib/flashcards";
+import { practiceSessionIds } from "@/lib/practice";
 import { SIDEBAR_COOKIE } from "@/lib/sidebar";
 import "./globals.css";
 
@@ -33,7 +35,8 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   await connection();
   const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
-  const sessions = listSessions().map(({ id, title, mode }) => ({ id, title, mode }));
+  const practiceIds = practiceSessionIds();
+  const sessions = listSessions().map(({ id, title, mode }) => ({ id, title, mode, practice: practiceIds.has(id) }));
 
   return (
     <html
@@ -44,7 +47,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex h-full overflow-hidden">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <TooltipProvider>
-            <AppSidebar sessions={sessions} initialCollapsed={sidebarCollapsed} />
+            <AppSidebar sessions={sessions} cardsToStudy={countCardsToStudy()} initialCollapsed={sidebarCollapsed} />
             <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
             <Toaster richColors position="top-center" />
             <SpeechPreloader />

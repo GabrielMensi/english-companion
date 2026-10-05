@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, eq, lt } from "drizzle-orm";
+import { and, asc, eq, like, lt } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Message } from "@/db/schema";
@@ -46,6 +46,16 @@ export function getPractice(sessionId: string): Practice | null {
   if (!row) return null;
   const parsed = practiceSchema.safeParse(row.value);
   return parsed.success ? parsed.data : null;
+}
+
+/** Ids of the chats that are practice sessions (exercises or a guided conversation). */
+export function practiceSessionIds(): Set<string> {
+  const rows = db
+    .select({ key: schema.settings.key })
+    .from(schema.settings)
+    .where(like(schema.settings.key, keyOf("%")))
+    .all();
+  return new Set(rows.map((r) => r.key.slice(keyOf("").length)));
 }
 
 export function savePractice(sessionId: string, practice: Practice) {
