@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AudioLines,
   BarChart3,
   BookOpen,
   Dumbbell,
@@ -59,6 +60,7 @@ function navGroups(cardsToStudy: number): NavGroup[] {
       area: "train",
       items: [
         { href: "/practice", label: "Practice", icon: Dumbbell },
+        { href: "/read-aloud", label: "Read aloud", icon: AudioLines },
         { href: "/flashcards", label: "Flashcards", icon: Layers, count: cardsToStudy },
         { href: "/vocabulary", label: "Vocabulary", icon: BookOpen },
       ],

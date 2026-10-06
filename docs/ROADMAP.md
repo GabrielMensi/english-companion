@@ -30,6 +30,7 @@
 - UI, fase 1 ([UI-PLAN.md](UI-PLAN.md)): Hanken Grotesk para la app y Newsreader para tu inglés, escala tipográfica, colores de área (Write, Review, Train) separados de los colores de datos, estructura de página compartida y un solo vocabulario de estados.
 - UI, fase 2: sidebar agrupada en Review, Train y Chats, con íconos por área, un ícono por tipo de chat (corrección, conversación, práctica), tarjetas pendientes en Flashcards y Settings abajo.
 - UI, fase 3: tarjeta de corrección con números de referencia entre el texto y cada error, versión nativa arriba, errores agrupados por categoría y ordenados por gravedad, typos y sugerencias plegados; en el header, Correction / Conversation como switch y un menú para el modelo y la ventana flotante.
+- Voz, fase 3: página Read aloud (#56, #60): leés una oración y las palabras que Whisper escucha distinto se clasifican sin IA, comparando fonemas con el CMU Pronouncing Dictionary, con una taxonomía fija de pronunciación para hispanohablantes, oraciones de pares mínimos por sonido, de tus correcciones y de tu vocabulario, y el panel "Sounds to work on". `?focus=<sonido>` abre la página en un sonido ([VOICE.md](VOICE.md)).
 
 ## Próximo
 
@@ -37,7 +38,7 @@
 La clasificación en dos etapas ya está hecha con el LLM. Falta evaluar Kev-0.8B (o Jev / Jeeves) como backend cuando haya etiquetas reales de "Wrong type?". Ver [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md).
 
 ### Voz
-Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). Falta: lectura en voz alta y pronunciación (fase 3), whisper.cpp local como fallback y las clases (fase 4). Kokoro como voz local ya está (en CPU; WebGPU pendiente, #45). Investigación y plan en [VOICE.md](VOICE.md).
+Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). La lectura en voz alta con pronunciación por reglas ya está (fase 3, #53); falta el panel en el dashboard y el repaso espaciado de pronunciación, whisper.cpp local como fallback y las clases (fase 4). Kokoro como voz local ya está (en CPU; WebGPU pendiente, #45). Investigación y plan en [VOICE.md](VOICE.md).
 
 ### Ejercicios dirigidos
 A partir de las 3 categorías más flojas del dashboard, generar ejercicios cortos: completar huecos, reescribir oraciones o elegir la opción correcta. La respuesta del usuario también se corrige y suma a las estadísticas.

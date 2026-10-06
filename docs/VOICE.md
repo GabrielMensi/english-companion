@@ -114,8 +114,9 @@ audioDurationMs: integer("audio_duration_ms"),
 fluency: text("fluency", { mode: "json" }).$type<FluencyMetrics>(),
 audioPath: text("audio_path"),
 
-// nueva tabla (Fase 3)
-pronunciation_issues: id, messageId, word, expected, heard, category, explanation, createdAt
+// nuevas tablas (Fase 3, implementadas)
+read_aloud_attempts: id, source, sourceId, focus, text, transcript, correctWords, totalWords, …
+pronunciation_issues: id, attemptId, expected, heard, category, detail, createdAt
 ```
 
 `StatMessage` / `StatCorrection` suman `inputMode`, y `getDashboardData` recibe el filtro.
@@ -255,10 +256,35 @@ Settings → Listening tiene un **Engine**: *Browser voice* (default, `speechSyn
 - `kokoro-js` no se actualiza desde 2025-05 (sigue en transformers.js 3.x). Si hace falta, se puede pasar a transformers.js 4 copiando su lógica (fonemizar + voces).
 - `stream()` de `kokoro-js` con un string nunca entrega la última oración: el worker arma y cierra el `TextSplitterStream` a mano.
 
-### Fase 3 — Pronunciación
-- Página "Read aloud" con diff por palabra; fuentes: correcciones, vocabulario, unidad del libro.
-- Taxonomía de pronunciación y tabla `pronunciation_issues`; clasificación con Gemini multimodal (o reglas simples a partir del diff).
-- Panel de pronunciación en el dashboard y oraciones problemáticas dentro del repaso espaciado.
+### Fase 3 — Pronunciación (lectura en voz alta ✅ implementada, 2026-10-05, issue #53)
+
+**Página "Read aloud"** (`/read-aloud`, en Train): se lee una oración, Whisper la transcribe (`/api/transcribe`, igual que el dictado) y se compara con lo que se quería decir. Como se sabe el texto esperado, una palabra escuchada como otra apunta al sonido que cambió. Fuentes:
+- **Sounds**: oraciones propias por categoría (`src/lib/read-aloud-sentences.ts`), armadas para que las dos palabras del par mínimo tengan sentido (*I saw a big ship / sheep in the picture*): así Whisper no puede adivinar la palabra por el contexto. Aparecen primero los sonidos con más problemas.
+- **Your corrections**: oraciones de la versión natural (o corregida) de tus mensajes, de 4 a 18 palabras, sin números ni código. Las leídas en las últimas dos semanas no se repiten.
+- **Your vocabulary**: la oración de tu mensaje corregido que usa la palabra que buscaste.
+- La unidad del libro queda para cuando el libro esté integrado.
+
+**Puntaje sin IA** (`src/lib/pronunciation-core.ts`, puro y con tests):
+1. Se alinean las palabras (Levenshtein) después de normalizar: minúsculas, números chicos en letras, contracciones expandidas (*it's* = *it is*).
+2. Dos palabras distintas que suenan igual según el **CMU Pronouncing Dictionary** (`cmu-pronouncing-dictionary`, ~4,5 MB, solo en el servidor) no son error: *two / too*, *colour / color*.
+3. Para cada palabra escuchada distinto, se alinean los fonemas (ARPAbet) de las dos y el primer cambio que coincide con una regla decide la categoría: *th* → t/d/s; b ↔ v; h que se pierde, y ↔ j; una vocal agregada antes de s + consonante (también si Whisper escribe "is students" o "estudent"); iː ↔ ɪ y uː ↔ ʊ; otras vocales; consonantes finales que se pierden o cambian (*worked → work*, *bed → bet*). Si hay varias pronunciaciones (*live* /lɪv/ o /laɪv/), se usa la más cercana y, si empatan, la regla más específica.
+4. Las palabras que no se escucharon se marcan pero no cuentan como error de pronunciación (pueden ser una palabra salteada).
+
+**Taxonomía** (`PRONUNCIATION_CATEGORIES` en `taxonomy.ts`): `vowel_length`, `vowel_quality` (nueva: *bug / book*, *call / kill*, que Whisper escuchó en la Fase 0), `th_sounds`, `b_v`, `h_j_sounds`, `initial_s_cluster`, `final_consonants`, `other`. Cada una tiene un consejo en español e inglés, según el idioma de las explicaciones. `schwa_reduction` y `word_stress` quedaron afuera: no cambian qué palabra escucha Whisper, así que con esta señal nunca se asignarían.
+
+**Guardado**: tablas `read_aloud_attempts` (texto, transcripción, palabras bien / total, fuente, foco) y `pronunciation_issues` (palabra esperada, escuchada, categoría y el sonido que cambió en IPA, p. ej. "/ɪ/ → /iː/"). El audio no se guarda. A Whisper no se le pasa el texto esperado como prompt: lo copiaría y escondería los errores.
+
+**En la página**: la oración marcada (palabras escuchadas distinto con un número, salteadas tachadas), lo que se escuchó, cada problema con su categoría, el sonido y el consejo, y el panel "Sounds to work on" (últimos 30 días: lecturas, % de palabras bien y categorías con los ejemplos más repetidos, con un botón para practicar ese sonido). Ctrl+Space también graba. `/read-aloud?focus=<categoría>` (p. ej. `th_sounds`) abre la página en ese sonido; un valor desconocido u `other` abre todos, y al cambiar el sonido se actualiza la URL (#57).
+
+Limitaciones:
+- Whisper completa desde el contexto, así que en oraciones propias (no las de pares mínimos) se le escapan errores: la señal es una cota mínima.
+- Palabras que no están en el diccionario (nombres, términos técnicos) caen en `other`.
+- Una sola señal (la transcripción): no mide acento, ritmo ni entonación.
+
+Pendiente:
+- Panel de pronunciación en el dashboard.
+- Oraciones con problemas dentro del repaso espaciado (un mazo en Flashcards).
+- Feedback cualitativo con Gemini multimodal o fonemas (wav2vec2) para acento, schwa y word stress.
 
 ### Fase 4 — Clases
 - Importar audio o transcripción de la clase, diarización, análisis solo de tus turnos como mensajes `spoken` con fuente "From class".

@@ -1,4 +1,4 @@
-import { Dumbbell, Layers, MessagesSquare, PencilLine } from "lucide-react";
+import { AudioLines, Dumbbell, Layers, MessagesSquare, PencilLine } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Page, Section, SectionLink } from "@/components/layout/page";
@@ -12,8 +12,10 @@ import { listSessions } from "@/lib/chat";
 import { countCardsToStudy } from "@/lib/flashcards";
 import { getReportDigest } from "@/lib/insights/insights";
 import { practiceSessionIds } from "@/lib/practice";
+import { getPronunciationSummary } from "@/lib/read-aloud";
+import { soundOrder } from "@/lib/read-aloud-core";
 import { getPracticeSuggestions } from "@/lib/practice-start";
-import { TENSE_LABELS } from "@/lib/taxonomy";
+import { PRONUNCIATION_LABELS, TENSE_LABELS } from "@/lib/taxonomy";
 import type { PracticeTarget } from "@/lib/tense-practice";
 import { greeting, todaySummary, weekSummary } from "@/lib/today-core";
 
@@ -29,6 +31,10 @@ export default async function Today() {
   const tense = tenses[0];
   const category = categories[0];
   const week = getReportDigest("7").totals;
+  const pronunciation = getPronunciationSummary();
+  // Only once read-aloud has found something: before that there's no "weakest" sound to name.
+  const sound = pronunciation.categories.length > 0 ? soundOrder(pronunciation)[0] : null;
+  const soundStats = pronunciation.categories.find((c) => c.category === sound);
 
   return (
     <Page width="xl">
@@ -134,6 +140,18 @@ export default async function Today() {
                   }
                 />
               )}
+              {sound && (
+                <TrainRow
+                  icon={<AudioLines className="size-4 text-train" />}
+                  title={`Your weakest sound: ${PRONUNCIATION_LABELS[sound]}`}
+                  detail={soundDetail(soundStats)}
+                  action={
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/read-aloud?focus=${sound}`}>Read aloud</Link>
+                    </Button>
+                  }
+                />
+              )}
             </ul>
           </Section>
         </div>
@@ -154,6 +172,14 @@ function focusOf(target: PracticeTarget | undefined): string | null {
   if (target.status === "weak") return `${name} needs work`;
   if (target.status === "avoided") return `you rarely use ${name}`;
   return null;
+}
+
+/** "4 words heard differently, like “ship” heard as “sheep”." */
+function soundDetail(stats: { count: number; examples: { expected: string; heard: string }[] } | undefined): string {
+  if (!stats) return "Read sentences aloud that practice it.";
+  const example = stats.examples[0];
+  const words = `${stats.count} ${stats.count === 1 ? "word" : "words"} heard differently`;
+  return example ? `${words}, like “${example.expected}” heard as “${example.heard}”.` : `${words}.`;
 }
 
 function TrainRow({
