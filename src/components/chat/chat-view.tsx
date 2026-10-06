@@ -118,7 +118,8 @@ export function ChatView({
     .map((p) => `${p.correctedDone}:${p.errors.length}:${!!p.naturalText}:${!!p.reply}`)
     .join();
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bottomRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
   }, [messages.length, sending, previewShape]);
 
   function setPreview(id: string, preview: AnalysisPreview | null) {

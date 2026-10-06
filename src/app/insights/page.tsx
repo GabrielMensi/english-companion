@@ -33,6 +33,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
                 <Link
                   key={key}
                   href={`/insights?range=${key}`}
+                  aria-current={key === range ? "true" : undefined}
                   className={cn(
                     "rounded-md px-3 py-1 text-sm text-muted-foreground hover:text-foreground",
                     key === range && "bg-muted font-medium text-foreground",

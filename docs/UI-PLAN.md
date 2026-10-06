@@ -40,14 +40,16 @@ Es un tutor de escritura: tu inglés es el texto que se estudia, y la app son la
 
 ## Fases
 
+Estado (2026-10-05): las seis fases están hechas (#48, #49, #50, #55, #59, #63). Pendiente en el backlog: el reporte de Insights todavía arma detalles con `A · B · C`.
+
 | # | Fase | Issue |
 |---|---|---|
 | 1 | Tokens, fuentes, escala; `Page` / `PageHeader` / `Section` compartidos; `StatusBadge`; colores semánticos en vez de la paleta de Tailwind; sin mayúsculas ni `→` | #48 |
 | 2 | Sidebar agrupada (Today, Write con los chats, Review, Train; Settings abajo), ícono por tipo de chat, badge de tarjetas pendientes | #49 |
 | 3 | Tarjeta de corrección: marcas en línea con números de referencia, versión nativa arriba, errores agrupados por categoría y ordenados por gravedad, typos y sugerencias plegados, nota del modelo en un popover, Correction/Conversation como control segmentado | #50 |
-| 4 | Hub "Today" en lugar de la home: qué hacer hoy, seguir el último chat, tarjetas pendientes, práctica sugerida | borrador |
-| 5 | Review y Train: titular en frase en vez de tiles, "Practice this" en cada área, detalles con menos peso; jerarquía sección → ítem en Practice y Flashcards | borrador |
-| 6 | Calidad: foco visible, `prefers-reduced-motion`, capturas antes/después | borrador |
+| 4 | Hub "Today" en lugar de la home: qué hacer hoy, seguir el último chat, tarjetas pendientes, práctica sugerida | #55 |
+| 5 | Review y Train: titular en frase en vez de tiles, "Practice this" en cada área, detalles con menos peso; jerarquía sección → ítem en Practice y Flashcards | #59 |
+| 6 | Calidad: foco visible, `prefers-reduced-motion`, capturas antes/después | #63 |
 
 ### Bocetos
 
