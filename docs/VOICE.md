@@ -274,7 +274,7 @@ Settings → Listening tiene un **Engine**: *Browser voice* (default, `speechSyn
 
 **Guardado**: tablas `read_aloud_attempts` (texto, transcripción, palabras bien / total, fuente, foco) y `pronunciation_issues` (palabra esperada, escuchada, categoría y el sonido que cambió en IPA, p. ej. "/ɪ/ → /iː/"). El audio no se guarda. A Whisper no se le pasa el texto esperado como prompt: lo copiaría y escondería los errores.
 
-**En la página**: la oración marcada (palabras escuchadas distinto con un número, salteadas tachadas), lo que se escuchó, cada problema con su categoría, el sonido y el consejo, y el panel "Sounds to work on" (últimos 30 días: lecturas, % de palabras bien y categorías con los ejemplos más repetidos, con un botón para practicar ese sonido). Ctrl+Space también graba.
+**En la página**: la oración marcada (palabras escuchadas distinto con un número, salteadas tachadas), lo que se escuchó, cada problema con su categoría, el sonido y el consejo, y el panel "Sounds to work on" (últimos 30 días: lecturas, % de palabras bien y categorías con los ejemplos más repetidos, con un botón para practicar ese sonido). Ctrl+Space también graba. `/read-aloud?focus=<categoría>` (p. ej. `th_sounds`) abre la página en ese sonido; un valor desconocido u `other` abre todos, y al cambiar el sonido se actualiza la URL (#57).
 
 Limitaciones:
 - Whisper completa desde el contexto, así que en oraciones propias (no las de pares mínimos) se le escapan errores: la señal es una cota mínima.

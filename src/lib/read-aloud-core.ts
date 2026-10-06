@@ -106,3 +106,14 @@ export function soundOrder(summary: PronunciationSummary): PronunciationCategory
   const worst = summary.categories.map((c) => c.category).filter((c) => c !== "other");
   return [...worst, ...PRONUNCIATION_CATEGORIES.filter((c) => c !== "other" && !worst.includes(c))];
 }
+
+/**
+ * The sound to open the page on, from `?focus=`: a category with built-in
+ * sentences ("other" has none). Anything else means all sounds.
+ */
+export function parseFocus(value: string | string[] | undefined): Exclude<PronunciationCategory, "other"> | null {
+  const focus = Array.isArray(value) ? value[0] : value;
+  return focus && focus !== "other" && (PRONUNCIATION_CATEGORIES as readonly string[]).includes(focus)
+    ? (focus as Exclude<PronunciationCategory, "other">)
+    : null;
+}

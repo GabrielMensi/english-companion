@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readableSentences, soundItems, soundOrder, summarizePronunciation } from "./read-aloud-core";
+import { parseFocus, readableSentences, soundItems, soundOrder, summarizePronunciation } from "./read-aloud-core";
 
 describe("readableSentences", () => {
   it("keeps plain sentences of a readable length", () => {
@@ -58,5 +58,19 @@ describe("soundOrder / soundItems", () => {
     expect(order).not.toContain("other");
     expect(order).toHaveLength(7);
     expect(soundItems(order)[0]).toMatchObject({ source: "sounds", focus: "b_v", target: "vest" });
+  });
+});
+
+describe("parseFocus", () => {
+  it("accepts a sound with built-in sentences", () => {
+    expect(parseFocus("th_sounds")).toBe("th_sounds");
+    expect(parseFocus(["b_v", "th_sounds"])).toBe("b_v");
+  });
+
+  it("falls back to all sounds for anything else", () => {
+    expect(parseFocus(undefined)).toBeNull();
+    expect(parseFocus("")).toBeNull();
+    expect(parseFocus("other")).toBeNull();
+    expect(parseFocus("verb_tense")).toBeNull();
   });
 });
