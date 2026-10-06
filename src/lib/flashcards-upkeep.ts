@@ -4,6 +4,7 @@ import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { type CardKind, mistakeKey } from "@/lib/flashcards-core";
 import { orphanReviewIds } from "@/lib/flashcards-upkeep-core";
+import { deleteReadings, loadPronunciationCards } from "@/lib/read-aloud";
 import { DEFAULT_EASE } from "@/lib/srs";
 import { getVocabulary } from "@/lib/vocabulary";
 import { wordKey } from "@/lib/vocabulary-core";
@@ -39,7 +40,8 @@ function missedExerciseIds(): Set<string> {
  * Deletes the review state of cards that no longer exist: their word lookups
  * or corrections were deleted (with their chat, from the Vocabulary page, or
  * from a flashcard), or their missed exercise row is gone (exercise cards are
- * keyed by the `missed_exercises` id, so the match is exact). A key is kept
+ * keyed by the `missed_exercises` id, so the match is exact), or the readings
+ * of a hard-to-say sentence are gone. A key is kept
  * while any row (counted in the stats or not) still builds it. The review log
  * is history, so it stays. Returns how many rows went.
  */
@@ -47,13 +49,14 @@ export function cleanOrphanReviews(): number {
   const rows = db
     .select({ id: schema.reviews.id, kind: schema.reviews.kind, cardKey: schema.reviews.cardKey })
     .from(schema.reviews)
-    .where(inArray(schema.reviews.kind, ["vocabulary", "mistake", "exercise"]))
+    .where(inArray(schema.reviews.kind, ["vocabulary", "mistake", "exercise", "pronunciation"]))
     .all();
   if (rows.length === 0) return 0;
   const ids = orphanReviewIds(rows, {
     vocabulary: new Set(vocabularyKeys().map((r) => r.key)),
     mistake: new Set(correctionKeys().map((r) => r.key)),
     exercise: missedExerciseIds(),
+    pronunciation: new Set(loadPronunciationCards().map((c) => c.key)),
   });
   if (ids.length > 0) db.delete(schema.reviews).where(inArray(schema.reviews.id, ids)).run();
   return ids.length;
@@ -86,10 +89,16 @@ export function unsuspendCard(kind: CardKind, key: string) {
 /**
  * Deletes a card at its source: every lookup of the word, every correction
  * that makes the mistake (so it also stops counting in the stats), or the
- * missed exercise item (its chat stays). Returns how many rows were deleted;
+ * missed exercise item (its chat stays), or every reading of a hard-to-say
+ * sentence (it leaves the pronunciation stats too). Returns how many rows were deleted;
  * the card's review state goes with them.
  */
 export function deleteCard(kind: CardKind, key: string): number {
+  if (kind === "pronunciation") {
+    const deleted = deleteReadings(key);
+    db.delete(schema.reviews).where(cardWhere(kind, key)).run();
+    return deleted;
+  }
   if (kind === "exercise") {
     const deleted = db.delete(schema.missedExercises).where(eq(schema.missedExercises.id, key)).run().changes;
     db.delete(schema.reviews).where(cardWhere(kind, key)).run();
@@ -143,6 +152,7 @@ export function getSuspendedCards(): SuspendedCard[] {
         const word = words?.get(r.key);
         return { ...base, front: word?.spanish ?? r.key, back: word?.english.join(" / ") ?? null };
       }
+      if (r.kind === "pronunciation") return { ...base, front: r.key, back: null };
       if (r.kind === "mistake") {
         const [front, back] = r.key.split(" → ");
         return { ...base, front, back: back ?? null };

@@ -14,8 +14,11 @@ export type MessageStatus = "pending" | "done" | "error";
 export type InputMode = "typed" | "spoken";
 /** Fine classification of a correction, done later by the deferred classifier. */
 export type ClassificationStatus = "pending" | "done" | "failed" | "skipped";
-/** Where a read-aloud sentence came from: the built-in sound sets, the learner's corrections or vocabulary. */
-export type ReadAloudSource = "sounds" | "correction" | "vocabulary";
+/**
+ * Where a read-aloud sentence came from: the built-in sound sets, the learner's
+ * corrections or vocabulary, or a "Hard to say" flashcard (a sentence read before).
+ */
+export type ReadAloudSource = "sounds" | "correction" | "vocabulary" | "review";
 
 const createdAt = () =>
   integer("created_at", { mode: "timestamp_ms" })

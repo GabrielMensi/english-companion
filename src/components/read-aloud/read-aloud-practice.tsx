@@ -2,23 +2,22 @@
 
 import { Loader2, Mic, RotateCcw, SkipForward, Square } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { SpeakButton } from "@/components/audio/speak-button";
-import { stopSpeaking } from "@/components/audio/speech";
 import { PUSH_TO_TALK_KEYS, usePushToTalk } from "@/components/audio/use-push-to-talk";
-import { useRecorder } from "@/components/audio/use-recorder";
 import { Section } from "@/components/layout/page";
-import { StatusBadge } from "@/components/status-badge";
+import { type Language, ResultDetails, ScoredSentence, TargetSentence } from "@/components/read-aloud/reading-result";
+import { useReadAloud } from "@/components/read-aloud/use-read-aloud";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ReadAloudSource } from "@/db/schema";
 import type { ReadAloudResult } from "@/lib/pronunciation-core";
 import type { PronunciationSummary, ReadAloudItem } from "@/lib/read-aloud-core";
-import { PRONUNCIATION_LABELS, PRONUNCIATION_TIPS, type PronunciationCategory } from "@/lib/taxonomy";
+import { PRONUNCIATION_LABELS, type PronunciationCategory } from "@/lib/taxonomy";
 
-type Language = "es" | "en";
+/** The Read aloud page's tabs (the "review" source is the flashcard deck). */
+type PageSource = Exclude<ReadAloudSource, "review">;
 
-const SOURCES: { value: ReadAloudSource; label: string; empty: string }[] = [
+const SOURCES: { value: PageSource; label: string; empty: string }[] = [
   { value: "sounds", label: "Sounds", empty: "" },
   {
     value: "correction",
@@ -32,12 +31,6 @@ const SOURCES: { value: ReadAloudSource; label: string; empty: string }[] = [
   },
 ];
 
-interface Transcription {
-  text: string;
-  provider: string;
-  model: string;
-}
-
 export function ReadAloudPractice({
   items,
   initialSummary,
@@ -45,27 +38,27 @@ export function ReadAloudPractice({
   canRecord,
   language,
 }: {
-  items: Record<ReadAloudSource, ReadAloudItem[]>;
+  items: Record<PageSource, ReadAloudItem[]>;
   initialSummary: PronunciationSummary;
   /** From `?focus=`: open on the sentences for one sound. */
   initialFocus: PronunciationCategory | null;
   canRecord: boolean;
   language: Language;
 }) {
-  const [source, setSource] = useState<ReadAloudSource>("sounds");
+  const [source, setSource] = useState<PageSource>("sounds");
   const [focus, setFocus] = useState<PronunciationCategory | null>(initialFocus);
   const [index, setIndex] = useState(0);
   const [result, setResult] = useState<{ item: string; transcript: string; score: ReadAloudResult } | null>(null);
-  const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState(initialSummary);
-  const recorder = useRecorder();
+  const recorder = useReadAloud();
+  const busy = recorder.busy;
 
   const list = source === "sounds" && focus ? items.sounds.filter((i) => i.focus === focus) : items[source];
   const item = list.length > 0 ? list[index % list.length] : null;
   const shown = result && item && result.item === item.key ? result : null;
   const soundCategories = [...new Set(items.sounds.map((i) => i.focus).filter((f) => f !== null))];
 
-  function choose(next: { source?: ReadAloudSource; focus?: PronunciationCategory | null }) {
+  function choose(next: { source?: PageSource; focus?: PronunciationCategory | null }) {
     if (recorder.recording) void recorder.cancel();
     if (next.source) setSource(next.source);
     if (next.focus !== undefined) {
@@ -86,56 +79,17 @@ export function ReadAloudPractice({
     setResult(null);
   }
 
-  async function startRecording() {
-    if (!item || busy) return;
-    stopSpeaking();
-    try {
-      await recorder.start();
-    } catch (error) {
-      toast.error(`Couldn't use the microphone: ${(error as Error).message}`);
-    }
+  function startRecording() {
+    if (item) void recorder.start();
   }
 
   async function stopRecording() {
+    if (!item) return;
     const current = item;
-    const recording = await recorder.stop();
-    if (!recording || !current) return;
-    setBusy(true);
-    try {
-      const res = await fetch("/api/transcribe", { method: "POST", body: recording.wav });
-      const heard = (await res.json().catch(() => ({}))) as Partial<Transcription> & { error?: string };
-      if (!res.ok || heard.text === undefined) throw new Error(heard.error ?? `Error ${res.status}`);
-      if (!heard.text) {
-        toast.info("I didn't hear anything. Try again a bit closer to the microphone.");
-        return;
-      }
-      const saved = await fetch("/api/read-aloud", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: current.text,
-          source: current.source,
-          sourceId: current.sourceId,
-          focus: current.focus,
-          transcript: heard.text,
-          transcriptionProvider: heard.provider ?? null,
-          transcriptionModel: heard.model ?? null,
-          audioDurationMs: recording.durationMs,
-        }),
-      });
-      const data = (await saved.json().catch(() => ({}))) as {
-        result?: ReadAloudResult;
-        summary?: PronunciationSummary;
-        error?: string;
-      };
-      if (!saved.ok || !data.result) throw new Error(data.error ?? `Error ${saved.status}`);
-      setResult({ item: current.key, transcript: heard.text, score: data.result });
-      if (data.summary) setSummary(data.summary);
-    } catch (error) {
-      toast.error(`Couldn't check the reading: ${(error as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    const outcome = await recorder.stop(current);
+    if (!outcome) return;
+    setResult({ item: current.key, transcript: outcome.transcript, score: outcome.score });
+    if (outcome.summary) setSummary(outcome.summary);
   }
 
   usePushToTalk({
@@ -155,7 +109,7 @@ export function ReadAloudPractice({
             : "Reading aloud needs speech-to-text: add a Groq API key in Settings."
         }
       >
-        <Tabs value={source} onValueChange={(value) => choose({ source: value as ReadAloudSource })}>
+        <Tabs value={source} onValueChange={(value) => choose({ source: value as PageSource })}>
           <TabsList>
             {SOURCES.map((s) => (
               <TabsTrigger key={s.value} value={s.value}>
@@ -181,7 +135,7 @@ export function ReadAloudPractice({
         {item ? (
           <div className="space-y-4">
             <div className="space-y-2">
-              {shown ? <ScoredSentence result={shown.score} /> : <Sentence item={item} />}
+              {shown ? <ScoredSentence result={shown.score} /> : <TargetSentence text={item.text} targets={item.target ? [item.target] : []} />}
               <ItemHint item={item} />
             </div>
 
@@ -227,25 +181,6 @@ function FocusButton({ active, onClick, children }: { active: boolean; onClick: 
   );
 }
 
-/** The sentence before reading it, with the word to watch underlined. */
-function Sentence({ item }: { item: ReadAloudItem }) {
-  if (!item.target) return <p className="font-serif text-reading">{item.text}</p>;
-  const parts = item.text.split(new RegExp(`(\\b${item.target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b)`, "i"));
-  return (
-    <p className="font-serif text-reading">
-      {parts.map((part, i) =>
-        i % 2 === 1 ? (
-          <span key={i} className="underline decoration-dotted decoration-2 underline-offset-4">
-            {part}
-          </span>
-        ) : (
-          part
-        ),
-      )}
-    </p>
-  );
-}
-
 function ItemHint({ item }: { item: ReadAloudItem }) {
   if (item.source === "sounds" && item.focus && item.target && item.confusedWith) {
     return (
@@ -259,76 +194,6 @@ function ItemHint({ item }: { item: ReadAloudItem }) {
   }
   if (item.source === "correction") return <p className="text-sm text-muted-foreground">From one of your corrected messages.</p>;
   return null;
-}
-
-/** The sentence after reading it: words heard differently marked, with the number of their note. */
-function ScoredSentence({ result }: { result: ReadAloudResult }) {
-  return (
-    <p className="font-serif text-reading whitespace-pre-wrap">
-      {result.tokens.map((token, i) => {
-        if (token.status === "wrong") {
-          return (
-            <span key={i} className="rounded-sm bg-mark-wrong/10 px-0.5 text-mark-wrong">
-              {token.text}
-              {token.issue !== null && <sup className="ml-0.5 font-sans text-xs">{token.issue + 1}</sup>}
-            </span>
-          );
-        }
-        if (token.status === "missed") {
-          return (
-            <span key={i} className="text-muted-foreground line-through decoration-mark-wrong" title="Not heard">
-              {token.text}
-            </span>
-          );
-        }
-        return <span key={i}>{token.text}</span>;
-      })}
-    </p>
-  );
-}
-
-function ResultDetails({ result, transcript, language }: { result: ReadAloudResult; transcript: string; language: Language }) {
-  const perfect = result.issues.length === 0 && result.missedWords.length === 0;
-  return (
-    <div className="space-y-4 border-t pt-4">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <StatusBadge tone={perfect ? "good" : result.correctWords / result.totalWords >= 0.8 ? "warn" : "bad"}>
-          {result.correctWords} of {result.totalWords} words
-        </StatusBadge>
-        <span className="text-muted-foreground">
-          Heard: <span className="font-serif italic">{transcript}</span>
-        </span>
-      </div>
-
-      {perfect && <p className="text-sm">Every word came through as written.</p>}
-
-      {result.issues.length > 0 && (
-        <ol className="space-y-3">
-          {result.issues.map((issue, i) => (
-            <li key={i} className="space-y-1">
-              <p>
-                <sup className="mr-1 text-xs text-mark-wrong">{i + 1}</sup>
-                <span className="font-serif">{issue.expected}</span>{" "}
-                <span className="text-muted-foreground">sounded like</span>{" "}
-                <span className="font-serif text-mark-wrong">{issue.heard}</span>
-                <span className="ml-2 text-sm text-muted-foreground">
-                  {PRONUNCIATION_LABELS[issue.category]}
-                  {issue.detail && <> · {issue.detail}</>}
-                </span>
-              </p>
-              <p className="max-w-[68ch] text-sm text-muted-foreground">{PRONUNCIATION_TIPS[issue.category][language]}</p>
-            </li>
-          ))}
-        </ol>
-      )}
-
-      {result.missedWords.length > 0 && (
-        <p className="text-sm text-muted-foreground">
-          Not heard: {result.missedWords.join(", ")}. Skipped words aren’t counted as pronunciation mistakes.
-        </p>
-      )}
-    </div>
-  );
 }
 
 function SoundsToWorkOn({

@@ -4,7 +4,7 @@ import { PRONUNCIATION_CATEGORIES } from "@/lib/taxonomy";
 
 const bodySchema = z.object({
   text: z.string().trim().min(1).max(500),
-  source: z.enum(["sounds", "correction", "vocabulary"]),
+  source: z.enum(["sounds", "correction", "vocabulary", "review"]),
   sourceId: z.string().nullable(),
   focus: z.enum(PRONUNCIATION_CATEGORIES).nullable(),
   transcript: z.string().max(2000),

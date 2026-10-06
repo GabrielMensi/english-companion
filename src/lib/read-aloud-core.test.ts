@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseFocus, readableSentences, soundItems, soundOrder, summarizePronunciation } from "./read-aloud-core";
+import { parseFocus, pronunciationCards, readableSentences, soundItems, soundOrder, summarizePronunciation } from "./read-aloud-core";
 
 describe("readableSentences", () => {
   it("keeps plain sentences of a readable length", () => {
@@ -72,5 +72,29 @@ describe("parseFocus", () => {
     expect(parseFocus("")).toBeNull();
     expect(parseFocus("other")).toBeNull();
     expect(parseFocus("verb_tense")).toBeNull();
+  });
+});
+
+describe("pronunciationCards", () => {
+  const row = (attemptId: string, createdAt: number, expected: string, heard: string, text = "I saw a big ship.") => ({
+    text,
+    attemptId,
+    createdAt,
+    expected,
+    heard,
+    category: "vowel_length" as const,
+    detail: null,
+  });
+
+  it("makes one card per sentence, newest first, with its words most repeated first", () => {
+    const cards = pronunciationCards([
+      row("a1", 1, "big", "beg"),
+      row("a1", 1, "ship", "sheep"),
+      row("a2", 5, "ship", "sheep"),
+      row("a3", 3, "think", "sink", "I  think so. "),
+    ]);
+    expect(cards.map((c) => c.key)).toEqual(["I saw a big ship.", "I think so."]);
+    expect(cards[0]).toMatchObject({ timesMissed: 2, lastMissedAt: 5 });
+    expect(cards[0].words.map((w) => w.expected)).toEqual(["ship", "big"]);
   });
 });

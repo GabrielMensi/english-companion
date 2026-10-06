@@ -1,11 +1,13 @@
 import "server-only";
 
-import { and, desc, eq, gte, isNotNull } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { ReadAloudSource } from "@/db/schema";
 import { cmuLookup } from "@/lib/cmu-lookup";
+import type { PronunciationCard } from "@/lib/flashcards-core";
 import { type ReadAloudResult, scoreReading } from "@/lib/pronunciation-core";
 import {
+  pronunciationCards,
   type PronunciationSummary,
   type ReadAloudItem,
   readableSentences,
@@ -147,4 +149,37 @@ export function saveAttempt(input: AttemptInput): ReadAloudResult {
     }
   });
   return result;
+}
+
+/** Sentences read with words heard differently, as "Hard to say" flashcards (newest first). */
+export function loadPronunciationCards(): PronunciationCard[] {
+  const rows = db
+    .select({
+      text: schema.readAloudAttempts.text,
+      createdAt: schema.readAloudAttempts.createdAt,
+      attemptId: schema.readAloudAttempts.id,
+      expected: schema.pronunciationIssues.expected,
+      heard: schema.pronunciationIssues.heard,
+      category: schema.pronunciationIssues.category,
+      detail: schema.pronunciationIssues.detail,
+    })
+    .from(schema.pronunciationIssues)
+    .innerJoin(schema.readAloudAttempts, eq(schema.readAloudAttempts.id, schema.pronunciationIssues.attemptId))
+    .all();
+  return pronunciationCards(rows.map((r) => ({ ...r, createdAt: r.createdAt.getTime() })));
+}
+
+/**
+ * Deletes every reading of a sentence (with its issues, so it also leaves the
+ * pronunciation stats). Returns how many readings went.
+ */
+export function deleteReadings(text: string): number {
+  const ids = db
+    .select({ id: schema.readAloudAttempts.id, text: schema.readAloudAttempts.text })
+    .from(schema.readAloudAttempts)
+    .all()
+    .filter((r) => r.text.replace(/\s+/g, " ").trim() === text)
+    .map((r) => r.id);
+  if (ids.length > 0) db.delete(schema.readAloudAttempts).where(inArray(schema.readAloudAttempts.id, ids)).run();
+  return ids.length;
 }
