@@ -373,7 +373,7 @@ export function tenseLabel(tense: string | null): string | null {
  * Categories speech-to-text can't measure: it decides spelling, punctuation and
  * capitalization itself, and fills in short unstressed words (articles,
  * prepositions, "it", the "do" of questions, a plural -s) from context
- * (see docs/VOICE.md, Phase 0). Mistakes in these categories are still shown
+ * (see docs/voice/VOICE.md, Phase 0). Mistakes in these categories are still shown
  * in spoken messages, but never counted in the stats.
  */
 export const NOT_MEASURABLE_WHEN_SPOKEN: readonly ErrorCategory[] = [
@@ -403,7 +403,7 @@ export function countsInStats(
 }
 
 /**
- * Fixed pronunciation taxonomy, for Spanish speakers (see docs/VOICE.md, Phase 3).
+ * Fixed pronunciation taxonomy, for Spanish speakers (see docs/voice/VOICE.md, Phase 3).
  * Assigned by rules from read-aloud attempts (`src/lib/pronunciation-core.ts`),
  * never by a model. Only sounds a transcript can reveal are here: word stress and
  * schwa reduction don't change which word speech-to-text hears.

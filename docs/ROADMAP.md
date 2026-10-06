@@ -12,36 +12,36 @@
 - Página Vocabulary y panel en el dashboard con las palabras buscadas entre [corchetes].
 - Set de evaluación de modelos (`pnpm eval:models`) y timeouts por request.
 - Selector de modelo en el chat, modelo registrado en cada respuesta y fallback automático entre modelos configurados.
-- Clasificación diferida de errores: tipos fijos por categoría, tiempo verbal que correspondía y que se usó, "Wrong type?" para corregirlo a mano y `pnpm eval:classify` ([ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md)).
-- Diagnóstico de tiempos verbales: precisión por tiempo, errores de uso vs forma, confusiones y tiempos poco usados ([VERB_TENSES.md](VERB_TENSES.md)).
+- Clasificación diferida de errores: tipos fijos por categoría, tiempo verbal que correspondía y que se usó, "Wrong type?" para corregirlo a mano y `pnpm eval:classify` ([ERROR_CLASSIFICATION.md](ai/ERROR_CLASSIFICATION.md)).
+- Diagnóstico de tiempos verbales: precisión por tiempo, errores de uso vs forma, confusiones y tiempos poco usados ([VERB_TENSES.md](practice/VERB_TENSES.md)).
 - Rediseño de Configuración: una tarjeta por proveedor (key, modelo, prueba y estado) editable sin cambiar el principal, una "cadena de modelos" que se puede reordenar y desactivar, guardado automático y puntaje, velocidad y límite gratis de cada modelo.
 - Nivel `suggestion` para mejoras opcionales (contracciones, puntuación opcional), que no cuentan como errores, y tiempo de respuesta en cada mensaje.
 - Ventana flotante (Document Picture-in-Picture, como Google Meet): composer con dictado, última corrección y "Copy & close" siempre visibles sobre otras apps; el botón "Native" muestra u oculta cómo lo diría un nativo (se recuerda en el navegador). Se abre con el botón del chat o Alt+P, y sola al cambiar de pestaña mientras dictás (por eso `pnpm dev` usa HTTPS).
-- Voz, fase 2: botones ▶ para escuchar correcciones, versión nativa, vocabulario y respuestas; push-to-talk con Ctrl+Space; modo voz en conversación (manda al soltar y lee la respuesta); métricas de fluidez (ritmo, pausas largas, muletillas) por mensaje y en el dashboard. También en la ventana flotante ([VOICE.md](VOICE.md)).
+- Voz, fase 2: botones ▶ para escuchar correcciones, versión nativa, vocabulario y respuestas; push-to-talk con Ctrl+Space; modo voz en conversación (manda al soltar y lee la respuesta); métricas de fluidez (ritmo, pausas largas, muletillas) por mensaje y en el dashboard. También en la ventana flotante ([VOICE.md](voice/VOICE.md)).
 - Streaming de la corrección: se ve mientras se genera (en el chat y en la ventana flotante); lo que se guarda sale siempre del objeto completo y validado.
-- Práctica de tiempos verbales (página Practice): ejercicios de contraste, de forma y "usalo" generados para los tiempos más flojos, y conversación dirigida que obliga a usarlos. Las respuestas se corrigen y suman a las estadísticas ([VERB_TENSES.md](VERB_TENSES.md#práctica)).
+- Práctica de tiempos verbales (página Practice): ejercicios de contraste, de forma y "usalo" generados para los tiempos más flojos, y conversación dirigida que obliga a usarlos. Las respuestas se corrigen y suman a las estadísticas ([VERB_TENSES.md](practice/VERB_TENSES.md#práctica)).
 - Flashcards (página Flashcards): vocabulario español → inglés y repaso espaciado de tus errores reales con un algoritmo tipo SM-2 (tabla `reviews`), filtrable por tiempo verbal o tipo de error.
 - Insights: reporte de la semana o del mes, plan de estudio escrito por la IA (exportable en Markdown, base para el reporte de clase) y nivel CEFR estimado con reglas fijas y transparentes.
 - Flashcards, mantenimiento: suspender o borrar tarjetas, limpieza de repasos huérfanos, el tipo de error pasa a ser una pista y "nuevas por sesión" configurable. Panel de repasos en el dashboard (retención, repasos por día, racha, pendientes) con la tabla `review_log`.
-- Nivel CEFR calibrado con ~3.300 textos de Write & Improve corregidos por Cambridge (`pnpm eval:level`): coincidencia exacta del 20% al 59% y siempre a ±1 nivel con 1.000 palabras ([LEVEL_CALIBRATION.md](LEVEL_CALIBRATION.md)).
+- Nivel CEFR calibrado con ~3.300 textos de Write & Improve corregidos por Cambridge (`pnpm eval:level`): coincidencia exacta del 20% al 59% y siempre a ±1 nivel con 1.000 palabras ([LEVEL_CALIBRATION.md](progress/LEVEL_CALIBRATION.md)).
 - Ejercicios dirigidos (página Practice, "Your weakest areas"): sets de completar huecos, elegir opción y corregir el error generados a partir de las 3 categorías más flojas y de tus errores reales; las respuestas se corrigen y suman a las estadísticas.
 - Mazo **Missed exercises** en Flashcards: los ítems fallados de los ejercicios (tiempos y categorías) vuelven con repaso espaciado.
 - Kokoro-82M como voz local opcional (Settings → Listening), en el navegador con `kokoro-js`; en CPU (WASM) anda bien y rápido. En WebGPU todavía no (bug #45), y cae al CPU o a la voz del navegador.
-- UI, fase 1 ([UI-PLAN.md](UI-PLAN.md)): Hanken Grotesk para la app y Newsreader para tu inglés, escala tipográfica, colores de área (Write, Review, Train) separados de los colores de datos, estructura de página compartida y un solo vocabulario de estados.
+- UI, fase 1 ([UI-PLAN.md](ui/UI-PLAN.md)): Hanken Grotesk para la app y Newsreader para tu inglés, escala tipográfica, colores de área (Write, Review, Train) separados de los colores de datos, estructura de página compartida y un solo vocabulario de estados.
 - UI, fase 2: sidebar agrupada en Review, Train y Chats, con íconos por área, un ícono por tipo de chat (corrección, conversación, práctica), tarjetas pendientes en Flashcards y Settings abajo.
 - UI, fase 3: tarjeta de corrección con números de referencia entre el texto y cada error, versión nativa arriba, errores agrupados por categoría y ordenados por gravedad, typos y sugerencias plegados; en el header, Correction / Conversation como switch y un menú para el modelo y la ventana flotante.
 - UI, fase 4: página Today en lugar de la home: qué hacer hoy en una frase, seguir el último chat, la semana en números y las sugerencias de Train (tarjetas, tiempo verbal, tipo de error y el sonido más flojo de Read aloud).
 - UI, fases 5 y 6: dashboard con titular en una frase y "Practice this" por área, detalles agrupados; Practice y Flashcards con jerarquía sección → ítem; foco visible en todos los controles, `prefers-reduced-motion` y contraste AA revisado en los dos temas.
-- Voz, fase 3: página Read aloud (#56, #60): leés una oración y las palabras que Whisper escucha distinto se clasifican sin IA, comparando fonemas con el CMU Pronouncing Dictionary, con una taxonomía fija de pronunciación para hispanohablantes, oraciones de pares mínimos por sonido, de tus correcciones y de tu vocabulario, y el panel "Sounds to work on". `?focus=<sonido>` abre la página en un sonido ([VOICE.md](VOICE.md)).
-- Mazo **Hard to say** en Flashcards (#65): las oraciones leídas en voz alta con palabras escuchadas distinto vuelven con repaso espaciado; se responden leyéndolas, con el mismo puntaje que Read aloud y la nota sugerida por la lectura ([VOICE.md](VOICE.md)).
+- Voz, fase 3: página Read aloud (#56, #60): leés una oración y las palabras que Whisper escucha distinto se clasifican sin IA, comparando fonemas con el CMU Pronouncing Dictionary, con una taxonomía fija de pronunciación para hispanohablantes, oraciones de pares mínimos por sonido, de tus correcciones y de tu vocabulario, y el panel "Sounds to work on". `?focus=<sonido>` abre la página en un sonido ([VOICE.md](voice/VOICE.md)).
+- Mazo **Hard to say** en Flashcards (#65): las oraciones leídas en voz alta con palabras escuchadas distinto vuelven con repaso espaciado; se responden leyéndolas, con el mismo puntaje que Read aloud y la nota sugerida por la lectura ([VOICE.md](voice/VOICE.md)).
 
 ## Próximo
 
 ### Kev como clasificador
-La clasificación en dos etapas ya está hecha con el LLM. Falta evaluar Kev-0.8B (o Jev / Jeeves) como backend cuando haya etiquetas reales de "Wrong type?". Ver [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md).
+La clasificación en dos etapas ya está hecha con el LLM. Falta evaluar Kev-0.8B (o Jev / Jeeves) como backend cuando haya etiquetas reales de "Wrong type?". Ver [ERROR_CLASSIFICATION.md](ai/ERROR_CLASSIFICATION.md).
 
 ### Voz
-Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). La lectura en voz alta con pronunciación por reglas ya está (fase 3, #53); el repaso espaciado de pronunciación también (mazo Hard to say, #65); falta el panel en el dashboard, whisper.cpp local como fallback y las clases (fase 4). Kokoro como voz local ya está (en CPU; WebGPU pendiente, #45). Investigación y plan en [VOICE.md](VOICE.md).
+Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). La lectura en voz alta con pronunciación por reglas ya está (fase 3, #53); el repaso espaciado de pronunciación también (mazo Hard to say, #65); falta el panel en el dashboard, whisper.cpp local como fallback y las clases (fase 4). Kokoro como voz local ya está (en CPU; WebGPU pendiente, #45). Investigación y plan en [VOICE.md](voice/VOICE.md).
 
 ### Ejercicios dirigidos
 A partir de las 3 categorías más flojas del dashboard, generar ejercicios cortos: completar huecos, reescribir oraciones o elegir la opción correcta. La respuesta del usuario también se corrige y suma a las estadísticas.
@@ -71,12 +71,12 @@ Los PDFs están en `books/` (ignorado en git: tienen copyright y pesan ~680 MB; 
 
 Lo que se verificó (2026-09-28):
 - **Los Student's Books son escaneos**: no tienen texto extraíble (`pdftotext` devuelve páginas vacías). Hay que leerlos como imagen, con un modelo de visión (Gemini Flash-Lite acepta imágenes y es gratis) o con OCR.
-- **Los Workbooks sí tienen texto en parte y traen answer key** (verificado 2026-09-30): el de Speakout tiene una capa OCR con ruido en todas las páginas; el de Roadmap, texto digital limpio en la answer key y los audio scripts (pp. 69–86). Detalle en [TEXTBOOKS.md](TEXTBOOKS.md).
+- **Los Workbooks sí tienen texto en parte y traen answer key** (verificado 2026-09-30): el de Speakout tiene una capa OCR con ruido en todas las páginas; el de Roadmap, texto digital limpio en la answer key y los audio scripts (pp. 69–86). Detalle en [TEXTBOOKS.md](class/TEXTBOOKS.md).
 - **El índice es muy aprovechable**: está en las páginas 2–5 de cada libro y se lee bien renderizado a 70 dpi (`pdftoppm -f 2 -l 5 -r 70`). Cada lección (1A, 1B…) tiene columnas *Grammar/Function*, *Vocabulary* y *Pronunciation* (Roadmap agrega *Speaking goal*; Speakout, *Reading*).
 - **La gramática se mapea directo a la taxonomía** de `src/lib/taxonomy.ts`. Ejemplos: present simple/continuous y past simple → `verb_tense`; *used to*, *be going to* → `verb_tense`; articles → `articles`; question forms → `question_formation`; verb patterns → `gerund_infinitive`; comparatives/superlatives → `comparatives`; modals for rules/advice, possibility/deduction → `modals`; zero/first conditional → `conditionals`; quantifiers → `plurals_countability`; phrasal verbs → `phrasal_verbs`; collocations with *get/make* → `collocations`.
 
 ### Resolver los ejercicios del libro en la app
-Un espacio para los libros: visor de PDF, un botón que pasa la página actual a texto y detecta los ejercicios, resolverlos en la app y corregirlos de a uno (o en grupo), contra la answer key cuando existe y con la IA cuando no. Registra el avance por lección y usa el índice para recomendar ejercicios. Cubre la extracción del índice de §2. Investigación y diseño en [TEXTBOOKS.md](TEXTBOOKS.md).
+Un espacio para los libros: visor de PDF, un botón que pasa la página actual a texto y detecta los ejercicios, resolverlos en la app y corregirlos de a uno (o en grupo), contra la answer key cuando existe y con la IA cuando no. Registra el avance por lección y usa el índice para recomendar ejercicios. Cubre la extracción del índice de §2. Investigación y diseño en [TEXTBOOKS.md](class/TEXTBOOKS.md).
 
 ### 1. Reporte para llevar a clase (prioridad 1)
 Antes de cada clase, la app genera una página con: los errores más repetidos de la semana con ejemplos reales, las palabras buscadas con `[corchetes]` y las categorías que empeoraron. Se comparte pantalla en Meet o se manda antes, y el profesor dedica la clase a lo que realmente te cuesta en vez de adivinarlo.
@@ -99,7 +99,7 @@ Para las tareas de escritura que da el profesor: un modo "homework" donde escrib
 ### 5. Speaking desde la transcripción de la clase (más adelante)
 Google Meet puede generar transcripciones, pero en general solo en cuentas pagas de Workspace. Con una transcripción, la app analizaría solo tus intervenciones y llevaría estadísticas de errores **hablados** separadas de las escritas.
 - Problemas: los errores del reconocimiento de voz parecen errores de gramática, y grabar localmente (Whisper) requiere el consentimiento del profesor.
-- Ver [VOICE.md](VOICE.md), fase 4.
+- Ver [VOICE.md](voice/VOICE.md), fase 4.
 
 ## Ideas a futuro
 

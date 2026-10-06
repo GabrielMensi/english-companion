@@ -1,5 +1,7 @@
 # Libros: resolver los ejercicios en la app
 
+> Area: Class & textbook · Kind: Research · Status: Exploring
+
 Estado (2026-09-30): **idea explorada, no implementada**. Este documento es la investigación y una propuesta de diseño.
 
 ## La idea
@@ -9,7 +11,7 @@ Un espacio dedicado a los libros del curso (los que hoy están a mano en `books/
 2. En la página que estás trabajando, un botón pasa esa página a texto y detecta los ejercicios.
 3. Resolvés cada ejercicio en la app y lo mandás a corregir **aislado** (un ejercicio por vez, o varios juntos).
 4. Se registra el avance en el libro (qué lecciones y ejercicios hiciste y cómo te fue).
-5. El índice pasado a texto sirve después para recomendar ejercicios (ver [ROADMAP.md](ROADMAP.md), "La app sigue el libro").
+5. El índice pasado a texto sirve después para recomendar ejercicios (ver [ROADMAP.md](../ROADMAP.md), "La app sigue el libro").
 
 ## Qué hay en los PDFs (verificado 2026-09-30)
 
@@ -27,7 +29,7 @@ Detalles que importan para el diseño:
 - **Las answer keys son lo más valioso que encontramos**. Corregir contra la clave es mucho más confiable que pedirle a un modelo que invente la respuesta correcta (sobre todo con modelos locales). Están organizadas por lección y ejercicio (`2B 1 How do you know Sol?`, `1C 1c 2b 3b…`), así que se pueden mapear a los ejercicios.
 - **Los audio scripts** del Roadmap Workbook permiten hacer los ejercicios de listening leyendo el script (o mostrarlo después de responder). Los audios en sí no están.
 - **Número de página del PDF ≠ número impreso**: la página 20 del PDF del Speakout Workbook es la 18 del libro. Hay que guardar un offset por libro para hablar el mismo idioma que el profesor ("hacé la página 18").
-- **Tipos de ejercicio** vistos en una página típica (Speakout WB, lección 3A; Roadmap WB, unidad 1): completar huecos con palabras de un recuadro, completar palabras incompletas (`memor____`), ordenar palabras para formar una pregunta, multiple choice (a/b/c), elegir entre dos o tres palabras en negrita, conjugar el verbo entre paréntesis, preguntas abiertas de comprensión sobre un texto de la misma página, y pronunciación con audio (no se puede hacer en la app, ver [VOICE.md](VOICE.md), fase 3).
+- **Tipos de ejercicio** vistos en una página típica (Speakout WB, lección 3A; Roadmap WB, unidad 1): completar huecos con palabras de un recuadro, completar palabras incompletas (`memor____`), ordenar palabras para formar una pregunta, multiple choice (a/b/c), elegir entre dos o tres palabras en negrita, conjugar el verbo entre paréntesis, preguntas abiertas de comprensión sobre un texto de la misma página, y pronunciación con audio (no se puede hacer en la app, ver [VOICE.md](../voice/VOICE.md), fase 3).
 
 ## ¿Pasar el libro entero a texto o página por página?
 

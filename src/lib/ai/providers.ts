@@ -156,7 +156,7 @@ export function withFallback<T>(
 
 /**
  * Speech-to-text for dictation. Whisper large-v3-turbo on Groq kept the most
- * mistakes without inventing text in the Phase 0 eval (docs/VOICE.md), is free
+ * mistakes without inventing text in the Phase 0 eval (docs/voice/VOICE.md), is free
  * for ~8 h of audio a day and answers in under a second. Null without a Groq key.
  */
 export const TRANSCRIPTION_MODEL = { provider: "groq", modelId: "whisper-large-v3-turbo" } as const;

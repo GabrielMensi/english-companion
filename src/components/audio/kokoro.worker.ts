@@ -100,7 +100,7 @@ const DEVICE_NAME: Record<KokoroDevice, string> = { webgpu: "GPU (WebGPU)", wasm
  *   loading it falls back to the CPU.
  * - wasm: forced.
  * fp32 on WebGPU: the fp16/quantized models are worse there (NaNs with fp16, garbage with q8/q4,
- * see VOICE.md). On WASM, fp32 when there are threads: ONNX Runtime parallelizes it well (real-time
+ * see docs/voice/VOICE.md). On WASM, fp32 when there are threads: ONNX Runtime parallelizes it well (real-time
  * factor ~0.5 with 8 threads, vs ~1.0 for q8, whose quantized ops barely gain from threads), and
  * it's the same file the GPU uses. With a single thread (page not isolated) both take ~1.6× the
  * audio's length, so the 8-bit model wins by being 92 MB instead of 326 MB.

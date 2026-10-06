@@ -1,5 +1,7 @@
 # Tiempos verbales: diagnóstico por tiempo
 
+> Area: Practice · Kind: Feature · Status: Done (written vs spoken comparison pending) · Board: #10
+
 Estado (2026-09-30): **implementado** el diagnóstico (ver "Implementado") y la práctica (ver "Práctica", al final). Queda la comparación escrito / hablado. Los tiempos verbales son uno de los temas más importantes para un hispanohablante, pero hoy la app solo sabe **cuántos** errores hay en `verb_tense`, no **en qué tiempo** ni **cuáles domino**.
 
 ## Qué pasa hoy
@@ -55,7 +57,7 @@ Se deriva de la categoría que ya existe, no hace falta un campo nuevo.
 
 ### Salida del modelo (`src/lib/ai/analysis.ts`)
 
-> Alternativa: en vez de agregar estos campos al prompt del análisis, los puede resolver la etapa de clasificación separada de [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md). Así el prompt no crece.
+> Alternativa: en vez de agregar estos campos al prompt del análisis, los puede resolver la etapa de clasificación separada de [ERROR_CLASSIFICATION.md](../ai/ERROR_CLASSIFICATION.md). Así el prompt no crece.
 
 Dos campos planos más por error, que funcionan con modelos locales (enum con `"none"` en vez de null, porque los modelos chicos manejan mejor un string que un null):
 
@@ -114,7 +116,7 @@ interface TenseStat {
 - **Precisión suavizada** (Beta(1,1)): `(usos − errores + 1) / (usos + 2)`. Con 2 usos y 0 errores da 75 %, no 100 %, así no se declara "fuerte" algo que casi no usaste.
 - **Estados** (umbrales iniciales, ajustables): `strong` ≥ 90 % con ≥ 15 usos; `weak` < 75 %; `shaky` en el medio; `not_enough_data` con < 5 usos; `avoided` si el tiempo casi no aparece en muchas palabras escritas y es un tiempo común (present perfect, past continuous, going to). Evitar un tiempo también es una debilidad.
 - **Matriz de confusión**: pares `tenseUsed → tense` ordenados por frecuencia, con el ejemplo más reciente.
-- Respeta el mismo `countTypos` y los mismos rangos de fechas; cuando exista la voz ([VOICE.md](VOICE.md)), también el filtro escrito / hablado.
+- Respeta el mismo `countTypos` y los mismos rangos de fechas; cuando exista la voz ([VOICE.md](../voice/VOICE.md)), también el filtro escrito / hablado.
 
 ### Dashboard
 
@@ -153,7 +155,7 @@ Después: ejercicios de contraste y conversación dirigida, que se apoyan en est
 
 ## Implementado
 
-- **Tiempo de cada error**: lo asigna el clasificador diferido de [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md) (`tense` / `tenseUsed` en `corrections`), no el prompt del chat.
+- **Tiempo de cada error**: lo asigna el clasificador diferido de [ERROR_CLASSIFICATION.md](../ai/ERROR_CLASSIFICATION.md) (`tense` / `tenseUsed` en `corrections`), no el prompt del chat.
 - **Conteo de usos**: `src/lib/tenses-core.ts` (`countTenses`), con compromise más reglas propias:
   - une lo que compromise separa en las preguntas ("Did | she finish", "Are you going | to deploy");
   - resuelve contracciones ("she's been" → has been);

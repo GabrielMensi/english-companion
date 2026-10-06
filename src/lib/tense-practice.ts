@@ -1,5 +1,5 @@
 /**
- * Pure parts of the verb tense practice (see docs/VERB_TENSES.md): which tenses
+ * Pure parts of the verb tense practice (see docs/practice/VERB_TENSES.md): which tenses
  * to practice, based on the per-tense diagnosis; conversation questions that
  * need each tense; and the feedback shown after each exercise answer. Kept free
  * of server-only imports so it can be unit tested.

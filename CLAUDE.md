@@ -28,11 +28,14 @@ The user runs the app every day from this folder (`pnpm dev` on port 3737, `deve
 ## Project board (mandatory)
 
 Task status lives in the GitHub Project **English Companion**: https://github.com/users/GabrielMensi/projects/1 (project #1, owner `GabrielMensi`, linked to this repo). Keep it up to date in every session without being asked, using `gh project` / `gh issue` (the token has the `project` scope; get field and option IDs with `gh project field-list 1 --owner GabrielMensi --format json`).
-- **Fields**: Status (Backlog → Ready → In progress → In review → Done), Priority (P0 next or blocking, P1 important, P2 later), Size (XS to XL), Start date and Target date (for the Roadmap view).
+- **Fields**: Status (Backlog → Ready → In progress → In review → Done, plus In pause and Discard), Priority (P0 next or blocking, P1 important, P2 later), Size (XS to XL), Start date and Target date (for the Roadmap view).
+- **Categories (set both on every item, drafts and PRs included)**: *Area* (Chat & corrections, Voice, Practice, Progress, Class & textbook, AI pipeline, UI/UX, Platform) and *Kind* (Feature, Bug, Research, Eval, Chore). Area is where the user sees it (a dashboard panel about pronunciation is Progress); AI pipeline is only for cross-cutting work (providers, prompts, model choice, the classifier). Research produces a doc and a decision; Eval measures quality (model evals, calibration, manual test passes).
+- **Cycle**: two-week iterations starting on Mondays. Set the current cycle when an item moves to *In progress*. If the next cycles are missing, add them (`updateProjectV2Field` with `iterationConfiguration` via `gh api graphql`, passing the existing iterations too).
 - **Before starting a task**: find its item on the board (or create it). If it's a draft, convert it to an issue. Move it to *In progress* and set its Start date.
 - **Pull requests**: put `Closes #N` in the PR body so the merge closes the issue, and move the item to *In review* when the PR is opened.
 - **After merging**: make sure the item is *Done* (merged PRs are on the board too, as *Done*), with the merge date as its Target date. Also update "Hecho" in `docs/ROADMAP.md`.
+- **Docs** go in `docs/<area>/` with the `> Area · Kind · Status · Board` header line, and are listed in `docs/README.md` (see the rules there).
 - **New ideas and follow-ups** found while working (limitations, TODOs, things the user asks to "leave for later") go on the board as *Backlog* drafts with a Priority and a Size, not only in the docs. Docs keep the detail; the board tracks the status.
-- **Issues vs drafts**: the next 3–4 tasks are real issues (label `enhancement` or `bug`, plus `voice`, `stats` or `practice` when it applies); the rest of the backlog stays as drafts.
+- **Issues vs drafts**: the next 3–4 tasks are real issues; the rest of the backlog stays as drafts. Categories live in the Area and Kind fields, not in labels (drafts can't have labels).
 - If an item's scope or priority changes (the user decides something isn't important right now, or a finding changes the plan), update the item and its issue body; don't leave stale plans.
 - Small housekeeping (docs-only fixes, config) doesn't need an item.

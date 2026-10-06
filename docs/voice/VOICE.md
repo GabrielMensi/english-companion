@@ -1,12 +1,14 @@
 # Voz: investigación y plan de implementación
 
-Estado (2026-09-29): **no está implementado ni diseñado**. Hasta ahora la voz solo aparecía como una línea en [ROADMAP.md](ROADMAP.md) ("dictado con Whisper local") y en la idea de transcribir las clases de Meet. Este documento es la investigación y el plan.
+> Area: Voice · Kind: Research · Status: In progress (phases 1–3 done, phase 4 pending) · Board: #53, #45
+
+Al empezar (2026-09-29) no estaba implementado ni diseñado. Hasta ahora la voz solo aparecía como una línea en [ROADMAP.md](../ROADMAP.md) ("dictado con Whisper local") y en la idea de transcribir las clases de Meet. Este documento es la investigación y el plan.
 
 ## Qué queremos lograr
 
 La app ve cómo **escribís**; el profesor ve cómo **hablás**. Escribiendo tenés tiempo para pensar y corregirte, así que los errores escritos subestiman los que cometés en tiempo real. La voz sirve para cuatro cosas, en orden de valor:
 
-1. **Errores hablados**: dictar en vez de escribir y analizar esa transcripción con el mismo pipeline, con estadísticas separadas de las escritas. Es la mejor medida de qué gramática está *automatizada* (ver [VERB_TENSES.md](VERB_TENSES.md): los tiempos verbales son justo lo que más se cae al hablar).
+1. **Errores hablados**: dictar en vez de escribir y analizar esa transcripción con el mismo pipeline, con estadísticas separadas de las escritas. Es la mejor medida de qué gramática está *automatizada* (ver [VERB_TENSES.md](../practice/VERB_TENSES.md): los tiempos verbales son justo lo que más se cae al hablar).
 2. **Conversación por voz**: el modo conversación con push-to-talk y la respuesta leída en voz alta (listening + speaking).
 3. **Pronunciación**: detectar palabras mal pronunciadas y llevar estadísticas con una taxonomía fija, igual que con los errores.
 4. **Fluidez**: palabras por minuto, pausas y muletillas, que salen gratis de los timestamps de la transcripción.
