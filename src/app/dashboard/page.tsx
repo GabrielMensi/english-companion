@@ -5,13 +5,15 @@ import { CategoryTable } from "@/components/dashboard/category-table";
 import { ClassificationStatus } from "@/components/dashboard/classification-status";
 import { FluencyPanel } from "@/components/dashboard/fluency-panel";
 import { ReviewPanel } from "@/components/dashboard/review-panel";
-import { StatTiles } from "@/components/dashboard/stat-tiles";
 import { TensePanel } from "@/components/dashboard/tense-panel";
 import { TimelineChart } from "@/components/dashboard/timeline-chart";
 import { TopMistakes } from "@/components/dashboard/top-mistakes";
 import { Page, PageHeader, Section, SectionLink } from "@/components/layout/page";
+import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
+import { categoryTopic, selectCategoryTargets } from "@/lib/category-practice";
 import { getClassificationStatus } from "@/lib/classification";
+import { dashboardDetail, dashboardHeadline } from "@/lib/dashboard-summary";
 import { getReviewDashboard } from "@/lib/review-stats";
 import { getDashboardData, INPUT_FILTERS, type InputFilter, RANGES, type RangeKey } from "@/lib/stats";
 import { cn } from "@/lib/utils";
@@ -26,6 +28,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const input: InputFilter = INPUT_FILTERS.includes(rawInput as InputFilter) ? (rawInput as InputFilter) : "all";
   const { stats, tenses, vocabulary, fluency, countTypos, hasSpoken } = getDashboardData(range, input);
   const reviews = getReviewDashboard(range);
+  // The weakest categories in this period that make good exercises; none when there isn't enough data.
+  const practiceTargets = selectCategoryTargets(stats).filter((t) => t.status === "weak");
   const href = (next: { range?: RangeKey; input?: InputFilter }) => {
     const params = new URLSearchParams({ range: next.range ?? range });
     const nextInput = next.input ?? input;
@@ -95,11 +99,32 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </div>
         ) : (
           <>
-            <StatTiles totals={stats.totals} />
+            <div className="space-y-1">
+              <p className="text-section font-semibold tracking-tight">
+                {dashboardHeadline(stats.totals, RANGES[range])}
+              </p>
+              <p className="text-muted-foreground">{dashboardDetail(stats.totals, countTypos)}</p>
+            </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
               <Section title="Areas to work on" description="Mistakes by category and severity">
                 <CategoryChart categories={stats.categories.filter((c) => c.count > 0)} />
+                {practiceTargets.length > 0 && (
+                  <div data-area="train" className="space-y-2 border-t pt-4">
+                    <p className="text-sm font-medium">Practice this</p>
+                    <div className="flex flex-wrap gap-2">
+                      {practiceTargets.map((t) => (
+                        <StartPracticeButton
+                          key={`${t.category}/${t.subtype}`}
+                          variant="outline"
+                          request={{ kind: "category", category: t.category, subtype: t.subtype }}
+                        >
+                          {categoryTopic(t)}
+                        </StartPracticeButton>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </Section>
               <Section title="Progress" description="Mistakes per 100 words">
                 <TimelineChart data={stats.timeline} />
@@ -116,53 +141,57 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               <TensePanel stats={tenses} />
             </Section>
 
-            {hasSpoken && input !== "typed" && (
-              <Section title="Fluency" description="How you speak when you dictate: pace, long pauses and filler words">
-                <FluencyPanel stats={fluency} />
+
+
+            <div className="space-y-6 pt-4">
+              <h2 className="text-section font-semibold tracking-tight text-muted-foreground">In detail</h2>
+              <Section
+                title="Vocabulary"
+                description="Words you looked up with [brackets] in this period"
+                action={
+                  <SectionLink href="/vocabulary">See all words</SectionLink>
+                }
+              >
+                {vocabulary.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No lookups in this period. When you don’t know a word, write it in Spanish between brackets:{" "}
+                    <code className="rounded bg-muted px-1">I want to [aprovechar] this</code>
+                  </p>
+                ) : (
+                  <ul className="flex flex-wrap gap-2">
+                    {vocabulary.slice(0, 12).map((w) => (
+                      <li key={w.key} className="rounded-lg border px-3 py-1.5 text-sm">
+                        <span className="text-muted-foreground">{w.spanish}</span> →{" "}
+                        <span className="font-medium">{w.english[0]}</span>
+                        {w.timesLookedUp > 1 && (
+                          <span className="ml-1.5 text-xs text-muted-foreground">{w.timesLookedUp}×</span>
+                        )}
+                      </li>
+                    ))}
+                    {vocabulary.length > 12 && (
+                      <li className="px-1 py-1.5 text-sm text-muted-foreground">+{vocabulary.length - 12} more</li>
+                    )}
+                  </ul>
+                )}
               </Section>
-            )}
 
-            <Section
-              title="Vocabulary"
-              description="Words you looked up with [brackets] in this period"
-              action={
-                <SectionLink href="/vocabulary">See all words</SectionLink>
-              }
-            >
-              {vocabulary.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No lookups in this period. When you don’t know a word, write it in Spanish between brackets:{" "}
-                  <code className="rounded bg-muted px-1">I want to [aprovechar] this</code>
-                </p>
-              ) : (
-                <ul className="flex flex-wrap gap-2">
-                  {vocabulary.slice(0, 12).map((w) => (
-                    <li key={w.key} className="rounded-lg border px-3 py-1.5 text-sm">
-                      <span className="text-muted-foreground">{w.spanish}</span> →{" "}
-                      <span className="font-medium">{w.english[0]}</span>
-                      {w.timesLookedUp > 1 && (
-                        <span className="ml-1.5 text-xs text-muted-foreground">{w.timesLookedUp}×</span>
-                      )}
-                    </li>
-                  ))}
-                  {vocabulary.length > 12 && (
-                    <li className="px-1 py-1.5 text-sm text-muted-foreground">+{vocabulary.length - 12} more</li>
-                  )}
-                </ul>
+              <Section
+                title="By category"
+                description="Trend compared with the previous period of the same length"
+              >
+                <CategoryTable categories={stats.categories} />
+              </Section>
+
+              <Section title="Most frequent mistakes" description="With the most recent example">
+                <TopMistakes mistakes={stats.topMistakes} />
+              </Section>
+
+              {hasSpoken && input !== "typed" && (
+                <Section title="Fluency" description="How you speak when you dictate: pace, long pauses and filler words">
+                  <FluencyPanel stats={fluency} />
+                </Section>
               )}
-            </Section>
-
-            <Section
-              title="By category"
-              description="Trend compared with the previous period of the same length"
-            >
-              <CategoryTable categories={stats.categories} />
-            </Section>
-
-            <Section title="Most frequent mistakes" description="With the most recent example">
-              <TopMistakes mistakes={stats.topMistakes} />
-            </Section>
-
+            </div>
           </>
         )}
 
@@ -177,6 +206,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
             <ReviewPanel data={reviews} />
           </Section>
         )}
+
     </Page>
   );
 }

@@ -1,5 +1,6 @@
 import { BookOpen, Dumbbell, PencilLine } from "lucide-react";
 import Link from "next/link";
+import { Section } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
 import type { DeckCounts, MistakeFilter } from "@/lib/flashcards-core";
 import type { FilterOption, FlashcardsOverview } from "@/lib/flashcards";
@@ -49,32 +50,28 @@ export function DeckOverview({ overview }: { overview: FlashcardsOverview }) {
       </div>
 
       {overview.tenses.length > 0 && (
-        <section className="space-y-3">
-          <div>
-            <h2 className="font-medium">Practice one tense</h2>
-            <p className="text-sm text-muted-foreground">Mistakes with verbs, by the tense the sentence needed.</p>
-          </div>
+        <Section
+          title="Study one tense"
+          description="Your mistakes with verbs, by the tense the sentence needed. The numbers are cards to study / all cards."
+        >
           <Chips options={overview.tenses} />
-        </section>
+        </Section>
       )}
 
       {overview.categories.length > 0 && (
-        <section className="space-y-3">
-          <div>
-            <h2 className="font-medium">Practice one type of mistake</h2>
-            <p className="text-sm text-muted-foreground">
-              Types appear once a mistake has been classified.
-            </p>
-          </div>
-          <ul className="divide-y rounded-xl border bg-card">
+        <Section
+          title="Study one type of mistake"
+          description="Types appear once a mistake has been classified."
+        >
+          <ul className="divide-y">
             {overview.categories.map((c) => (
-              <li key={c.label} className="space-y-2 p-3">
+              <li key={c.label} className="space-y-2 py-3 first:pt-0 last:pb-0">
                 <Chip option={c} strong />
                 {c.subtypes.length > 1 && <Chips options={c.subtypes} />}
               </li>
             ))}
           </ul>
-        </section>
+        </Section>
       )}
     </div>
   );

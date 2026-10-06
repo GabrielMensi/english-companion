@@ -102,7 +102,7 @@ export function SettingsForm({
 
       <section className="space-y-3">
         <div>
-          <h2 className="font-medium">Providers</h2>
+          <h2 className="text-section font-semibold tracking-tight">Providers</h2>
           <p className="text-sm text-muted-foreground">
             Set up each provider’s key and model. Changing them here doesn’t change the order above.
           </p>
@@ -122,7 +122,7 @@ export function SettingsForm({
       </section>
 
       <section className="space-y-4">
-        <h2 className="font-medium">Corrections</h2>
+        <h2 className="text-section font-semibold tracking-tight">Corrections</h2>
         <div className="flex items-center justify-between gap-4">
           <div>
             <Label>Explanation language</Label>
@@ -153,7 +153,7 @@ export function SettingsForm({
       </section>
 
       <section className="space-y-4">
-        <h2 className="font-medium">Flashcards</h2>
+        <h2 className="text-section font-semibold tracking-tight">Flashcards</h2>
         <div className="flex items-center justify-between gap-4">
           <div>
             <Label>New cards per session</Label>

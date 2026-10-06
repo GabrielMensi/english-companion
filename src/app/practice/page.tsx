@@ -36,7 +36,6 @@ export default async function PracticePage() {
       />
 
         <Section
-          framed={false}
           title={suggested ? "Suggested for you" : "Your weak spots"}
           description={
             suggested
@@ -44,9 +43,9 @@ export default async function PracticePage() {
               : undefined
           }
         >
-          <ul className="space-y-3">
+          <ul className="divide-y">
             {targets.map((t) => (
-              <li key={`${t.tense}/${t.contrastWith}`} className="space-y-3 rounded-xl border bg-card p-5">
+              <li key={`${t.tense}/${t.contrastWith}`} className="space-y-2.5 py-4 first:pt-0 last:pb-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-base font-semibold">
                     {TENSE_LABELS[t.tense]}
@@ -77,7 +76,6 @@ export default async function PracticePage() {
         </Section>
 
         <Section
-          framed={false}
           title={suggestedCategories ? "Other common mistakes" : "Your weakest areas"}
           description={
             <>
@@ -88,9 +86,9 @@ export default async function PracticePage() {
             </>
           }
         >
-          <ul className="space-y-3">
+          <ul className="divide-y">
             {categories.map((c) => (
-              <li key={`${c.category}/${c.subtype}`} className="space-y-3 rounded-xl border bg-card p-5">
+              <li key={`${c.category}/${c.subtype}`} className="space-y-2.5 py-4 first:pt-0 last:pb-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-base font-semibold">{categoryTopic(c)}</h3>
                   <StatusBadge tone={CATEGORY_STATUS[c.status].tone}>{CATEGORY_STATUS[c.status].label}</StatusBadge>
