@@ -1,4 +1,4 @@
-import { BookOpen, Dumbbell, PencilLine } from "lucide-react";
+import { AudioLines, BookOpen, Dumbbell, PencilLine } from "lucide-react";
 import Link from "next/link";
 import { Section } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import type { FilterOption, FlashcardsOverview } from "@/lib/flashcards";
 import { formatDelay } from "@/lib/srs";
 import { cn } from "@/lib/utils";
 
-function studyHref(deck: "vocabulary" | "mistakes" | "exercises", filter: MistakeFilter = {}): string {
+function studyHref(deck: "vocabulary" | "mistakes" | "exercises" | "pronunciation", filter: MistakeFilter = {}): string {
   const params = new URLSearchParams({ deck });
   for (const [key, value] of Object.entries(filter)) if (value) params.set(key, value);
   return `/flashcards?${params}`;
@@ -46,6 +46,16 @@ export function DeckOverview({ overview }: { overview: FlashcardsOverview }) {
           newLimit={overview.newLimit}
           href={studyHref("exercises")}
           empty="Nothing missed yet. Items you get wrong in Practice show up here."
+        />
+        <Deck
+          title="Hard to say"
+          description="Sentences you read aloud with words heard differently: read them again."
+          icon={AudioLines}
+          counts={overview.pronunciation}
+          now={overview.now}
+          newLimit={overview.newLimit}
+          href={studyHref("pronunciation")}
+          empty="Nothing yet. Sentences you mispronounce on the Read aloud page show up here."
         />
       </div>
 

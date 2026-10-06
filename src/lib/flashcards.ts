@@ -13,12 +13,14 @@ import {
   type MistakeCard,
   mistakeCards,
   type MistakeFilter,
+  type PronunciationCard,
   type QueuedCard,
   type VocabularyCard,
   vocabularyCards,
 } from "@/lib/flashcards-core";
 import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
 import { loadExerciseCards } from "@/lib/missed-exercises";
+import { loadPronunciationCards } from "@/lib/read-aloud";
 import { getSettings } from "@/lib/settings";
 import { type Grade, newReviewState, type ReviewState, schedule } from "@/lib/srs";
 import { categoryLabel, countsInStats, subtypeLabel, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
@@ -89,6 +91,11 @@ export function getExerciseDeck(): QueuedCard<ExerciseCard>[] {
   return withStates(loadExerciseCards(), "exercise");
 }
 
+/** Sentences read aloud with words heard differently, newest first. */
+export function getPronunciationDeck(): QueuedCard<PronunciationCard>[] {
+  return withStates(loadPronunciationCards(), "pronunciation");
+}
+
 export interface FilterOption {
   filter: MistakeFilter;
   label: string;
@@ -97,11 +104,11 @@ export interface FilterOption {
   total: number;
 }
 
-/** Cards to study now across the three decks, for the sidebar badge. Read-only, unlike the overview. */
+/** Cards to study now across the decks, for the sidebar badge. Read-only, unlike the overview. */
 export function countCardsToStudy(): number {
   const now = Date.now();
   const { newCardsPerSession } = getSettings();
-  return [getVocabularyDeck(), withStates(loadMistakeCards(), "mistake"), getExerciseDeck()]
+  return [getVocabularyDeck(), withStates(loadMistakeCards(), "mistake"), getExerciseDeck(), getPronunciationDeck()]
     .map((deck) => deckCounts(deck, now))
     .reduce((sum, c) => sum + c.due + Math.min(c.new, newCardsPerSession), 0);
 }
@@ -142,6 +149,7 @@ export function getFlashcardsOverview() {
     vocabulary: deckCounts(getVocabularyDeck(), now),
     mistakes: deckCounts(mistakes, now),
     exercises: deckCounts(getExerciseDeck(), now),
+    pronunciation: deckCounts(getPronunciationDeck(), now),
     tenses,
     categories,
   };
@@ -151,6 +159,7 @@ export function getStudyQueue(kind: CardKind, filter: MistakeFilter = {}): Queue
   const now = Date.now();
   const { newCardsPerSession } = getSettings();
   if (kind === "exercise") return buildQueue(getExerciseDeck(), now, newCardsPerSession);
+  if (kind === "pronunciation") return buildQueue(getPronunciationDeck(), now, newCardsPerSession);
   return kind === "vocabulary"
     ? buildQueue(getVocabularyDeck(), now, newCardsPerSession)
     : buildQueue(getMistakeDeck(filter), now, newCardsPerSession);

@@ -6,8 +6,10 @@ import { ReviewSession } from "@/components/flashcards/review-session";
 import { SuspendedCards } from "@/components/flashcards/suspended-cards";
 import { Page, PageHeader } from "@/components/layout/page";
 import type { CardKind, MistakeFilter } from "@/lib/flashcards-core";
+import { resolveTranscriptionModel } from "@/lib/ai/providers";
 import { getFlashcardsOverview, getStudyQueue } from "@/lib/flashcards";
 import { getSuspendedCards } from "@/lib/flashcards-upkeep";
+import { getSettings } from "@/lib/settings";
 import {
   categoryLabel,
   ERROR_CATEGORIES,
@@ -19,12 +21,18 @@ import {
   TENSES,
 } from "@/lib/taxonomy";
 
-const DECKS: Record<string, CardKind> = { vocabulary: "vocabulary", mistakes: "mistake", exercises: "exercise" };
+const DECKS: Record<string, CardKind> = {
+  vocabulary: "vocabulary",
+  mistakes: "mistake",
+  exercises: "exercise",
+  pronunciation: "pronunciation",
+};
 
 const DECK_SUBTITLES: Record<CardKind, string> = {
   vocabulary: "Spanish → English",
   mistake: "Fix your own mistakes",
   exercise: "Exercise items you got wrong in Practice",
+  pronunciation: "Sentences you read aloud with words heard differently: read them again",
 };
 
 function parseFilter(params: Record<string, string | string[] | undefined>): MistakeFilter {
@@ -56,7 +64,14 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
   if (kind) {
     const filter = kind === "mistake" ? parseFilter(params) : {};
     const queue = getStudyQueue(kind, filter);
-    const title = kind === "vocabulary" ? "Vocabulary" : kind === "exercise" ? "Missed exercises" : filterTitle(filter);
+    const title =
+      kind === "vocabulary"
+        ? "Vocabulary"
+        : kind === "exercise"
+          ? "Missed exercises"
+          : kind === "pronunciation"
+            ? "Hard to say"
+            : filterTitle(filter);
     return (
       <Page area="train" width="md">
         <PageHeader
@@ -72,7 +87,13 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
             </Link>
           }
         />
-        <ReviewSession key={JSON.stringify(params)} kind={kind} initialQueue={queue} />
+        <ReviewSession
+          key={JSON.stringify(params)}
+          kind={kind}
+          initialQueue={queue}
+          canRecord={resolveTranscriptionModel() !== null}
+          language={getSettings().explanationLanguage}
+        />
       </Page>
     );
   }
@@ -82,7 +103,7 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
     <Page area="train">
       <PageHeader
         title="Flashcards"
-        description="Review the words you looked up, the mistakes you made and the exercises you missed, spaced out so they stick."
+        description="Review the words you looked up, the mistakes you made, the exercises you missed and the sentences that were hard to say, spaced out so they stick."
       />
       <DeckOverview overview={overview} />
       <SuspendedCards cards={getSuspendedCards()} />

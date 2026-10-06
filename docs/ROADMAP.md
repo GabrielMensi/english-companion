@@ -33,6 +33,7 @@
 - UI, fase 4: página Today en lugar de la home: qué hacer hoy en una frase, seguir el último chat, la semana en números y las sugerencias de Train (tarjetas, tiempo verbal, tipo de error y el sonido más flojo de Read aloud).
 - UI, fases 5 y 6: dashboard con titular en una frase y "Practice this" por área, detalles agrupados; Practice y Flashcards con jerarquía sección → ítem; foco visible en todos los controles, `prefers-reduced-motion` y contraste AA revisado en los dos temas.
 - Voz, fase 3: página Read aloud (#56, #60): leés una oración y las palabras que Whisper escucha distinto se clasifican sin IA, comparando fonemas con el CMU Pronouncing Dictionary, con una taxonomía fija de pronunciación para hispanohablantes, oraciones de pares mínimos por sonido, de tus correcciones y de tu vocabulario, y el panel "Sounds to work on". `?focus=<sonido>` abre la página en un sonido ([VOICE.md](VOICE.md)).
+- Mazo **Hard to say** en Flashcards (#65): las oraciones leídas en voz alta con palabras escuchadas distinto vuelven con repaso espaciado; se responden leyéndolas, con el mismo puntaje que Read aloud y la nota sugerida por la lectura ([VOICE.md](VOICE.md)).
 
 ## Próximo
 
@@ -40,7 +41,7 @@
 La clasificación en dos etapas ya está hecha con el LLM. Falta evaluar Kev-0.8B (o Jev / Jeeves) como backend cuando haya etiquetas reales de "Wrong type?". Ver [ERROR_CLASSIFICATION.md](ERROR_CLASSIFICATION.md).
 
 ### Voz
-Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). La lectura en voz alta con pronunciación por reglas ya está (fase 3, #53); falta el panel en el dashboard y el repaso espaciado de pronunciación, whisper.cpp local como fallback y las clases (fase 4). Kokoro como voz local ya está (en CPU; WebGPU pendiente, #45). Investigación y plan en [VOICE.md](VOICE.md).
+Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). La lectura en voz alta con pronunciación por reglas ya está (fase 3, #53); el repaso espaciado de pronunciación también (mazo Hard to say, #65); falta el panel en el dashboard, whisper.cpp local como fallback y las clases (fase 4). Kokoro como voz local ya está (en CPU; WebGPU pendiente, #45). Investigación y plan en [VOICE.md](VOICE.md).
 
 ### Ejercicios dirigidos
 A partir de las 3 categorías más flojas del dashboard, generar ejercicios cortos: completar huecos, reescribir oraciones o elegir la opción correcta. La respuesta del usuario también se corrige y suma a las estadísticas.

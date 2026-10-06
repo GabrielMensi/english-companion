@@ -1,5 +1,6 @@
 /** Read-aloud practice: picking sentences and summing up pronunciation issues. Pure, no AI. */
 import type { ReadAloudSource } from "@/db/schema";
+import type { PronunciationCard } from "./flashcards-core";
 import { SOUND_SENTENCES } from "./read-aloud-sentences";
 import { PRONUNCIATION_CATEGORIES, type PronunciationCategory } from "./taxonomy";
 
@@ -116,4 +117,54 @@ export function parseFocus(value: string | string[] | undefined): Exclude<Pronun
   return focus && focus !== "other" && (PRONUNCIATION_CATEGORIES as readonly string[]).includes(focus)
     ? (focus as Exclude<PronunciationCategory, "other">)
     : null;
+}
+
+export interface MissedReadingRow {
+  text: string;
+  createdAt: number;
+  expected: string;
+  heard: string;
+  category: PronunciationCategory;
+  detail: string | null;
+  attemptId: string;
+}
+
+/**
+ * The "Hard to say" flashcard deck: one card per sentence that was read with at
+ * least one word heard differently, newest first. Rows are issues joined with
+ * their attempt (so an attempt with three issues gives three rows).
+ */
+export function pronunciationCards(rows: MissedReadingRow[]): PronunciationCard[] {
+  const cards = new Map<
+    string,
+    { card: PronunciationCard; attempts: Set<string>; counts: Map<string, number> }
+  >();
+  for (const row of rows) {
+    const key = row.text.replace(/\s+/g, " ").trim();
+    let entry = cards.get(key);
+    if (!entry) {
+      entry = {
+        card: { kind: "pronunciation", key, text: key, words: [], timesMissed: 0, lastMissedAt: row.createdAt },
+        attempts: new Set(),
+        counts: new Map(),
+      };
+      cards.set(key, entry);
+    }
+    entry.attempts.add(row.attemptId);
+    entry.card.lastMissedAt = Math.max(entry.card.lastMissedAt, row.createdAt);
+    const wordKey = `${row.expected}|${row.heard}`;
+    if (!entry.counts.has(wordKey)) {
+      entry.card.words.push({ expected: row.expected, heard: row.heard, category: row.category, detail: row.detail });
+    }
+    entry.counts.set(wordKey, (entry.counts.get(wordKey) ?? 0) + 1);
+  }
+  return [...cards.values()]
+    .map(({ card, attempts, counts }) => ({
+      ...card,
+      timesMissed: attempts.size,
+      words: [...card.words].sort(
+        (a, b) => (counts.get(`${b.expected}|${b.heard}`) ?? 0) - (counts.get(`${a.expected}|${a.heard}`) ?? 0),
+      ),
+    }))
+    .sort((a, b) => b.lastMissedAt - a.lastMissedAt);
 }
