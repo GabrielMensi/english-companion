@@ -34,13 +34,12 @@ const MODES: { value: SessionMode; label: string; hint: string }[] = [
 /** The chat's main choice, always visible: corrections only, or a conversation. */
 export function ModeSwitch({ value, onChange }: { value: SessionMode; onChange: (mode: SessionMode) => void }) {
   return (
-    <div role="radiogroup" aria-label="Chat mode" className="flex rounded-lg border p-0.5">
+    <div role="group" aria-label="Chat mode" className="flex rounded-lg border p-0.5">
       {MODES.map((m) => (
         <button
           key={m.value}
           type="button"
-          role="radio"
-          aria-checked={value === m.value}
+          aria-pressed={value === m.value}
           title={m.hint}
           onClick={() => value !== m.value && onChange(m.value)}
           className={cn(

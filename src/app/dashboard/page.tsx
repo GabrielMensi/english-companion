@@ -55,6 +55,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                   <Link
                     key={key}
                     href={href({ input: key })}
+                    aria-current={key === input ? "true" : undefined}
                     className={cn(
                       "rounded-md px-3 py-1 text-sm text-muted-foreground hover:text-foreground",
                       key === input && "bg-muted font-medium text-foreground",
@@ -70,6 +71,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                 <Link
                   key={key}
                   href={href({ range: key })}
+                  aria-current={key === range ? "true" : undefined}
                   className={cn(
                     "rounded-md px-3 py-1 text-sm text-muted-foreground hover:text-foreground",
                     key === range && "bg-muted font-medium text-foreground",
