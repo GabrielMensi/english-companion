@@ -281,9 +281,10 @@ Limitaciones:
 - Palabras que no están en el diccionario (nombres, términos técnicos) caen en `other`.
 - Una sola señal (la transcripción): no mide acento, ritmo ni entonación.
 
+**Repaso espaciado: mazo "Hard to say"** (#64): cada oración leída con al menos una palabra escuchada distinto es una tarjeta de Flashcards (`kind = "pronunciation"` en `reviews`, clave = el texto de la oración; armadas con `pronunciationCards` en `read-aloud-core.ts`). La tarjeta muestra la oración con esas palabras subrayadas; se responde leyéndola en voz alta (botón o Ctrl+Space), con el mismo puntaje que la página, y la lectura se guarda como un intento más (`source = "review"`), así que cuenta en el panel de pronunciación. La nota sugerida es Good si se escucharon todas las palabras como están escritas y Again si no, pero decide el usuario (sin key de Groq: se escucha, se lee y se califica a mano). Cuenta en las tarjetas pendientes del sidebar y de Today, se puede suspender, y borrarla elimina todas las lecturas de esa oración (y sale de las estadísticas). Entra en la limpieza de reviews huérfanas.
+
 Pendiente:
 - Panel de pronunciación en el dashboard.
-- Oraciones con problemas dentro del repaso espaciado (un mazo en Flashcards).
 - Feedback cualitativo con Gemini multimodal o fonemas (wav2vec2) para acento, schwa y word stress.
 
 ### Fase 4 — Clases

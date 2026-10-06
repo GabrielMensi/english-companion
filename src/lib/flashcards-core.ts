@@ -1,15 +1,16 @@
 /**
  * Pure flashcard logic shared by the decks: vocabulary (words looked up with
  * [brackets], Spanish → English), mistakes (real corrections, original →
- * correction) and missed exercises (items got wrong in Practice). Scheduling lives in `srs.ts`; review state is stored per card
+ * correction), missed exercises (items got wrong in Practice) and hard-to-say
+ * sentences (read aloud with pronunciation issues). Scheduling lives in `srs.ts`; review state is stored per card
  * in the `reviews` table, keyed by (kind, card key).
  */
 
 import type { ReviewState } from "@/lib/srs";
-import type { ErrorCategory, Tense } from "@/lib/taxonomy";
+import type { ErrorCategory, PronunciationCategory, Tense } from "@/lib/taxonomy";
 import type { VocabularyWord } from "@/lib/vocabulary-core";
 
-export const CARD_KINDS = ["vocabulary", "mistake", "exercise"] as const;
+export const CARD_KINDS = ["vocabulary", "mistake", "exercise", "pronunciation"] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
 
 export interface VocabularyCard {
@@ -61,7 +62,22 @@ export interface ExerciseCard {
   missedAt: number;
 }
 
-export type Card = VocabularyCard | MistakeCard | ExerciseCard;
+/**
+ * A sentence read aloud on the Read aloud page with words heard differently,
+ * to read again. Keyed by the sentence text (see `read_aloud_attempts`).
+ */
+export interface PronunciationCard {
+  kind: "pronunciation";
+  key: string;
+  text: string;
+  /** The words heard differently, most repeated first. */
+  words: { expected: string; heard: string; category: PronunciationCategory; detail: string | null }[];
+  /** Readings of the sentence with at least one issue. */
+  timesMissed: number;
+  lastMissedAt: number;
+}
+
+export type Card = VocabularyCard | MistakeCard | ExerciseCard | PronunciationCard;
 
 /** A card with its review state; `state` is null for cards never reviewed. */
 export interface QueuedCard<C extends Card = Card> {
