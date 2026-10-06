@@ -2,7 +2,6 @@
 
 import {
   AlertTriangle,
-  ArrowRight,
   Bot,
   Check,
   CheckCircle2,
@@ -20,13 +19,15 @@ import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AnalysisPreviewView } from "@/components/chat/analysis-preview";
 import { Composer, type ComposerState, type Notify } from "@/components/chat/composer";
 import { DiffText } from "@/components/chat/diff-text";
+import { MistakeGroups } from "@/components/chat/mistake-list";
 import { CopyButton, copyText } from "@/components/copy-button";
 import { FluencyNote } from "@/components/chat/user-message";
 import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
 import type { SessionMode } from "@/db/schema";
 import type { AnalysisPreview } from "@/lib/ai/analysis";
-import { categoryLabel, SEVERITIES } from "@/lib/taxonomy";
+import { markDiff } from "@/lib/correction-marks";
+import { SEVERITIES } from "@/lib/taxonomy";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -196,6 +197,7 @@ function LastCorrection({
 
   const corrected = message.correctedText ?? message.content;
   const errors = message.corrections.filter((c) => c.severity !== "suggestion");
+  const marked = markDiff(message.content, corrected, errors);
 
   const copyFailed = () => notify("error", "Couldn't copy to the clipboard");
 
@@ -220,7 +222,7 @@ function LastCorrection({
       )}
 
       {corrected !== message.content ? (
-        <DiffText from={message.content} to={corrected} />
+        <DiffText from={message.content} to={corrected} segments={marked.segments} />
       ) : (
         <p className="font-serif text-reading whitespace-pre-wrap">{message.content}</p>
       )}
@@ -232,21 +234,7 @@ function LastCorrection({
         </div>
       )}
 
-      {errors.length > 0 && (
-        <ul className="flex flex-col gap-2.5">
-          {errors.map((e) => (
-            <li key={e.id} className="flex flex-col gap-0.5">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-mark-wrong line-through">{e.original}</span>
-                <ArrowRight className="size-3.5 text-muted-foreground" />
-                <span className="font-medium text-mark-right">{e.correction}</span>
-                <span className="text-xs text-muted-foreground">· {categoryLabel(e.category)}</span>
-              </div>
-              <p className="text-muted-foreground">{e.explanation}</p>
-            </li>
-          ))}
-        </ul>
-      )}
+      {errors.length > 0 && <MistakeGroups mistakes={errors} numbers={marked.numbers} compact />}
 
       {message.naturalText && showNative && (
         <div className="flex flex-col gap-1 rounded-lg bg-muted/50 px-3 py-2">

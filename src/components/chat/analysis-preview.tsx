@@ -53,10 +53,10 @@ export function AnalysisPreviewView({
             <li key={i} className="flex flex-col gap-0.5">
               <div className={cn("flex flex-wrap items-center", compact ? "gap-1.5" : "gap-2")}>
                 {!compact && <SeverityBadge severity={e.severity} />}
-                <span className="text-mark-wrong line-through">{e.original}</span>
+                <span className="font-serif text-base text-mark-wrong line-through">{e.original}</span>
                 <ArrowRight className="size-3.5 text-muted-foreground" />
-                <span className="font-medium text-mark-right">{e.correction}</span>
-                <span className="text-xs text-muted-foreground">· {categoryLabel(e.category)}</span>
+                <span className="font-serif text-base font-medium text-mark-right">{e.correction}</span>
+                <span className="text-xs text-muted-foreground">{categoryLabel(e.category)}</span>
               </div>
               {e.explanation && <p className="text-muted-foreground">{e.explanation}</p>}
             </li>
