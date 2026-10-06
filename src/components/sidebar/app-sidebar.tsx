@@ -6,6 +6,7 @@ import {
   BookOpen,
   Dumbbell,
   GraduationCap,
+  House,
   Layers,
   Lightbulb,
   type LucideIcon,
@@ -124,6 +125,19 @@ export function AppSidebar({
             <NewChatButton iconOnly />
           </Hint>
         </div>
+        <Hint label="Today" side="right">
+          <Link
+            href="/"
+            aria-label="Today"
+            aria-current={pathname === "/" ? "page" : undefined}
+            className={cn(
+              "mt-1 flex size-8 items-center justify-center rounded-md hover:bg-sidebar-accent",
+              pathname === "/" && "bg-sidebar-accent",
+            )}
+          >
+            <House className="size-4" />
+          </Link>
+        </Hint>
         {groups.map((group) => (
           <nav key={group.label} aria-label={group.label} className="mt-3 flex flex-col gap-1 border-t pt-3">
             {group.items.map(({ href, label, icon: Icon, count }) => (
@@ -178,6 +192,20 @@ export function AppSidebar({
 
       <div data-area="write" className="px-3">
         <NewChatButton className="w-full" />
+      </div>
+
+      <div className="mt-2 px-3">
+        <Link
+          href="/"
+          aria-current={pathname === "/" ? "page" : undefined}
+          className={cn(
+            "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-sidebar-accent",
+            pathname === "/" && "bg-sidebar-accent font-medium",
+          )}
+        >
+          <House className="size-4" />
+          Today
+        </Link>
       </div>
 
       {groups.map((group) => (

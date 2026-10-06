@@ -11,6 +11,8 @@
   --font-serif: var(--font-reading);
   --font-heading: var(--font-sans);
   /* Type scale (1.25): page title, section heading and the learner's English. */
+  --text-display: 1.953rem;
+  --text-display--line-height: 1.15;
   --text-title: 1.5625rem;
   --text-title--line-height: 1.2;
   --text-section: 1.25rem;

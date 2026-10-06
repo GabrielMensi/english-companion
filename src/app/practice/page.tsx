@@ -3,31 +3,11 @@ import { connection } from "next/server";
 import { CustomCategoryPractice, CustomPractice } from "@/components/practice/custom-practice";
 import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { Page, PageHeader, Section } from "@/components/layout/page";
-import { StatusBadge, type Tone } from "@/components/status-badge";
-import { type CategoryTarget, categoryTopic, NOT_PRACTICED } from "@/lib/category-practice";
+import { CATEGORY_STATUS, EXERCISE_LABELS, STATUS } from "@/components/practice/labels";
+import { StatusBadge } from "@/components/status-badge";
+import { categoryTopic, NOT_PRACTICED } from "@/lib/category-practice";
 import { getPracticeSuggestions } from "@/lib/practice-start";
 import { ERROR_CATEGORIES, TENSE_LABELS } from "@/lib/taxonomy";
-import type { PracticeTarget } from "@/lib/tense-practice";
-
-const STATUS: Record<PracticeTarget["status"], { label: string; tone: Tone }> = {
-  weak: { label: "Needs work", tone: "bad" },
-  shaky: { label: "Getting there", tone: "warn" },
-  avoided: { label: "Rarely used", tone: "optional" },
-  not_enough_data: { label: "Few uses, some mistakes", tone: "neutral" },
-  strong: { label: "Strong", tone: "good" },
-  suggested: { label: "Suggested", tone: "neutral" },
-};
-
-const CATEGORY_STATUS: Record<CategoryTarget["status"], { label: string; tone: Tone }> = {
-  weak: { label: "Most mistakes", tone: "bad" },
-  suggested: { label: "Suggested", tone: "neutral" },
-};
-
-const EXERCISE_LABELS: Record<PracticeTarget["kind"], string> = {
-  contrast: "Contrast exercise",
-  form: "Form drill",
-  use: "Use it in sentences",
-};
 
 export default async function PracticePage() {
   await connection();
