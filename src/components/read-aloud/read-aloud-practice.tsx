@@ -41,16 +41,19 @@ interface Transcription {
 export function ReadAloudPractice({
   items,
   initialSummary,
+  initialFocus,
   canRecord,
   language,
 }: {
   items: Record<ReadAloudSource, ReadAloudItem[]>;
   initialSummary: PronunciationSummary;
+  /** From `?focus=`: open on the sentences for one sound. */
+  initialFocus: PronunciationCategory | null;
   canRecord: boolean;
   language: Language;
 }) {
   const [source, setSource] = useState<ReadAloudSource>("sounds");
-  const [focus, setFocus] = useState<PronunciationCategory | null>(null);
+  const [focus, setFocus] = useState<PronunciationCategory | null>(initialFocus);
   const [index, setIndex] = useState(0);
   const [result, setResult] = useState<{ item: string; transcript: string; score: ReadAloudResult } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -65,7 +68,14 @@ export function ReadAloudPractice({
   function choose(next: { source?: ReadAloudSource; focus?: PronunciationCategory | null }) {
     if (recorder.recording) void recorder.cancel();
     if (next.source) setSource(next.source);
-    if (next.focus !== undefined) setFocus(next.focus);
+    if (next.focus !== undefined) {
+      setFocus(next.focus);
+      // Keep ?focus= in sync, so reloading or sharing the link opens the same sound.
+      const url = new URL(window.location.href);
+      if (next.focus) url.searchParams.set("focus", next.focus);
+      else url.searchParams.delete("focus");
+      window.history.replaceState(window.history.state, "", url);
+    }
     setIndex(0);
     setResult(null);
   }
