@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
    * Cross-origin isolation, so Kokoro's ONNX Runtime can run multithreaded WASM (threads need
    * SharedArrayBuffer, which browsers only allow in isolated pages). `credentialless` instead of
    * `require-corp`: cross-origin resources still load, just without cookies, so the Hugging Face
-   * downloads and anything else external keep working without CORP headers. See docs/VOICE.md.
+   * downloads and anything else external keep working without CORP headers. See docs/voice/VOICE.md.
    */
   async headers() {
     return [

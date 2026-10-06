@@ -1,5 +1,7 @@
 # Calibración del nivel CEFR estimado
 
+> Area: Progress · Kind: Eval · Status: Done · Board: #37
+
 El nivel de **Insights** sale de reglas fijas en `src/lib/insights/level-core.ts`: cuatro señales (precisión, vocabulario, complejidad de las oraciones y rango de tiempos verbales) que se pasan a un puntaje de 1 (A1) a 6 (C2) con puntos de anclaje fijos, y se promedian con pesos. Al principio esos anclajes y pesos eran aproximaciones (precisión 40 %, el resto 20 % cada una). Este documento cuenta cómo se contrastaron con textos de alumnos calificados por humanos (issue #37) y qué cambió.
 
 ## Datos

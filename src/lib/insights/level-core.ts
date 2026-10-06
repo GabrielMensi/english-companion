@@ -14,7 +14,7 @@
  *
  * The AI can explain the result later, but never changes it.
  *
- * Calibration (`pnpm eval:level`, details in docs/LEVEL_CALIBRATION.md):
+ * Calibration (`pnpm eval:level`, details in docs/progress/LEVEL_CALIBRATION.md):
  * the anchors and weights were checked against ~3,300 Write & Improve
  * essays graded A1–C2 by Cambridge annotators, joined into simulated
  * learners of ~1,000 words.

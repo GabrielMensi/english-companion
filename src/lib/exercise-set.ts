@@ -1,5 +1,5 @@
 /**
- * Exercise sets answered in one message (see docs/VERB_TENSES.md, "Práctica"):
+ * Exercise sets answered in one message (see docs/practice/VERB_TENSES.md, "Práctica"):
  * the whole set is shown at once, the learner answers every item in a single
  * message, and that message costs one AI request (the normal correction). The
  * per-item ✓/✗ comes from deterministic checks: the gap words, the options, the

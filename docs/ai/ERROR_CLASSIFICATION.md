@@ -1,6 +1,8 @@
 # Clasificación de errores en dos etapas (Jev / Kev / Jeeves)
 
-Estado (2026-09-29): **pasos 1–3 del plan implementados** con el backend LLM, y el 4 en parte (56 errores etiquetados de los ~150 previstos) (ver "Implementado"). Kev / Jev / Jeeves siguen como investigación. Relacionado con [VERB_TENSES.md](VERB_TENSES.md) y [VOICE.md](VOICE.md).
+> Area: AI pipeline · Kind: Research · Status: In progress (LLM backend done, Kev pending) · Board: #11
+
+Estado (2026-09-29): **pasos 1–3 del plan implementados** con el backend LLM, y el 4 en parte (56 errores etiquetados de los ~150 previstos) (ver "Implementado"). Kev / Jev / Jeeves siguen como investigación. Relacionado con [VERB_TENSES.md](../practice/VERB_TENSES.md) y [VOICE.md](../voice/VOICE.md).
 
 ## La idea
 
@@ -102,7 +104,7 @@ interface ErrorClassifier {
 
 - El backend **LLM** funciona ya con Ollama, Gemini y Groq. Clasifica con una pregunta por error y solo con los subtipos de *esa* categoría (un enum de 3 a 8 valores, que los modelos locales manejan bien). Cuesta un llamado extra y no da probabilidades, pero es la base y además sirve para generar datos de entrenamiento.
 - El backend **systemone** se activa si la evaluación muestra que Kev iguala o supera al LLM. Aporta confianza calibrada y velocidad.
-- Los tiempos se pueden contar sin ningún modelo (compromise, ver [VERB_TENSES.md](VERB_TENSES.md)); el clasificador solo resuelve `tense` / `tenseUsed` de cada error.
+- Los tiempos se pueden contar sin ningún modelo (compromise, ver [VERB_TENSES.md](../practice/VERB_TENSES.md)); el clasificador solo resuelve `tense` / `tenseUsed` de cada error.
 
 ### Preguntas por error (formato systemone)
 

@@ -1,5 +1,7 @@
 # Plan de UI/UX
 
+> Area: UI/UX · Kind: Feature · Status: Done · Board: #48–#63
+
 La app dejó de ser solo un chat y la jerarquía se volvió difícil de leer. Este plan mantiene el minimalismo, pero la jerarquía sale de dos "voces" y de colores con un solo significado, no de más bordes.
 
 ## Diagnóstico
