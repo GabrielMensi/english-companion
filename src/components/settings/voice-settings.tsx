@@ -57,7 +57,7 @@ export function VoiceSettings() {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="font-medium">Listening</h2>
+        <h2 className="text-section font-semibold tracking-tight">Listening</h2>
         <p className="text-sm text-muted-foreground">
           The voice that reads corrections, vocabulary and replies in voice mode. Saved in this browser. In Edge, the
           browser’s “Natural” voices sound the most human; Kokoro is a free model that runs on your computer.

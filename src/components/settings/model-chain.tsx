@@ -38,7 +38,7 @@ export function ModelChain({
     <section className="space-y-3">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h2 className="font-medium">Model chain</h2>
+          <h2 className="text-section font-semibold tracking-tight">Model chain</h2>
           <p className="text-sm text-muted-foreground">
             Every message goes to the first model. If it fails (offline, quota exceeded, overloaded…), the next one
             takes over. A local model is slower and uses your GPU, so it usually goes last.
