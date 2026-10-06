@@ -364,7 +364,7 @@ export function ReviewSession({
                 variant="outline"
                 disabled={saving}
                 onClick={() => grade(g)}
-                className={cn("h-auto flex-col gap-0 py-2", GRADE_STYLES[g], suggested === g && "ring-2 ring-ring")}
+                className={cn("h-auto flex-col gap-0 py-2", GRADE_STYLES[g], suggested === g && "ring-2 ring-foreground/50 ring-offset-2 ring-offset-background")}
                 aria-describedby={suggested === g ? "suggested-grade" : undefined}
               >
                 <span>
