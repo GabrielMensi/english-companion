@@ -28,6 +28,7 @@
 - Mazo **Missed exercises** en Flashcards: los ítems fallados de los ejercicios (tiempos y categorías) vuelven con repaso espaciado.
 - Kokoro-82M como voz local opcional (Settings → Listening), en el navegador con `kokoro-js`; en CPU (WASM) anda bien y rápido. En WebGPU todavía no (bug #45), y cae al CPU o a la voz del navegador.
 - UI, fase 1 ([UI-PLAN.md](ui/UI-PLAN.md)): Hanken Grotesk para la app y Newsreader para tu inglés, escala tipográfica, colores de área (Write, Review, Train) separados de los colores de datos, estructura de página compartida y un solo vocabulario de estados.
+- Botón de copiar en "Cómo lo diría un nativo", en el chat y en la ventana flotante (#69).
 - UI, fase 2: sidebar agrupada en Review, Train y Chats, con íconos por área, un ícono por tipo de chat (corrección, conversación, práctica), tarjetas pendientes en Flashcards y Settings abajo.
 - UI, fase 3: tarjeta de corrección con números de referencia entre el texto y cada error, versión nativa arriba, errores agrupados por categoría y ordenados por gravedad, typos y sugerencias plegados; en el header, Correction / Conversation como switch y un menú para el modelo y la ventana flotante.
 - UI, fase 4: página Today en lugar de la home: qué hacer hoy en una frase, seguir el último chat, la semana en números y las sugerencias de Train (tarjetas, tiempo verbal, tipo de error y el sonido más flojo de Read aloud).
