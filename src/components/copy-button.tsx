@@ -15,10 +15,11 @@ export function copyText(text: string, from: Element) {
 
 export function CopyButton({
   text,
-  label = "Copy",
+  label,
   onError = () => toast.error("Couldn't copy to the clipboard"),
 }: {
   text: string;
+  /** Shown next to the icon; without it the button is just the icon. */
   label?: string;
   onError?: () => void;
 }) {
@@ -35,9 +36,16 @@ export function CopyButton({
   }
 
   return (
-    <Button variant="ghost" size="sm" onClick={copy}>
+    <Button
+      variant="ghost"
+      size={label ? "sm" : "icon-xs"}
+      className={label ? undefined : "text-muted-foreground hover:text-foreground"}
+      onClick={copy}
+      aria-label={label ? undefined : copied ? "Copied" : `Copy: ${text}`}
+      title={label ? undefined : copied ? "Copied" : "Copy"}
+    >
       {copied ? <Check /> : <Copy />}
-      {copied ? "Copied" : label}
+      {label && (copied ? "Copied" : label)}
     </Button>
   );
 }

@@ -245,6 +245,7 @@ function LastCorrection({
           <div className="flex items-start gap-1">
             <p className="flex-1 font-serif text-reading whitespace-pre-wrap">{message.naturalText}</p>
             <SpeakButton text={message.naturalText} />
+            <CopyButton text={message.naturalText} onError={copyFailed} />
           </div>
         </div>
       )}
