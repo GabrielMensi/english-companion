@@ -11,12 +11,24 @@ type DB = BetterSQLite3Database<typeof schema>;
 
 function openSqlite(): Database.Database {
   const file = path.resolve(/*turbopackIgnore: true*/ process.env.DATABASE_PATH ?? "data/companion.db");
-  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
 
   const sqlite = new Database(file);
+  // Owner-only: the database holds the API keys saved in Settings.
+  restrictToOwner(file);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   return sqlite;
+}
+
+function restrictToOwner(file: string) {
+  for (const f of [file, `${file}-wal`, `${file}-shm`]) {
+    try {
+      fs.chmodSync(f, 0o600);
+    } catch {
+      // Missing (WAL files appear later) or not ours to change, e.g. on a mounted volume.
+    }
+  }
 }
 
 // Reuse the SQLite connection across hot reloads in development. The Drizzle
