@@ -28,11 +28,6 @@ import {
 /** Long enough for the tense stats to mean something, recent enough to reflect the current level. */
 const TARGETS_RANGE = "90";
 
-/** Tenses worth practicing now, from the per-tense diagnosis of the last 90 days. */
-export function getPracticeTargets() {
-  return selectPracticeTargets(getDashboardData(TARGETS_RANGE).tenses.tenses);
-}
-
 /** Both kinds of suggestions from a single pass over the stats: tenses, and the weakest error categories. */
 export function getPracticeSuggestions() {
   const data = getDashboardData(TARGETS_RANGE);
