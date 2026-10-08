@@ -15,7 +15,7 @@ Una carpeta por **Area** del tablero ([GitHub Project](https://github.com/users/
 | AI pipeline | `ai/` | [ERROR_CLASSIFICATION.md](ai/ERROR_CLASSIFICATION.md): clasificación diferida de errores (Kev / Jev) | Research | Done |
 | AI pipeline | `ai/` | [LOCAL_MODELS.md](ai/LOCAL_MODELS.md): modelos locales con Ollama, archivados (cómo recuperarlos) | Chore | Done |
 | UI/UX | `ui/` | [UI-PLAN.md](ui/UI-PLAN.md): plan de UI "el margen del cuaderno" | Feature | Done |
-| Platform | `platform/` | — | | |
+| Platform | `platform/` | [TESTING.md](platform/TESTING.md): estrategia de tests antes del deploy (capas, CI, plan) | Research | Decided |
 
 [ROADMAP.md](ROADMAP.md) queda en la raíz: lo hecho y lo próximo, de todas las áreas.
 
