@@ -83,15 +83,16 @@ export function findPreset(id: string | null | undefined): TopicPreset | null {
 
 /**
  * A custom topic as typed, made safe to quote in the prompt and to use in a
- * sentence: one line, no double quotes, no final period, capped.
+ * sentence: one line, no double quotes, capped, and not ending in punctuation
+ * or a space (also after the cut).
  */
 export function cleanTopic(text: string): string {
-  const oneLine = text
+  return text
     .replace(/["“”]/g, "'")
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/[.!?]+$/, "");
-  return oneLine.length > TOPIC_MAX_LENGTH ? oneLine.slice(0, TOPIC_MAX_LENGTH).trimEnd() : oneLine;
+    .slice(0, TOPIC_MAX_LENGTH)
+    .replace(/[\s.,;:!?]+$/, "");
 }
 
 /** What a topic chat is about: a preset (its label is the topic), or a custom topic. */

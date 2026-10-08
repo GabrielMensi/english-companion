@@ -24,6 +24,15 @@ describe("cleanTopic", () => {
   it("caps the length", () => {
     expect(cleanTopic("a".repeat(300))).toHaveLength(TOPIC_MAX_LENGTH);
   });
+
+  it("drops final punctuation after a space", () => {
+    expect(cleanTopic("football .")).toBe("football");
+  });
+
+  it("never ends a cut topic in punctuation or a space", () => {
+    const cut = cleanTopic(`${"a".repeat(TOPIC_MAX_LENGTH - 2)}, b`);
+    expect(cut).toBe("a".repeat(TOPIC_MAX_LENGTH - 2));
+  });
 });
 
 describe("resolveTopic", () => {

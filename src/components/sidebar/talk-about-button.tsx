@@ -75,12 +75,12 @@ export function TalkAboutButton({
             Pick a topic or type your own. The tutor keeps the conversation on it and corrects you as usual.
           </DialogDescription>
         </DialogHeader>
-        <ul className="grid gap-2">
+        <ul className="grid gap-2" aria-busy={pending !== null}>
           {TOPIC_PRESETS.map((preset) => (
             <li key={preset.id}>
               <button
                 type="button"
-                onClick={() => start(preset.id)}
+                onClick={() => void start(preset.id)}
                 disabled={pending !== null}
                 className="flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left hover:bg-muted disabled:opacity-50"
               >
@@ -88,7 +88,12 @@ export function TalkAboutButton({
                   <span className="block font-medium">{preset.label}</span>
                   <span className="block text-sm text-muted-foreground">{preset.description}</span>
                 </span>
-                {pending === preset.id && <Loader2 className="size-4 animate-spin" />}
+                {pending === preset.id && (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <span className="sr-only">Starting…</span>
+                  </>
+                )}
               </button>
             </li>
           ))}
@@ -96,7 +101,7 @@ export function TalkAboutButton({
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            start(null);
+            void start(null);
           }}
           className="flex gap-2"
         >
@@ -108,8 +113,8 @@ export function TalkAboutButton({
             aria-label="Custom topic"
           />
           <Button type="submit" disabled={!custom.trim() || pending !== null}>
-            {pending === "custom" && <Loader2 className="animate-spin" />}
-            Start
+            {pending === "custom" && <Loader2 className="animate-spin" aria-hidden />}
+            {pending === "custom" ? "Starting…" : "Start"}
           </Button>
         </form>
       </DialogContent>

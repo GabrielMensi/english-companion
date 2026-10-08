@@ -28,12 +28,12 @@ const bodySchema = z.union([
 export async function POST(request: Request) {
   const body = bodySchema.safeParse(await request.json().catch(() => null));
   if (!body.success) return Response.json({ error: "Invalid data" }, { status: 400 });
-  if (body.data.kind === "topic") {
-    const choice = resolveTopic(body.data);
-    if (!choice) return Response.json({ error: "Choose a topic or type one" }, { status: 400 });
-    return Response.json(startTopicChat(choice), { status: 201 });
-  }
   try {
+    if (body.data.kind === "topic") {
+      const choice = resolveTopic(body.data);
+      if (!choice) return Response.json({ error: "Choose a topic or type one" }, { status: 400 });
+      return Response.json(startTopicChat(choice), { status: 201 });
+    }
     const session = body.data.kind === "category" ? await startCategoryPractice(body.data) : await startPractice(body.data);
     return Response.json(session, { status: 201 });
   } catch (error) {
