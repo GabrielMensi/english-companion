@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CARD_KINDS } from "@/lib/flashcards-core";
 import { deleteCard, suspendCard, unsuspendCard } from "@/lib/flashcards-upkeep";
+import { readJson } from "@/lib/request-body";
 
 const cardSchema = z.object({
   kind: z.enum(CARD_KINDS),
@@ -9,7 +10,7 @@ const cardSchema = z.object({
 
 /** Suspends a card (hides it from its deck) or brings it back. */
 export async function PATCH(request: Request) {
-  const body = cardSchema.extend({ suspended: z.boolean() }).safeParse(await request.json().catch(() => null));
+  const body = cardSchema.extend({ suspended: z.boolean() }).safeParse(await readJson(request));
   if (!body.success) return Response.json({ error: "Invalid card" }, { status: 400 });
   const { kind, key, suspended } = body.data;
   if (suspended) suspendCard(kind, key);
@@ -19,7 +20,7 @@ export async function PATCH(request: Request) {
 
 /** Deletes a card at its source: the word's lookups, the mistake's corrections or the missed exercise item. */
 export async function DELETE(request: Request) {
-  const body = cardSchema.safeParse(await request.json().catch(() => null));
+  const body = cardSchema.safeParse(await readJson(request));
   if (!body.success) return Response.json({ error: "Invalid card" }, { status: 400 });
   deleteCard(body.data.kind, body.data.key);
   return new Response(null, { status: 204 });

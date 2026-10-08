@@ -2,6 +2,7 @@ import { z } from "zod";
 import { addUserMessage, analyzeStoredMessage, getMessage, getMessages, getSession } from "@/lib/chat";
 import { FLUENCY_VERSION } from "@/lib/fluency";
 import { turnStreamResponse, wantsTurnStream } from "@/lib/turn-stream";
+import { readJson } from "@/lib/request-body";
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) {
   const { id } = await ctx.params;
@@ -41,7 +42,7 @@ const bodySchema = z.object({
  */
 export async function POST(request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) {
   const { id } = await ctx.params;
-  const body = bodySchema.safeParse(await request.json().catch(() => null));
+  const body = bodySchema.safeParse(await readJson(request));
   if (!body.success) return Response.json({ error: "The message is empty" }, { status: 400 });
 
   const message = addUserMessage(id, body.data.text, body.data.voice);

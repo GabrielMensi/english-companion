@@ -3,6 +3,7 @@ import { errorToMessage } from "@/lib/ai/fallback";
 import { startCategoryPractice, startPractice } from "@/lib/practice-start";
 import { ERROR_CATEGORIES, TENSES } from "@/lib/taxonomy";
 import { EXERCISE_KINDS } from "@/lib/tense-practice";
+import { readJson } from "@/lib/request-body";
 
 const bodySchema = z.union([
   z.object({
@@ -19,7 +20,7 @@ const bodySchema = z.union([
 
 /** Starts a practice chat (tense practice, or exercises for an error category) and returns its session. */
 export async function POST(request: Request) {
-  const body = bodySchema.safeParse(await request.json().catch(() => null));
+  const body = bodySchema.safeParse(await readJson(request));
   if (!body.success) return Response.json({ error: "Invalid data" }, { status: 400 });
   try {
     const session = body.data.kind === "category" ? await startCategoryPractice(body.data) : await startPractice(body.data);

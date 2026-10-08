@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { deleteSession, getSession, updateSession } from "@/lib/chat";
 import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
+import { readJson } from "@/lib/request-body";
 
 const bodySchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
@@ -11,7 +12,7 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/sessions/[
   const { id } = await ctx.params;
   if (!getSession(id)) return Response.json({ error: "Chat not found" }, { status: 404 });
 
-  const body = bodySchema.safeParse(await request.json().catch(() => null));
+  const body = bodySchema.safeParse(await readJson(request));
   if (!body.success) return Response.json({ error: "Invalid data" }, { status: 400 });
   return Response.json(updateSession(id, body.data));
 }

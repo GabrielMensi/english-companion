@@ -4,12 +4,13 @@ import { errorToMessage } from "@/lib/ai/fallback";
 import { PROVIDER_IDS } from "@/lib/ai/provider-info";
 import { resolveModel } from "@/lib/ai/providers";
 import { getSettings } from "@/lib/settings";
+import { readJson } from "@/lib/request-body";
 
 const bodySchema = z.object({ provider: z.enum(PROVIDER_IDS) });
 
 /** Sends a tiny request to one provider, with its saved key and model, to check the connection. */
 export async function POST(request: Request) {
-  const body = bodySchema.safeParse(await request.json().catch(() => null));
+  const body = bodySchema.safeParse(await readJson(request));
   if (!body.success) return Response.json({ error: "Invalid provider" }, { status: 400 });
 
   const started = Date.now();
