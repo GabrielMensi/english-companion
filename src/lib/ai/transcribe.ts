@@ -2,11 +2,12 @@ import "server-only";
 
 import { APICallError } from "ai";
 import { computeFluency, wordsFromResponse } from "@/lib/fluency";
+import { UserFacingError } from "./fallback";
 import { resolveTranscriptionModel } from "./providers";
 
 const TIMEOUT_MS = 30_000;
 
-export class TranscriptionUnavailableError extends Error {
+export class TranscriptionUnavailableError extends UserFacingError {
   constructor() {
     super("Dictation needs a Groq API key. Add it in Settings.");
     this.name = "TranscriptionUnavailableError";

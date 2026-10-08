@@ -2,7 +2,7 @@
  * Pure fallback logic: try the selected model first, then the configured
  * fallbacks in the order the user chose. Kept free of server-only imports so it can be tested.
  */
-import { NoObjectGeneratedError } from "ai";
+import { APICallError, NoObjectGeneratedError } from "ai";
 import { PROVIDER_IDS, type ProviderId } from "./provider-info";
 
 export interface FallbackAttempt {
@@ -131,6 +131,23 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** An error whose message is written for the user, so it can be shown as is. */
+export class UserFacingError extends Error {}
+
+/**
+ * Whether the message comes from this app's code (`new Error("...")` or a {@link UserFacingError}).
+ * Anything else (provider responses, library and runtime errors) may carry raw details, like the
+ * provider's own wording, request ids or internal paths, so it's never shown verbatim.
+ */
+function isOwnError(error: unknown): error is Error {
+  return error instanceof UserFacingError || (error instanceof Error && Object.getPrototypeOf(error) === Error.prototype);
+}
+
+/** The HTTP status a provider answered with, when the error came from its API. */
+function statusOf(error: unknown): number | undefined {
+  return APICallError.isInstance(error) ? error.statusCode : undefined;
+}
+
 const UNREACHABLE = /Cannot connect to API|ECONNREFUSED|fetch failed|Connect Timeout/i;
 const TIMED_OUT = /aborted due to timeout|timed out|TimeoutError/i;
 const QUOTA = /429|rate limit|quota|RESOURCE_EXHAUSTED/i;
@@ -148,6 +165,10 @@ export function shortReason(error: unknown): string {
   if (NoObjectGeneratedError.isInstance(error)) return "invalid response";
   if (/not found/i.test(message) && /model/i.test(message)) return "model not found";
   if (/Missing .* API key/i.test(message)) return "missing API key";
+  if (!isOwnError(error)) {
+    const status = statusOf(error);
+    return status ? `provider error ${status}` : "provider error";
+  }
   return message.length > 80 ? `${message.slice(0, 77)}…` : message;
 }
 
@@ -186,7 +207,9 @@ export function errorToMessage(error: unknown): string {
     return "The model took too long to respond. Try again or switch to a faster model.";
   }
   if (/not found/i.test(message) && /model/i.test(message)) {
-    return `${message}. Check the model name in Settings.`;
+    return isOwnError(error)
+      ? `${message}. Check the model name in Settings.`
+      : "The provider doesn't have that model. Check the model name in Settings.";
   }
   if (QUOTA.test(message)) {
     return "The provider's free tier limit was reached. Wait a while or switch providers.";
@@ -194,8 +217,15 @@ export function errorToMessage(error: unknown): string {
   if (OVERLOADED.test(message)) {
     return "The provider is overloaded right now. Try again in a moment or switch providers.";
   }
+  if (!isOwnError(error) && INVALID_KEY.test(message)) {
+    return "The provider rejected the API key. Check it in Settings.";
+  }
   if (NoObjectGeneratedError.isInstance(error)) {
     return "The model didn't return a response in the expected format. Try again or use a bigger model.";
   }
-  return message;
+  if (isOwnError(error)) return message;
+  // The raw details stay in the server log only.
+  console.warn("AI provider error:", message);
+  const status = statusOf(error);
+  return `The AI provider returned an error${status ? ` (HTTP ${status})` : ""}. Try again or switch providers.`;
 }

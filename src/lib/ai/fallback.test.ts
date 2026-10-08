@@ -1,4 +1,4 @@
-import { NoObjectGeneratedError } from "ai";
+import { APICallError, NoObjectGeneratedError } from "ai";
 import { describe, expect, it } from "vitest";
 import {
   AllModelsFailedError,
@@ -12,6 +12,7 @@ import {
   shortReason,
   toggleStep,
   upgradeChain,
+  UserFacingError,
 } from "./fallback";
 
 describe("fallbackOrder", () => {
@@ -147,6 +148,36 @@ describe("shortReason", () => {
     expect(shortReason(new Error("model 'foo' not found"))).toBe("model not found");
     expect(shortReason(new Error("The operation was aborted due to timeout"))).toBe("timed out");
     expect(shortReason(new Error("x".repeat(100)))).toHaveLength(78);
+  });
+
+  it("never repeats an unrecognized provider message", () => {
+    expect(shortReason(providerError("Request 7f3a for projects/123 failed: internal detail", 400))).toBe("provider error 400");
+    expect(shortReason(new TypeError("Cannot read properties of undefined"))).toBe("provider error");
+  });
+});
+
+function providerError(message: string, statusCode: number) {
+  return new APICallError({ message, url: "https://provider.example/v1/chat", requestBodyValues: {}, statusCode });
+}
+
+describe("errorToMessage", () => {
+  it("hides the raw message of errors that don't come from the app", () => {
+    const message = errorToMessage(providerError("Request 7f3a for projects/123 failed: internal detail", 400));
+    expect(message).toBe("The AI provider returned an error (HTTP 400). Try again or switch providers.");
+    expect(errorToMessage(new TypeError("Cannot read properties of undefined (reading 'x')"))).not.toMatch(/undefined/);
+    expect(errorToMessage("a thrown string")).not.toMatch(/thrown string/);
+  });
+
+  it("keeps the app's own messages", () => {
+    expect(errorToMessage(new Error("There are no messages in this period yet"))).toBe("There are no messages in this period yet");
+    expect(errorToMessage(new UserFacingError("Dictation needs a Groq API key."))).toBe("Dictation needs a Groq API key.");
+  });
+
+  it("translates a rejected key and a missing model without the provider's wording", () => {
+    expect(errorToMessage(providerError("API key not valid. Please pass a valid API key.", 400))).toMatch(/rejected the API key/);
+    expect(errorToMessage(providerError("models/foo is not found for API version v1beta", 404))).toBe(
+      "The provider doesn't have that model. Check the model name in Settings.",
+    );
   });
 });
 
