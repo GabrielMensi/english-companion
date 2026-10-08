@@ -3,12 +3,9 @@
 import { StatusBadge } from "@/components/status-badge";
 import type { ReadAloudResult } from "@/lib/pronunciation-core";
 import { PRONUNCIATION_LABELS, PRONUNCIATION_TIPS } from "@/lib/taxonomy";
+import { escapeRegExp } from "@/lib/text";
 
 export type Language = "es" | "en";
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 /** The sentence before reading it, with the words to watch underlined. */
 export function TargetSentence({ text, targets }: { text: string; targets: string[] }) {
