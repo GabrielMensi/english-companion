@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parseFocus, pronunciationCards, readableSentences, soundItems, soundOrder, summarizePronunciation } from "./read-aloud-core";
+import {
+  parseFocus,
+  pronunciationCards,
+  pronunciationProgress,
+  readableSentences,
+  soundItems,
+  soundOrder,
+  summarizePronunciation,
+} from "./read-aloud-core";
 
 describe("readableSentences", () => {
   it("keeps plain sentences of a readable length", () => {
@@ -44,6 +52,43 @@ describe("summarizePronunciation", () => {
 
   it("has no accuracy without attempts", () => {
     expect(summarizePronunciation([], []).accuracy).toBeNull();
+  });
+});
+
+describe("pronunciationProgress", () => {
+  const current = summarizePronunciation(
+    [{ correctWords: 45, totalWords: 50 }],
+    [
+      { category: "th_sounds", expected: "think", heard: "sink" },
+      { category: "th_sounds", expected: "three", heard: "tree" },
+      { category: "b_v", expected: "vote", heard: "boat" },
+    ],
+  );
+  const previous = summarizePronunciation(
+    [{ correctWords: 80, totalWords: 100 }],
+    [
+      { category: "th_sounds", expected: "think", heard: "sink" },
+      { category: "vowel_length", expected: "ship", heard: "sheep" },
+      { category: "vowel_length", expected: "live", heard: "leave" },
+    ],
+  );
+
+  it("compares rates per 100 words read with the previous period", () => {
+    const progress = pronunciationProgress(current, previous);
+    expect(progress).toMatchObject({ attempts: 1, words: 50, accuracy: 0.9, previousAccuracy: 0.8 });
+    expect(progress.categories.map((c) => [c.category, c.count, c.per100Words, c.trend])).toEqual([
+      ["th_sounds", 2, 4, 3],
+      ["b_v", 1, 2, 2],
+      // Only in the previous period: solved.
+      ["vowel_length", 0, 0, -2],
+    ]);
+  });
+
+  it("has no trend without readings in the previous period", () => {
+    const progress = pronunciationProgress(current, summarizePronunciation([], []));
+    expect(progress.previousAccuracy).toBeNull();
+    expect(progress.categories.map((c) => c.trend)).toEqual([null, null]);
+    expect(pronunciationProgress(current, null).categories).toHaveLength(2);
   });
 });
 

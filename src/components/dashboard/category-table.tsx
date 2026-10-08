@@ -44,7 +44,7 @@ export function CategoryTable({ categories }: { categories: CategoryStat[] }) {
 }
 
 /** Trend in errors per 100 words: lower is better. Icon + text, never color alone. */
-function Trend({ value }: { value: number | null }) {
+export function Trend({ value }: { value: number | null }) {
   if (value === null) return <span className="text-muted-foreground">—</span>;
   if (Math.abs(value) < 0.05) {
     return (
