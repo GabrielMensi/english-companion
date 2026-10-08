@@ -6,23 +6,13 @@ import { db, schema } from "@/db";
 import { normalizeChain, upgradeChain } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, PROVIDERS } from "@/lib/ai/provider-info";
 import { MAX_SESSION_CARDS, NEW_CARDS_PER_SESSION } from "@/lib/flashcards-core";
+import { modelIdSchema, savedModels } from "@/lib/model-id";
 
 /**
  * 2: the fallback order is the user's (before, remote providers were always tried first).
  * 3: Ollama was removed; its model and URL are dropped and it leaves the chain.
  */
 const SETTINGS_VERSION = 3;
-
-/**
- * A model id as providers write them ("gemini-flash-latest", "openai/gpt-oss-120b"). The id goes
- * into the provider's URL path, so no "..", spaces or query characters.
- */
-const modelIdSchema = z
-  .string()
-  .min(1)
-  .max(120)
-  .regex(/^[\w.:/-]+$/)
-  .refine((id) => !id.includes(".."));
 
 export const settingsSchema = z.object({
   provider: z.enum(PROVIDER_IDS),
@@ -69,12 +59,7 @@ export function getSettings(): Settings {
     ...DEFAULT_SETTINGS,
     ...stored,
     // A model id that's no longer valid falls back to the default instead of resetting everything.
-    models: Object.fromEntries(
-      Object.entries(DEFAULT_SETTINGS.models).map(([provider, model]) => {
-        const saved = stored.models?.[provider as keyof Settings["models"]];
-        return [provider, modelIdSchema.safeParse(saved).success ? saved : model];
-      }),
-    ),
+    models: savedModels(DEFAULT_SETTINGS.models, stored.models),
     // Without this, a chain that still names Ollama would fail to parse and reset every setting.
     ...upgradeChain(stored, DEFAULT_SETTINGS.provider),
     version: SETTINGS_VERSION,

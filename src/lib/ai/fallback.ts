@@ -2,7 +2,7 @@
  * Pure fallback logic: try the selected model first, then the configured
  * fallbacks in the order the user chose. Kept free of server-only imports so it can be tested.
  */
-import { APICallError, NoObjectGeneratedError } from "ai";
+import { APICallError, LoadAPIKeyError, NoObjectGeneratedError, RetryError } from "ai";
 import { PROVIDER_IDS, type ProviderId } from "./provider-info";
 
 export interface FallbackAttempt {
@@ -143,8 +143,9 @@ function isOwnError(error: unknown): error is Error {
   return error instanceof UserFacingError || (error instanceof Error && Object.getPrototypeOf(error) === Error.prototype);
 }
 
-/** The HTTP status a provider answered with, when the error came from its API. */
+/** The HTTP status a provider answered with, when the error came from its API (also after the SDK's retries). */
 function statusOf(error: unknown): number | undefined {
+  if (RetryError.isInstance(error)) return statusOf(error.lastError);
   return APICallError.isInstance(error) ? error.statusCode : undefined;
 }
 
@@ -164,7 +165,7 @@ export function shortReason(error: unknown): string {
   if (INVALID_KEY.test(message)) return "invalid API key";
   if (NoObjectGeneratedError.isInstance(error)) return "invalid response";
   if (/not found/i.test(message) && /model/i.test(message)) return "model not found";
-  if (/Missing .* API key/i.test(message)) return "missing API key";
+  if (/Missing .* API key/i.test(message) || LoadAPIKeyError.isInstance(error)) return "missing API key";
   if (!isOwnError(error)) {
     const status = statusOf(error);
     return status ? `provider error ${status}` : "provider error";
@@ -216,6 +217,9 @@ export function errorToMessage(error: unknown): string {
   }
   if (OVERLOADED.test(message)) {
     return "The provider is overloaded right now. Try again in a moment or switch providers.";
+  }
+  if (LoadAPIKeyError.isInstance(error)) {
+    return "The AI provider's API key is missing. Add it in Settings.";
   }
   if (!isOwnError(error) && INVALID_KEY.test(message)) {
     return "The provider rejected the API key. Check it in Settings.";

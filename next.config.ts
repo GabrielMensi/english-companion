@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
   poweredByHeader: false,
+  experimental: {
+    // proxy.ts makes Next buffer request bodies up to this size (default 10 MB) and silently cut the
+    // rest. Above the routes' own caps (10 MB for /api/transcribe), so an oversized upload still gets a 413.
+    proxyClientMaxBodySize: "11mb",
+  },
   // Bottom-left would cover the sidebar's Settings link.
   devIndicators: { position: "bottom-right" },
   /**

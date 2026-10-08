@@ -1,4 +1,4 @@
-import { APICallError, NoObjectGeneratedError } from "ai";
+import { APICallError, LoadAPIKeyError, NoObjectGeneratedError, RetryError } from "ai";
 import { describe, expect, it } from "vitest";
 import {
   AllModelsFailedError,
@@ -166,6 +166,22 @@ describe("errorToMessage", () => {
     expect(message).toBe("The AI provider returned an error (HTTP 400). Try again or switch providers.");
     expect(errorToMessage(new TypeError("Cannot read properties of undefined (reading 'x')"))).not.toMatch(/undefined/);
     expect(errorToMessage("a thrown string")).not.toMatch(/thrown string/);
+  });
+
+  it("keeps the HTTP status when the SDK gave up after retrying", () => {
+    const error = new RetryError({
+      message: "Failed after 3 attempts. Last error: internal detail",
+      reason: "maxRetriesExceeded",
+      errors: [providerError("first", 500), providerError("internal detail", 500)],
+    });
+    expect(errorToMessage(error)).toBe("The AI provider returned an error (HTTP 500). Try again or switch providers.");
+    expect(shortReason(error)).toBe("provider error 500");
+  });
+
+  it("reports a key the SDK couldn't find", () => {
+    const error = new LoadAPIKeyError({ message: "Google Generative AI API key is missing." });
+    expect(errorToMessage(error)).toBe("The AI provider's API key is missing. Add it in Settings.");
+    expect(shortReason(error)).toBe("missing API key");
   });
 
   it("keeps the app's own messages", () => {
