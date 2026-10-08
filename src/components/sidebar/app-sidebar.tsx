@@ -19,6 +19,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { Area } from "@/components/layout/page";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
+import { TalkAboutButton } from "@/components/sidebar/talk-about-button";
 import { SessionItem } from "@/components/sidebar/session-item";
 import { ThemeToggle } from "@/components/sidebar/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -120,9 +121,12 @@ export function AppSidebar({
     return (
       <aside className="flex w-14 shrink-0 flex-col items-center border-r bg-sidebar py-3 text-sidebar-foreground">
         {toggleButton}
-        <div data-area="write" className="mt-3">
+        <div data-area="write" className="mt-3 flex flex-col gap-1">
           <Hint label="New chat" side="right">
             <NewChatButton iconOnly />
+          </Hint>
+          <Hint label="Talk about…" side="right">
+            <TalkAboutButton iconOnly variant="ghost" />
           </Hint>
         </div>
         <Hint label="Today" side="right">
@@ -190,8 +194,11 @@ export function AppSidebar({
         {toggleButton}
       </div>
 
-      <div data-area="write" className="px-3">
-        <NewChatButton className="w-full" />
+      <div data-area="write" className="flex gap-1 px-3">
+        <NewChatButton className="flex-1" />
+        <Hint label="Talk about…" side="bottom">
+          <TalkAboutButton iconOnly className="size-8" />
+        </Hint>
       </div>
 
       <div className="mt-2 px-3">
