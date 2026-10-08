@@ -13,7 +13,8 @@ import type { ChatCorrection } from "@/lib/types";
  * Deferred fine classification of mistakes. The chat saves each mistake as
  * "pending"; this job classifies them in batches when the dashboard is opened,
  * when the app has been idle for a while, or on demand. Chat requests always
- * go first, so only one model call runs at a time and the chat stays fast.
+ * go first and only one model call runs at a time, so the chat stays fast and
+ * a batch doesn't use up the free tier's per-minute limit right when a message needs it.
  */
 
 const BATCH_SIZE = 8;

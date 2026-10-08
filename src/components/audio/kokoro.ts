@@ -119,7 +119,7 @@ export function getGpuRejection(): GpuRejection | null {
 
 /**
  * WASM threads: ONNX Runtime's default is at most 4. Kokoro keeps speeding up to ~8 on a desktop
- * CPU; past that the gain is small and the rest of the machine (the browser, Ollama) needs cores too.
+ * CPU; past that the gain is small and the rest of the machine (the browser) needs cores too.
  */
 function wasmThreads() {
   const cores = typeof navigator === "undefined" ? 1 : navigator.hardwareConcurrency || 1;

@@ -24,7 +24,7 @@ export async function classifyBatch(items: ClassificationItem[], settings: Setti
     try {
       return await run();
     } catch (error) {
-      // Small local models occasionally produce invalid JSON: one retry usually fixes it.
+      // Models occasionally produce invalid JSON: one retry usually fixes it.
       if (!NoObjectGeneratedError.isInstance(error)) throw error;
       return await run();
     }

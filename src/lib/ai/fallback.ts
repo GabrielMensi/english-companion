@@ -3,21 +3,13 @@
  * fallbacks in the order the user chose. Kept free of server-only imports so it can be tested.
  */
 import { NoObjectGeneratedError } from "ai";
-import { PROVIDER_IDS, type ProviderId, PROVIDERS } from "./provider-info";
+import { PROVIDER_IDS, type ProviderId } from "./provider-info";
 
 export interface FallbackAttempt {
   provider: ProviderId;
   model: string;
   /** Short, user-facing reason, e.g. "quota exceeded". */
   reason: string;
-}
-
-/**
- * Remote providers first, local ones last, because a local model is slower and
- * takes the GPU. Only used to migrate settings saved before the order was editable.
- */
-export function byFallbackPriority(providers: readonly ProviderId[]): ProviderId[] {
-  return [...providers].sort((a, b) => Number(PROVIDERS[a].local) - Number(PROVIDERS[b].local));
 }
 
 /** The primary model and its fallbacks, in the order they're tried. */
@@ -33,6 +25,25 @@ export function fallbackOrder(
   isConfigured: (provider: ProviderId) => boolean,
 ): ProviderId[] {
   return [...new Set([primary, ...fallbacks.filter((p) => p !== primary && isConfigured(p))])];
+}
+
+function isProviderId(value: unknown): value is ProviderId {
+  return PROVIDER_IDS.includes(value as ProviderId);
+}
+
+/**
+ * The chain saved by an older version, without providers that no longer exist
+ * (Ollama, removed in settings v3). If the primary was one of them, the first
+ * remaining fallback takes its place; with none left, `defaultProvider` does.
+ */
+export function upgradeChain(
+  stored: { provider?: unknown; fallbacks?: unknown },
+  defaultProvider: ProviderId,
+): Chain {
+  const fallbacks = Array.isArray(stored.fallbacks) ? stored.fallbacks.filter(isProviderId) : [];
+  if (isProviderId(stored.provider)) return normalizeChain({ provider: stored.provider, fallbacks });
+  const [provider = defaultProvider, ...rest] = fallbacks;
+  return normalizeChain({ provider, fallbacks: rest });
 }
 
 /** Drops duplicates and the primary from the fallbacks. */
@@ -79,6 +90,9 @@ export function toggleStep(chain: Chain, id: ProviderId, on: boolean): Chain {
   const rest = fallbacks.filter((p) => p !== id);
   return { provider, fallbacks: on ? [...rest, id] : rest };
 }
+
+/** Shown when no provider has an API key, so no AI feature can work. */
+export const NO_PROVIDER_MESSAGE = "No AI model is set up yet. Add a Gemini or Groq API key in Settings.";
 
 export class AllModelsFailedError extends Error {
   constructor(
@@ -166,7 +180,7 @@ export function errorToMessage(error: unknown): string {
   }
   const message = messageOf(error);
   if (UNREACHABLE.test(message)) {
-    return "Couldn't connect to the AI provider. If you use Ollama, make sure it's running and the model is downloaded.";
+    return "Couldn't connect to the AI provider. Check your internet connection and try again.";
   }
   if (TIMED_OUT.test(message)) {
     return "The model took too long to respond. Try again or switch to a faster model.";

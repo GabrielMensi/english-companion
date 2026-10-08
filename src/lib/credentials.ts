@@ -9,8 +9,6 @@ export const KEY_ENV_VARS: Record<KeyProvider, string> = {
   groq: "GROQ_API_KEY",
 };
 
-export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
-
 /** Shows only the last characters, so the UI can tell keys apart without exposing them. */
 export function maskKey(key: string): string {
   const visible = key.length >= 12 ? 4 : 2;
@@ -25,8 +23,4 @@ export function pickApiKey(
   if (stored?.trim()) return { key: stored.trim(), source: "app" };
   if (env?.trim()) return { key: env.trim(), source: "env" };
   return null;
-}
-
-export function normalizeBaseUrl(url: string): string {
-  return url.trim().replace(/\/+$/, "");
 }

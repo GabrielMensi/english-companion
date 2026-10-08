@@ -31,7 +31,7 @@
  *   --spoken         treat every essay as dictated
  *   --analyze=<provider>:<model>  compare corpus mistakes with the app's (needs --limit)
  *   --limit=<n>      essays to analyze, spread across levels (default 24)
- *   --delay=<ms>     pause between remote requests (default 4000)
+ *   --delay=<ms>     pause between requests (default 4000)
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -278,7 +278,7 @@ async function compareWithApp(spec: string) {
   for (const essay of sample) {
     const key = `${spec}|${essay.id}`;
     if (cache[key]) continue;
-    if (provider !== "ollama" && requests > 0) await sleep(delayMs);
+    if (requests > 0) await sleep(delayMs);
     requests++;
     try {
       const { analysis } = await analyzeMessage({ text: essay.text, mode: "correction", history: [] }, settings);

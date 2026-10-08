@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   return (
     <Page width="md">
       <PageHeader title="Settings" description="Choose which AI models correct your messages and in what order." />
-      <SettingsForm initialSettings={settings} initialProviders={providerStatus(settings)} />
+      <SettingsForm initialSettings={settings} initialProviders={providerStatus()} />
       <VoiceSettings />
     </Page>
   );
