@@ -12,7 +12,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { AutoModelForCTC, AutoProcessor, Tensor } from "@huggingface/transformers";
+import { AutoModelForCTC, AutoProcessor, type Tensor } from "@huggingface/transformers";
 import { align, isVowel, per, prosody, readWav, REDUCED, tokenizeIpa } from "./audio";
 import { CLIPS, SPIKE_DIR, VOICES } from "./clips";
 
