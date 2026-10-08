@@ -7,8 +7,10 @@
 export default function GlobalError({ retry }: { error: Error & { digest?: string }; retry: () => void }) {
   return (
     <html lang="en">
-      <body style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", colorScheme: "light dark" }}>
+      <head>
         <title>English Companion</title>
+      </head>
+      <body style={{ fontFamily: "system-ui, sans-serif", padding: "2rem", colorScheme: "light dark" }}>
         <h1>Something went wrong</h1>
         <p>The app couldn’t start. Check the terminal running it for details, then try again.</p>
         <button onClick={() => retry()}>Try again</button>

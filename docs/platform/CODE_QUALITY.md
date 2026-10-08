@@ -8,13 +8,13 @@ Revisión del código entero (creció feature por feature) antes de *Deploy the 
 
 ## Qué se cambió en #77
 
-- **Prettier** (`.prettierrc.json`: 120 columnas, comillas dobles, con `prettier-plugin-tailwindcss` para ordenar las clases) y los scripts `pnpm format` / `pnpm format:check`. **No se formateó el código**: hay ramas abiertas (#71, #73/#75, #74, #78) y un reformateo masivo choca con todas. Hoy Prettier cambiaría 104 de los 204 archivos de `src/` (casi todo saltos de línea de JSX y orden de clases). Queda como follow-up, en un solo commit cuando no haya ramas abiertas.
+- **Prettier** (`.prettierrc.json`: 120 columnas, comillas dobles, con `prettier-plugin-tailwindcss` para ordenar las clases) y el script `pnpm format:check`. A propósito no hay `pnpm format` sobre todo el árbol: hasta el reformateo, `pnpm exec prettier --write <archivos>` solo sobre los archivos nuevos. **No se formateó el código**: hay ramas abiertas (#71, #73/#75, #74, #78) y un reformateo masivo choca con todas. Hoy Prettier cambiaría 104 de los 204 archivos de `src/` (casi todo saltos de línea de JSX y orden de clases). Queda como follow-up, en un solo commit cuando no haya ramas abiertas.
 - **ESLint más estricto** (`eslint.config.mjs`), con reglas que usan los tipos (`projectService`):
   - Errores (el código ya las cumple): `await-thenable`, `no-unused-vars` (con `_` para ignorar), `eqeqeq` (salvo `== null`).
   - Warnings (marcan código existente o son de estilo): `no-floating-promises`, `no-misused-promises`, `no-unnecessary-type-assertion`, `switch-exhaustiveness-check`, `consistent-type-imports`, `import/no-duplicates`, `no-console` (permite `debug`, `warn` y `error`; los scripts de eval quedan afuera porque imprimir es su salida).
   - `eslint-config-prettier` apaga las reglas de estilo que pelearían con Prettier.
   - Con las reglas que usan tipos, `pnpm lint` tarda ~12 s.
-- **knip** (`knip.json`, `pnpm knip`): archivos, exports y dependencias sin usar. Ignora `src/components/ui/` (componentes de shadcn: se copian enteros y exportan de más a propósito) y los exports que se usan dentro del mismo archivo. Hoy da limpio.
+- **knip** (`knip.json`, `pnpm knip`): archivos, exports y dependencias sin usar. Toma los scripts de `scripts/` como puntos de entrada (son CLIs sueltos, no los importa nadie). Ignora `src/components/ui/` (componentes de shadcn: se copian enteros y exportan de más a propósito) y los exports que se usan dentro del mismo archivo. Hoy da limpio.
 - **Código muerto** (lo encontró knip): `card`, `scroll-area`, `separator` y `skeleton` de shadcn, que no usaba nadie, y `getPracticeTargets` (lo reemplazó `getPracticeSuggestions`).
 - **Duplicado**: `escapeRegExp` estaba copiado en tres archivos; ahora vive en `src/lib/text.ts`.
 - **Error boundaries**: no había ninguno, así que un error al renderizar dejaba la pantalla en blanco. `src/app/error.tsx` muestra "Something went wrong" con *Try again* y deja la barra lateral para ir a otra página; `src/app/global-error.tsx` cubre un error del layout raíz (por ejemplo, que no abra la base) con una página simple, sin estilos de la app.
