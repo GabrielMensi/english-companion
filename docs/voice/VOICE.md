@@ -287,7 +287,7 @@ Limitaciones:
 
 Pendiente:
 - Panel de pronunciación en el dashboard.
-- Feedback cualitativo con Gemini multimodal o fonemas (wav2vec2) para acento, schwa y word stress.
+- Acento, schwa y word stress desde el audio: investigado en [PRONUNCIATION_AUDIO.md](PRONUNCIATION_AUDIO.md) (#74). Decisión: schwa con un modelo de fonemas wav2vec2 en CPU, acento de palabra pendiente de grabaciones reales, feedback abierto con Gemini descartado.
 
 ### Fase 4 — Clases
 - Importar audio o transcripción de la clase, diarización, análisis solo de tus turnos como mensajes `spoken` con fuente "From class".

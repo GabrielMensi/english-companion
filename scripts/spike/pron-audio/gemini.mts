@@ -11,6 +11,9 @@
  *             and were the unstressed vowels reduced? What a read-aloud check
  *             on known words would ask.
  *
+ * --only=develop,banana limits the run to clips whose id starts with those prefixes: the free
+ * tier allows only ~20 requests per model per day for most models.
+ *
  * The key comes from the app's settings (DATABASE_PATH) or .env.local.
  */
 import fs from "node:fs";
@@ -69,9 +72,14 @@ Listen only to the word "${clip.word}" (syllables: ${clip.syllables!.join("-")})
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const clips = CLIPS.filter((c) => (mode === "probe" ? c.word && c.word !== "to" : true)).filter((c) => !only || c.id.startsWith(only));
+const clips = CLIPS.filter((c) => (mode === "probe" ? c.word && c.word !== "to" : true)).filter((c) => !only || only.split(",").some((prefix) => c.id.startsWith(prefix)));
 const summary: Record<string, string | number>[] = [];
 const details: unknown[] = [];
+const outDir = path.resolve(".eval-results");
+fs.mkdirSync(outDir, { recursive: true });
+const out = path.join(outDir, `pron-gemini-${mode}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
+// Saved after every clip: a run cut short by the daily quota keeps what it got.
+const save = () => fs.writeFileSync(out, JSON.stringify({ summary, details }, null, 1));
 
 for (const modelId of models) {
   console.log(`\n▶ ${modelId} · ${mode} · ${voice}`);
@@ -113,6 +121,7 @@ for (const modelId of models) {
       details.push({ modelId, mode, voice, clip: clip.id, error: String(error) });
       console.log(`  ${clip.id.padEnd(22)} FAIL ${shortReason(error)}`);
     }
+    save();
   }
 
   const avgSeconds = times.length ? +(times.reduce((a, b) => a + b, 0) / times.length / 1000).toFixed(1) : "-";
@@ -161,9 +170,6 @@ for (const modelId of models) {
   }
 }
 
+save();
 console.table(summary);
-const outDir = path.resolve(".eval-results");
-fs.mkdirSync(outDir, { recursive: true });
-const out = path.join(outDir, `pron-gemini-${mode}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
-fs.writeFileSync(out, JSON.stringify({ summary, details }, null, 1));
 console.log(`Details saved to ${path.relative(process.cwd(), out)}`);
