@@ -27,7 +27,7 @@ Revisión del código entero (creció feature por feature) antes de *Deploy the 
 Todas son promesas que se lanzan sin esperar a propósito (fire-and-forget) en componentes de cliente; ninguna es un bug hoy, pero si la promesa falla el error se pierde en silencio:
 
 - `src/components/audio/speech.ts:210` (`speakBrowser(...).then(finish)`)
-- `src/components/chat/chat-view.tsx:213` (`speak(...)` del modo voz)
+- `src/components/chat/chat-view.tsx:214` (`speak(...)` del modo voz)
 - `src/components/chat/composer.tsx:140,141,179,185` (empezar/terminar la grabación, `submit()`)
 - `src/components/dashboard/classification-status.tsx:32,42` (el polling)
 - `src/components/settings/provider-card.tsx:263`, `src/components/settings/settings-form.tsx:73`
