@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { ChatView } from "@/components/chat/chat-view";
-import { availableModels, resolveTranscriptionModel } from "@/lib/ai/providers";
+import { availableModels, hasConfiguredProvider, resolveTranscriptionModel } from "@/lib/ai/providers";
 import { getMessages, getSession } from "@/lib/chat";
 import { answerTemplate } from "@/lib/exercise-set";
 import { pendingSetSize } from "@/lib/practice";
@@ -24,6 +24,7 @@ export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
       initialMessages={getMessages(session.id)}
       models={availableModels(settings)}
       selectedProvider={settings.provider}
+      hasModel={hasConfiguredProvider()}
       canDictate={resolveTranscriptionModel() !== null}
       answerTemplate={setSize ? answerTemplate(setSize) : null}
     />

@@ -4,7 +4,7 @@ import { getSettings, saveSettings, settingsSchema } from "@/lib/settings";
 
 export async function GET() {
   const settings = getSettings();
-  return Response.json({ settings, providers: providerStatus(settings) });
+  return Response.json({ settings, providers: providerStatus() });
 }
 
 /**
@@ -21,5 +21,5 @@ export async function PATCH(request: Request) {
   const merged = settingsSchema.safeParse({ ...current, ...patch.data, ...chain });
   if (!merged.success) return Response.json({ error: "Invalid settings" }, { status: 400 });
   const settings = saveSettings(merged.data);
-  return Response.json({ settings, providers: providerStatus(settings) });
+  return Response.json({ settings, providers: providerStatus() });
 }

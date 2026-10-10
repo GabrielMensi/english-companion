@@ -1,6 +1,8 @@
 # Clasificación de errores en dos etapas (Jev / Kev / Jeeves)
 
-> Area: AI pipeline · Kind: Research · Status: In progress (LLM backend done, Kev pending) · Board: #11
+> Area: AI pipeline · Kind: Research · Status: Done (LLM backend; Kev discarded with the local models in #72) · Board: #11
+
+> Los modelos locales (Ollama) se quitaron en #72 ([LOCAL_MODELS.md](LOCAL_MODELS.md)): lo que sigue sobre GPU, Ollama y Kev es historia. El backend LLM clasifica con la misma cadena Gemini/Groq del chat.
 
 Estado (2026-09-29): **pasos 1–3 del plan implementados** con el backend LLM, y el 4 en parte (56 errores etiquetados de los ~150 previstos) (ver "Implementado"). Kev / Jev / Jeeves siguen como investigación. Relacionado con [VERB_TENSES.md](../practice/VERB_TENSES.md) y [VOICE.md](../voice/VOICE.md).
 

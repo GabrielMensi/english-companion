@@ -47,7 +47,6 @@ export function SettingsForm({
   function save(patch: Partial<Settings>) {
     setSettings((s) => ({ ...s, ...patch }));
     if (patch.models) clearTests(PROVIDER_IDS.filter((id) => patch.models?.[id] !== settings.models[id]));
-    if (patch.ollamaBaseUrl !== undefined) clearTests(["ollama"]);
 
     setPending((n) => n + 1);
     queue.current = queue.current.then(async () => {

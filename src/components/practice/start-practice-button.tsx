@@ -14,7 +14,7 @@ export type StartPracticeRequest =
   | { kind: ExerciseKind | "conversation"; tense: Tense; contrastWith: Tense | null }
   | { kind: "category"; category: ErrorCategory; subtype: string | null };
 
-/** Creates a practice chat and opens it. Generating exercises can take a while with local models. */
+/** Creates a practice chat and opens it. Generating exercises takes a few seconds. */
 export function StartPracticeButton({
   request,
   children,

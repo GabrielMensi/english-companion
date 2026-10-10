@@ -8,7 +8,7 @@
 - "Cómo lo diría un nativo" y escape al español con `[corchetes]` → vocabulario.
 - Convertir un mensaje corregido en prompt estructurado.
 - Dashboard: errores cada 100 palabras, evolución, áreas a trabajar, tendencias, errores frecuentes.
-- Providers: Ollama (local), Gemini y Groq (free tier), con API keys y URL de Ollama configurables desde la app.
+- Providers: Gemini y Groq (free tier), con API keys configurables desde la app. Ollama (local) estuvo hasta #72 ([LOCAL_MODELS.md](ai/LOCAL_MODELS.md)).
 - Página Vocabulary y panel en el dashboard con las palabras buscadas entre [corchetes].
 - Set de evaluación de modelos (`pnpm eval:models`) y timeouts por request.
 - Selector de modelo en el chat, modelo registrado en cada respuesta y fallback automático entre modelos configurados.
@@ -116,7 +116,7 @@ Flujo:
 4. La corrección (diff y errores principales) se muestra en el chat de Claude Code vía `systemMessage`.
 
 Consideraciones:
-- Tiene que ser rápido: con un modelo local conviene un timeout corto y, si la app no responde, dejar pasar el prompt original sin bloquear.
+- Tiene que ser rápido: conviene un timeout corto y, si la app no responde, dejar pasar el prompt original sin bloquear.
 - Ignorar prompts en español o muy cortos (comandos, "sí", "dale").
 - El endpoint sería el mismo análisis que usa el chat, sin la UI.
 

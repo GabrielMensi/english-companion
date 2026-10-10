@@ -2,7 +2,6 @@ import { NoObjectGeneratedError } from "ai";
 import { describe, expect, it } from "vitest";
 import {
   AllModelsFailedError,
-  byFallbackPriority,
   canRetryWithoutStreaming,
   chainSteps,
   errorToMessage,
@@ -12,29 +11,47 @@ import {
   setPrimary,
   shortReason,
   toggleStep,
+  upgradeChain,
 } from "./fallback";
 
 describe("fallbackOrder", () => {
   const all = () => true;
 
   it("puts the selected provider first and skips it among the fallbacks", () => {
-    expect(fallbackOrder("gemini", ["ollama", "gemini", "groq"], all)).toEqual(["gemini", "ollama", "groq"]);
+    expect(fallbackOrder("gemini", ["gemini", "groq"], all)).toEqual(["gemini", "groq"]);
   });
 
   it("keeps the saved order", () => {
-    expect(fallbackOrder("groq", ["gemini", "ollama"], all)).toEqual(["groq", "gemini", "ollama"]);
-    expect(fallbackOrder("groq", ["ollama", "gemini"], all)).toEqual(["groq", "ollama", "gemini"]);
+    expect(fallbackOrder("groq", ["gemini"], all)).toEqual(["groq", "gemini"]);
   });
 
   it("skips fallbacks that are not configured or not enabled", () => {
-    expect(fallbackOrder("gemini", ["ollama", "groq"], (p) => p !== "groq")).toEqual(["gemini", "ollama"]);
-    expect(fallbackOrder("ollama", [], all)).toEqual(["ollama"]);
+    expect(fallbackOrder("gemini", ["groq"], (p) => p !== "groq")).toEqual(["gemini"]);
+    expect(fallbackOrder("groq", [], all)).toEqual(["groq"]);
   });
 });
 
-describe("byFallbackPriority", () => {
-  it("puts remote providers before local ones", () => {
-    expect(byFallbackPriority(["ollama", "gemini", "groq"])).toEqual(["gemini", "groq", "ollama"]);
+describe("upgradeChain", () => {
+  it("drops providers that no longer exist", () => {
+    expect(upgradeChain({ provider: "gemini", fallbacks: ["ollama", "gemini", "groq"] }, "gemini")).toEqual({
+      provider: "gemini",
+      fallbacks: ["groq"],
+    });
+  });
+
+  it("promotes the first remaining fallback when the primary is gone", () => {
+    expect(upgradeChain({ provider: "ollama", fallbacks: ["groq", "gemini"] }, "gemini")).toEqual({
+      provider: "groq",
+      fallbacks: ["gemini"],
+    });
+    expect(upgradeChain({ provider: "ollama", fallbacks: ["ollama"] }, "gemini")).toEqual({
+      provider: "gemini",
+      fallbacks: [],
+    });
+  });
+
+  it("uses the default when nothing was saved", () => {
+    expect(upgradeChain({}, "gemini")).toEqual({ provider: "gemini", fallbacks: [] });
   });
 });
 
@@ -45,13 +62,15 @@ describe("chain editing", () => {
     expect(chainSteps(chain)).toEqual([
       { provider: "gemini", enabled: true },
       { provider: "groq", enabled: true },
-      { provider: "ollama", enabled: false },
+    ]);
+    expect(chainSteps({ provider: "groq", fallbacks: [] })).toEqual([
+      { provider: "groq", enabled: true },
+      { provider: "gemini", enabled: false },
     ]);
     // Old settings could list the primary among the fallbacks.
-    expect(chainSteps({ provider: "ollama", fallbacks: ["ollama", "gemini", "groq"] }).map((s) => s.provider)).toEqual([
-      "ollama",
-      "gemini",
+    expect(chainSteps({ provider: "groq", fallbacks: ["groq", "gemini"] }).map((s) => s.provider)).toEqual([
       "groq",
+      "gemini",
     ]);
   });
 
@@ -60,21 +79,18 @@ describe("chain editing", () => {
     expect(moveStep(chain, "gemini", 1)).toEqual({ provider: "groq", fallbacks: ["gemini"] });
     expect(moveStep(chain, "gemini", -1)).toEqual(chain);
     expect(moveStep(chain, "groq", 1)).toEqual(chain);
-    expect(moveStep(chain, "ollama", -1)).toEqual(chain);
+    expect(moveStep({ provider: "gemini", fallbacks: [] }, "groq", -1)).toEqual({ provider: "gemini", fallbacks: [] });
   });
 
   it("toggles fallbacks but never the primary", () => {
-    expect(toggleStep(chain, "ollama", true)).toEqual({ provider: "gemini", fallbacks: ["groq", "ollama"] });
+    expect(toggleStep({ provider: "gemini", fallbacks: [] }, "groq", true)).toEqual(chain);
     expect(toggleStep(chain, "groq", false)).toEqual({ provider: "gemini", fallbacks: [] });
     expect(toggleStep(chain, "gemini", false)).toEqual(chain);
   });
 
   it("keeps the previous primary as the first fallback when switching", () => {
-    expect(setPrimary({ provider: "gemini", fallbacks: ["groq", "ollama"] }, "ollama")).toEqual({
-      provider: "ollama",
-      fallbacks: ["gemini", "groq"],
-    });
-    expect(setPrimary(chain, "ollama")).toEqual({ provider: "ollama", fallbacks: ["gemini", "groq"] });
+    expect(setPrimary(chain, "groq")).toEqual({ provider: "groq", fallbacks: ["gemini"] });
+    expect(setPrimary({ provider: "gemini", fallbacks: [] }, "groq")).toEqual({ provider: "groq", fallbacks: ["gemini"] });
     expect(setPrimary(chain, "gemini")).toEqual(chain);
   });
 });
@@ -82,7 +98,7 @@ describe("chain editing", () => {
 describe("runWithFallback", () => {
   const candidates = [
     { provider: "gemini" as const, modelId: "gemini-flash-latest" },
-    { provider: "ollama" as const, modelId: "qwen2.5:14b-instruct" },
+    { provider: "groq" as const, modelId: "qwen/qwen3.8-27b" },
     { provider: "groq" as const, modelId: "openai/gpt-oss-120b" },
   ];
 
@@ -94,11 +110,11 @@ describe("runWithFallback", () => {
       return "ok";
     });
     expect(result).toBe("ok");
-    expect(used.provider).toBe("ollama");
+    expect(used.modelId).toBe("qwen/qwen3.8-27b");
     expect(failed).toEqual([{ provider: "gemini", model: "gemini-flash-latest", reason: "quota exceeded" }]);
     expect(seen).toEqual([
       { provider: "gemini", isLast: false },
-      { provider: "ollama", isLast: false },
+      { provider: "groq", isLast: false },
     ]);
   });
 
@@ -110,7 +126,7 @@ describe("runWithFallback", () => {
 
   it("throws with every attempt when all models fail", async () => {
     const error = await runWithFallback(candidates, async (c) => {
-      throw new Error(c.provider === "ollama" ? "fetch failed" : "This model is currently experiencing high demand");
+      throw new Error(c.modelId === "qwen/qwen3.8-27b" ? "fetch failed" : "This model is currently experiencing high demand");
     }).catch((e) => e);
     expect(error).toBeInstanceOf(AllModelsFailedError);
     expect(error.attempts.map((a: { reason: string }) => a.reason)).toEqual(["overloaded", "unreachable", "overloaded"]);

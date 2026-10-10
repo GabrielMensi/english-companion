@@ -62,7 +62,7 @@ export async function analyzeMessage(
     try {
       return await generate();
     } catch (error) {
-      // Small local models occasionally produce invalid JSON: one retry usually fixes it.
+      // Models occasionally produce invalid JSON: one retry usually fixes it.
       if (!NoObjectGeneratedError.isInstance(error)) throw error;
       return await generate();
     }

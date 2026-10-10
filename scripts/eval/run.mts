@@ -1,14 +1,14 @@
 /**
  * Compares models on the evaluation set.
  *
- *   pnpm eval:models ollama:qwen3:14b gemini:gemini-flash-lite-latest
+ *   pnpm eval:models gemini:gemini-flash-lite-latest groq:qwen/qwen3.8-27b
  *
  * Options:
- *   --delay=<ms>   pause between requests to remote providers (default 4000,
+ *   --delay=<ms>   pause between requests (default 4000,
  *                  to stay under free-tier per-minute limits)
  *   --limit=<n>    only run the first n samples
  *
- * API keys and the Ollama URL come from the app's settings (or .env.local).
+ * API keys come from the app's settings (or .env.local).
  * Results are printed as a table and saved to .eval-results/.
  */
 import fs from "node:fs";
@@ -40,7 +40,7 @@ for (const spec of specs) {
   const [provider, ...rest] = spec.split(":");
   const model = rest.join(":");
   if (!PROVIDER_IDS.includes(provider as ProviderId) || !model) {
-    console.error(`Invalid spec "${spec}". Use <provider>:<model>, e.g. ollama:qwen3:14b`);
+    console.error(`Invalid spec "${spec}". Use <provider>:<model>, e.g. gemini:gemini-flash-lite-latest`);
     continue;
   }
   // No fallbacks: we want to measure this model only.
@@ -59,7 +59,7 @@ for (const spec of specs) {
   console.log(`\n▶ ${spec}`);
 
   for (const [i, sample] of samples.entries()) {
-    if (provider !== "ollama" && i > 0) await sleep(delayMs);
+    if (i > 0) await sleep(delayMs);
     const started = Date.now();
     try {
       const { analysis } = await analyzeMessage({ text: sample.text, mode: "correction", history: [] }, settings);

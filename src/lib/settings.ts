@@ -3,17 +3,19 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { byFallbackPriority, normalizeChain } from "@/lib/ai/fallback";
+import { normalizeChain, upgradeChain } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, PROVIDERS } from "@/lib/ai/provider-info";
 import { MAX_SESSION_CARDS, NEW_CARDS_PER_SESSION } from "@/lib/flashcards-core";
 
-/** 2: the fallback order is the user's (before, remote providers were always tried first). */
-const SETTINGS_VERSION = 2;
+/**
+ * 2: the fallback order is the user's (before, remote providers were always tried first).
+ * 3: Ollama was removed; its model and URL are dropped and it leaves the chain.
+ */
+const SETTINGS_VERSION = 3;
 
 export const settingsSchema = z.object({
   provider: z.enum(PROVIDER_IDS),
   models: z.object({
-    ollama: z.string().min(1),
     gemini: z.string().min(1),
     groq: z.string().min(1),
   }),
@@ -23,8 +25,6 @@ export const settingsSchema = z.object({
   countTyposInStats: z.boolean(),
   /** Providers to try, in this order, when the selected one fails. Never includes `provider`. */
   fallbacks: z.array(z.enum(PROVIDER_IDS)),
-  /** Ollama server URL; null uses OLLAMA_BASE_URL or the default. */
-  ollamaBaseUrl: z.url({ protocol: /^https?$/ }).nullable(),
   /** How many never-seen flashcards a study session adds after the due ones. */
   newCardsPerSession: z.number().int().min(0).max(MAX_SESSION_CARDS),
   /** Format version, to migrate settings saved by older versions. */
@@ -34,16 +34,14 @@ export const settingsSchema = z.object({
 export type Settings = z.infer<typeof settingsSchema>;
 
 export const DEFAULT_SETTINGS: Settings = {
-  provider: "ollama",
+  provider: "gemini",
   models: {
-    ollama: PROVIDERS.ollama.defaultModel,
     gemini: PROVIDERS.gemini.defaultModel,
     groq: PROVIDERS.groq.defaultModel,
   },
   explanationLanguage: "es",
   countTyposInStats: false,
-  fallbacks: PROVIDER_IDS.filter((p) => p !== "ollama"),
-  ollamaBaseUrl: null,
+  fallbacks: PROVIDER_IDS.filter((p) => p !== "gemini"),
   newCardsPerSession: NEW_CARDS_PER_SESSION,
   version: SETTINGS_VERSION,
 };
@@ -53,14 +51,15 @@ const KEY = "app";
 export function getSettings(): Settings {
   const row = db.select().from(schema.settings).where(eq(schema.settings.key, KEY)).get();
   if (!row) return DEFAULT_SETTINGS;
-  // Merge with defaults so settings saved by older versions stay valid.
+  // Merge with defaults so settings saved by older versions stay valid. Unknown
+  // keys (like Ollama's model and URL) are dropped by the schema.
   const stored = row.value as Partial<Settings>;
   const merged = {
     ...DEFAULT_SETTINGS,
     ...stored,
     models: { ...DEFAULT_SETTINGS.models, ...stored.models },
-    // Keep the order older versions actually used: remote fallbacks first.
-    ...(stored.version === undefined && stored.fallbacks && { fallbacks: byFallbackPriority(stored.fallbacks) }),
+    // Without this, a chain that still names Ollama would fail to parse and reset every setting.
+    ...upgradeChain(stored, DEFAULT_SETTINGS.provider),
     version: SETTINGS_VERSION,
   };
   const parsed = settingsSchema.safeParse(merged);

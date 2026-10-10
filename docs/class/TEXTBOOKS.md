@@ -53,7 +53,7 @@ Regla general: **usar la capa de texto si existe y es buena; si no, visión**. S
 - Navegación por índice (unidad / lección) y por página impresa, con miniaturas si hace falta.
 
 ### Detectar los ejercicios de una página
-Botón **"Extract exercises"** en la página actual. Se manda la imagen de la página (y la capa de texto como ayuda, si existe) a un modelo de visión, y devuelve los ejercicios como filas **planas** (el proyecto exige schemas simples por los modelos locales):
+Botón **"Extract exercises"** en la página actual. Se manda la imagen de la página (y la capa de texto como ayuda, si existe) a un modelo de visión, y devuelve los ejercicios como filas **planas** (el proyecto prefiere schemas simples, que todos los proveedores llenan bien):
 
 ```
 { exercise: "3A", item: 1, instruction: "Put the words in the correct order.",
@@ -107,10 +107,10 @@ Todo queda en `data/` (ignorado en git): el contenido de los libros tiene copyri
 
 Hoy ninguna llamada de la app manda imágenes. Opciones a evaluar (con un set chico de páginas reales, como `pnpm eval:models`):
 - **Gemini Flash / Flash-Lite**: free tier, muy buenos leyendo páginas de libros. Es el candidato principal.
-- **Ollama local** con un modelo de visión (familias Qwen-VL o Gemma, que entran en 16 GB de VRAM): privado y gratis, pero más lento y probablemente peor con layouts de dos columnas. Hay que medirlo.
+- ~~**Ollama local**~~ (descartado: los modelos locales se quitaron en #72, ver [LOCAL_MODELS.md](../ai/LOCAL_MODELS.md)) con un modelo de visión (familias Qwen-VL o Gemma, que entran en 16 GB de VRAM): privado y gratis, pero más lento y probablemente peor con layouts de dos columnas. Hay que medirlo.
 - **Groq**: tiene algún modelo de visión según la época; revisar al implementar.
 
-Como no todos los modelos de la cadena ven imágenes, `resolveModel` necesita saber qué modelo es capaz de visión, y la extracción usa su propia cadena (o un modelo elegido en Configuración) en vez de la del chat. Mandar una página a Gemini implica mandarle contenido con copyright a Google: para uso personal está bien, pero vale la pena que la opción local exista.
+Como no todos los modelos de la cadena ven imágenes, `resolveModel` necesita saber qué modelo es capaz de visión, y la extracción usa su propia cadena (o un modelo elegido en Configuración) en vez de la del chat. Mandar una página a Gemini implica mandarle contenido con copyright a Google: para uso personal está bien, pero vale la pena tenerlo en cuenta.
 
 ## Preguntas abiertas
 - ¿Cuentan los ejercicios en las estadísticas principales, o solo en su sección? (propuesta: solo en su sección, más la señal combinada).
