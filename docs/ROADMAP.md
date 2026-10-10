@@ -35,14 +35,20 @@
 - UI, fases 5 y 6: dashboard con titular en una frase y "Practice this" por área, detalles agrupados; Practice y Flashcards con jerarquía sección → ítem; foco visible en todos los controles, `prefers-reduced-motion` y contraste AA revisado en los dos temas.
 - Voz, fase 3: página Read aloud (#56, #60): leés una oración y las palabras que Whisper escucha distinto se clasifican sin IA, comparando fonemas con el CMU Pronouncing Dictionary, con una taxonomía fija de pronunciación para hispanohablantes, oraciones de pares mínimos por sonido, de tus correcciones y de tu vocabulario, y el panel "Sounds to work on". `?focus=<sonido>` abre la página en un sonido ([VOICE.md](voice/VOICE.md)).
 - Mazo **Hard to say** en Flashcards (#65): las oraciones leídas en voz alta con palabras escuchadas distinto vuelven con repaso espaciado; se responden leyéndolas, con el mismo puntaje que Read aloud y la nota sugerida por la lectura ([VOICE.md](voice/VOICE.md)).
+- Solo APIs (#72): se sacaron los modelos locales (Ollama); la cadena es Gemini → Groq y sin ninguna API key la app lo avisa en el chat. Tag `archive/local-models-ollama` para volver ([LOCAL_MODELS.md](ai/LOCAL_MODELS.md)).
+- Panel de pronunciación en el dashboard (#73): porcentaje de palabras escuchadas como están escritas, sonidos cada 100 palabras leídas con tendencia contra el período anterior y link a Read aloud con ese sonido.
+- Insights (#75): el reporte muestra las áreas flojas con tasa, cantidad de errores y tipos como chips, sin cadenas "A · B · C".
+- Conversaciones sobre un tema (#71): "Talk about…" con 5 temas (entrevista de SWE, entrevista técnica, tecnología e IA, daily stand-up, small talk y viajes) o uno propio; la corrección y las estadísticas son las de siempre.
+- Investigación de pronunciación con modelos de audio (#74): wav2vec2 de fonemas en CPU para la schwa y las formas débiles; el acento por Gemini se descartó ([PRONUNCIATION_AUDIO.md](voice/PRONUNCIATION_AUDIO.md)).
+- Antes de publicar: estrategia de tests (#78, [TESTING.md](platform/TESTING.md), con un primer test de ruta con la IA simulada), revisión de calidad de código (#77, [CODE_QUALITY.md](platform/CODE_QUALITY.md): Prettier, ESLint más estricto, knip, páginas de error) y de seguridad (#76, [SECURITY_REVIEW.md](platform/SECURITY_REVIEW.md): bloqueo de escrituras cross-site, límites de tamaño, headers, Next 16.3.8, la base con permisos 600; el login queda para Authentication).
 
 ## Próximo
 
 ### Kev como clasificador
-La clasificación en dos etapas ya está hecha con el LLM. Falta evaluar Kev-0.8B (o Jev / Jeeves) como backend cuando haya etiquetas reales de "Wrong type?". Ver [ERROR_CLASSIFICATION.md](ai/ERROR_CLASSIFICATION.md).
+Descartado con #72 (la app ya no corre modelos locales). Ver [ERROR_CLASSIFICATION.md](ai/ERROR_CLASSIFICATION.md).
 
 ### Voz
-Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). La lectura en voz alta con pronunciación por reglas ya está (fase 3, #53); el repaso espaciado de pronunciación también (mazo Hard to say, #65); falta el panel en el dashboard, whisper.cpp local como fallback y las clases (fase 4). Kokoro como voz local ya está (en CPU; WebGPU pendiente, #45). Investigación y plan en [VOICE.md](voice/VOICE.md).
+Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). La lectura en voz alta con pronunciación por reglas ya está (fase 3, #53); el repaso espaciado de pronunciación también (mazo Hard to say, #65); el panel en el dashboard también (#73). Falta la schwa y las formas débiles con wav2vec2 ([PRONUNCIATION_AUDIO.md](voice/PRONUNCIATION_AUDIO.md)) y las clases (fase 4); whisper.cpp local se descartó con #72. Kokoro como voz local ya está (en CPU; WebGPU pendiente, #45). Investigación y plan en [VOICE.md](voice/VOICE.md).
 
 ### Ejercicios dirigidos
 A partir de las 3 categorías más flojas del dashboard, generar ejercicios cortos: completar huecos, reescribir oraciones o elegir la opción correcta. La respuesta del usuario también se corrige y suma a las estadísticas.
