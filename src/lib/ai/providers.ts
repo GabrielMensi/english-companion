@@ -3,27 +3,21 @@ import "server-only";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import type { generateText } from "ai";
-import { createOllama } from "ollama-ai-provider-v2";
-import { DEFAULT_OLLAMA_BASE_URL, type KeyProvider, maskKey, normalizeBaseUrl } from "@/lib/credentials";
+import { type KeyProvider, maskKey } from "@/lib/credentials";
 import { resolveApiKey } from "@/lib/secrets";
 import type { Settings } from "@/lib/settings";
-import { fallbackOrder, runWithFallback } from "./fallback";
+import { fallbackOrder, NO_PROVIDER_MESSAGE, runWithFallback } from "./fallback";
 import { PROVIDER_IDS, type ProviderId, PROVIDERS } from "./provider-info";
-
-/** Where the Ollama server is: saved in the app, else OLLAMA_BASE_URL, else the default. */
-export function ollamaBaseUrl(settings: Pick<Settings, "ollamaBaseUrl">): string {
-  return normalizeBaseUrl(settings.ollamaBaseUrl ?? process.env.OLLAMA_BASE_URL ?? DEFAULT_OLLAMA_BASE_URL);
-}
 
 export interface ProviderStatus {
   configured: boolean;
   /** Where the credential comes from; null when there is none. */
   source: "app" | "env" | null;
-  /** Masked API key, or the Ollama URL in use. Never the full key. */
+  /** Masked API key. Never the full key. */
   detail: string | null;
 }
 
-export function providerStatus(settings: Settings): Record<ProviderId, ProviderStatus> {
+export function providerStatus(): Record<ProviderId, ProviderStatus> {
   const keyStatus = (provider: KeyProvider): ProviderStatus => {
     const resolved = resolveApiKey(provider);
     return resolved
@@ -31,11 +25,6 @@ export function providerStatus(settings: Settings): Record<ProviderId, ProviderS
       : { configured: false, source: null, detail: null };
   };
   return {
-    ollama: {
-      configured: true,
-      source: settings.ollamaBaseUrl ? "app" : process.env.OLLAMA_BASE_URL ? "env" : null,
-      detail: ollamaBaseUrl(settings),
-    },
     gemini: keyStatus("gemini"),
     groq: keyStatus("groq"),
   };
@@ -54,10 +43,8 @@ type CallSettings = Pick<
   "model" | "providerOptions" | "maxRetries" | "temperature" | "timeout"
 >;
 
-// A hung provider must fail (and fall back) instead of waiting forever. Local
-// models get more time because the first request loads them into the GPU.
-const LOCAL_TIMEOUT_MS = 180_000;
-const REMOTE_TIMEOUT_MS = 60_000;
+// A hung provider must fail (and fall back) instead of waiting forever.
+const TIMEOUT_MS = 60_000;
 
 export interface ResolvedModel {
   provider: ProviderId;
@@ -69,34 +56,10 @@ export interface ResolvedModel {
   call: (options: { temperature: number; retry?: boolean }) => CallSettings;
 }
 
-// Instructions + history + JSON output don't fit in Ollama's small default context.
-const OLLAMA_CONTEXT_TOKENS = 8192;
-
 export function resolveModel(settings: Settings, provider: ProviderId = settings.provider): ResolvedModel {
   const modelId = settings.models[provider];
 
   switch (provider) {
-    case "ollama": {
-      const model = createOllama({ baseURL: `${ollamaBaseUrl(settings)}/api` })(modelId);
-      return {
-        provider,
-        modelId,
-        call: ({ temperature }) => ({
-          model,
-          // A local server is either up or not: retrying only delays the error.
-          maxRetries: 0,
-          timeout: LOCAL_TIMEOUT_MS,
-          providerOptions: {
-            ollama: {
-              // Reasoning ("thinking") is much slower and doesn't improve corrections.
-              think: false,
-              // Ollama's native API ignores a top-level temperature; it goes in `options`.
-              options: { temperature, num_ctx: OLLAMA_CONTEXT_TOKENS },
-            },
-          },
-        }),
-      };
-    }
     case "gemini": {
       const model = createGoogleGenerativeAI({ apiKey: requireApiKey("gemini") })(modelId);
       return {
@@ -106,7 +69,7 @@ export function resolveModel(settings: Settings, provider: ProviderId = settings
           model,
           temperature,
           maxRetries: retry ? 2 : 0,
-          timeout: REMOTE_TIMEOUT_MS,
+          timeout: TIMEOUT_MS,
         }),
       };
     }
@@ -119,7 +82,7 @@ export function resolveModel(settings: Settings, provider: ProviderId = settings
           model,
           temperature,
           maxRetries: retry ? 2 : 0,
-          timeout: REMOTE_TIMEOUT_MS,
+          timeout: TIMEOUT_MS,
         }),
       };
     }
@@ -127,10 +90,15 @@ export function resolveModel(settings: Settings, provider: ProviderId = settings
 }
 
 function isConfigured(provider: ProviderId): boolean {
-  return provider === "ollama" || resolveApiKey(provider) !== null;
+  return resolveApiKey(provider) !== null;
 }
 
-/** Providers the user can pick: Ollama, every provider with an API key, and the selected one. */
+/** Whether any provider has an API key; without one no AI feature works. */
+export function hasConfiguredProvider(): boolean {
+  return PROVIDER_IDS.some(isConfigured);
+}
+
+/** Providers the user can pick: every provider with an API key, and the selected one. */
 export function availableModels(settings: Settings) {
   return PROVIDER_IDS.filter((p) => p === settings.provider || isConfigured(p)).map((provider) => ({
     provider,
@@ -147,6 +115,8 @@ export function withFallback<T>(
   settings: Settings,
   run: (model: ResolvedModel, options: { isLast: boolean }) => Promise<T>,
 ) {
+  // Say what to do instead of "missing Gemini API key" when there's no key at all.
+  if (!hasConfiguredProvider()) return Promise.reject(new Error(NO_PROVIDER_MESSAGE));
   const candidates = fallbackOrder(settings.provider, settings.fallbacks, isConfigured).map((provider) => ({
     provider,
     modelId: settings.models[provider],
@@ -173,15 +143,9 @@ export function resolveTranscriptionModel(): { model: GroqTranscriptionModel; pr
 }
 
 /** Lists the models available for a provider (used by the settings page). */
-export async function listModels(provider: ProviderId, settings: Settings): Promise<string[]> {
+export async function listModels(provider: ProviderId): Promise<string[]> {
   const signal = AbortSignal.timeout(5000);
   switch (provider) {
-    case "ollama": {
-      const res = await fetch(`${ollamaBaseUrl(settings)}/api/tags`, { signal });
-      if (!res.ok) throw new Error(`Ollama responded ${res.status}`);
-      const data = (await res.json()) as { models: { name: string }[] };
-      return data.models.map((m) => m.name).sort();
-    }
     case "gemini": {
       const key = resolveApiKey("gemini")?.key;
       if (!key) return [];

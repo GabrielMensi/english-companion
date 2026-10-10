@@ -2,7 +2,7 @@
  * Prompts, output schemas and normalization for the AI parts of the insights
  * page: the weekly study plan and the (optional) explanation of the level
  * estimate. Pure, so it's tested; the calls live in `src/lib/ai/insights.ts`.
- * Schemas are small and flat so local Ollama models can fill them.
+ * Schemas are small and flat: every provider fills them reliably, Groq's structured output included.
  */
 import { z } from "zod";
 import { type StatsDigest, digestToPromptText } from "./digest-core";

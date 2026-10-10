@@ -33,7 +33,7 @@ Consecuencias de diseño:
 | **whisper.cpp** (`whisper-server`) con `large-v3-turbo` | Windows, GPU con **Vulkan** (igual que Ollama) | Gratis, privado | Muy buena; ~1–2 s por frase en GPU | HTTP local. Con `--inference-path /v1/audio/transcriptions` expone un endpoint compatible con OpenAI |
 | **Groq** `whisper-large-v3-turbo` | API | Free tier con límites diarios | Muy buena, rapidísima | `groq.transcription(...)` de `@ai-sdk/groq` (ya instalado, key ya configurada). Soporta `prompt`, `language`, `temperature`, `timestampGranularities: ["word"]` |
 | **Gemini Transcribe** `gemini-3.5-transcribe` | API | Free tier | Tiene modo `VERBATIM` y timestamps por palabra | `google.transcription(...)` de `@ai-sdk/google` (ya instalado). Opciones: `mode`, `wordTimestamp`, `languageCodes`, `customVocabulary` |
-| **Gemini multimodal** (audio como input del análisis) | API | Free tier | Transcribe + corrige + comenta pronunciación en una llamada | `generateText` con un `file` de audio. No encaja con `resolveModel` (Ollama/Groq no lo soportan): solo para la feature de pronunciación |
+| **Gemini multimodal** (audio como input del análisis) | API | Free tier | Transcribe + corrige + comenta pronunciación en una llamada | `generateText` con un `file` de audio. No encaja con `resolveModel` (Groq no lo soporta): solo para la feature de pronunciación |
 | **faster-whisper / Speaches** | WSL, CPU (CTranslate2 no usa GPUs AMD) | Gratis | Buena pero lenta en CPU con modelos grandes | Endpoint compatible con OpenAI |
 | **transformers.js** (Whisper en el navegador con WebGPU) | Navegador | Gratis | Solo modelos chicos (`base`/`small`) con fluidez razonable; peor con acento | Sin servidor, pero pesa la descarga del modelo |
 | **Web Speech API** | Navegador → Google | Gratis | Normaliza mucho, no configurable | Trivial. **Descartada** para análisis; sirve como mucho para comandos |
@@ -218,7 +218,7 @@ Settings → Listening tiene un **Engine**: *Browser voice* (default, `speechSyn
 
 **Rendimiento en la CPU** (2026-10-02, tras la primera prueba real: tardaba mucho en empezar, con pausas largas en medio y cada ▶ repetido volvía a esperar):
 - **Cross-origin isolation**: `next.config.ts` manda `Cross-Origin-Opener-Policy: same-origin` y `Cross-Origin-Embedder-Policy: credentialless` en todas las rutas, así `crossOriginIsolated` es `true` y ONNX Runtime puede usar WASM multihilo (`SharedArrayBuffer`). `credentialless` en vez de `require-corp`: los recursos de otros orígenes cargan igual (sin cookies), así que las descargas de Hugging Face siguen andando sin headers CORP. Verificado en Chromium headless con un perfil nuevo: descargas de modelo y voces desde Hugging Face, todas las páginas, fuentes, la ventana flotante (Document PiP, que también queda aislada) y el runtime de `/api/tts/runtime` (los hilos de ONNX Runtime cargan el mismo `ort-wasm-simd-threaded.jsep.mjs`, que ya es la build multihilo), sin errores. Safari no soporta `credentialless`: ahí sigue en un hilo.
-- **Hilos**: `numThreads` = la mitad de `navigator.hardwareConcurrency`, máximo 8 (ONNX Runtime usa 4 por defecto). Más de 8 casi no mejora y la máquina necesita núcleos para el navegador y Ollama. Se fija con `env.backends.onnx.wasm.numThreads` de `@huggingface/transformers`, que es dependencia directa en la misma versión que usa `kokoro-js` (3.8.1) para compartir la instancia.
+- **Hilos**: `numThreads` = la mitad de `navigator.hardwareConcurrency`, máximo 8 (ONNX Runtime usa 4 por defecto). Más de 8 casi no mejora y la máquina necesita núcleos para el navegador. Se fija con `env.backends.onnx.wasm.numThreads` de `@huggingface/transformers`, que es dependencia directa en la misma versión que usa `kokoro-js` (3.8.1) para compartir la instancia.
 - **dtype en WASM**: con hilos, `fp32`; sin hilos, `q8`. Las ops cuantizadas de `q8` casi no ganan con hilos. Mediciones (respuesta de 20,6 s de audio, WSL headless, 16 hilos lógicos), como factor de tiempo real (síntesis / duración):
 
 | dtype WASM | 1 hilo | 4 hilos | 8 hilos | 16 hilos |
@@ -285,8 +285,9 @@ Limitaciones:
 
 **Repaso espaciado: mazo "Hard to say"** (#64): cada oración leída con al menos una palabra escuchada distinto es una tarjeta de Flashcards (`kind = "pronunciation"` en `reviews`, clave = el texto de la oración; armadas con `pronunciationCards` en `read-aloud-core.ts`). La tarjeta muestra la oración con esas palabras subrayadas; se responde leyéndola en voz alta (botón o Ctrl+Space), con el mismo puntaje que la página, y la lectura se guarda como un intento más (`source = "review"`), así que cuenta en el panel de pronunciación. La nota sugerida es Good si se escucharon todas las palabras como están escritas y Again si no, pero decide el usuario (sin key de Groq: se escucha, se lee y se califica a mano). Cuenta en las tarjetas pendientes del sidebar y de Today, se puede suspender, y borrarla elimina todas las lecturas de esa oración (y sale de las estadísticas). Entra en la limpieza de reviews huérfanas.
 
+**Panel en el dashboard** (#73): sección "Pronunciation" con el porcentaje de palabras escuchadas como están escritas y los sonidos con problemas, por cada 100 palabras leídas, con la tendencia contra el período anterior del mismo largo (`pronunciationProgress` en `read-aloud-core.ts`). Sigue el período del dashboard pero no el filtro Escrito / Hablado (las lecturas no son mensajes), y aparece solo si hay alguna lectura.
+
 Pendiente:
-- Panel de pronunciación en el dashboard.
 - Acento, schwa y word stress desde el audio: investigado en [PRONUNCIATION_AUDIO.md](PRONUNCIATION_AUDIO.md) (#74). Decisión: schwa con un modelo de fonemas wav2vec2 en CPU, acento de palabra pendiente de grabaciones reales, feedback abierto con Gemini descartado.
 
 ### Fase 4 — Clases

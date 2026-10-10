@@ -1,6 +1,7 @@
 "use client";
 
-import { Headphones, PictureInPicture2 } from "lucide-react";
+import { Headphones, KeyRound, PictureInPicture2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -13,9 +14,11 @@ import { Composer, type Notify, useComposer } from "@/components/chat/composer";
 import { MiniChat, type Notice } from "@/components/chat/mini-chat";
 import { UserMessage } from "@/components/chat/user-message";
 import { usePipWindow } from "@/components/pip/use-pip-window";
+import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import type { SessionMode } from "@/db/schema";
 import type { AnalysisPreview } from "@/lib/ai/analysis";
+import { NO_PROVIDER_MESSAGE } from "@/lib/ai/fallback";
 import type { ProviderId } from "@/lib/ai/provider-info";
 import { api, streamTurn } from "@/lib/api";
 import type { ChatMessage, SessionSummary, VoiceInput } from "@/lib/types";
@@ -25,6 +28,7 @@ export function ChatView({
   initialMessages,
   models,
   selectedProvider,
+  hasModel,
   canDictate,
   answerTemplate = null,
 }: {
@@ -32,6 +36,8 @@ export function ChatView({
   initialMessages: ChatMessage[];
   models: ModelOption[];
   selectedProvider: ProviderId;
+  /** False when no provider has an API key: nothing can be corrected until one is added. */
+  hasModel: boolean;
   canDictate: boolean;
   /** In an exercise chat waiting for the answers to its set: numbered lines to fill in. */
   answerTemplate?: string | null;
@@ -235,7 +241,14 @@ export function ChatView({
   return (
     <div data-area="write" className="flex h-full flex-col">
       <header className="flex items-center justify-between gap-4 border-b px-6 py-2">
-        <h1 className="truncate font-medium">{session.title}</h1>
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="truncate font-medium">{session.title}</h1>
+          {session.topic && (
+            <StatusBadge tone="neutral" className="shrink-0">
+              Topic
+            </StatusBadge>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {mode === "conversation" && speechSupported && (
             <Button
@@ -298,6 +311,17 @@ export function ChatView({
             </div>
           ) : (
             <>
+              {!hasModel && (
+                <p className="mb-3 flex items-center gap-2 rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                  <KeyRound className="size-4 shrink-0" />
+                  <span>
+                    {NO_PROVIDER_MESSAGE}{" "}
+                    <Link href="/settings" className="underline underline-offset-4">
+                      Open Settings
+                    </Link>
+                  </span>
+                </p>
+              )}
               <Composer composer={composer} canDictate={canDictate} />
               {voiceConversation && (
                 <p className="mt-2 text-xs text-muted-foreground">

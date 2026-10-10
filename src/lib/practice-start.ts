@@ -24,6 +24,7 @@ import {
   practiceTitle,
   selectPracticeTargets,
 } from "@/lib/tense-practice";
+import { type TopicChoice, topicOpening, topicTitle } from "@/lib/topics";
 
 /** Long enough for the tense stats to mean something, recent enough to reflect the current level. */
 const TARGETS_RANGE = "90";
@@ -53,7 +54,7 @@ export interface StartPracticeInput {
  * learner's answers go through the normal correction pipeline.
  */
 export async function startPractice(input: StartPracticeInput) {
-  let practice: Exclude<Practice, { kind: "category" }>;
+  let practice: Exclude<Practice, { kind: "category" | "topic" }>;
   let opening: string;
   let origin: { provider: string | null; model: string | null } = { provider: null, model: null };
 
@@ -152,4 +153,18 @@ export async function startCategoryPractice(input: StartCategoryPracticeInput) {
     })
     .run();
   return updateSession(session.id, { title: categoryPracticeTitle(practice) });
+}
+
+/**
+ * Creates a conversation about a topic (src/lib/topics.ts) with a fixed
+ * opening question, so it starts instantly. The topic steers the replies; the
+ * learner's messages are corrected and counted like in any other chat.
+ */
+export function startTopicChat(choice: TopicChoice) {
+  const session = createSession("conversation");
+  savePractice(session.id, { kind: "topic", ...choice });
+  db.insert(schema.messages)
+    .values({ id: crypto.randomUUID(), sessionId: session.id, role: "assistant", content: topicOpening(choice) })
+    .run();
+  return updateSession(session.id, { title: topicTitle(choice) });
 }

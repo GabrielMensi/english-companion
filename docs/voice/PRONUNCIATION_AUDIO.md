@@ -4,7 +4,7 @@
 
 La lectura en voz alta (fase 3 de [VOICE.md](VOICE.md), #53) compara lo que Whisper transcribe con el texto esperado. Eso detecta sonidos que cambian la palabra que se escucha (*ship / sheep*), pero no puede ver lo que no cambia la transcripción: **vocales plenas en lugar de schwa** (*to* como /tuː/, *banana* con tres "a" claras), **acento de palabra** (*DEvelop*, *PHOtographer*) ni el **acento** en general. Este documento compara opciones para medirlo desde el audio, cuenta qué se midió en un spike (2026-10-07) y termina con una decisión.
 
-Contexto: la app va a ser solo APIs (#72: sin Ollama ni LLMs locales; Kokoro se queda) y free-first.
+Contexto: la app es solo APIs (#72, hecho en #80: sin Ollama ni LLMs locales; Kokoro se queda) y free-first.
 
 ## Opciones
 

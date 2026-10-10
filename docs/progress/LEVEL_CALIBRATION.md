@@ -77,7 +77,7 @@ En *train* (1.000 palabras): 23 % / 76 % antes, 62 % / 97 % después. Antes, cas
 ## Límites
 
 - **Ensayos, no chat.** Los textos son respuestas a consignas de examen. Tus mensajes son prompts y charla: más cortos, más técnicos, otro registro. No hay corpus CEFR de chat, así que no se puede medir cuánto cambia; se bajó el peso de lo que más depende del registro, pero la precisión también puede variar (en un prompt se escribe rápido).
-- **Los errores de la app los cuenta la IA.** El puente (0,6) sale de 30 textos y un modelo (gemini-flash-lite); otro modelo de la cadena (Groq, Ollama) puede contar más o menos. Vale repetir `--analyze` si cambia el modelo principal.
+- **Los errores de la app los cuenta la IA.** El puente (0,6) sale de 30 textos y un modelo (gemini-flash-lite); otro modelo de la cadena (Groq) puede contar más o menos. Vale repetir `--analyze` si cambia el modelo principal.
 - **El factor de dictado sale de texto escrito.** Al hablar, la mezcla de errores puede ser distinta; 2 es una aproximación.
 - **Niveles de Write & Improve.** Los asignan evaluadores de Cambridge para la plataforma, no son exámenes oficiales; A1 tiene pocos textos y muy cortos.
 - **Señales flojas.** Con tan poca diferencia entre niveles, A1 vs A2 se distingue mal (en A1 los errores por palabra no suben más que en A2) y C1 vs C2 también.

@@ -15,6 +15,8 @@ export type ChatMessage = Omit<Message, "createdAt" | "tenseCounts"> & {
 export type SessionSummary = Pick<Session, "id" | "title" | "mode"> & {
   /** An exercise set or a guided conversation started from Practice. */
   practice: boolean;
+  /** The topic of a topic conversation (src/lib/topics.ts). */
+  topic: string | null;
 };
 
 /** How a dictated message was transcribed, sent along with its (possibly edited) text. */

@@ -2,7 +2,7 @@
 
 Compañero personal para practicar inglés escribiendo, con IA. Escribís en inglés y te devuelve el mensaje corregido, con cada error marcado, clasificado por tema y gravedad, y explicado. Los errores se guardan para que el dashboard te muestre dónde estás fuerte, dónde flojo y cómo evolucionás.
 
-Corre 100% local y está pensado para ser gratis: por defecto usa un modelo local con [Ollama](https://ollama.com), y opcionalmente APIs con free tier (Gemini, Groq).
+Corre en tu máquina (la base de datos es un SQLite local) y está pensado para ser gratis: corrige con los free tiers de Gemini y Groq. Los modelos locales con Ollama se quitaron en octubre de 2026 ([docs/ai/LOCAL_MODELS.md](docs/ai/LOCAL_MODELS.md)).
 
 ## Features
 
@@ -28,17 +28,16 @@ Corre 100% local y está pensado para ser gratis: por defecto usa un modelo loca
 ## Requisitos
 
 - Node.js 22+ y pnpm
-- [Ollama](https://ollama.com) con un modelo descargado, o una API key de Gemini o Groq
+- Una API key gratis de [Gemini](https://aistudio.google.com/apikey) o [Groq](https://console.groq.com/keys) (mejor las dos, así una cubre a la otra). Sin ninguna, la app abre pero no puede corregir.
 
 ## Setup
 
 ```bash
 pnpm install
-ollama pull gemma4:12b       # modelo local recomendado (requiere Ollama reciente)
 pnpm dev
 ```
 
-Abrí https://localhost:3737 y armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key (Gemini, Groq) o la URL (Ollama), el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
+Abrí https://localhost:3737 y armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key, el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
 
 Si preferís configurarlo por entorno, copiá `.env.example` a `.env.local`: esas variables se usan cuando no hay nada guardado en la app.
 
@@ -57,26 +56,18 @@ La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migr
 
 ### Modelos recomendados
 
-Configuración recomendada: **Gemini Flash-Lite como principal, `qwen/qwen3.8-27b` en Groq como primer fallback y `gemma4:12b` local al final**. Conviene dejar el local al final de la cadena: es más lento y ocupa la GPU. Estos datos (puntaje, velocidad y límite gratis) se muestran en Configuración desde `MODEL_INFO` en `src/lib/ai/provider-info.ts`; actualizalos juntos. Resultados de `pnpm eval:models` (septiembre 2026, 16 oraciones con errores típicos de hispanohablantes, GPU de 16 GB):
+Configuración recomendada: **Gemini Flash-Lite como principal y `qwen/qwen3.8-27b` en Groq como fallback**. Estos datos (puntaje, velocidad y límite gratis) se muestran en Configuración desde `MODEL_INFO` en `src/lib/ai/provider-info.ts`; actualizalos juntos. Resultados de `pnpm eval:models` (septiembre 2026, 16 oraciones con errores típicos de hispanohablantes; los modelos locales de esa corrida están en [LOCAL_MODELS.md](docs/ai/LOCAL_MODELS.md)):
 
 | Modelo | Puntaje | Tiempo promedio | Notas |
 |---|---|---|---|
 | `gemini-flash-lite-latest` (API) | 96 % | 2 s | ~500 requests/día gratis. El más preciso. |
 | `qwen/qwen3.8-27b` (Groq) | 93 % | ~2 s | ~110 correcciones/día gratis (200K tokens/día, 8K tokens/minuto). Sin tokens de razonamiento. |
-| `gemma4:12b` (local, 7,6 GB) | 93 % | 9 s | El mejor local; detecta falsos amigos ("actually") y errores de significado. |
-| `qwen3:14b` (local) | 91 % | 7 s | Bueno, pero se le escapan errores de significado. |
-| `qwen2.5:14b-instruct` (local) | 89 % | 8 s | |
 | `openai/gpt-oss-120b` (Groq) | 81 % | ~13 s | Gasta ~1.100 tokens de razonamiento por corrección (~60/día) y a veces devuelve JSON inválido. |
-| `gpt-oss:20b` (local) | 84 % | 34 s | Razona siempre: demasiado lento para chatear. |
 | Gemma 4 26B / 31B (API) | 44–63 % | 7–44 s | Lentos y con timeouts en el free tier. |
 
 `gemini-flash-latest` es más capaz, pero en el free tier tiene solo ~20 requests/día.
 
 > En el plan gratis de Gemini, Google puede usar los datos para mejorar sus productos. Groq no entrena con tus datos, pero tiene límites diarios.
-
-### Ollama en Windows + app en WSL
-
-Ollama corre en Windows (donde está la GPU) y la app en WSL. Con `networkingMode=mirrored` en `%UserProfile%\.wslconfig`, `localhost:11434` funciona desde WSL. Si no usás mirrored, poné la IP del host en `OLLAMA_BASE_URL` y configurá Ollama con `OLLAMA_HOST=0.0.0.0`.
 
 ## Scripts
 
@@ -86,7 +77,7 @@ Ollama corre en Windows (donde está la GPU) y la app en WSL. Con `networkingMod
 | `pnpm test` | Tests unitarios (vitest) |
 | `pnpm typecheck` | Genera tipos de rutas y corre `tsc` |
 | `pnpm lint` | ESLint |
-| `pnpm eval:models <provider>:<model> …` | Compara modelos sobre un set de oraciones con errores conocidos (ej. `ollama:qwen3:14b gemini:gemini-flash-lite-latest`) |
+| `pnpm eval:models <provider>:<model> …` | Compara modelos sobre un set de oraciones con errores conocidos (ej. `gemini:gemini-flash-lite-latest groq:qwen/qwen3.8-27b`) |
 | `pnpm eval:classify <provider>:<model> …` | Compara modelos clasificando errores ya detectados (tipo fino y tiempos verbales). `--with-user-labels` suma los tipos corregidos a mano en la app |
 | `pnpm eval:asr [engine:model …]` | Transcribe las grabaciones de `/eval/asr` con cada motor de speech-to-text y mide si conservan tus errores o los "corrigen" (ver [docs/voice/VOICE.md](docs/voice/VOICE.md)) |
 | `pnpm eval:level` | Compara el nivel CEFR estimado con textos de alumnos calificados por Cambridge (Write & Improve, se descarga aparte; ver [docs/progress/LEVEL_CALIBRATION.md](docs/progress/LEVEL_CALIBRATION.md)) |
@@ -94,7 +85,7 @@ Ollama corre en Windows (donde está la GPU) y la app en WSL. Con `networkingMod
 
 ## Stack
 
-Next.js (App Router) · TypeScript · Tailwind + shadcn/ui · SQLite + Drizzle ORM · Vercel AI SDK (Ollama, Gemini, Groq) · Recharts
+Next.js (App Router) · TypeScript · Tailwind + shadcn/ui · SQLite + Drizzle ORM · Vercel AI SDK (Gemini, Groq) · Recharts
 
 ## Estructura
 

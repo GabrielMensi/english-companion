@@ -1,11 +1,11 @@
 /**
  * Compares models on classifying already-detected mistakes (the deferred step).
  *
- *   pnpm eval:classify ollama:gemma4:12b gemini:gemini-flash-lite-latest
+ *   pnpm eval:classify gemini:gemini-flash-lite-latest groq:qwen/qwen3.8-27b
  *
  * Options:
  *   --batch=<n>    mistakes per request, as in the app (default 8)
- *   --delay=<ms>   pause between requests to remote providers (default 4000)
+ *   --delay=<ms>   pause between requests (default 4000)
  *
  * Also scores the labels you fixed by hand with "Wrong type?" in the app
  * (--with-user-labels), read from the database in DATABASE_PATH.
@@ -74,7 +74,7 @@ for (const spec of specs) {
   const [provider, ...rest] = spec.split(":");
   const model = rest.join(":");
   if (!PROVIDER_IDS.includes(provider as ProviderId) || !model) {
-    console.error(`Invalid spec "${spec}". Use <provider>:<model>, e.g. ollama:gemma4:12b`);
+    console.error(`Invalid spec "${spec}". Use <provider>:<model>, e.g. gemini:gemini-flash-lite-latest`);
     continue;
   }
   const settings = { ...base, provider: provider as ProviderId, models: { ...base.models, [provider]: model }, fallbacks: [] };
@@ -88,7 +88,7 @@ for (const spec of specs) {
   console.log(`\n▶ ${spec}`);
 
   for (let start = 0; start < items.length; start += batchSize) {
-    if (provider !== "ollama" && start > 0) await sleep(delayMs);
+    if (start > 0) await sleep(delayMs);
     const batch = items.slice(start, start + batchSize);
     const started = Date.now();
     let results: Awaited<ReturnType<typeof classifyBatch>>["results"] = new Map();

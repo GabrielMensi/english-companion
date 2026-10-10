@@ -2,7 +2,6 @@ import { z } from "zod";
 import { providerStatus } from "@/lib/ai/providers";
 import { KEY_PROVIDERS } from "@/lib/credentials";
 import { setApiKey } from "@/lib/secrets";
-import { getSettings } from "@/lib/settings";
 
 const bodySchema = z.object({
   provider: z.enum(KEY_PROVIDERS),
@@ -16,5 +15,5 @@ export async function PUT(request: Request) {
   if (!body.success) return Response.json({ error: "Invalid API key" }, { status: 400 });
 
   setApiKey(body.data.provider, body.data.apiKey);
-  return Response.json({ providers: providerStatus(getSettings()) });
+  return Response.json({ providers: providerStatus() });
 }

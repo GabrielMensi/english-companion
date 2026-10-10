@@ -2,7 +2,6 @@ import type { NextRequest } from "next/server";
 import { errorToMessage } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "@/lib/ai/provider-info";
 import { listModels } from "@/lib/ai/providers";
-import { getSettings, settingsSchema } from "@/lib/settings";
 
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
@@ -11,12 +10,8 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: "Invalid provider" }, { status: 400 });
   }
 
-  // Lets the settings page list Ollama models for a URL that isn't saved yet.
-  const baseUrl = settingsSchema.shape.ollamaBaseUrl.safeParse(params.get("ollamaBaseUrl"));
-  const settings = { ...getSettings(), ...(baseUrl.success && baseUrl.data ? { ollamaBaseUrl: baseUrl.data } : {}) };
-
   try {
-    return Response.json({ models: await listModels(provider, settings) });
+    return Response.json({ models: await listModels(provider) });
   } catch (error) {
     return Response.json({ models: [], error: errorToMessage(error) });
   }

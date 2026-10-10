@@ -41,7 +41,7 @@ export function ModelChain({
           <h2 className="text-section font-semibold tracking-tight">Model chain</h2>
           <p className="text-sm text-muted-foreground">
             Every message goes to the first model. If it fails (offline, quota exceeded, overloaded…), the next one
-            takes over. A local model is slower and uses your GPU, so it usually goes last.
+            takes over.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => onTestAll(testable)} disabled={testing || !testable.length}>

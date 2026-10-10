@@ -1,17 +1,18 @@
-import { AudioLines, Dumbbell, Layers, MessagesSquare, PencilLine } from "lucide-react";
+import { AudioLines, Dumbbell, Layers, MessageSquareText, MessagesSquare, PencilLine } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Page, Section, SectionLink } from "@/components/layout/page";
 import { CATEGORY_STATUS, EXERCISE_LABELS, STATUS } from "@/components/practice/labels";
 import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
+import { TalkAboutButton } from "@/components/sidebar/talk-about-button";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { categoryTopic } from "@/lib/category-practice";
 import { listSessions } from "@/lib/chat";
 import { countCardsToStudy } from "@/lib/flashcards";
 import { getReportDigest } from "@/lib/insights/insights";
-import { practiceSessionIds } from "@/lib/practice";
+import { chatLabels } from "@/lib/practice";
 import { getPronunciationSummary } from "@/lib/read-aloud";
 import { getPracticeSuggestions } from "@/lib/practice-start";
 import { PRONUNCIATION_LABELS, TENSE_LABELS } from "@/lib/taxonomy";
@@ -24,7 +25,7 @@ export default async function Today() {
   if (sessions.length === 0) return <FirstRun />;
 
   const last = sessions[0];
-  const lastIsPractice = practiceSessionIds().has(last.id);
+  const lastLabel = chatLabels().get(last.id);
   const cardsToStudy = countCardsToStudy();
   const { tenses, categories } = getPracticeSuggestions();
   const tense = tenses[0];
@@ -52,8 +53,10 @@ export default async function Today() {
                 href={`/chat/${last.id}`}
                 className="flex items-center gap-3 rounded-lg border px-3 py-2.5 hover:bg-muted"
               >
-                {lastIsPractice ? (
+                {lastLabel?.practice ? (
                   <Dumbbell className="size-4 shrink-0 text-train" />
+                ) : lastLabel?.topic ? (
+                  <MessageSquareText className="size-4 shrink-0 text-muted-foreground" />
                 ) : last.mode === "conversation" ? (
                   <MessagesSquare className="size-4 shrink-0 text-muted-foreground" />
                 ) : (
@@ -65,6 +68,7 @@ export default async function Today() {
               <div className="flex flex-wrap gap-2">
                 <NewChatButton mode="correction" label="New correction chat" />
                 <NewChatButton mode="conversation" label="New conversation" variant="outline" />
+                <TalkAboutButton />
               </div>
             </Section>
           </div>
@@ -232,7 +236,10 @@ function FirstRun() {
           <p className="text-sm text-muted-foreground">
             Corrects you and also replies, so you can practice chatting about anything.
           </p>
-          <NewChatButton mode="conversation" label="Start a conversation" variant="outline" />
+          <div className="flex flex-wrap gap-2">
+            <NewChatButton mode="conversation" label="Start a conversation" variant="outline" />
+            <TalkAboutButton />
+          </div>
         </div>
       </div>
       <ul className="space-y-1 text-sm text-muted-foreground">
