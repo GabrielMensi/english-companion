@@ -1,6 +1,7 @@
 import "server-only";
 
-import { and, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { db, schema } from "@/db";
 import type { ReadAloudSource } from "@/db/schema";
 import { cmuLookup } from "@/lib/cmu-lookup";
@@ -8,6 +9,8 @@ import type { PronunciationCard } from "@/lib/flashcards-core";
 import { type ReadAloudResult, scoreReading } from "@/lib/pronunciation-core";
 import {
   pronunciationCards,
+  type PronunciationProgress,
+  pronunciationProgress,
   type PronunciationSummary,
   type ReadAloudItem,
   readableSentences,
@@ -25,11 +28,27 @@ const RECENTLY_READ_DAYS = 14;
 const MAX_ITEMS = 30;
 
 export function getPronunciationSummary(days = SUMMARY_DAYS): PronunciationSummary {
-  const since = new Date(Date.now() - days * DAY_MS);
+  return summarizeBetween(new Date(Date.now() - days * DAY_MS), null);
+}
+
+/**
+ * The dashboard's pronunciation panel: the last `days` days (all time with null)
+ * against the period of the same length before.
+ */
+export function getPronunciationProgress(days: number | null): PronunciationProgress {
+  if (days === null) return pronunciationProgress(summarizeBetween(null, null), null);
+  const from = new Date(Date.now() - days * DAY_MS);
+  const previousFrom = new Date(from.getTime() - days * DAY_MS);
+  return pronunciationProgress(summarizeBetween(from, null), summarizeBetween(previousFrom, from));
+}
+
+/** Readings made in [from, to); null leaves that end open. */
+function summarizeBetween(from: Date | null, to: Date | null): PronunciationSummary {
+  const window = (column: AnySQLiteColumn) => and(from ? gte(column, from) : undefined, to ? lt(column, to) : undefined);
   const attempts = db
     .select({ correctWords: schema.readAloudAttempts.correctWords, totalWords: schema.readAloudAttempts.totalWords })
     .from(schema.readAloudAttempts)
-    .where(gte(schema.readAloudAttempts.createdAt, since))
+    .where(window(schema.readAloudAttempts.createdAt))
     .all();
   const issues = db
     .select({
@@ -38,9 +57,14 @@ export function getPronunciationSummary(days = SUMMARY_DAYS): PronunciationSumma
       heard: schema.pronunciationIssues.heard,
     })
     .from(schema.pronunciationIssues)
-    .where(gte(schema.pronunciationIssues.createdAt, since))
+    .where(window(schema.pronunciationIssues.createdAt))
     .all();
   return summarizePronunciation(attempts, issues);
+}
+
+/** Whether there's any reading at all, to decide if the dashboard shows the panel. */
+export function hasReadings(): boolean {
+  return db.select({ id: schema.readAloudAttempts.id }).from(schema.readAloudAttempts).limit(1).all().length > 0;
 }
 
 function recentlyRead(): Set<string> {

@@ -4,6 +4,7 @@ import { CategoryChart } from "@/components/dashboard/category-chart";
 import { CategoryTable } from "@/components/dashboard/category-table";
 import { ClassificationStatus } from "@/components/dashboard/classification-status";
 import { FluencyPanel } from "@/components/dashboard/fluency-panel";
+import { PronunciationPanel } from "@/components/dashboard/pronunciation-panel";
 import { ReviewPanel } from "@/components/dashboard/review-panel";
 import { TensePanel } from "@/components/dashboard/tense-panel";
 import { TimelineChart } from "@/components/dashboard/timeline-chart";
@@ -14,6 +15,7 @@ import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { categoryTopic, selectCategoryTargets } from "@/lib/category-practice";
 import { getClassificationStatus } from "@/lib/classification";
 import { dashboardDetail, dashboardHeadline } from "@/lib/dashboard-summary";
+import { getPronunciationProgress, hasReadings } from "@/lib/read-aloud";
 import { getReviewDashboard } from "@/lib/review-stats";
 import { getDashboardData, INPUT_FILTERS, type InputFilter, RANGES, type RangeKey } from "@/lib/stats";
 import { cn } from "@/lib/utils";
@@ -28,6 +30,8 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const input: InputFilter = INPUT_FILTERS.includes(rawInput as InputFilter) ? (rawInput as InputFilter) : "all";
   const { stats, tenses, vocabulary, fluency, countTypos, hasSpoken } = getDashboardData(range, input);
   const reviews = getReviewDashboard(range);
+  // Read-aloud practice isn't messages, so the written/spoken filter doesn't change it.
+  const pronunciation = hasReadings() ? getPronunciationProgress(RANGES[range]) : null;
   // The weakest categories in this period that make good exercises; none when there isn't enough data.
   const practiceTargets = selectCategoryTargets(stats).filter((t) => t.status === "weak");
   const href = (next: { range?: RangeKey; input?: InputFilter }) => {
@@ -195,6 +199,16 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               )}
             </div>
           </>
+        )}
+
+        {pronunciation && (
+          <Section
+            title="Pronunciation"
+            description="Words speech-to-text heard differently when you read aloud, compared with the previous period"
+            action={<SectionLink href="/read-aloud">Read aloud</SectionLink>}
+          >
+            <PronunciationPanel progress={pronunciation} />
+          </Section>
         )}
 
         {(reviews.totalCards > 0 || reviews.stats.since !== null) && (

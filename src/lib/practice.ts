@@ -9,6 +9,7 @@ import { gradeCategorySet, gradeTenseSet, setSummary } from "@/lib/exercise-set"
 import { getSettings } from "@/lib/settings";
 import { countsInStats, ERROR_CATEGORIES, type ErrorCategory, type Severity, type Tense, TENSES } from "@/lib/taxonomy";
 import { conversationPracticeRule, EXERCISE_KINDS, exerciseReply, practiceTopic } from "@/lib/tense-practice";
+import { topicRule } from "@/lib/topics";
 
 /**
  * What a practice chat is practicing. Stored in the key-value `settings` table
@@ -18,6 +19,8 @@ import { conversationPracticeRule, EXERCISE_KINDS, exerciseReply, practiceTopic 
 const tense = z.enum(TENSES);
 const practiceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("conversation"), tense }),
+  // A conversation about a topic the learner chose (src/lib/topics.ts). Normal writing, not practice.
+  z.object({ kind: z.literal("topic"), preset: z.string().nullable(), topic: z.string() }),
   z.object({
     kind: z.enum(EXERCISE_KINDS),
     tense,
@@ -48,14 +51,23 @@ export function getPractice(sessionId: string): Practice | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** Ids of the chats that are practice sessions (exercises or a guided conversation). */
-export function practiceSessionIds(): Set<string> {
-  const rows = db
-    .select({ key: schema.settings.key })
-    .from(schema.settings)
-    .where(like(schema.settings.key, keyOf("%")))
-    .all();
-  return new Set(rows.map((r) => r.key.slice(keyOf("").length)));
+/**
+ * How each chat is labeled in the sidebar and on the home page: practice
+ * sessions (exercises or a guided conversation), and topic conversations with their topic.
+ */
+export function chatLabels(): Map<string, { practice: boolean; topic: string | null }> {
+  const rows = db.select().from(schema.settings).where(like(schema.settings.key, keyOf("%"))).all();
+  const labels = new Map<string, { practice: boolean; topic: string | null }>();
+  for (const row of rows) {
+    const parsed = practiceSchema.safeParse(row.value);
+    if (!parsed.success) continue;
+    const practice = parsed.data;
+    labels.set(row.key.slice(keyOf("").length), {
+      practice: practice.kind !== "topic",
+      topic: practice.kind === "topic" ? practice.topic : null,
+    });
+  }
+  return labels;
 }
 
 export function savePractice(sessionId: string, practice: Practice) {
@@ -69,9 +81,11 @@ export function deletePractice(sessionId: string) {
   db.delete(schema.settings).where(eq(schema.settings.key, keyOf(sessionId))).run();
 }
 
-/** Extra instruction for the conversation reply, so follow-up questions need the practiced tense. */
+/** Extra instruction for the conversation reply: follow-up questions that need the practiced tense, or stay on the topic. */
 export function practiceReplyRule(practice: Practice | null): string | undefined {
-  return practice?.kind === "conversation" ? conversationPracticeRule(practice.tense) : undefined;
+  if (practice?.kind === "conversation") return conversationPracticeRule(practice.tense);
+  if (practice?.kind === "topic") return topicRule(practice);
+  return undefined;
 }
 
 /** A mistake found by the correction pipeline, as much as the exercise checks need. */
@@ -139,7 +153,7 @@ export function exerciseReplyFor(
   message: Message,
   mistakes: readonly FoundMistake[],
 ): ExerciseTurn | null {
-  if (!practice || practice.kind === "conversation") return null;
+  if (!practice || practice.kind === "conversation" || practice.kind === "topic") return null;
   const earlier = earlierAnswers(message);
 
   if (practice.kind === "use") {
