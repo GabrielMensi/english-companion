@@ -1,6 +1,6 @@
 "use client";
 
-import { Dumbbell, MessagesSquare, MoreHorizontal, Pencil, PencilLine, Trash2 } from "lucide-react";
+import { Dumbbell, MessageSquareText, MessagesSquare, MoreHorizontal, Pencil, PencilLine, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -25,9 +25,12 @@ import { api } from "@/lib/api";
 import type { SessionSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** What kind of chat it is, at a glance: corrections only, a conversation, or practice from the Practice page. */
+/** What kind of chat it is, at a glance: corrections only, a conversation (about a topic or not), or practice from the Practice page. */
 function SessionIcon({ session }: { session: SessionSummary }) {
   if (session.practice) return <Dumbbell className="size-3.5 shrink-0 text-train" aria-label="Practice" />;
+  if (session.topic) {
+    return <MessageSquareText className="size-3.5 shrink-0 text-muted-foreground" aria-label="Topic conversation" />;
+  }
   if (session.mode === "conversation") {
     return <MessagesSquare className="size-3.5 shrink-0 text-muted-foreground" aria-label="Conversation" />;
   }

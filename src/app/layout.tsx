@@ -9,7 +9,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { listSessions } from "@/lib/chat";
 import { countCardsToStudy } from "@/lib/flashcards";
-import { practiceSessionIds } from "@/lib/practice";
+import { chatLabels } from "@/lib/practice";
 import { SIDEBAR_COOKIE } from "@/lib/sidebar";
 import "./globals.css";
 
@@ -35,8 +35,14 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   await connection();
   const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
-  const practiceIds = practiceSessionIds();
-  const sessions = listSessions().map(({ id, title, mode }) => ({ id, title, mode, practice: practiceIds.has(id) }));
+  const labels = chatLabels();
+  const sessions = listSessions().map(({ id, title, mode }) => ({
+    id,
+    title,
+    mode,
+    practice: labels.get(id)?.practice ?? false,
+    topic: labels.get(id)?.topic ?? null,
+  }));
 
   return (
     <html

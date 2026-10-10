@@ -14,6 +14,7 @@ import { Composer, type Notify, useComposer } from "@/components/chat/composer";
 import { MiniChat, type Notice } from "@/components/chat/mini-chat";
 import { UserMessage } from "@/components/chat/user-message";
 import { usePipWindow } from "@/components/pip/use-pip-window";
+import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import type { SessionMode } from "@/db/schema";
 import type { AnalysisPreview } from "@/lib/ai/analysis";
@@ -240,7 +241,14 @@ export function ChatView({
   return (
     <div data-area="write" className="flex h-full flex-col">
       <header className="flex items-center justify-between gap-4 border-b px-6 py-2">
-        <h1 className="truncate font-medium">{session.title}</h1>
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="truncate font-medium">{session.title}</h1>
+          {session.topic && (
+            <StatusBadge tone="neutral" className="shrink-0">
+              Topic
+            </StatusBadge>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {mode === "conversation" && speechSupported && (
             <Button
