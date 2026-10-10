@@ -64,6 +64,8 @@ export interface AttemptRow {
 
 export interface PronunciationSummary {
   attempts: number;
+  /** Words read, across all attempts. */
+  words: number;
   /** Share of words heard as written, 0–1; null without attempts. */
   accuracy: number | null;
   /** Most issues first; only categories with issues. */
@@ -99,7 +101,56 @@ export function summarizePronunciation(attempts: AttemptRow[], issues: IssueRow[
         b.count - a.count || PRONUNCIATION_CATEGORIES.indexOf(a.category) - PRONUNCIATION_CATEGORIES.indexOf(b.category),
     );
 
-  return { attempts: attempts.length, accuracy: words > 0 ? correct / words : null, categories };
+  return { attempts: attempts.length, words, accuracy: words > 0 ? correct / words : null, categories };
+}
+
+export interface PronunciationProgress {
+  attempts: number;
+  words: number;
+  /** Share of words heard as written, 0–1; null without attempts. */
+  accuracy: number | null;
+  /** The same share in the previous period of the same length; null without readings then. */
+  previousAccuracy: number | null;
+  /**
+   * Sounds heard differently, most first, with the rate per 100 words read and its
+   * change vs the previous period (null without readings in either period). Sounds
+   * that had issues only in the previous period come last, with a count of 0.
+   */
+  categories: (PronunciationSummary["categories"][number] & { per100Words: number; trend: number | null })[];
+}
+
+/** A period's pronunciation summary against the previous one, for the dashboard. */
+export function pronunciationProgress(
+  current: PronunciationSummary,
+  previous: PronunciationSummary | null,
+): PronunciationProgress {
+  const rate = (count: number, words: number) => (words > 0 ? round((count / words) * 100) : 0);
+  const comparable = previous !== null && previous.words > 0 && current.words > 0;
+  const previousRate = (category: PronunciationCategory) =>
+    rate(previous?.categories.find((c) => c.category === category)?.count ?? 0, previous?.words ?? 0);
+
+  const categories: PronunciationProgress["categories"] = current.categories.map((c) => {
+    const per100Words = rate(c.count, current.words);
+    return { ...c, per100Words, trend: comparable ? round(per100Words - previousRate(c.category)) : null };
+  });
+  if (comparable) {
+    for (const c of previous.categories) {
+      if (categories.some((x) => x.category === c.category)) continue;
+      categories.push({ category: c.category, count: 0, examples: [], per100Words: 0, trend: -previousRate(c.category) });
+    }
+  }
+
+  return {
+    attempts: current.attempts,
+    words: current.words,
+    accuracy: current.accuracy,
+    previousAccuracy: previous?.accuracy ?? null,
+    categories,
+  };
+}
+
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
 }
 
 /** Sounds to practice: the ones with the most issues first, then the rest in taxonomy order. */
