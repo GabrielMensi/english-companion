@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { errorToMessage } from "@/lib/ai/fallback";
-import { startCategoryPractice, startPractice } from "@/lib/practice-start";
+import { startCategoryPractice, startPractice, startTopicChat } from "@/lib/practice-start";
 import { ERROR_CATEGORIES, TENSES } from "@/lib/taxonomy";
 import { EXERCISE_KINDS } from "@/lib/tense-practice";
 import { readJson } from "@/lib/request-body";
+import { resolveTopic } from "@/lib/topics";
 
 const bodySchema = z.union([
   z.object({
@@ -16,13 +17,24 @@ const bodySchema = z.union([
     category: z.enum(ERROR_CATEGORIES),
     subtype: z.string().max(100).nullable().default(null),
   }),
+  // A preset id, or a custom topic (trimmed and capped in src/lib/topics.ts).
+  z.object({
+    kind: z.literal("topic"),
+    preset: z.string().max(100).nullable().default(null),
+    topic: z.string().max(500).default(""),
+  }),
 ]);
 
-/** Starts a practice chat (tense practice, or exercises for an error category) and returns its session. */
+/** Starts a practice chat (tense practice, exercises for an error category, or a topic conversation) and returns its session. */
 export async function POST(request: Request) {
   const body = bodySchema.safeParse(await readJson(request));
   if (!body.success) return Response.json({ error: "Invalid data" }, { status: 400 });
   try {
+    if (body.data.kind === "topic") {
+      const choice = resolveTopic(body.data);
+      if (!choice) return Response.json({ error: "Choose a topic or type one" }, { status: 400 });
+      return Response.json(startTopicChat(choice), { status: 201 });
+    }
     const session = body.data.kind === "category" ? await startCategoryPractice(body.data) : await startPractice(body.data);
     return Response.json(session, { status: 201 });
   } catch (error) {

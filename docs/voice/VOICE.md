@@ -285,9 +285,10 @@ Limitaciones:
 
 **Repaso espaciado: mazo "Hard to say"** (#64): cada oración leída con al menos una palabra escuchada distinto es una tarjeta de Flashcards (`kind = "pronunciation"` en `reviews`, clave = el texto de la oración; armadas con `pronunciationCards` en `read-aloud-core.ts`). La tarjeta muestra la oración con esas palabras subrayadas; se responde leyéndola en voz alta (botón o Ctrl+Space), con el mismo puntaje que la página, y la lectura se guarda como un intento más (`source = "review"`), así que cuenta en el panel de pronunciación. La nota sugerida es Good si se escucharon todas las palabras como están escritas y Again si no, pero decide el usuario (sin key de Groq: se escucha, se lee y se califica a mano). Cuenta en las tarjetas pendientes del sidebar y de Today, se puede suspender, y borrarla elimina todas las lecturas de esa oración (y sale de las estadísticas). Entra en la limpieza de reviews huérfanas.
 
+**Panel en el dashboard** (#73): sección "Pronunciation" con el porcentaje de palabras escuchadas como están escritas y los sonidos con problemas, por cada 100 palabras leídas, con la tendencia contra el período anterior del mismo largo (`pronunciationProgress` en `read-aloud-core.ts`). Sigue el período del dashboard pero no el filtro Escrito / Hablado (las lecturas no son mensajes), y aparece solo si hay alguna lectura.
+
 Pendiente:
-- Panel de pronunciación en el dashboard.
-- Feedback cualitativo con Gemini multimodal o fonemas (wav2vec2) para acento, schwa y word stress.
+- Acento, schwa y word stress desde el audio: investigado en [PRONUNCIATION_AUDIO.md](PRONUNCIATION_AUDIO.md) (#74). Decisión: schwa con un modelo de fonemas wav2vec2 en CPU, acento de palabra pendiente de grabaciones reales, feedback abierto con Gemini descartado.
 
 ### Fase 4 — Clases
 - Importar audio o transcripción de la clase, diarización, análisis solo de tus turnos como mensajes `spoken` con fuente "From class".
