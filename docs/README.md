@@ -9,6 +9,7 @@ Una carpeta por **Area** del tablero ([GitHub Project](https://github.com/users/
 |---|---|---|---|---|
 | Chat & corrections | `chat/` | — | | |
 | Voice | `voice/` | [VOICE.md](voice/VOICE.md): investigación y plan de voz (dictado, escuchar, pronunciación) | Research | In progress |
+| Voice | `voice/` | [PRONUNCIATION_AUDIO.md](voice/PRONUNCIATION_AUDIO.md): schwa, acento de palabra y acento desde el audio (Gemini vs wav2vec2) | Research | Decided |
 | Practice | `practice/` | [VERB_TENSES.md](practice/VERB_TENSES.md): diagnóstico y práctica por tiempo verbal | Feature | Done |
 | Progress | `progress/` | [LEVEL_CALIBRATION.md](progress/LEVEL_CALIBRATION.md): calibración del nivel CEFR | Eval | Done |
 | Class & textbook | `class/` | [TEXTBOOKS.md](class/TEXTBOOKS.md): resolver los ejercicios de los libros en la app | Research | Exploring |
