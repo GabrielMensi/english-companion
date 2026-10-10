@@ -23,7 +23,8 @@ async function runtimeDir() {
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/tts/runtime/[file]">) {
   const { file } = await ctx.params;
-  const type = FILES[file];
+  // Own keys only: `FILES["constructor"]` would otherwise be truthy.
+  const type = Object.hasOwn(FILES, file) ? FILES[file] : undefined;
   if (!type) return new Response("Not found", { status: 404 });
   try {
     const data = await readFile(path.join(await runtimeDir(), file));

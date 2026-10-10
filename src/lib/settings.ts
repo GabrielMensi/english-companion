@@ -6,6 +6,7 @@ import { db, schema } from "@/db";
 import { normalizeChain, upgradeChain } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, PROVIDERS } from "@/lib/ai/provider-info";
 import { MAX_SESSION_CARDS, NEW_CARDS_PER_SESSION } from "@/lib/flashcards-core";
+import { modelIdSchema, savedModels } from "@/lib/model-id";
 
 /**
  * 2: the fallback order is the user's (before, remote providers were always tried first).
@@ -16,8 +17,8 @@ const SETTINGS_VERSION = 3;
 export const settingsSchema = z.object({
   provider: z.enum(PROVIDER_IDS),
   models: z.object({
-    gemini: z.string().min(1),
-    groq: z.string().min(1),
+    gemini: modelIdSchema,
+    groq: modelIdSchema,
   }),
   /** Language used for error explanations. */
   explanationLanguage: z.enum(["es", "en"]),
@@ -57,7 +58,8 @@ export function getSettings(): Settings {
   const merged = {
     ...DEFAULT_SETTINGS,
     ...stored,
-    models: { ...DEFAULT_SETTINGS.models, ...stored.models },
+    // A model id that's no longer valid falls back to the default instead of resetting everything.
+    models: savedModels(DEFAULT_SETTINGS.models, stored.models),
     // Without this, a chain that still names Ollama would fail to parse and reset every setting.
     ...upgradeChain(stored, DEFAULT_SETTINGS.provider),
     version: SETTINGS_VERSION,

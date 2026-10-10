@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { classifyManually } from "@/lib/classification";
 import { ERROR_CATEGORIES, TENSES } from "@/lib/taxonomy";
+import { readJson } from "@/lib/request-body";
 
 const bodySchema = z.object({
   category: z.enum(ERROR_CATEGORIES),
@@ -12,7 +13,7 @@ const bodySchema = z.object({
 /** The learner fixes a mistake's type by hand. */
 export async function PATCH(request: Request, ctx: RouteContext<"/api/corrections/[id]">) {
   const { id } = await ctx.params;
-  const body = bodySchema.safeParse(await request.json().catch(() => null));
+  const body = bodySchema.safeParse(await readJson(request));
   if (!body.success) return Response.json({ error: "Invalid type" }, { status: 400 });
   try {
     const correction = classifyManually(id, body.data);

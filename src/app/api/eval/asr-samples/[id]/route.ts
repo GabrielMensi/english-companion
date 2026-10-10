@@ -1,4 +1,5 @@
-import { readSampleRecording, saveSampleRecording } from "@/lib/eval/asr-store";
+import { MAX_RECORDING_BYTES, readSampleRecording, saveSampleRecording } from "@/lib/eval/asr-store";
+import { readBody } from "@/lib/request-body";
 
 /** The recording, for playback. */
 export async function GET(_request: Request, ctx: RouteContext<"/api/eval/asr-samples/[id]">) {
@@ -11,8 +12,10 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/eval/asr-sa
 /** Saves a recording (16 kHz mono WAV, encoded in the browser). */
 export async function PUT(request: Request, ctx: RouteContext<"/api/eval/asr-samples/[id]">) {
   const { id } = await ctx.params;
+  const wav = await readBody(request, MAX_RECORDING_BYTES);
+  if (!wav) return Response.json({ error: "Recording too long" }, { status: 413 });
   try {
-    saveSampleRecording(id, Buffer.from(await request.arrayBuffer()));
+    saveSampleRecording(id, Buffer.from(wav));
     return new Response(null, { status: 204 });
   } catch (error) {
     return Response.json({ error: (error as Error).message }, { status: 400 });
