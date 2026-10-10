@@ -14,6 +14,7 @@ import {
   subtypeLabel,
 } from "@/lib/taxonomy";
 import { comparable } from "@/lib/tense-practice";
+import { escapeRegExp } from "@/lib/text";
 
 /**
  * - fill: a sentence with a gap ("I am ___ engineer.").
@@ -160,10 +161,6 @@ export function parseGaps(sentence: string): GapSentence {
     parts.push(hint ? piece.slice(hint[0].length) : piece);
   }
   return { parts, options };
-}
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**

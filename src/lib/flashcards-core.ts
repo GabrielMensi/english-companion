@@ -8,6 +8,7 @@
 
 import type { ReviewState } from "@/lib/srs";
 import type { ErrorCategory, PronunciationCategory, Tense } from "@/lib/taxonomy";
+import { escapeRegExp } from "@/lib/text";
 import type { VocabularyWord } from "@/lib/vocabulary-core";
 
 export const CARD_KINDS = ["vocabulary", "mistake", "exercise", "pronunciation"] as const;
@@ -92,10 +93,6 @@ function squash(text: string): string {
 
 export function mistakeKey(original: string, correction: string): string {
   return `${squash(original)} → ${squash(correction)}`;
-}
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Replaces every occurrence of any term (case-insensitive) with a blank. */
