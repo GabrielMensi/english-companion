@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import { explainLevel, generateStudyPlan } from "@/lib/ai/insights";
 import { withChatPriority } from "@/lib/classification";
 import { getSettings } from "@/lib/settings";
+import { getPronunciationProgress } from "@/lib/read-aloud";
 import { getDashboardData } from "@/lib/stats";
 import { countTenses, TENSE_COUNTER_VERSION } from "@/lib/tenses-core";
 import { buildDigest, type StatsDigest } from "./digest-core";
@@ -47,7 +48,10 @@ export interface StoredLevelExplanation {
 
 export function getReportDigest(range: ReportRange): StatsDigest {
   const { stats, tenses, vocabulary } = getDashboardData(range);
-  return buildDigest({ days: Number(range), now: Date.now(), stats, tenses, vocabulary });
+  const days = Number(range);
+  // Read-aloud readings aren't messages: the written/spoken filter and countsInStats don't apply.
+  const pronunciation = getPronunciationProgress(days);
+  return buildDigest({ days, now: Date.now(), stats, tenses, vocabulary, pronunciation });
 }
 
 export function getStoredPlan(): StoredPlan | null {

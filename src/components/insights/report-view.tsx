@@ -1,5 +1,7 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
-import type { DigestTense, StatsDigest } from "@/lib/insights/digest-core";
+import Link from "next/link";
+import { Trend } from "@/components/dashboard/category-table";
+import type { DigestPronunciation, DigestTense, StatsDigest } from "@/lib/insights/digest-core";
 
 const TENSE_STATUS_LABELS: Record<Exclude<DigestTense["status"], "avoided">, string> = {
   weak: "Weak",
@@ -155,6 +157,68 @@ export function ReportView({ digest }: { digest: StatsDigest }) {
             ))}
           </ul>
         </Section>
+      )}
+
+      {digest.pronunciation && (
+        <Section title="Pronunciation (reading aloud)">
+          <PronunciationSummary pronunciation={digest.pronunciation} />
+        </Section>
+      )}
+    </div>
+  );
+}
+
+function PronunciationSummary({ pronunciation: p }: { pronunciation: DigestPronunciation }) {
+  if (p.accuracy === null) {
+    return (
+      <Empty>
+        No readings in this period{p.previousAccuracy !== null && ` (${p.previousAccuracy}% the period before)`}.{" "}
+        <Link href="/read-aloud" className="font-medium text-primary underline-offset-4 hover:underline">
+          Read a few sentences aloud
+        </Link>
+      </Empty>
+    );
+  }
+  const delta = p.previousAccuracy === null ? null : p.accuracy - p.previousAccuracy;
+  return (
+    <div className="space-y-2">
+      <dl className="flex flex-wrap gap-x-6 gap-y-2">
+        <Stat label="Heard as written" value={`${p.accuracy}%`}>
+          {delta !== null && delta !== 0 && (
+            <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
+              {delta > 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
+              {Math.abs(delta)} {Math.abs(delta) === 1 ? "point" : "points"} {delta > 0 ? "better" : "worse"} than the
+              period before
+            </span>
+          )}
+        </Stat>
+        <Stat label="Readings" value={p.readings} />
+        <Stat label="Words read" value={p.words.toLocaleString("en-US")} />
+      </dl>
+      {p.sounds.length === 0 ? (
+        <Empty>No sounds heard differently in this period.</Empty>
+      ) : (
+        <ul className="divide-y">
+          {p.sounds.map((s) => (
+            <li key={s.category} className="flex flex-wrap items-baseline justify-between gap-x-3 py-2 last:pb-0">
+              <span className="space-x-2">
+                <span className="font-medium">{s.label}</span>
+                {s.example && (
+                  <span className="text-muted-foreground">
+                    <span className="font-serif">{s.example.expected}</span> as{" "}
+                    <span className="font-serif text-mark-wrong">{s.example.heard}</span>
+                  </span>
+                )}
+              </span>
+              <span className="flex shrink-0 items-center gap-3 text-muted-foreground">
+                <span>
+                  <span className="font-medium text-foreground tabular-nums">{s.per100Words}</span> per 100 words read
+                </span>
+                <Trend value={s.trend} />
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

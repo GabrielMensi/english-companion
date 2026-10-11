@@ -43,6 +43,7 @@ Rules:
 - Base everything on the statistics you get: cite the numbers and the real mistakes. Never invent mistakes, numbers or words.
 - Pick 2 to 4 topics, most important first: the weakest areas, the ones that got worse, weak or avoided tenses and repeated mistakes. Group related mistakes into one topic.
 - Spelling or punctuation topics only if they are clearly among the top problems.
+- If there's a pronunciation section (read-aloud practice), a pronunciation topic is fine when a sound is clearly a problem; its practice is reading sentences with that sound aloud.
 - Each "practice" is a concrete exercise the learner can do in 10-15 minutes a day without a textbook (e.g. "write 5 sentences about last weekend using the past simple", "rewrite these 3 sentences", "in the chat, use 'depend on' twice a day").
 - "example" is a correct English sentence, short and natural, related to the learner's real mistakes when possible.
 - "goal" is measurable with the app's stats (e.g. "fewer than 1 preposition mistake per 100 words").

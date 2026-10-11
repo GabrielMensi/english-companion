@@ -1,12 +1,22 @@
 /**
  * Pure "stats digest": a compact summary of a period (categories, trends,
- * tenses, frequent mistakes and vocabulary) built from the dashboard's stats.
+ * tenses, frequent mistakes, vocabulary and read-aloud pronunciation) built
+ * from the dashboard's stats.
  * It's the shared base of the weekly report / study plan and of the report to
  * take to class: the page renders it, the model reads it as text and it can be
  * copied as Markdown.
  */
+import type { PronunciationProgress } from "@/lib/read-aloud-core";
 import type { Stats } from "@/lib/stats-core";
-import { categoryLabel, type ErrorCategory, subtypeLabel, type Tense, tenseLabel } from "@/lib/taxonomy";
+import {
+  categoryLabel,
+  type ErrorCategory,
+  PRONUNCIATION_LABELS,
+  type PronunciationCategory,
+  subtypeLabel,
+  type Tense,
+  tenseLabel,
+} from "@/lib/taxonomy";
 import type { TenseStats } from "@/lib/tense-stats";
 import type { VocabularyWord } from "@/lib/vocabulary-core";
 
@@ -42,6 +52,29 @@ export interface DigestMistake {
   explanation: string;
 }
 
+export interface DigestSound {
+  category: PronunciationCategory;
+  label: string;
+  count: number;
+  per100Words: number;
+  /** Change in issues per 100 words read vs the previous period; null without data. */
+  trend: number | null;
+  /** The most repeated word, "ship" heard as "sheep". */
+  example: { expected: string; heard: string } | null;
+}
+
+/** Read-aloud practice in the period (readings aren't messages, so it's apart from the totals). */
+export interface DigestPronunciation {
+  readings: number;
+  words: number;
+  /** % of words heard as written, 0–100; null without readings in the period. */
+  accuracy: number | null;
+  /** The same in the previous period; null without readings then. */
+  previousAccuracy: number | null;
+  /** Sounds heard differently in the period, most first. */
+  sounds: DigestSound[];
+}
+
 export interface StatsDigest {
   period: { days: number | null; from: number | null; to: number };
   totals: {
@@ -62,6 +95,11 @@ export interface StatsDigest {
   unclassifiedTenses: number;
   topMistakes: DigestMistake[];
   vocabulary: { spanish: string; english: string; times: number }[];
+  /**
+   * Null without readings in this period or the one before. Optional because
+   * plans stored before it existed have digests without it.
+   */
+  pronunciation?: DigestPronunciation | null;
 }
 
 /** A change in mistakes per 100 words smaller than this is noise. */
@@ -69,6 +107,7 @@ export const TREND_THRESHOLD = 0.3;
 const MAX_AREAS = 5;
 const MAX_MISTAKES = 6;
 const MAX_WORDS = 10;
+const MAX_SOUNDS = 4;
 
 export function buildDigest(input: {
   days: number | null;
@@ -76,6 +115,7 @@ export function buildDigest(input: {
   stats: Stats;
   tenses: TenseStats;
   vocabulary: VocabularyWord[];
+  pronunciation?: PronunciationProgress | null;
 }): StatsDigest {
   const { stats } = input;
   const areas = stats.categories.map((c): DigestArea => ({
@@ -135,6 +175,29 @@ export function buildDigest(input: {
       .sort((a, b) => b.timesLookedUp - a.timesLookedUp || b.lastSeen - a.lastSeen)
       .slice(0, MAX_WORDS)
       .map((w) => ({ spanish: w.spanish, english: w.english[0] ?? "", times: w.timesLookedUp })),
+    pronunciation: digestPronunciation(input.pronunciation ?? null),
+  };
+}
+
+function digestPronunciation(p: PronunciationProgress | null): DigestPronunciation | null {
+  if (!p || (p.attempts === 0 && p.previousAccuracy === null)) return null;
+  const percent = (share: number | null) => (share === null ? null : Math.round(share * 100));
+  return {
+    readings: p.attempts,
+    words: p.words,
+    accuracy: percent(p.accuracy),
+    previousAccuracy: percent(p.previousAccuracy),
+    sounds: p.categories
+      .filter((c) => c.count > 0)
+      .slice(0, MAX_SOUNDS)
+      .map((c) => ({
+        category: c.category,
+        label: PRONUNCIATION_LABELS[c.category],
+        count: c.count,
+        per100Words: c.per100Words,
+        trend: c.trend,
+        example: c.examples[0] ? { expected: c.examples[0].expected, heard: c.examples[0].heard } : null,
+      })),
   };
 }
 
@@ -178,6 +241,12 @@ export function digestToPromptText(d: StatsDigest): string {
   if (d.vocabulary.length > 0) {
     lines.push("", "Words the learner didn't know and looked up (Spanish → English):");
     for (const w of d.vocabulary) lines.push(`- ${w.spanish} → ${w.english}${w.times > 1 ? ` (${w.times}×)` : ""}`);
+  }
+
+  if (d.pronunciation) {
+    lines.push("", "Pronunciation (read-aloud practice, scored by speech-to-text):");
+    lines.push(`- ${accuracyLine(d.pronunciation)}`);
+    for (const s of d.pronunciation.sounds) lines.push(`- ${soundLine(s)}`);
   }
   return lines.join("\n");
 }
@@ -225,6 +294,10 @@ export function digestToMarkdown(d: StatsDigest, plan?: MarkdownPlan | null): st
     out.push("", "## Words I looked up", "");
     for (const w of d.vocabulary) out.push(`- ${w.spanish} → ${w.english}${w.times > 1 ? ` (${w.times}×)` : ""}`);
   }
+  if (d.pronunciation) {
+    out.push("", "## Pronunciation (reading aloud)", "", `- ${accuracyLine(d.pronunciation)}`);
+    for (const s of d.pronunciation.sounds) out.push(`- ${soundLine(s)}`);
+  }
 
   if (plan) {
     out.push("", "## Study plan", "", plan.summary);
@@ -248,6 +321,19 @@ function areaLine(a: DigestArea): string {
   const trend = a.trend === null ? "" : `, trend ${a.trend > 0 ? "+" : ""}${a.trend}`;
   const types = a.types.length > 0 ? ` — mainly: ${a.types.join(", ")}` : "";
   return `${a.label}: ${a.count} mistakes (${a.per100Words} per 100 words${trend})${types}`;
+}
+
+function accuracyLine(p: DigestPronunciation): string {
+  const previous = p.previousAccuracy === null ? "" : ` (previous period: ${p.previousAccuracy}%)`;
+  if (p.accuracy === null) return `No readings in this period${previous}`;
+  const readings = `${p.readings} ${p.readings === 1 ? "reading" : "readings"}`;
+  return `${p.accuracy}% of ${p.words} words heard as written in ${readings}${previous}`;
+}
+
+function soundLine(s: DigestSound): string {
+  const trend = s.trend === null ? "" : `, trend ${s.trend > 0 ? "+" : ""}${s.trend}`;
+  const example = s.example ? ` — e.g. "${s.example.expected}" heard as "${s.example.heard}"` : "";
+  return `${s.label}: ${s.count}× (${s.per100Words} per 100 words read${trend})${example}`;
 }
 
 function tenseLine(t: DigestTense): string {
