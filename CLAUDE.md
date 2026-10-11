@@ -13,7 +13,7 @@ Free-first AI English tutor that runs on your machine with API models (Gemini, G
 - The correction streams to the chat (`analyzeMessage` with `onPreview`, NDJSON from the send/retry routes) only for display: what gets saved always comes from the complete, validated object through `normalizeAnalysis`, and a failed stream falls back to `generateText`.
 - Pure logic (analysis normalization, stats) lives in files without `server-only` and has vitest tests: `pnpm test`.
 - After changing `src/db/schema.ts`, run `pnpm db:generate`; migrations apply automatically on startup.
-- Checks: `pnpm typecheck && pnpm lint && pnpm test && pnpm format:check`. Lint warnings are known debt (docs/platform/CODE_QUALITY.md): don't add new ones. `pnpm knip` must stay clean (unused files, exports, dependencies).
+- Checks: `pnpm typecheck && pnpm lint && pnpm test && pnpm format:check`. CI (`.github/workflows/ci.yml`) runs them plus `pnpm knip` and `pnpm build` on every PR to `develop`/`main`; gitleaks and CodeQL run too. Lint warnings are known debt (docs/platform/CODE_QUALITY.md): don't add new ones. `pnpm knip` must stay clean (unused files, exports, dependencies).
 - Formatting is Prettier (`.prettierrc.json`, 120 columns, Tailwind class sorting) and the codebase is formatted: run `pnpm exec prettier --write <files you changed>` (or `pnpm format`) before committing.
 
 ## The app is always in use
