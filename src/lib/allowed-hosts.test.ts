@@ -37,8 +37,8 @@ describe("requestHost", () => {
     );
   });
 
-  it("behind a trusted proxy, uses the first X-Forwarded-Host", () => {
-    const headers = { host: "127.0.0.1:3737", "x-forwarded-host": "companion.example.com, internal:8080" };
+  it("behind a trusted proxy, uses the last X-Forwarded-Host (the one the proxy appended)", () => {
+    const headers = { host: "127.0.0.1:3737", "x-forwarded-host": "evil.example, companion.example.com" };
     expect(requestHost(request(headers), true)).toBe("companion.example.com");
   });
 

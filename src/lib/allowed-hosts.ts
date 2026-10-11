@@ -8,13 +8,14 @@
 const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
 
 /**
- * The host the client asked for. Behind a reverse proxy (`trustProxy`), that's the first value of
- * `X-Forwarded-Host`, since `Host` is whatever the proxy used to reach the app. Off by default:
- * without a proxy in front, any client could send that header.
+ * The host the client asked for. Behind a reverse proxy (`trustProxy`), that's the last value of
+ * `X-Forwarded-Host`, since `Host` is whatever the proxy used to reach the app. The last one is the
+ * value our proxy added: a proxy that appends instead of overwriting keeps whatever the client sent
+ * in front. Off by default: without a proxy in front, any client could send that header.
  */
 export function requestHost(request: Request, trustProxy: boolean): string | null {
   if (trustProxy) {
-    const forwarded = request.headers.get("x-forwarded-host")?.split(",")[0].trim();
+    const forwarded = request.headers.get("x-forwarded-host")?.split(",").at(-1)?.trim();
     if (forwarded) return forwarded;
   }
   return request.headers.get("host");
