@@ -18,7 +18,7 @@ Revisión del código entero (creció feature por feature) antes de _Deploy the 
 - **Código muerto** (lo encontró knip): `card`, `scroll-area`, `separator` y `skeleton` de shadcn, que no usaba nadie, y `getPracticeTargets` (lo reemplazó `getPracticeSuggestions`).
 - **Duplicado**: `escapeRegExp` estaba copiado en tres archivos; ahora vive en `src/lib/text.ts`.
 - **Error boundaries**: no había ninguno, así que un error al renderizar dejaba la pantalla en blanco. `src/app/error.tsx` muestra "Something went wrong" con _Try again_ y deja la barra lateral para ir a otra página; `src/app/global-error.tsx` cubre un error del layout raíz (por ejemplo, que no abra la base) con una página simple, sin estilos de la app.
-- CLAUDE.md: los warnings conocidos no deben crecer y `pnpm knip` tiene que quedar limpio (desde #91, `pnpm lint` tiene que dar 0 warnings).
+- CLAUDE.md: `pnpm lint` tiene que dar 0 errores y 0 warnings (desde #91) y `pnpm knip` tiene que quedar limpio.
 
 ## Reformateo con Prettier (#86)
 
