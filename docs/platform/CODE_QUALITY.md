@@ -66,7 +66,7 @@ Octubre de 2026, sobre la rama de #86. Un commit por paso para poder revertir un
 - **`@types/node` 20 → 22**, el Node que se usa (vitest pedía `>= 22`).
 - **TypeScript 5.9 → 6.0**: pasa typecheck, lint, tests, knip y build sin cambios.
 - **`shadcn` a devDependencies**: es el CLI para agregar componentes. Lo único que usa la app es `shadcn/tailwind.css`, que Tailwind incorpora al CSS en el build, así que alcanza con que esté instalado al buildear.
-- **`sharp` 0.34.5 → 0.35.5** con un override en `pnpm-workspace.yaml`: transformers.js 3.8.1 pide `^0.34`, que tiene avisos altos (libvips, libheif, librsvg). Solo lo usan sus helpers de imágenes en Node (Kokoro corre en el navegador y no lo toca); transformers.js 4 usa el mismo código con `^0.35.4`. Se probó `RawImage` (cargar un PNG y redimensionarlo) con 0.35.5. Next ya traía 0.35.5 y la app no usa `next/image`.
+- **`sharp` 0.34.5 → 0.35.5** con un override en `pnpm-workspace.yaml`: transformers.js 3.8.1 pide `^0.34`, que tiene avisos altos (libvips, libheif, librsvg). Solo lo usan sus helpers de imágenes en Node (Kokoro corre en el navegador y no lo toca); transformers.js 4 usa el mismo código con `^0.35.4`. Se probó `RawImage` (cargar un PNG y redimensionarlo) con 0.35.5. Next venía en 0.35.4 (también afectado por el aviso de librsvg); el override deja a los dos en 0.35.5. La app no usa `next/image`.
 
 **`pnpm audit`**: antes 9 avisos (7 altos, 2 moderados); después 3 (1 alto, 2 moderados). En dependencias de producción (`--prod`) queda 1 moderado:
 
