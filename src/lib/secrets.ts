@@ -2,6 +2,7 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { serverEnv } from "@/lib/env";
 import { KEY_ENV_VARS, type KeyProvider, pickApiKey } from "@/lib/credentials";
 
 /**
@@ -29,5 +30,5 @@ export function setApiKey(provider: KeyProvider, apiKey: string | null) {
 }
 
 export function resolveApiKey(provider: KeyProvider) {
-  return pickApiKey(getStoredKeys()[provider], process.env[KEY_ENV_VARS[provider]]);
+  return pickApiKey(getStoredKeys()[provider], serverEnv()[KEY_ENV_VARS[provider]]);
 }
