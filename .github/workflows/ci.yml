@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [develop, main]
   push:
-    branches: [develop, ci/87-88-github-actions] # TEMP: feature branch trigger, removed before merge
+    branches: [develop]
 
 permissions:
   contents: read
