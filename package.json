@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start --port 3737",
     "lint": "eslint",
+    "format": "prettier --write .",
     "format:check": "prettier --check .",
     "knip": "knip",
     "test": "vitest run",

@@ -8,7 +8,7 @@ Revisión del código entero (creció feature por feature) antes de _Deploy the 
 
 ## Qué se cambió en #77
 
-- **Prettier** (`.prettierrc.json`: 120 columnas, comillas dobles, con `prettier-plugin-tailwindcss` para ordenar las clases) y el script `pnpm format:check`. A propósito no hay `pnpm format` sobre todo el árbol: hasta el reformateo, `pnpm exec prettier --write <archivos>` solo sobre los archivos nuevos. **No se formateó el código**: hay ramas abiertas (#71, #73/#75, #74, #78) y un reformateo masivo choca con todas. Hoy Prettier cambiaría 104 de los 204 archivos de `src/` (casi todo saltos de línea de JSX y orden de clases). Queda como follow-up, en un solo commit cuando no haya ramas abiertas.
+- **Prettier** (`.prettierrc.json`: 120 columnas, comillas dobles, con `prettier-plugin-tailwindcss` para ordenar las clases) y el script `pnpm format:check`. En #77 no se formateó el código porque había ramas abiertas que un reformateo masivo habría roto; se hizo después, en #86 (ver abajo).
 - **ESLint más estricto** (`eslint.config.mjs`), con reglas que usan los tipos (`projectService`):
   - Errores (el código ya las cumple): `await-thenable`, `no-unused-vars` (con `_` para ignorar), `eqeqeq` (salvo `== null`).
   - Warnings (marcan código existente o son de estilo): `no-floating-promises`, `no-misused-promises`, `no-unnecessary-type-assertion`, `switch-exhaustiveness-check`, `consistent-type-imports`, `import/no-duplicates`, `no-console` (permite `debug`, `warn` y `error`; los scripts de eval quedan afuera porque imprimir es su salida).
@@ -18,7 +18,13 @@ Revisión del código entero (creció feature por feature) antes de _Deploy the 
 - **Código muerto** (lo encontró knip): `card`, `scroll-area`, `separator` y `skeleton` de shadcn, que no usaba nadie, y `getPracticeTargets` (lo reemplazó `getPracticeSuggestions`).
 - **Duplicado**: `escapeRegExp` estaba copiado en tres archivos; ahora vive en `src/lib/text.ts`.
 - **Error boundaries**: no había ninguno, así que un error al renderizar dejaba la pantalla en blanco. `src/app/error.tsx` muestra "Something went wrong" con _Try again_ y deja la barra lateral para ir a otra página; `src/app/global-error.tsx` cubre un error del layout raíz (por ejemplo, que no abra la base) con una página simple, sin estilos de la app.
-- CLAUDE.md: los warnings conocidos no deben crecer, `pnpm knip` tiene que quedar limpio, y Prettier solo sobre archivos nuevos hasta el reformateo.
+- CLAUDE.md: los warnings conocidos no deben crecer y `pnpm knip` tiene que quedar limpio.
+
+## Reformateo con Prettier (#86)
+
+- Todo el árbol se formateó con `pnpm exec prettier --write .` en **un solo commit**, sin otros cambios (respeta `.prettierignore`: `data/`, `drizzle/`, `public/`, `pnpm-lock.yaml`, `next-env.d.ts`).
+- Script `pnpm format` (`prettier --write .`) junto a `pnpm format:check`, y `pnpm format:check` es parte de los checks en CLAUDE.md. Antes de commitear: `pnpm exec prettier --write <archivos cambiados>` (o `pnpm format`).
+- `.git-blame-ignore-revs` tiene el sha de ese commit para que `git blame` lo saltee. GitHub lo usa solo; en local hay que activarlo una vez: `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 
 ## Hallazgos que quedan
 
@@ -57,13 +63,12 @@ Arreglo: `void` donde es intencional y `.catch` con un toast donde el usuario de
 
 En el tablero como Backlog (Area Platform salvo que se diga otra cosa):
 
-| Item                                                                                                             | Priority | Size | Kind    |
-| ---------------------------------------------------------------------------------------------------------------- | -------- | ---- | ------- |
-| Reformatear todo con Prettier en un commit (cuando no haya ramas abiertas) y agregar `format:check` a los checks | P1       | S    | Chore   |
-| Arreglar los 10 warnings de promesas y subir esas reglas a error                                                 | P2       | S    | Chore   |
-| Logger mínimo en el servidor para los errores de las rutas (sin keys ni texto del alumno)                        | P1       | S    | Feature |
-| Validar las variables de entorno al arrancar (zod)                                                               | P1       | XS   | Chore   |
-| Helper `parseBody` para las rutas                                                                                | P2       | S    | Chore   |
-| Partir `review-session.tsx` y los archivos grandes de lógica                                                     | P2       | M    | Chore   |
-| Actualizar dependencias: minors, `@types/node` a 22; evaluar TypeScript 7 y ESLint 10                            | P2       | M    | Chore   |
-| Correr lint, knip y `format:check` en CI (parte de _Release workflow_)                                           | P1       | S    | Chore   |
+| Item                                                                                      | Priority | Size | Kind    |
+| ----------------------------------------------------------------------------------------- | -------- | ---- | ------- |
+| Arreglar los 10 warnings de promesas y subir esas reglas a error                          | P2       | S    | Chore   |
+| Logger mínimo en el servidor para los errores de las rutas (sin keys ni texto del alumno) | P1       | S    | Feature |
+| Validar las variables de entorno al arrancar (zod)                                        | P1       | XS   | Chore   |
+| Helper `parseBody` para las rutas                                                         | P2       | S    | Chore   |
+| Partir `review-session.tsx` y los archivos grandes de lógica                              | P2       | M    | Chore   |
+| Actualizar dependencias: minors, `@types/node` a 22; evaluar TypeScript 7 y ESLint 10     | P2       | M    | Chore   |
+| Correr lint, knip y `format:check` en CI (parte de _Release workflow_)                    | P1       | S    | Chore   |
