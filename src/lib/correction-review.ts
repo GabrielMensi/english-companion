@@ -26,7 +26,7 @@ export interface SeverityState {
  * The severity after the learner picks a type by hand. Picking Spelling → Typo
  * makes it a typo (so it follows the "count typos in stats" setting) and
  * remembers the severity it had; moving it away from Typo gives that severity
- * back, or "minor" when it was a typo without a stored one.
+ * back, or "minor" when it was a typo without a stored one (whatever its type was).
  */
 export function severityAfterManualType(
   current: SeverityState & { category: ErrorCategory; subtype: string | null },
@@ -37,8 +37,7 @@ export function severityAfterManualType(
     return { severity: "typo", severityBeforeTypo: current.severity };
   }
   if (current.severityBeforeTypo) return { severity: current.severityBeforeTypo, severityBeforeTypo: null };
-  if (current.severity === "typo" && isTypoType(current.category, current.subtype)) {
-    return { severity: "minor", severityBeforeTypo: null };
-  }
+  // Whoever called it a typo (the model, under any type), the learner says it's something else.
+  if (current.severity === "typo") return { severity: "minor", severityBeforeTypo: null };
   return { severity: current.severity, severityBeforeTypo: null };
 }

@@ -44,6 +44,16 @@ describe("severityAfterManualType", () => {
     });
   });
 
+  it("falls back to minor for a model-reported typo under another type, or unclassified", () => {
+    for (const subtype of ["other", null]) {
+      const current = { severity: "typo", severityBeforeTypo: null, category: "spelling", subtype } as const;
+      expect(severityAfterManualType(current, { category: "vocabulary", subtype: "other" })).toEqual({
+        severity: "minor",
+        severityBeforeTypo: null,
+      });
+    }
+  });
+
   it("leaves other changes alone", () => {
     const current = { severity: "major", severityBeforeTypo: null, category: "verb_tense", subtype: null } as const;
     expect(severityAfterManualType(current, { category: "verb_form", subtype: "other" })).toEqual({

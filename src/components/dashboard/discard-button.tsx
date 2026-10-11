@@ -11,7 +11,15 @@ import { discardCorrection, restoreCorrection } from "@/lib/api";
  * "Discard" on a mistake the dashboard lists: the model got it wrong, so it
  * leaves the stats (the page is computed again), with Undo in the toast.
  */
-export function DiscardButton({ correctionId }: { correctionId: string }) {
+export function DiscardButton({
+  correctionId,
+  label = "Discard",
+  title = "Not a mistake: leave it out of your stats",
+}: {
+  correctionId: string;
+  label?: string;
+  title?: string;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -38,16 +46,9 @@ export function DiscardButton({ correctionId }: { correctionId: string }) {
   }
 
   return (
-    <Button
-      variant="ghost"
-      size="xs"
-      className="text-muted-foreground"
-      onClick={discard}
-      disabled={busy}
-      title="Not a mistake: leave it out of your stats"
-    >
+    <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={discard} disabled={busy} title={title}>
       {busy && <Loader2 className="animate-spin" />}
-      Discard
+      {label}
     </Button>
   );
 }

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { toChatCorrection } from "@/lib/correction-review";
 import { getSettings } from "@/lib/settings";
@@ -28,11 +28,14 @@ export function getCorrectionUpdate(id: string): CorrectionUpdate | undefined {
   };
 }
 
-/** Discards a wrong correction: it's kept, but left out of every statistic until restored. */
+/**
+ * Discards a wrong correction: it's kept, but left out of every statistic until restored.
+ * Discarding it again changes nothing (the first date and reason stay).
+ */
 export function discardCorrection(id: string, reason: string | null): CorrectionUpdate | undefined {
   db.update(schema.corrections)
     .set({ discardedAt: new Date(), discardReason: reason })
-    .where(eq(schema.corrections.id, id))
+    .where(and(eq(schema.corrections.id, id), isNull(schema.corrections.discardedAt)))
     .run();
   return getCorrectionUpdate(id);
 }
