@@ -13,6 +13,26 @@ function optional<T extends z.ZodType>(schema: T) {
 
 const text = z.string().trim();
 
+const HOSTNAME = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;
+
+/** "true"/"false" or "1"/"0", nothing else: a typo like "ture" shouldn't silently mean false. */
+const flag = z
+  .enum(["true", "false", "1", "0"], { error: 'expected "true", "false", "1" or "0"' })
+  .transform((value) => value === "true" || value === "1");
+
+/** Comma-separated hostnames, without scheme or port ("companion.example.com,www.example.com"). */
+const hostnames = z
+  .string()
+  .transform((value) =>
+    value
+      .split(",")
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean),
+  )
+  .refine((hosts) => hosts.every((host) => HOSTNAME.test(host)), {
+    error: "expected comma-separated hostnames without scheme, port or path (e.g. companion.example.com)",
+  });
+
 const envSchema = z.object({
   /** SQLite database file. */
   DATABASE_PATH: optional(text.default("data/companion.db")),
@@ -21,6 +41,10 @@ const envSchema = z.object({
   /** Fallbacks when no key is saved in Settings. */
   GOOGLE_GENERATIVE_AI_API_KEY: optional(text.optional()),
   GROQ_API_KEY: optional(text.optional()),
+  /** Hostnames the app answers to besides localhost, 127.0.0.1 and [::1] (see allowed-hosts.ts). */
+  ALLOWED_HOSTS: optional(hostnames.default([])),
+  /** Behind a reverse proxy: use X-Forwarded-Host instead of Host (allowed hosts and cross-site checks). */
+  TRUST_PROXY: optional(flag.default(false)),
 });
 
 export type Env = z.infer<typeof envSchema>;

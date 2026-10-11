@@ -26,3 +26,42 @@ describe("parseEnv", () => {
     expect(parseEnv({ PATH: "/usr/bin", NODE_ENV: "test" })).not.toHaveProperty("PATH");
   });
 });
+
+describe("parseEnv: hosts and proxy", () => {
+  it("defaults to no extra hosts and no trusted proxy", () => {
+    expect(parseEnv({})).toMatchObject({ ALLOWED_HOSTS: [], TRUST_PROXY: false });
+  });
+
+  it("splits ALLOWED_HOSTS on commas, trimming and lowercasing", () => {
+    expect(parseEnv({ ALLOWED_HOSTS: " Companion.example.com, ,www.example.com " }).ALLOWED_HOSTS).toEqual([
+      "companion.example.com",
+      "www.example.com",
+    ]);
+  });
+
+  it("accepts only true/false/1/0 for TRUST_PROXY", () => {
+    expect(parseEnv({ TRUST_PROXY: "true" }).TRUST_PROXY).toBe(true);
+    expect(parseEnv({ TRUST_PROXY: "1" }).TRUST_PROXY).toBe(true);
+    expect(parseEnv({ TRUST_PROXY: "0" }).TRUST_PROXY).toBe(false);
+    expect(parseEnv({ TRUST_PROXY: "" }).TRUST_PROXY).toBe(false);
+    expect(() => parseEnv({ TRUST_PROXY: "maybe" })).toThrow(/TRUST_PROXY: expected "true", "false", "1" or "0"/);
+  });
+
+  it("refuses hosts with a scheme, port or path", () => {
+    for (const value of ["https://companion.example.com", "companion.example.com:443", "example.com/app", "a b"]) {
+      expect(() => parseEnv({ ALLOWED_HOSTS: value }), value).toThrow(/ALLOWED_HOSTS: expected comma-separated/);
+    }
+  });
+
+  it("lists every invalid variable, never its value", () => {
+    let message = "";
+    try {
+      parseEnv({ TRUST_PROXY: "yes-secret", ALLOWED_HOSTS: "http://x" });
+    } catch (error) {
+      message = (error as Error).message;
+    }
+    expect(message).toContain("TRUST_PROXY");
+    expect(message).toContain("ALLOWED_HOSTS");
+    expect(message).not.toContain("yes-secret");
+  });
+});
