@@ -29,9 +29,8 @@ function persistUpgrade(read: unknown, settings: Settings) {
       .set({ value: settings })
       .where(and(eq(schema.settings.key, KEY), sql`json(${schema.settings.value}) = json(${JSON.stringify(read)})`))
       .run();
-  } catch (error) {
-    // Reading settings must not fail because of this; the upgrade is retried on the next read.
-    console.warn("Could not save the upgraded settings:", error);
+  } catch {
+    // Reading settings must not fail because of this (e.g. the database is busy); the next read retries.
   }
 }
 

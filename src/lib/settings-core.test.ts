@@ -24,6 +24,38 @@ describe("upgradeSettings", () => {
     });
   });
 
+  it("upgrades the oldest rows (Ollama primary, no fallbacks key, no version)", () => {
+    const oldest = {
+      provider: "ollama",
+      models: { ollama: "gemma4:12b", gemini: "gemini-flash-latest", groq: "openai/gpt-oss-120b" },
+      ollamaBaseUrl: "http://localhost:11434",
+      explanationLanguage: "es",
+      countTyposInStats: true,
+      newCardsPerSession: 7,
+    };
+    expect(upgradeSettings(oldest)).toEqual({
+      provider: "gemini",
+      models: { gemini: "gemini-flash-latest", groq: "openai/gpt-oss-120b" },
+      explanationLanguage: "es",
+      countTyposInStats: true,
+      fallbacks: ["groq"],
+      newCardsPerSession: 7,
+      version: 3,
+    });
+  });
+
+  it("keeps an empty chain saved by v1 (fallbacks: [], no version)", () => {
+    const v1 = {
+      provider: "groq",
+      models: { gemini: "gemini-flash-latest", groq: "qwen/qwen3.8-27b" },
+      explanationLanguage: "en",
+      countTyposInStats: true,
+      fallbacks: [],
+      newCardsPerSession: 0,
+    };
+    expect(upgradeSettings(v1)).toEqual({ ...v1, version: 3 });
+  });
+
   it("keeps the cards per session and the chain of a current row", () => {
     const row = { ...DEFAULT_SETTINGS, provider: "groq", fallbacks: [], newCardsPerSession: 3 };
     expect(upgradeSettings(row)).toEqual(row);

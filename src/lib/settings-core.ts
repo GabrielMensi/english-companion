@@ -1,5 +1,4 @@
 /** Settings format and its upgrade from older versions (no server-only imports, unit tested). */
-import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import { normalizeChain, upgradeChain } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, PROVIDERS } from "@/lib/ai/provider-info";
@@ -68,5 +67,17 @@ export function upgradeSettings(stored: unknown): Settings | null {
 
 /** Whether the stored row must be rewritten to hold `upgraded` (false once it's up to date). */
 export function needsRewrite(stored: unknown, upgraded: Settings): boolean {
-  return !isDeepStrictEqual(stored, upgraded);
+  return !sameJson(stored, upgraded);
+}
+
+/** Deep equality of JSON values, ignoring key order. */
+function sameJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  const ra = a as Record<string, unknown>;
+  const rb = b as Record<string, unknown>;
+  return ka.length === kb.length && ka.every((k) => Object.hasOwn(rb, k) && sameJson(ra[k], rb[k]));
 }
