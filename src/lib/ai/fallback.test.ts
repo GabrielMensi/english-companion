@@ -51,8 +51,20 @@ describe("upgradeChain", () => {
     });
   });
 
-  it("uses the default when nothing was saved", () => {
-    expect(upgradeChain({}, "gemini")).toEqual({ provider: "gemini", fallbacks: [] });
+  it("uses the default chain when nothing was saved", () => {
+    expect(upgradeChain({}, "gemini")).toEqual({ provider: "gemini", fallbacks: ["groq"] });
+  });
+
+  it("makes every other provider a fallback when the fallbacks key is missing", () => {
+    expect(upgradeChain({ provider: "groq" }, "gemini")).toEqual({ provider: "groq", fallbacks: ["gemini"] });
+    expect(upgradeChain({ provider: "ollama" }, "gemini")).toEqual({ provider: "gemini", fallbacks: ["groq"] });
+  });
+
+  it("keeps a chain the user saved without fallbacks", () => {
+    expect(upgradeChain({ provider: "gemini", fallbacks: [] }, "gemini")).toEqual({
+      provider: "gemini",
+      fallbacks: [],
+    });
   });
 });
 
