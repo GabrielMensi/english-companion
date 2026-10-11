@@ -157,8 +157,7 @@ export function sentenceAround(text: string, fragments: string[], max = MAX_SENT
 export function vocabularyCards(words: VocabularyWord[]): VocabularyCard[] {
   return words.map((w) => {
     // Prefer a sentence that actually contains the English, so the blank is meaningful.
-    const source =
-      w.contexts.find((c) => maskTerms(c.text, w.english) !== c.text) ?? w.contexts[0] ?? null;
+    const source = w.contexts.find((c) => maskTerms(c.text, w.english) !== c.text) ?? w.contexts[0] ?? null;
     const text = source ? sentenceAround(source.text, w.english) : null;
     const hint = text ? maskTerms(text, w.english) : null;
     return {

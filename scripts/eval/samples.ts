@@ -23,7 +23,10 @@ export interface Sample {
 export const SAMPLES: Sample[] = [
   {
     text: "Yesterday I have went to the park with my freinds",
-    expect: [{ fragment: "have went", fix: "I went" }, { fragment: "freinds", fix: "friends", typo: true }],
+    expect: [
+      { fragment: "have went", fix: "I went" },
+      { fragment: "freinds", fix: "friends", typo: true },
+    ],
   },
   {
     text: "Actually I am working in a proyect that depends of many things, and I want to [aprovechar] the time.",

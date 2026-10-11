@@ -40,7 +40,8 @@ export const SUGGESTED_TARGETS: PracticeTarget[] = [
     contrastWith: "past_simple",
     kind: "contrast",
     status: "suggested",
-    reason: "A classic for Spanish speakers: “I have lived here since 2020”, not “I live here since 2020” or “I lived”.",
+    reason:
+      "A classic for Spanish speakers: “I have lived here since 2020”, not “I live here since 2020” or “I lived”.",
   },
   {
     tense: "past_continuous",
@@ -131,7 +132,11 @@ function times(n: number) {
 }
 
 /** Title for a practice chat. */
-export function practiceTitle(practice: { kind: ExerciseKind | "conversation"; tense: Tense; contrastWith: Tense | null }) {
+export function practiceTitle(practice: {
+  kind: ExerciseKind | "conversation";
+  tense: Tense;
+  contrastWith: Tense | null;
+}) {
   const label = TENSE_LABELS[practice.tense];
   switch (practice.kind) {
     case "contrast":
@@ -384,7 +389,8 @@ export function exerciseReply(input: {
   // In a form drill the tense is given: what matters is how it's built, and the correction shows that.
   else if (practice.kind === "form" || check === "unknown") {
     lines.push(`${practice.kind === "use" ? "Example" : "Answer"}: ${item.answer}`);
-  } else if (check === "right_tense") lines.push(`✓ Right tense${needs ? ` (${needs})` : ""}. Suggested answer: ${item.answer}`);
+  } else if (check === "right_tense")
+    lines.push(`✓ Right tense${needs ? ` (${needs})` : ""}. Suggested answer: ${item.answer}`);
   else lines.push(`✗ This one needs the ${needs}: ${item.answer}`);
   if (item.why) lines.push(item.why);
 

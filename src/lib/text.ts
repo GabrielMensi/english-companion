@@ -6,7 +6,10 @@ export function countWords(text: string): number {
 }
 
 export function makeTitle(text: string, max = 48): string {
-  const firstLine = text.replace(/```[\s\S]*?```/g, " ").replace(/\s+/g, " ").trim();
+  const firstLine = text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (firstLine.length <= max) return firstLine || "New chat";
   const cut = firstLine.slice(0, max);
   const lastSpace = cut.lastIndexOf(" ");

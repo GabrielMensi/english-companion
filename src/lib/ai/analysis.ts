@@ -8,9 +8,7 @@ import type { InputMode, SessionMode } from "@/db/schema";
 import { CATEGORY_HINTS, ERROR_CATEGORIES, SEVERITIES, TRANSCRIBER_CATEGORIES } from "@/lib/taxonomy";
 
 export const analysisSchema = z.object({
-  correctedText: z
-    .string()
-    .describe("The learner's message with the minimum edits needed to make it correct."),
+  correctedText: z.string().describe("The learner's message with the minimum edits needed to make it correct."),
   naturalText: z
     .string()
     .nullable()
@@ -108,7 +106,11 @@ export function buildAnalysisPrompt(input: AnalysisPromptInput): string {
   const parts: string[] = [];
   if (input.mode === "conversation" && input.history.length > 0) {
     const history = input.history
-      .map((t) => [t.learner !== null && `Learner: ${t.learner}`, t.assistant && `You: ${t.assistant}`].filter(Boolean).join("\n"))
+      .map((t) =>
+        [t.learner !== null && `Learner: ${t.learner}`, t.assistant && `You: ${t.assistant}`]
+          .filter(Boolean)
+          .join("\n"),
+      )
       .join("\n\n");
     parts.push(`Conversation so far (context only, do not analyze it):\n${history}`);
   }
@@ -135,7 +137,10 @@ export function normalizeAnalysis(
     spanishPhrases: raw.spanishPhrases
       .map((p) => ({
         spanish: p.spanish.replace(/^\[|\]$/g, "").trim(),
-        english: p.english.map((e) => e.trim()).filter(Boolean).slice(0, 3),
+        english: p.english
+          .map((e) => e.trim())
+          .filter(Boolean)
+          .slice(0, 3),
         note: p.note?.trim() || null,
       }))
       // Only what the learner explicitly asked for, between [brackets]. Models also
@@ -164,14 +169,16 @@ function normalizeErrors(raw: AnalysisError[], originalText: string, inputMode: 
   const clean = (s: string) => s.trim();
   // Text the learner wrote between [brackets] is a vocabulary lookup, never a mistake.
   const lookups = lookupsOf(originalText);
-  const isLookupError = (fragment: string) => fragment.includes("[") || lookups.includes(` ${normalizeWords(fragment)} `);
+  const isLookupError = (fragment: string) =>
+    fragment.includes("[") || lookups.includes(` ${normalizeWords(fragment)} `);
 
   const seen = new Set<string>();
   return raw
     .map((e) => ({
       ...e,
       // Models often flag contractions or optional punctuation as mistakes.
-      severity: e.severity !== "typo" && isOptionalChange(e.original, e.correction) ? ("suggestion" as const) : e.severity,
+      severity:
+        e.severity !== "typo" && isOptionalChange(e.original, e.correction) ? ("suggestion" as const) : e.severity,
       original: clean(e.original),
       correction: clean(e.correction),
       subcategory: toSnakeCase(e.subcategory) || e.category,
@@ -179,7 +186,8 @@ function normalizeErrors(raw: AnalysisError[], originalText: string, inputMode: 
     }))
     .filter((e) => {
       // In dictated messages, spelling, punctuation and capitalization are the transcriber's.
-      if (inputMode === "spoken" && (e.severity === "typo" || TRANSCRIBER_CATEGORIES.includes(e.category))) return false;
+      if (inputMode === "spoken" && (e.severity === "typo" || TRANSCRIBER_CATEGORIES.includes(e.category)))
+        return false;
       // Models sometimes report "errors" where nothing changes...
       if (e.original === e.correction) return false;
       // ...or copy them from the prompt's example instead of the learner's text.

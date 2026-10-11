@@ -13,10 +13,7 @@ export function wantsTurnStream(request: Request): boolean {
  * Streams a turn as newline-delimited JSON (see {@link TurnEvent}). The analysis keeps running and
  * gets saved even if the client goes away, as it does without streaming.
  */
-export function turnStreamResponse(
-  run: (onPreview: OnPreview) => Promise<ChatMessage[]>,
-  first?: TurnEvent,
-): Response {
+export function turnStreamResponse(run: (onPreview: OnPreview) => Promise<ChatMessage[]>, first?: TurnEvent): Response {
   const encoder = new TextEncoder();
   let open = true;
 

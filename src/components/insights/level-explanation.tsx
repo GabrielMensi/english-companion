@@ -43,9 +43,7 @@ export function LevelExplanationPanel({ initial }: { initial: StoredLevelExplana
         </ul>
       )}
       <div className="flex items-center justify-between gap-2 pt-1 text-xs text-muted-foreground">
-        <span>
-          Written by {stored.modelId} · the AI explains the estimate, it doesn’t change it
-        </span>
+        <span>Written by {stored.modelId} · the AI explains the estimate, it doesn’t change it</span>
         <Button variant="ghost" size="sm" onClick={explain} disabled={loading}>
           {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
           Regenerate

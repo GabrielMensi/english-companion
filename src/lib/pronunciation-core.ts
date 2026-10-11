@@ -42,8 +42,26 @@ export interface ReadAloudResult {
 }
 
 const SMALL_NUMBERS = [
-  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
-  "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "eleven",
+  "twelve",
+  "thirteen",
+  "fourteen",
+  "fifteen",
+  "sixteen",
+  "seventeen",
+  "eighteen",
+  "nineteen",
 ];
 const TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
 
@@ -102,10 +120,45 @@ interface Phone {
 const VOWELS = new Set(["AA", "AE", "AH", "AO", "AW", "AY", "EH", "ER", "EY", "IH", "IY", "OW", "OY", "UH", "UW"]);
 
 const IPA: Record<string, string> = {
-  AA: "ɑ", AE: "æ", AH: "ʌ", AO: "ɔ", AW: "aʊ", AY: "aɪ", B: "b", CH: "tʃ", D: "d", DH: "ð", EH: "ɛ",
-  ER: "ɝ", EY: "eɪ", F: "f", G: "ɡ", HH: "h", IH: "ɪ", IY: "iː", JH: "dʒ", K: "k", L: "l", M: "m",
-  N: "n", NG: "ŋ", OW: "oʊ", OY: "ɔɪ", P: "p", R: "r", S: "s", SH: "ʃ", T: "t", TH: "θ", UH: "ʊ",
-  UW: "uː", V: "v", W: "w", Y: "j", Z: "z", ZH: "ʒ",
+  AA: "ɑ",
+  AE: "æ",
+  AH: "ʌ",
+  AO: "ɔ",
+  AW: "aʊ",
+  AY: "aɪ",
+  B: "b",
+  CH: "tʃ",
+  D: "d",
+  DH: "ð",
+  EH: "ɛ",
+  ER: "ɝ",
+  EY: "eɪ",
+  F: "f",
+  G: "ɡ",
+  HH: "h",
+  IH: "ɪ",
+  IY: "iː",
+  JH: "dʒ",
+  K: "k",
+  L: "l",
+  M: "m",
+  N: "n",
+  NG: "ŋ",
+  OW: "oʊ",
+  OY: "ɔɪ",
+  P: "p",
+  R: "r",
+  S: "s",
+  SH: "ʃ",
+  T: "t",
+  TH: "θ",
+  UH: "ʊ",
+  UW: "uː",
+  V: "v",
+  W: "w",
+  Y: "j",
+  Z: "z",
+  ZH: "ʒ",
 };
 
 function ipa(phone: Phone): string {
@@ -154,7 +207,9 @@ function phoneCost(a: string, b: string): number {
 function alignPhones(expected: Phone[], heard: Phone[]): { cost: number; ops: PhoneOp[] } {
   const n = expected.length;
   const m = heard.length;
-  const d = Array.from({ length: n + 1 }, (_, i) => Array.from({ length: m + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+  const d = Array.from({ length: n + 1 }, (_, i) =>
+    Array.from({ length: m + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+  );
   for (let i = 1; i <= n; i++) {
     for (let j = 1; j <= m; j++) {
       d[i][j] = Math.min(
@@ -187,7 +242,10 @@ function alignPhones(expected: Phone[], heard: Phone[]): { cost: number; ops: Ph
 
 /** The changed sounds, best explanation first; one category per heard word. */
 const RULES: { category: PronunciationCategory; test: (op: PhoneOp) => boolean }[] = [
-  { category: "th_sounds", test: (op) => op.kind !== "ins" && op.kind !== "same" && (op.e.p === "TH" || op.e.p === "DH") },
+  {
+    category: "th_sounds",
+    test: (op) => op.kind !== "ins" && op.kind !== "same" && (op.e.p === "TH" || op.e.p === "DH"),
+  },
   {
     category: "b_v",
     test: (op) => op.kind === "sub" && ((op.e.p === "V" && op.h.p === "B") || (op.e.p === "B" && op.h.p === "V")),
@@ -274,12 +332,18 @@ export function classifyMismatch(
 
 // ---- Words ----------------------------------------------------------------
 
-type WordOp = { kind: "match"; r: number; h: number } | { kind: "sub"; r: number; h: number } | { kind: "del"; r: number } | { kind: "ins"; h: number };
+type WordOp =
+  | { kind: "match"; r: number; h: number }
+  | { kind: "sub"; r: number; h: number }
+  | { kind: "del"; r: number }
+  | { kind: "ins"; h: number };
 
 function alignWords(ref: string[], hyp: string[], same: (a: string, b: string) => boolean): WordOp[] {
   const n = ref.length;
   const m = hyp.length;
-  const d = Array.from({ length: n + 1 }, (_, i) => Array.from({ length: m + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)));
+  const d = Array.from({ length: n + 1 }, (_, i) =>
+    Array.from({ length: m + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+  );
   const eq = Array.from({ length: n }, (_, i) => hyp.map((h) => same(ref[i], h)));
   for (let i = 1; i <= n; i++) {
     for (let j = 1; j <= m; j++) {
@@ -311,7 +375,9 @@ const ADDED_E_WORDS = new Set(["a", "e", "eh", "es", "is", "uh"]);
 /** Compares the sentence the learner read with what speech-to-text heard. */
 export function scoreReading(expectedText: string, transcript: string, lookup: Lookup): ReadAloudResult {
   const pieces = tokenize(expectedText);
-  const ref: { word: string; token: number }[] = pieces.flatMap((piece, token) => piece.words.map((word) => ({ word, token })));
+  const ref: { word: string; token: number }[] = pieces.flatMap((piece, token) =>
+    piece.words.map((word) => ({ word, token })),
+  );
   const hyp = speechWords(transcript);
 
   const homophones = (a: string, b: string) => {
@@ -361,7 +427,13 @@ export function scoreReading(expectedText: string, transcript: string, lookup: L
     if (refs.length === 0) {
       // Extra words. Before an s + consonant word, they are usually the added e ("es student").
       const next = ops[k];
-      if (next && "r" in next && heard.length === 1 && ADDED_E_WORDS.has(heard[0]) && /^s[^aeiouy]/.test(ref[next.r].word)) {
+      if (
+        next &&
+        "r" in next &&
+        heard.length === 1 &&
+        ADDED_E_WORDS.has(heard[0]) &&
+        /^s[^aeiouy]/.test(ref[next.r].word)
+      ) {
         const index = issues.length;
         issues.push({
           expected: ref[next.r].word,

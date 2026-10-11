@@ -87,8 +87,7 @@ export function StudyPlan({
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        Written{" "}
-        {/* Server and browser can be in different time zones. */}
+        Written {/* Server and browser can be in different time zones. */}
         <time suppressHydrationWarning>
           {new Date(stored.generatedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
         </time>{" "}

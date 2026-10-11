@@ -7,7 +7,10 @@ import type { FilterOption, FlashcardsOverview } from "@/lib/flashcards";
 import { formatDelay } from "@/lib/srs";
 import { cn } from "@/lib/utils";
 
-function studyHref(deck: "vocabulary" | "mistakes" | "exercises" | "pronunciation", filter: MistakeFilter = {}): string {
+function studyHref(
+  deck: "vocabulary" | "mistakes" | "exercises" | "pronunciation",
+  filter: MistakeFilter = {},
+): string {
   const params = new URLSearchParams({ deck });
   for (const [key, value] of Object.entries(filter)) if (value) params.set(key, value);
   return `/flashcards?${params}`;
@@ -69,10 +72,7 @@ export function DeckOverview({ overview }: { overview: FlashcardsOverview }) {
       )}
 
       {overview.categories.length > 0 && (
-        <Section
-          title="Study one type of mistake"
-          description="Types appear once a mistake has been classified."
-        >
+        <Section title="Study one type of mistake" description="Types appear once a mistake has been classified.">
           <ul className="divide-y">
             {overview.categories.map((c) => (
               <li key={c.label} className="space-y-2 py-3 first:pt-0 last:pb-0">

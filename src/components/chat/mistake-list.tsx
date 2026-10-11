@@ -74,7 +74,12 @@ function MistakeGroup({
         ))}
       </ul>
       {hidden > 0 && (
-        <Button variant="ghost" size="xs" className="self-start text-muted-foreground" onClick={() => setExpanded(true)}>
+        <Button
+          variant="ghost"
+          size="xs"
+          className="self-start text-muted-foreground"
+          onClick={() => setExpanded(true)}
+        >
           Show {hidden} more
         </Button>
       )}

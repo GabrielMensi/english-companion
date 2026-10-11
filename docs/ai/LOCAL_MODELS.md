@@ -40,12 +40,12 @@ Ollama corría en Windows (donde está la GPU, una RX 9070 XT de 16 GB, con Vulk
 
 `pnpm eval:models`, septiembre 2026, 16 oraciones con errores típicos de hispanohablantes, GPU de 16 GB:
 
-| Modelo | Puntaje | Tiempo promedio | Notas |
-|---|---|---|---|
-| `gemma4:12b` (7,6 GB) | 93 % | 9 s | El mejor local; detecta falsos amigos ("actually") y errores de significado. |
-| `qwen3:14b` | 91 % | 7 s | Bueno, pero se le escapan errores de significado. |
-| `qwen2.5:14b-instruct` | 89 % | 8 s | |
-| `gpt-oss:20b` | 84 % | 34 s | Razona siempre: demasiado lento para chatear. |
+| Modelo                 | Puntaje | Tiempo promedio | Notas                                                                        |
+| ---------------------- | ------- | --------------- | ---------------------------------------------------------------------------- |
+| `gemma4:12b` (7,6 GB)  | 93 %    | 9 s             | El mejor local; detecta falsos amigos ("actually") y errores de significado. |
+| `qwen3:14b`            | 91 %    | 7 s             | Bueno, pero se le escapan errores de significado.                            |
+| `qwen2.5:14b-instruct` | 89 %    | 8 s             |                                                                              |
+| `gpt-oss:20b`          | 84 %    | 34 s            | Razona siempre: demasiado lento para chatear.                                |
 
 Como referencia, en la misma corrida `gemini-flash-lite-latest` sacó 96 % en 2 s y `qwen/qwen3.8-27b` en Groq 93 % en ~2 s. Los resultados completos siguen en `.eval-results/`.
 

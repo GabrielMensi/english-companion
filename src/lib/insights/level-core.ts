@@ -176,9 +176,30 @@ const MIN_TENSE_USES = 2;
 const TOP_TENSES = 4;
 
 const SUBORDINATORS = new Set([
-  "because", "although", "though", "while", "whereas", "unless", "since", "if", "when", "whenever",
-  "which", "who", "whom", "whose", "where", "that", "until", "before", "after", "once", "whether",
-  "however", "therefore", "otherwise",
+  "because",
+  "although",
+  "though",
+  "while",
+  "whereas",
+  "unless",
+  "since",
+  "if",
+  "when",
+  "whenever",
+  "which",
+  "who",
+  "whom",
+  "whose",
+  "where",
+  "that",
+  "until",
+  "before",
+  "after",
+  "once",
+  "whether",
+  "however",
+  "therefore",
+  "otherwise",
 ]);
 
 export function estimateLevel(input: {
@@ -207,10 +228,7 @@ export function estimateLevel(input: {
   }
 
   const signals = signalsFrom(measureLevel(input.messages, input.corrections, input.countTypos));
-  const score = round(
-    sum(signals.map((s) => s.score * s.weight)) / sum(signals.map((s) => s.weight)),
-    2,
-  );
+  const score = round(sum(signals.map((s) => s.score * s.weight)) / sum(signals.map((s) => s.weight)), 2);
   const confidence: Confidence = words >= HIGH_WORDS ? "high" : words >= MEDIUM_WORDS ? "medium" : "low";
   // About the score error measured by `pnpm eval:level` at 300, 1,000 and 3,000 words (0.85, 0.6, 0.45 levels)
   // with human-counted mistakes, plus a margin for the AI counting them and for chat not being an essay.
@@ -337,7 +355,10 @@ export function measureLevel(
     }
   }
   const tensesUsed = TENSES.filter((t) => (totals.get(t) ?? 0) >= MIN_TENSE_USES);
-  const top = tensesUsed.map((t) => TENSE_LEVELS[t]).sort((a, b) => b - a).slice(0, TOP_TENSES);
+  const top = tensesUsed
+    .map((t) => TENSE_LEVELS[t])
+    .sort((a, b) => b - a)
+    .slice(0, TOP_TENSES);
   // Fewer than TOP_TENSES tenses in use counts the missing ones as A1.
   while (top.length < TOP_TENSES) top.push(1);
 
@@ -387,7 +408,9 @@ function signalsFrom(m: LevelMeasures): LevelSignal[] {
     signal("accuracy", "Accuracy", scoreDecreasing(m.errorRate, ANCHORS.errorRate), {
       value:
         `${round(m.errorRate, 1)} mistakes per 100 words` +
-        (m.typedShare < 1 ? " (dictated ones count double: half of the mistake types can't be checked when you speak)" : ""),
+        (m.typedShare < 1
+          ? " (dictated ones count double: half of the mistake types can't be checked when you speak)"
+          : ""),
       basis:
         "Fewer mistakes per 100 words means a higher level: about 7.4 is A2, 5.7 is B1, 4 is B2, 2.6 is C1, 1.5 is C2. The strongest signal in graded learner essays.",
     }),
@@ -404,7 +427,9 @@ function signalsFrom(m: LevelMeasures): LevelSignal[] {
     signal(
       "complexity",
       "Sentence complexity",
-      (scoreIncreasing(m.sentenceLength, ANCHORS.sentenceLength) + scoreIncreasing(m.subordination, ANCHORS.subordination)) / 2,
+      (scoreIncreasing(m.sentenceLength, ANCHORS.sentenceLength) +
+        scoreIncreasing(m.subordination, ANCHORS.subordination)) /
+        2,
       {
         value: dictated
           ? "Not measured: every message was dictated"
@@ -488,7 +513,10 @@ export function scoreIncreasing(value: number, anchors: readonly number[]): numb
 
 /** Score from 1 to 6 for a value that shrinks as the level grows (mistakes). */
 export function scoreDecreasing(value: number, anchors: readonly number[]): number {
-  return scoreIncreasing(-value, anchors.map((a) => -a));
+  return scoreIncreasing(
+    -value,
+    anchors.map((a) => -a),
+  );
 }
 
 export function levelOf(score: number): CefrLevel {

@@ -71,7 +71,12 @@ export function ProviderCard({
       />
 
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={onTest} disabled={!status.configured || test?.status === "testing"}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onTest}
+          disabled={!status.configured || test?.status === "testing"}
+        >
           {test?.status === "testing" ? <Loader2 className="animate-spin" /> : <PlugZap />}
           Test
         </Button>
@@ -140,7 +145,9 @@ function ModelField({
       .then((data: { models: string[]; error?: string }) => {
         if (!cancelled) setModels({ key: credentialsVersion, list: data.models, error: data.error });
       })
-      .catch(() => !cancelled && setModels({ key: credentialsVersion, list: [], error: "Couldn't get the model list" }));
+      .catch(
+        () => !cancelled && setModels({ key: credentialsVersion, list: [], error: "Couldn't get the model list" }),
+      );
     return () => {
       cancelled = true;
     };
@@ -192,7 +199,9 @@ function ModelField({
         />
       )}
       {!disabled && !loaded && <p className="text-sm text-muted-foreground">Looking for available models…</p>}
-      {loaded?.error && <p className="text-sm text-muted-foreground">{loaded.error}. You can type the name manually.</p>}
+      {loaded?.error && (
+        <p className="text-sm text-muted-foreground">{loaded.error}. You can type the name manually.</p>
+      )}
       <p className="text-sm text-muted-foreground">
         {[facts ?? "Not measured with pnpm eval:models yet", info?.note].filter(Boolean).join(". ")}
       </p>

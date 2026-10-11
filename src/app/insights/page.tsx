@@ -24,46 +24,49 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
         description="Your report, a study plan for the week and an estimate of your level."
       />
 
-        <Section
-          title="Report"
-          description="What went well and what didn’t, compared with the period before"
-          action={
-            <nav className="flex rounded-lg border p-0.5" aria-label="Period">
-              {REPORT_RANGES.map((key) => (
-                <Link
-                  key={key}
-                  href={`/insights?range=${key}`}
-                  aria-current={key === range ? "true" : undefined}
-                  className={cn(
-                    "rounded-md px-3 py-1 text-sm text-muted-foreground hover:text-foreground",
-                    key === range && "bg-muted font-medium text-foreground",
-                  )}
-                >
-                  {RANGE_LABELS[key]}
-                </Link>
-              ))}
-            </nav>
-          }
-        >
-          {digest.totals.messages === 0 ? (
-            <div className="flex flex-col items-center gap-4 py-8 text-center">
-              <p className="text-muted-foreground">No messages in this period yet.</p>
-              <NewChatButton label="Write something" />
-            </div>
-          ) : (
-            <ReportView digest={digest} />
-          )}
-        </Section>
-
-        {digest.totals.messages > 0 && (
-          <Section title="Study plan" description="What to practice next, based on the report">
-            <StudyPlan key={range} digest={digest} range={range} initial={getStoredPlan()} />
-          </Section>
+      <Section
+        title="Report"
+        description="What went well and what didn’t, compared with the period before"
+        action={
+          <nav className="flex rounded-lg border p-0.5" aria-label="Period">
+            {REPORT_RANGES.map((key) => (
+              <Link
+                key={key}
+                href={`/insights?range=${key}`}
+                aria-current={key === range ? "true" : undefined}
+                className={cn(
+                  "rounded-md px-3 py-1 text-sm text-muted-foreground hover:text-foreground",
+                  key === range && "bg-muted font-medium text-foreground",
+                )}
+              >
+                {RANGE_LABELS[key]}
+              </Link>
+            ))}
+          </nav>
+        }
+      >
+        {digest.totals.messages === 0 ? (
+          <div className="flex flex-col items-center gap-4 py-8 text-center">
+            <p className="text-muted-foreground">No messages in this period yet.</p>
+            <NewChatButton label="Write something" />
+          </div>
+        ) : (
+          <ReportView digest={digest} />
         )}
+      </Section>
 
-        <Section title="Estimated level (CEFR)" description="A rough estimate from your mistakes and the vocabulary you use">
-          <LevelCard estimate={level.estimate} evolution={level.evolution} explanation={level.explanation} />
+      {digest.totals.messages > 0 && (
+        <Section title="Study plan" description="What to practice next, based on the report">
+          <StudyPlan key={range} digest={digest} range={range} initial={getStoredPlan()} />
         </Section>
+      )}
+
+      <Section
+        title="Estimated level (CEFR)"
+        description="A rough estimate from your mistakes and the vocabulary you use"
+      >
+        <LevelCard estimate={level.estimate} evolution={level.evolution} explanation={level.explanation} />
+      </Section>
     </Page>
   );
 }

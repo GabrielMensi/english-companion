@@ -125,7 +125,12 @@ function speakBrowser(text: string, id: string, prefs: SpeechPrefs, current: num
 }
 
 function splitSentences(text: string) {
-  return text.match(/[^.!?\n]+(?:[.!?]+|\n|$)/g)?.map((s) => s.trim()).filter(Boolean) ?? [text];
+  return (
+    text
+      .match(/[^.!?\n]+(?:[.!?]+|\n|$)/g)
+      ?.map((s) => s.trim())
+      .filter(Boolean) ?? [text]
+  );
 }
 
 let audioContext: AudioContext | null = null;

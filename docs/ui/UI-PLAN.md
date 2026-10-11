@@ -18,6 +18,7 @@ La app dejó de ser solo un chat y la jerarquía se volvió difícil de leer. Es
 Es un tutor de escritura: tu inglés es el texto que se estudia, y la app son las marcas alrededor.
 
 **Tipografía, dos voces**
+
 - **Tu inglés** (mensajes, correcciones, versión nativa, respuestas, más adelante flashcards y ejercicios): Newsreader, serif de lectura, 17px con interlineado 1.6 (`font-serif text-reading`).
 - **La app** (navegación, etiquetas, botones, números): Hanken Grotesk.
 - Escala 1.25: título de página 25px (`text-title`), sección 20px (`text-section`), lectura 17px, UI 14–16px.
@@ -25,14 +26,14 @@ Es un tutor de escritura: tu inglés es el texto que se estudia, y la app son la
 
 **Color, dos sistemas separados**
 
-| Rol | Claro | Oscuro | Uso |
-|---|---|---|---|
-| Write | `#2f5bd3` | `#7c9bf0` | chats, composer |
-| Review | `#0f7c72` | `#4fc2b5` | Dashboard, Insights |
-| Train | `#7046c9` | `#a88af0` | Practice, Flashcards, Vocabulary |
-| Lo que estaba mal | `#c2362b` | `#f07a6e` | texto tachado, tendencias que empeoran |
-| La corrección | `#18794e` | `#5fcf98` | texto corregido, tendencias que mejoran |
-| Gravedad | ámbar → naranja → rojo | | badges, gráficos |
+| Rol               | Claro                  | Oscuro    | Uso                                     |
+| ----------------- | ---------------------- | --------- | --------------------------------------- |
+| Write             | `#2f5bd3`              | `#7c9bf0` | chats, composer                         |
+| Review            | `#0f7c72`              | `#4fc2b5` | Dashboard, Insights                     |
+| Train             | `#7046c9`              | `#a88af0` | Practice, Flashcards, Vocabulary        |
+| Lo que estaba mal | `#c2362b`              | `#f07a6e` | texto tachado, tendencias que empeoran  |
+| La corrección     | `#18794e`              | `#5fcf98` | texto corregido, tendencias que mejoran |
+| Gravedad          | ámbar → naranja → rojo |           | badges, gráficos                        |
 
 - Los **colores de área** solo indican dónde estás: la marca junto al título, los botones primarios de la página y (fase 2) los íconos de navegación. Nunca codifican datos. Se aplican con `<Page area="…">` (`data-area` redefine `--primary`).
 - Los **colores de marca** son solo para datos. Los estados (`StatusBadge`) usan la misma rampa que la gravedad: rojo es un problema, ámbar es inestable, verde está bien, y un contorno punteado es opcional o informativo (sugerencias, "rarely used").
@@ -44,18 +45,19 @@ Es un tutor de escritura: tu inglés es el texto que se estudia, y la app son la
 
 Estado (2026-10-05): las seis fases están hechas (#48, #49, #50, #55, #59, #63). Pendiente en el backlog: el reporte de Insights todavía arma detalles con `A · B · C`.
 
-| # | Fase | Issue |
-|---|---|---|
-| 1 | Tokens, fuentes, escala; `Page` / `PageHeader` / `Section` compartidos; `StatusBadge`; colores semánticos en vez de la paleta de Tailwind; sin mayúsculas ni `→` | #48 |
-| 2 | Sidebar agrupada (Today, Write con los chats, Review, Train; Settings abajo), ícono por tipo de chat, badge de tarjetas pendientes | #49 |
-| 3 | Tarjeta de corrección: marcas en línea con números de referencia, versión nativa arriba, errores agrupados por categoría y ordenados por gravedad, typos y sugerencias plegados, nota del modelo en un popover, Correction/Conversation como control segmentado | #50 |
-| 4 | Hub "Today" en lugar de la home: qué hacer hoy, seguir el último chat, tarjetas pendientes, práctica sugerida | #55 |
-| 5 | Review y Train: titular en frase en vez de tiles, "Practice this" en cada área, detalles con menos peso; jerarquía sección → ítem en Practice y Flashcards | #59 |
-| 6 | Calidad: foco visible, `prefers-reduced-motion`, capturas antes/después | #63 |
+| #   | Fase                                                                                                                                                                                                                                                            | Issue |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| 1   | Tokens, fuentes, escala; `Page` / `PageHeader` / `Section` compartidos; `StatusBadge`; colores semánticos en vez de la paleta de Tailwind; sin mayúsculas ni `→`                                                                                                | #48   |
+| 2   | Sidebar agrupada (Today, Write con los chats, Review, Train; Settings abajo), ícono por tipo de chat, badge de tarjetas pendientes                                                                                                                              | #49   |
+| 3   | Tarjeta de corrección: marcas en línea con números de referencia, versión nativa arriba, errores agrupados por categoría y ordenados por gravedad, typos y sugerencias plegados, nota del modelo en un popover, Correction/Conversation como control segmentado | #50   |
+| 4   | Hub "Today" en lugar de la home: qué hacer hoy, seguir el último chat, tarjetas pendientes, práctica sugerida                                                                                                                                                   | #55   |
+| 5   | Review y Train: titular en frase en vez de tiles, "Practice this" en cada área, detalles con menos peso; jerarquía sección → ítem en Practice y Flashcards                                                                                                      | #59   |
+| 6   | Calidad: foco visible, `prefers-reduced-motion`, capturas antes/después                                                                                                                                                                                         | #63   |
 
 ### Bocetos
 
 Sidebar (fase 2):
+
 ```
 English Companion          ◐  ⇤
 [ + New chat ]
@@ -73,6 +75,7 @@ Train
 ```
 
 Tarjeta de corrección (fase 3):
+
 ```
  The app is growing¹ and it's no longer just a chat app…   ← serif, marcas en línea
  How a native would say it                          🔊     ← serif itálica, arriba

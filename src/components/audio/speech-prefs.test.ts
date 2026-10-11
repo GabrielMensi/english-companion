@@ -30,9 +30,9 @@ describe("parseSpeechPrefs", () => {
   });
 
   it("replaces invalid values with the defaults", () => {
-    expect(parseSpeechPrefs(JSON.stringify({ engine: "gemini", kokoroVoice: "zz_nobody", kokoroDevice: 1, rate: 9 }))).toEqual(
-      DEFAULT_SPEECH_PREFS,
-    );
+    expect(
+      parseSpeechPrefs(JSON.stringify({ engine: "gemini", kokoroVoice: "zz_nobody", kokoroDevice: 1, rate: 9 })),
+    ).toEqual(DEFAULT_SPEECH_PREFS);
     expect(parseSpeechPrefs("{not json")).toEqual(DEFAULT_SPEECH_PREFS);
     expect(parseSpeechPrefs("[]")).toEqual(DEFAULT_SPEECH_PREFS);
   });

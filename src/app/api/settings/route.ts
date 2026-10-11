@@ -17,8 +17,7 @@ export async function PATCH(request: Request) {
   const patch = settingsSchema.partial().safeParse(await readJson(request));
   if (!patch.success) return Response.json({ error: "Invalid settings" }, { status: 400 });
   const current = getSettings();
-  const chain =
-    patch.data.provider && !patch.data.fallbacks ? setPrimary(current, patch.data.provider) : {};
+  const chain = patch.data.provider && !patch.data.fallbacks ? setPrimary(current, patch.data.provider) : {};
   const merged = settingsSchema.safeParse({ ...current, ...patch.data, ...chain });
   if (!merged.success) return Response.json({ error: "Invalid settings" }, { status: 400 });
   const settings = saveSettings(merged.data);

@@ -12,7 +12,9 @@ import {
 describe("readableSentences", () => {
   it("keeps plain sentences of a readable length", () => {
     expect(
-      readableSentences("I went to the store yesterday. Hi! It cost 30 dollars. We use `pnpm dev` every day.\nShe has lived here for years?"),
+      readableSentences(
+        "I went to the store yesterday. Hi! It cost 30 dollars. We use `pnpm dev` every day.\nShe has lived here for years?",
+      ),
     ).toEqual(["I went to the store yesterday.", "She has lived here for years?"]);
   });
 
@@ -94,10 +96,13 @@ describe("pronunciationProgress", () => {
 
 describe("soundOrder / soundItems", () => {
   it("puts the weakest sounds first and leaves out other", () => {
-    const summary = summarizePronunciation([], [
-      { category: "other", expected: "a", heard: "b" },
-      { category: "b_v", expected: "vote", heard: "boat" },
-    ]);
+    const summary = summarizePronunciation(
+      [],
+      [
+        { category: "other", expected: "a", heard: "b" },
+        { category: "b_v", expected: "vote", heard: "boat" },
+      ],
+    );
     const order = soundOrder(summary);
     expect(order[0]).toBe("b_v");
     expect(order).not.toContain("other");

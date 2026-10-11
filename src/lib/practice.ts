@@ -25,9 +25,7 @@ const practiceSchema = z.discriminatedUnion("kind", [
     kind: z.enum(EXERCISE_KINDS),
     tense,
     contrastWith: tense.nullable(),
-    items: z.array(
-      z.object({ sentence: z.string(), answer: z.string(), why: z.string(), tenses: z.array(tense) }),
-    ),
+    items: z.array(z.object({ sentence: z.string(), answer: z.string(), why: z.string(), tenses: z.array(tense) })),
   }),
   // Exercises for one of the weakest error categories (src/lib/category-practice.ts).
   z.object({
@@ -45,7 +43,11 @@ export type Practice = z.infer<typeof practiceSchema>;
 const keyOf = (sessionId: string) => `practice:${sessionId}`;
 
 export function getPractice(sessionId: string): Practice | null {
-  const row = db.select().from(schema.settings).where(eq(schema.settings.key, keyOf(sessionId))).get();
+  const row = db
+    .select()
+    .from(schema.settings)
+    .where(eq(schema.settings.key, keyOf(sessionId)))
+    .get();
   if (!row) return null;
   const parsed = practiceSchema.safeParse(row.value);
   return parsed.success ? parsed.data : null;
@@ -56,7 +58,11 @@ export function getPractice(sessionId: string): Practice | null {
  * sessions (exercises or a guided conversation), and topic conversations with their topic.
  */
 export function chatLabels(): Map<string, { practice: boolean; topic: string | null }> {
-  const rows = db.select().from(schema.settings).where(like(schema.settings.key, keyOf("%"))).all();
+  const rows = db
+    .select()
+    .from(schema.settings)
+    .where(like(schema.settings.key, keyOf("%")))
+    .all();
   const labels = new Map<string, { practice: boolean; topic: string | null }>();
   for (const row of rows) {
     const parsed = practiceSchema.safeParse(row.value);
@@ -78,7 +84,9 @@ export function savePractice(sessionId: string, practice: Practice) {
 }
 
 export function deletePractice(sessionId: string) {
-  db.delete(schema.settings).where(eq(schema.settings.key, keyOf(sessionId))).run();
+  db.delete(schema.settings)
+    .where(eq(schema.settings.key, keyOf(sessionId)))
+    .run();
 }
 
 /** Extra instruction for the conversation reply: follow-up questions that need the practiced tense, or stay on the topic. */
@@ -119,7 +127,9 @@ export interface ExerciseTurn {
 export type SetPractice = Extract<Practice, { kind: "category" | "contrast" | "form" }>;
 
 export function isSetPractice(practice: Practice | null): practice is SetPractice {
-  return practice !== null && (practice.kind === "category" || practice.kind === "contrast" || practice.kind === "form");
+  return (
+    practice !== null && (practice.kind === "category" || practice.kind === "contrast" || practice.kind === "form")
+  );
 }
 
 /** The learner's earlier analyzed messages in the chat, oldest first. */

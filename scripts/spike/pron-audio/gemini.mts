@@ -54,7 +54,9 @@ const feedbackSchema = z.object({
 
 const probeSchema = z.object({
   stressedSyllable: z.number().describe("1-based index of the syllable the speaker stressed"),
-  reducedVowels: z.boolean().describe("true if the unstressed vowels were reduced to schwa, false if pronounced as full vowels"),
+  reducedVowels: z
+    .boolean()
+    .describe("true if the unstressed vowels were reduced to schwa, false if pronounced as full vowels"),
   heard: z.string().describe("How the word sounded, e.g. in IPA or respelling"),
 });
 
@@ -72,7 +74,9 @@ Listen only to the word "${clip.word}" (syllables: ${clip.syllables!.join("-")})
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const clips = CLIPS.filter((c) => (mode === "probe" ? c.word && c.word !== "to" : true)).filter((c) => !only || only.split(",").some((prefix) => c.id.startsWith(prefix)));
+const clips = CLIPS.filter((c) => (mode === "probe" ? c.word && c.word !== "to" : true)).filter(
+  (c) => !only || only.split(",").some((prefix) => c.id.startsWith(prefix)),
+);
 const summary: Record<string, string | number>[] = [];
 const details: unknown[] = [];
 const outDir = path.resolve(".eval-results");
@@ -114,7 +118,15 @@ for (const modelId of models) {
       });
       times.push(Date.now() - started);
       results.push({ clip, output: result.output });
-      details.push({ modelId, mode, voice, clip: clip.id, variant: clip.variant, output: result.output, usage: result.usage });
+      details.push({
+        modelId,
+        mode,
+        voice,
+        clip: clip.id,
+        variant: clip.variant,
+        output: result.output,
+        usage: result.usage,
+      });
       console.log(`  ${clip.id.padEnd(22)} ${JSON.stringify(result.output).slice(0, 160)}`);
     } catch (error) {
       failures++;
@@ -153,14 +165,19 @@ for (const modelId of models) {
     };
     const correct = feedback.filter((r) => r.clip.variant === "ok");
     const accent = feedback.filter((r) => r.clip.variant === "accent");
-    const accentRecall = accent.map((r) => r.clip.expected.filter((c) => r.output.issues.some((i) => i.category === c)).length);
-    const avgScore = (rs: typeof feedback) => +(rs.reduce((a, r) => a + r.output.accentScore, 0) / (rs.length || 1)).toFixed(1);
+    const accentRecall = accent.map(
+      (r) => r.clip.expected.filter((c) => r.output.issues.some((i) => i.category === c)).length,
+    );
+    const avgScore = (rs: typeof feedback) =>
+      +(rs.reduce((a, r) => a + r.output.accentScore, 0) / (rs.length || 1)).toFixed(1);
     summary.push({
       model: modelId,
       stressFound: found("stress"),
       schwaFound: found("schwa"),
       correctWithIssueOnWord: `${correct.filter((r) => r.clip.word && onWord(r).length > 0).length}/${correct.filter((r) => r.clip.word).length}`,
-      issuesPerCorrectClip: +(correct.reduce((a, r) => a + r.output.issues.length, 0) / (correct.length || 1)).toFixed(1),
+      issuesPerCorrectClip: +(correct.reduce((a, r) => a + r.output.issues.length, 0) / (correct.length || 1)).toFixed(
+        1,
+      ),
       accentCategoriesFound: `${accentRecall.reduce((a, b) => a + b, 0)}/${accent.reduce((a, r) => a + r.clip.expected.length, 0)}`,
       scoreCorrect: avgScore(correct),
       scoreWrong: avgScore(feedback.filter((r) => r.clip.variant !== "ok")),

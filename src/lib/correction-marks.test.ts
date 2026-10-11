@@ -30,12 +30,20 @@ describe("markDiff", () => {
       correction("a", "diferent", "different"),
       correction("c", "want make", "want to make", "moderate", "verb_patterns"),
     ]);
-    expect(result.numbers).toEqual(new Map([["a", 1], ["c", 2], ["b", 3]]));
-    expect(rendered(from, to, [
-      correction("b", "easly", "easily"),
-      correction("a", "diferent", "different"),
-      correction("c", "want make", "want to make"),
-    ])).toBe("It is very -[diferent]+[different]^1 and I want +[to ]^2make it -[easly]+[easily]^3.");
+    expect(result.numbers).toEqual(
+      new Map([
+        ["a", 1],
+        ["c", 2],
+        ["b", 3],
+      ]),
+    );
+    expect(
+      rendered(from, to, [
+        correction("b", "easly", "easily"),
+        correction("a", "diferent", "different"),
+        correction("c", "want make", "want to make"),
+      ]),
+    ).toBe("It is very -[diferent]+[different]^1 and I want +[to ]^2make it -[easly]+[easily]^3.");
   });
 
   it("anchors a correction whose original includes context around the change", () => {
@@ -53,7 +61,12 @@ describe("markDiff", () => {
       correction("a", "diferent", "different"),
       correction("b", "diferent", "different"),
     ]);
-    expect(result.numbers).toEqual(new Map([["a", 1], ["b", 2]]));
+    expect(result.numbers).toEqual(
+      new Map([
+        ["a", 1],
+        ["b", 2],
+      ]),
+    );
   });
 
   it("falls back to the corrected text and ignores corrections it can't find", () => {

@@ -98,7 +98,8 @@ export function summarizePronunciation(attempts: AttemptRow[], issues: IssueRow[
     })
     .sort(
       (a, b) =>
-        b.count - a.count || PRONUNCIATION_CATEGORIES.indexOf(a.category) - PRONUNCIATION_CATEGORIES.indexOf(b.category),
+        b.count - a.count ||
+        PRONUNCIATION_CATEGORIES.indexOf(a.category) - PRONUNCIATION_CATEGORIES.indexOf(b.category),
     );
 
   return { attempts: attempts.length, words, accuracy: words > 0 ? correct / words : null, categories };
@@ -136,7 +137,13 @@ export function pronunciationProgress(
   if (comparable) {
     for (const c of previous.categories) {
       if (categories.some((x) => x.category === c.category)) continue;
-      categories.push({ category: c.category, count: 0, examples: [], per100Words: 0, trend: -previousRate(c.category) });
+      categories.push({
+        category: c.category,
+        count: 0,
+        examples: [],
+        per100Words: 0,
+        trend: -previousRate(c.category),
+      });
     }
   }
 
@@ -186,10 +193,7 @@ export interface MissedReadingRow {
  * their attempt (so an attempt with three issues gives three rows).
  */
 export function pronunciationCards(rows: MissedReadingRow[]): PronunciationCard[] {
-  const cards = new Map<
-    string,
-    { card: PronunciationCard; attempts: Set<string>; counts: Map<string, number> }
-  >();
+  const cards = new Map<string, { card: PronunciationCard; attempts: Set<string>; counts: Map<string, number> }>();
   for (const row of rows) {
     const key = row.text.replace(/\s+/g, " ").trim();
     let entry = cards.get(key);

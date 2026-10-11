@@ -2,7 +2,7 @@
 
 > Area: Platform · Kind: Chore · Status: Done · Board: #77
 
-Revisión del código entero (creció feature por feature) antes de *Deploy the app*, y las reglas que tiene que mantener. Hecha sobre la rama de #72 (sin Ollama), en octubre de 2026: ~200 archivos en `src/`, 22 rutas de API, 380 tests.
+Revisión del código entero (creció feature por feature) antes de _Deploy the app_, y las reglas que tiene que mantener. Hecha sobre la rama de #72 (sin Ollama), en octubre de 2026: ~200 archivos en `src/`, 22 rutas de API, 380 tests.
 
 **Resumen**: el código está sano. TypeScript strict sin escapes (ningún `any`, `@ts-ignore` ni `eslint-disable`), la frontera `server-only` / lógica pura se respeta en todos los módulos que tocan la base, las llamadas a la IA pasan todas por `providers.ts`, las rutas validan el body con zod y devuelven errores con la misma forma (`{ error }` + `errorToMessage`), y `pnpm build` pasa sin warnings. Lo que falta es tooling (formato, reglas más estrictas, código muerto) y algunas cosas de producción (logs del servidor, validar la configuración al arrancar).
 
@@ -17,7 +17,7 @@ Revisión del código entero (creció feature por feature) antes de *Deploy the 
 - **knip** (`knip.json`, `pnpm knip`): archivos, exports y dependencias sin usar. Toma los scripts de `scripts/` como puntos de entrada (son CLIs sueltos, no los importa nadie). Ignora `src/components/ui/` (componentes de shadcn: se copian enteros y exportan de más a propósito) y los exports que se usan dentro del mismo archivo. Hoy da limpio.
 - **Código muerto** (lo encontró knip): `card`, `scroll-area`, `separator` y `skeleton` de shadcn, que no usaba nadie, y `getPracticeTargets` (lo reemplazó `getPracticeSuggestions`).
 - **Duplicado**: `escapeRegExp` estaba copiado en tres archivos; ahora vive en `src/lib/text.ts`.
-- **Error boundaries**: no había ninguno, así que un error al renderizar dejaba la pantalla en blanco. `src/app/error.tsx` muestra "Something went wrong" con *Try again* y deja la barra lateral para ir a otra página; `src/app/global-error.tsx` cubre un error del layout raíz (por ejemplo, que no abra la base) con una página simple, sin estilos de la app.
+- **Error boundaries**: no había ninguno, así que un error al renderizar dejaba la pantalla en blanco. `src/app/error.tsx` muestra "Something went wrong" con _Try again_ y deja la barra lateral para ir a otra página; `src/app/global-error.tsx` cubre un error del layout raíz (por ejemplo, que no abra la base) con una página simple, sin estilos de la app.
 - CLAUDE.md: los warnings conocidos no deben crecer, `pnpm knip` tiene que quedar limpio, y Prettier solo sobre archivos nuevos hasta el reformateo.
 
 ## Hallazgos que quedan
@@ -57,13 +57,13 @@ Arreglo: `void` donde es intencional y `.catch` con un toast donde el usuario de
 
 En el tablero como Backlog (Area Platform salvo que se diga otra cosa):
 
-| Item | Priority | Size | Kind |
-|---|---|---|---|
-| Reformatear todo con Prettier en un commit (cuando no haya ramas abiertas) y agregar `format:check` a los checks | P1 | S | Chore |
-| Arreglar los 10 warnings de promesas y subir esas reglas a error | P2 | S | Chore |
-| Logger mínimo en el servidor para los errores de las rutas (sin keys ni texto del alumno) | P1 | S | Feature |
-| Validar las variables de entorno al arrancar (zod) | P1 | XS | Chore |
-| Helper `parseBody` para las rutas | P2 | S | Chore |
-| Partir `review-session.tsx` y los archivos grandes de lógica | P2 | M | Chore |
-| Actualizar dependencias: minors, `@types/node` a 22; evaluar TypeScript 7 y ESLint 10 | P2 | M | Chore |
-| Correr lint, knip y `format:check` en CI (parte de *Release workflow*) | P1 | S | Chore |
+| Item                                                                                                             | Priority | Size | Kind    |
+| ---------------------------------------------------------------------------------------------------------------- | -------- | ---- | ------- |
+| Reformatear todo con Prettier en un commit (cuando no haya ramas abiertas) y agregar `format:check` a los checks | P1       | S    | Chore   |
+| Arreglar los 10 warnings de promesas y subir esas reglas a error                                                 | P2       | S    | Chore   |
+| Logger mínimo en el servidor para los errores de las rutas (sin keys ni texto del alumno)                        | P1       | S    | Feature |
+| Validar las variables de entorno al arrancar (zod)                                                               | P1       | XS   | Chore   |
+| Helper `parseBody` para las rutas                                                                                | P2       | S    | Chore   |
+| Partir `review-session.tsx` y los archivos grandes de lógica                                                     | P2       | M    | Chore   |
+| Actualizar dependencias: minors, `@types/node` a 22; evaluar TypeScript 7 y ESLint 10                            | P2       | M    | Chore   |
+| Correr lint, knip y `format:check` en CI (parte de _Release workflow_)                                           | P1       | S    | Chore   |

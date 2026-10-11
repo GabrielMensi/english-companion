@@ -16,7 +16,15 @@ export const TONE_CLASSES: Record<Tone, string> = {
   optional: "border-dashed border-border bg-transparent text-muted-foreground",
 };
 
-export function StatusBadge({ tone, className, children }: { tone: Tone; className?: string; children: React.ReactNode }) {
+export function StatusBadge({
+  tone,
+  className,
+  children,
+}: {
+  tone: Tone;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
     <Badge variant="secondary" className={cn(TONE_CLASSES[tone], className)}>
       {children}

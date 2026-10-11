@@ -31,10 +31,7 @@ export function TimelineChart({ data }: { data: Stats["timeline"] }) {
           minTickGap={24}
         />
         <YAxis tickLine={false} axisLine={false} fontSize={12} stroke="var(--muted-foreground)" />
-        <Tooltip
-          cursor={{ stroke: "var(--muted-foreground)", strokeDasharray: "3 3" }}
-          content={<TimelineTooltip />}
-        />
+        <Tooltip cursor={{ stroke: "var(--muted-foreground)", strokeDasharray: "3 3" }} content={<TimelineTooltip />} />
         <Line
           type="linear"
           dataKey="rate"

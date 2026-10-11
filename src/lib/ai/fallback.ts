@@ -36,10 +36,7 @@ function isProviderId(value: unknown): value is ProviderId {
  * (Ollama, removed in settings v3). If the primary was one of them, the first
  * remaining fallback takes its place; with none left, `defaultProvider` does.
  */
-export function upgradeChain(
-  stored: { provider?: unknown; fallbacks?: unknown },
-  defaultProvider: ProviderId,
-): Chain {
+export function upgradeChain(stored: { provider?: unknown; fallbacks?: unknown }, defaultProvider: ProviderId): Chain {
   const fallbacks = Array.isArray(stored.fallbacks) ? stored.fallbacks.filter(isProviderId) : [];
   if (isProviderId(stored.provider)) return normalizeChain({ provider: stored.provider, fallbacks });
   const [provider = defaultProvider, ...rest] = fallbacks;
@@ -140,7 +137,9 @@ export class UserFacingError extends Error {}
  * provider's own wording, request ids or internal paths, so it's never shown verbatim.
  */
 function isOwnError(error: unknown): error is Error {
-  return error instanceof UserFacingError || (error instanceof Error && Object.getPrototypeOf(error) === Error.prototype);
+  return (
+    error instanceof UserFacingError || (error instanceof Error && Object.getPrototypeOf(error) === Error.prototype)
+  );
 }
 
 /** The HTTP status a provider answered with, when the error came from its API (also after the SDK's retries). */

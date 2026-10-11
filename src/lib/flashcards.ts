@@ -40,13 +40,21 @@ function loadStates(kind: CardKind): { states: Map<string, ReviewState | null>; 
 }
 
 function toState(r: typeof schema.reviews.$inferSelect): ReviewState {
-  return { ease: r.ease, intervalDays: r.intervalDays, repetitions: r.repetitions, lapses: r.lapses, dueAt: r.dueAt.getTime() };
+  return {
+    ease: r.ease,
+    intervalDays: r.intervalDays,
+    repetitions: r.repetitions,
+    lapses: r.lapses,
+    dueAt: r.dueAt.getTime(),
+  };
 }
 
 /** The deck's cards with their review state; suspended cards are left out. */
 function withStates<C extends Card>(cards: C[], kind: CardKind): QueuedCard<C>[] {
   const { states, suspended } = loadStates(kind);
-  return cards.filter((card) => !suspended.has(card.key)).map((card) => ({ card, state: states.get(card.key) ?? null }));
+  return cards
+    .filter((card) => !suspended.has(card.key))
+    .map((card) => ({ card, state: states.get(card.key) ?? null }));
 }
 
 /** Every real mistake (the ones that count in the stats) as a card, newest first. */
@@ -128,10 +136,12 @@ export function getFlashcardsOverview() {
     return { filter, label, toStudy: counts.due + Math.min(counts.new, newLimit), total: counts.total };
   };
 
-  const present = <T,>(values: T[]) => [...new Set(values)];
+  const present = <T>(values: T[]) => [...new Set(values)];
   const cards = mistakes.map((c) => c.card);
 
-  const tenses = TENSES.filter((t) => cards.some((c) => c.tense === t)).map((t) => option({ tense: t }, TENSE_LABELS[t]));
+  const tenses = TENSES.filter((t) => cards.some((c) => c.tense === t)).map((t) =>
+    option({ tense: t }, TENSE_LABELS[t]),
+  );
 
   const categories = present(cards.map((c) => c.category))
     .map((category) => ({

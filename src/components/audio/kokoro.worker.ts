@@ -83,7 +83,11 @@ async function hasWebGpu() {
 async function synth(engine: Engine, text: string, voice: string, speed: number, test = false): Promise<Float32Array> {
   const { audio } = await engine.tts.generate(text, { voice: voice as never, speed });
   const noise = config.simulateNoise;
-  if (noise === engine.device || noise === "all" || (noise === "webgpu-speech" && engine.device === "webgpu" && !test)) {
+  if (
+    noise === engine.device ||
+    noise === "all" ||
+    (noise === "webgpu-speech" && engine.device === "webgpu" && !test)
+  ) {
     return Float32Array.from(audio, () => (Math.random() * 2 - 1) * 0.3);
   }
   return audio;
@@ -151,7 +155,8 @@ async function load(): Promise<Engine> {
           await dispose(tts);
           continue;
         }
-        if (device === "webgpu") warning = `The GPU's test audio failed the check (${check.reason}): it may sound like noise.`;
+        if (device === "webgpu")
+          warning = `The GPU's test audio failed the check (${check.reason}): it may sound like noise.`;
         else throw new Error(message);
       }
       post({
@@ -167,7 +172,8 @@ async function load(): Promise<Engine> {
       console.warn(`Kokoro couldn't run on ${device}`, error);
       if (tts) await dispose(tts);
       lastError = error;
-      if (device === "webgpu") warning = `Kokoro couldn't run on the GPU (${errorMessage(error)}), so it runs on the CPU.`;
+      if (device === "webgpu")
+        warning = `Kokoro couldn't run on the GPU (${errorMessage(error)}), so it runs on the CPU.`;
     }
   }
   throw lastError;

@@ -53,10 +53,7 @@ export function getDashboardData(range: RangeKey, input: InputFilter = "all") {
   });
 
   // Fluency only exists for dictated messages, so the written/spoken filter doesn't change it.
-  const fluency = computeFluencyStats(
-    loadFluency(from, null),
-    from !== null ? loadFluency(previousFrom, from) : [],
-  );
+  const fluency = computeFluencyStats(loadFluency(from, null), from !== null ? loadFluency(previousFrom, from) : []);
 
   // Words looked up with [brackets] during the period, grouped and newest first.
   const vocabulary = getVocabulary().filter((w) => from === null || w.lastSeen >= from);

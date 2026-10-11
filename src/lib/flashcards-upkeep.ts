@@ -12,7 +12,11 @@ import { wordKey } from "@/lib/vocabulary-core";
 /** Every correction, with the mistake card key it builds (whether or not it counts in the stats). */
 function correctionKeys(): { id: string; key: string }[] {
   return db
-    .select({ id: schema.corrections.id, original: schema.corrections.original, correction: schema.corrections.correction })
+    .select({
+      id: schema.corrections.id,
+      original: schema.corrections.original,
+      correction: schema.corrections.correction,
+    })
     .from(schema.corrections)
     .all()
     .map((r) => ({ id: r.id, key: mistakeKey(r.original, r.correction) }));
@@ -62,8 +66,7 @@ export function cleanOrphanReviews(): number {
   return ids.length;
 }
 
-const cardWhere = (kind: CardKind, key: string) =>
-  and(eq(schema.reviews.kind, kind), eq(schema.reviews.cardKey, key));
+const cardWhere = (kind: CardKind, key: string) => and(eq(schema.reviews.kind, kind), eq(schema.reviews.cardKey, key));
 
 /** Hides a card from its deck until it's unsuspended; its progress is kept. */
 export function suspendCard(kind: CardKind, key: string) {
@@ -75,7 +78,16 @@ export function suspendCard(kind: CardKind, key: string) {
   }
   // Never reviewed: a placeholder row with no reviews, so it's still new when it comes back.
   db.insert(schema.reviews)
-    .values({ id: crypto.randomUUID(), kind, cardKey: key, ease: DEFAULT_EASE, dueAt: now, reviewCount: 0, suspendedAt: now, createdAt: now })
+    .values({
+      id: crypto.randomUUID(),
+      kind,
+      cardKey: key,
+      ease: DEFAULT_EASE,
+      dueAt: now,
+      reviewCount: 0,
+      suspendedAt: now,
+      createdAt: now,
+    })
     .run();
 }
 
@@ -137,7 +149,11 @@ export function getSuspendedCards(): SuspendedCard[] {
   const exercises = new Map(
     exerciseKeys.length > 0
       ? db
-          .select({ id: schema.missedExercises.id, sentence: schema.missedExercises.sentence, answer: schema.missedExercises.answer })
+          .select({
+            id: schema.missedExercises.id,
+            sentence: schema.missedExercises.sentence,
+            answer: schema.missedExercises.answer,
+          })
           .from(schema.missedExercises)
           .where(inArray(schema.missedExercises.id, exerciseKeys))
           .all()

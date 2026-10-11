@@ -64,7 +64,7 @@ export function ModelChain({
                 (!enabled || !configured) && "bg-muted/40",
               )}
             >
-              <span className="w-5 text-center text-sm tabular-nums text-muted-foreground">
+              <span className="w-5 text-center text-sm text-muted-foreground tabular-nums">
                 {enabled ? i + 1 : "–"}
               </span>
               <div className="min-w-0 flex-1">
@@ -74,11 +74,7 @@ export function ModelChain({
                   {isPrimary && <Badge>Primary</Badge>}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {!configured
-                    ? "No API key: add one below to use it"
-                    : !enabled
-                      ? "Off"
-                      : (facts ?? "No eval data")}
+                  {!configured ? "No API key: add one below to use it" : !enabled ? "Off" : (facts ?? "No eval data")}
                 </div>
               </div>
               {enabled && <TestResult test={tests[id]} compact />}

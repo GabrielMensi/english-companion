@@ -58,7 +58,10 @@ export function loadEssays(dir = DEFAULT_CORPUS_DIR): Essay[] {
     );
   }
   const essays: Essay[] = [];
-  for (const file of fs.readdirSync(jsonDir).filter((f) => f.endsWith(".json")).sort()) {
+  for (const file of fs
+    .readdirSync(jsonDir)
+    .filter((f) => f.endsWith(".json"))
+    .sort()) {
     const split = file.includes(".dev.") ? "dev" : "train";
     for (const line of fs.readFileSync(path.join(jsonDir, file), "utf8").split("\n")) {
       if (!line.trim()) continue;

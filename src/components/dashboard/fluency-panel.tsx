@@ -52,8 +52,8 @@ export function FluencyPanel({ stats }: { stats: FluencyStats }) {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Measured from the transcription’s word timings. Whisper leaves out some hesitations (“um”, “eh”), so fillers
-        are a lower bound.
+        Measured from the transcription’s word timings. Whisper leaves out some hesitations (“um”, “eh”), so fillers are
+        a lower bound.
       </p>
     </div>
   );
