@@ -95,6 +95,8 @@ export const corrections = sqliteTable(
     category: text("category").$type<ErrorCategory>().notNull(),
     subcategory: text("subcategory").notNull(),
     severity: text("severity").$type<Severity>().notNull(),
+    /** The severity before the learner marked it as a typo by hand, restored if they change the type back. */
+    severityBeforeTypo: text("severity_before_typo").$type<Severity>(),
     explanation: text("explanation").notNull(),
     /** Fixed fine-grained type from `SUBTYPES[category]`; null until classified. */
     subtype: text("subtype"),

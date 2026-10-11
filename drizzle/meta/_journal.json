@@ -85,6 +85,13 @@
       "when": 1791242726620,
       "tag": "0011_read_aloud",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1791760805381,
+      "tag": "0012_typo_by_hand",
+      "breakpoints": true
     }
   ]
 }

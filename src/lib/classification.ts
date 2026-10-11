@@ -6,6 +6,7 @@ import { classifyBatch } from "@/lib/ai/classify";
 import { type Classification, type ClassificationItem, ruleClassification } from "@/lib/ai/classify-core";
 import { AllModelsFailedError, errorToMessage } from "@/lib/ai/fallback";
 import { getSettings } from "@/lib/settings";
+import { severityAfterManualType } from "@/lib/correction-review";
 import { type ErrorCategory, isValidSubtype, type Tense, TENSE_CATEGORIES } from "@/lib/taxonomy";
 import type { ChatCorrection } from "@/lib/types";
 
@@ -190,9 +191,23 @@ export interface ManualClassification {
   tenseUsed: Tense | null;
 }
 
-/** The learner's own classification ("wrong type?"). It's final and is kept as a label for evaluations. */
+/**
+ * The learner's own classification ("wrong type?"). It's final and is kept as a label for evaluations.
+ * Picking Spelling → Typo also makes it a typo (see `severityAfterManualType`).
+ */
 export function classifyManually(id: string, input: ManualClassification): ChatCorrection | undefined {
   if (!isValidSubtype(input.category, input.subtype)) throw new Error("That type doesn't belong to the category");
+  const current = db
+    .select({
+      severity: schema.corrections.severity,
+      severityBeforeTypo: schema.corrections.severityBeforeTypo,
+      category: schema.corrections.category,
+      subtype: schema.corrections.subtype,
+    })
+    .from(schema.corrections)
+    .where(eq(schema.corrections.id, id))
+    .get();
+  if (!current) return undefined;
   const hasTense = TENSE_CATEGORIES.includes(input.category);
   const tense = hasTense ? input.tense : null;
   const row = db
@@ -200,6 +215,8 @@ export function classifyManually(id: string, input: ManualClassification): ChatC
     .set({
       category: input.category,
       subtype: input.subtype,
+      // Typo by hand: it follows the "count typos in stats" setting, like a typo the model caught.
+      ...severityAfterManualType(current, input),
       tense,
       tenseUsed: tense && input.tenseUsed !== tense ? input.tenseUsed : null,
       classification: "done",
