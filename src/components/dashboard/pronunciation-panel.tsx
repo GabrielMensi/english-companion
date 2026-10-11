@@ -1,10 +1,17 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
+import { AccuracyChart } from "@/components/dashboard/accuracy-chart";
 import { Trend } from "@/components/dashboard/category-table";
-import type { PronunciationProgress } from "@/lib/read-aloud-core";
+import type { AccuracyPoint, PronunciationProgress } from "@/lib/read-aloud-core";
 import { PRONUNCIATION_LABELS } from "@/lib/taxonomy";
 
-export function PronunciationPanel({ progress }: { progress: PronunciationProgress }) {
+export function PronunciationPanel({
+  progress,
+  timeline,
+}: {
+  progress: PronunciationProgress;
+  timeline: AccuracyPoint[];
+}) {
   if (progress.attempts === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -37,6 +44,8 @@ export function PronunciationPanel({ progress }: { progress: PronunciationProgre
           </span>
         )}
       </div>
+
+      <AccuracyChart data={timeline} />
 
       {progress.categories.length === 0 ? (
         <p className="text-sm">No sounds heard differently in this period.</p>

@@ -15,7 +15,7 @@ import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { categoryTopic, selectCategoryTargets } from "@/lib/category-practice";
 import { getClassificationStatus } from "@/lib/classification";
 import { dashboardDetail, dashboardHeadline } from "@/lib/dashboard-summary";
-import { getPronunciationProgress, hasReadings } from "@/lib/read-aloud";
+import { getAccuracyTimeline, getPronunciationProgress, hasReadings } from "@/lib/read-aloud";
 import { getReviewDashboard } from "@/lib/review-stats";
 import { getDashboardData, INPUT_FILTERS, type InputFilter, RANGES, type RangeKey } from "@/lib/stats";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,9 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const { stats, tenses, vocabulary, fluency, countTypos, hasSpoken } = getDashboardData(range, input);
   const reviews = getReviewDashboard(range);
   // Read-aloud practice isn't messages, so the written/spoken filter doesn't change it.
-  const pronunciation = hasReadings() ? getPronunciationProgress(RANGES[range]) : null;
+  const pronunciation = hasReadings()
+    ? { progress: getPronunciationProgress(RANGES[range]), timeline: getAccuracyTimeline(RANGES[range]) }
+    : null;
   // The weakest categories in this period that make good exercises; none when there isn't enough data.
   const practiceTargets = selectCategoryTargets(stats).filter((t) => t.status === "weak");
   const href = (next: { range?: RangeKey; input?: InputFilter }) => {
@@ -198,7 +200,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           description="Words speech-to-text heard differently when you read aloud, compared with the previous period"
           action={<SectionLink href="/read-aloud">Read aloud</SectionLink>}
         >
-          <PronunciationPanel progress={pronunciation} />
+          <PronunciationPanel progress={pronunciation.progress} timeline={pronunciation.timeline} />
         </Section>
       )}
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  accuracyTimeline,
   parseFocus,
   pronunciationCards,
   pronunciationProgress,
@@ -146,5 +147,48 @@ describe("pronunciationCards", () => {
     expect(cards.map((c) => c.key)).toEqual(["I saw a big ship.", "I think so."]);
     expect(cards[0]).toMatchObject({ timesMissed: 2, lastMissedAt: 5 });
     expect(cards[0].words.map((w) => w.expected)).toEqual(["ship", "big"]);
+  });
+});
+
+describe("accuracyTimeline", () => {
+  const DAY = 86_400_000;
+  const now = new Date(2026, 9, 10, 18).getTime();
+  const reading = (daysAgo: number, correctWords: number, totalWords: number) => ({
+    createdAt: now - daysAgo * DAY,
+    correctWords,
+    totalWords,
+  });
+
+  it("is empty without readings", () => {
+    expect(accuracyTimeline([], now - 7 * DAY, now)).toEqual([]);
+  });
+
+  it("gives a single point for a single day of readings", () => {
+    const points = accuracyTimeline([reading(0, 9, 10)], null, now);
+    expect(points).toEqual([{ bucket: "2026-10-10", readings: 1, words: 10, accuracy: 0.9 }]);
+  });
+
+  it("leaves days without readings as gaps, not zero accuracy", () => {
+    const points = accuracyTimeline([reading(6, 5, 10), reading(1, 8, 10)], now - 7 * DAY, now);
+    expect(points).toHaveLength(8);
+    expect(points.filter((p) => p.accuracy !== null).map((p) => p.accuracy)).toEqual([0.5, 0.8]);
+    expect(points.filter((p) => p.accuracy === null).every((p) => p.readings === 0 && p.words === 0)).toBe(true);
+  });
+
+  it("weights by words, not by reading", () => {
+    // 1/2 and 18/18 words: 19/20 = 95%, not the 75% average of the two readings.
+    const [point] = accuracyTimeline([reading(0, 1, 2), reading(0, 18, 18)], null, now);
+    expect(point).toMatchObject({ readings: 2, words: 20, accuracy: 0.95 });
+  });
+
+  it("matches summarizePronunciation's accuracy over the same readings", () => {
+    const rows = [reading(0, 1, 2), reading(0, 18, 18)];
+    expect(accuracyTimeline(rows, null, now)[0].accuracy).toBe(summarizePronunciation(rows, []).accuracy);
+  });
+
+  it("uses weekly buckets over long spans", () => {
+    const points = accuracyTimeline([reading(80, 6, 10), reading(2, 9, 10)], null, now);
+    expect(points.length).toBeLessThan(15);
+    expect(points.filter((p) => p.accuracy !== null)).toHaveLength(2);
   });
 });

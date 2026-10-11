@@ -2,6 +2,7 @@
 import type { ReadAloudSource } from "@/db/schema";
 import type { PronunciationCard } from "./flashcards-core";
 import { SOUND_SENTENCES } from "./read-aloud-sentences";
+import { bucketKey } from "./stats-core";
 import { PRONUNCIATION_CATEGORIES, type PronunciationCategory } from "./taxonomy";
 
 export interface ReadAloudItem {
@@ -154,6 +155,58 @@ export function pronunciationProgress(
     previousAccuracy: previous?.accuracy ?? null,
     categories,
   };
+}
+
+export interface TimedAttemptRow extends AttemptRow {
+  createdAt: number;
+}
+
+export interface AccuracyPoint {
+  /** Local date YYYY-MM-DD (the week's Monday with weekly buckets). */
+  bucket: string;
+  readings: number;
+  words: number;
+  /** Share of the bucket's words heard as written, 0–1; null without readings (a gap, not a 0). */
+  accuracy: number | null;
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Read-aloud accuracy over time, like the dashboard's mistakes timeline: daily
+ * buckets, weekly when the period spans more than 45 days. Accuracy is the share
+ * of words heard as written (word-weighted, as in `summarizePronunciation`).
+ * `from` null means since the first reading. Empty without readings.
+ */
+export function accuracyTimeline(attempts: TimedAttemptRow[], from: number | null, now: number): AccuracyPoint[] {
+  if (attempts.length === 0) return [];
+  const start = from ?? Math.min(...attempts.map((a) => a.createdAt));
+  const weekly = (now - start) / DAY_MS > 45;
+  const key = (ms: number) => bucketKey(ms, weekly);
+
+  const buckets = new Map<string, { readings: number; words: number; correct: number }>();
+  // Pre-fill so days without readings show up as gaps.
+  for (let t = start; t <= now; t += weekly ? 7 * DAY_MS : DAY_MS) {
+    buckets.set(key(t), { readings: 0, words: 0, correct: 0 });
+  }
+  buckets.set(key(now), buckets.get(key(now)) ?? { readings: 0, words: 0, correct: 0 });
+
+  for (const a of attempts) {
+    const b = buckets.get(key(a.createdAt)) ?? { readings: 0, words: 0, correct: 0 };
+    b.readings++;
+    b.words += a.totalWords;
+    b.correct += a.correctWords;
+    buckets.set(key(a.createdAt), b);
+  }
+
+  return [...buckets.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([bucket, b]) => ({
+      bucket,
+      readings: b.readings,
+      words: b.words,
+      accuracy: b.words > 0 ? b.correct / b.words : null,
+    }));
 }
 
 function round(n: number): number {
