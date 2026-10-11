@@ -6,8 +6,10 @@ import { CATEGORY_STATUS, EXERCISE_LABELS, STATUS } from "@/components/practice/
 import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { TalkAboutButton } from "@/components/sidebar/talk-about-button";
+import { NoProviderNotice } from "@/components/no-provider-notice";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
+import { hasConfiguredProvider } from "@/lib/ai/providers";
 import { categoryTopic } from "@/lib/category-practice";
 import { listSessions } from "@/lib/chat";
 import { countCardsToStudy } from "@/lib/flashcards";
@@ -22,7 +24,8 @@ import { greeting, todaySummary, weekSummary } from "@/lib/today-core";
 export default async function Today() {
   await connection();
   const sessions = listSessions();
-  if (sessions.length === 0) return <FirstRun />;
+  const hasModel = hasConfiguredProvider();
+  if (sessions.length === 0) return <FirstRun hasModel={hasModel} />;
 
   const last = sessions[0];
   const lastLabel = chatLabels().get(last.id);
@@ -44,6 +47,10 @@ export default async function Today() {
           {todaySummary({ cardsToStudy, focus: focusOf(tense), wroteThisWeek: week.messages > 0 })}
         </p>
       </header>
+
+      {!hasModel && (
+        <NoProviderNotice detail="Your stats and flashcards still work; corrections and exercises need a key." />
+      )}
 
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <div className="space-y-6">
@@ -121,6 +128,7 @@ export default async function Today() {
                     <StartPracticeButton
                       variant="outline"
                       request={{ kind: tense.kind, tense: tense.tense, contrastWith: tense.contrastWith }}
+                      hasModel={hasModel}
                     >
                       {EXERCISE_LABELS[tense.kind]}
                     </StartPracticeButton>
@@ -141,6 +149,7 @@ export default async function Today() {
                     <StartPracticeButton
                       variant="outline"
                       request={{ kind: "category", category: category.category, subtype: category.subtype }}
+                      hasModel={hasModel}
                     >
                       Exercises
                     </StartPracticeButton>
@@ -217,7 +226,7 @@ function TrainRow({
 }
 
 /** Before the first chat: what the app does and the two ways to start. */
-function FirstRun() {
+function FirstRun({ hasModel }: { hasModel: boolean }) {
   return (
     <Page width="md">
       <header className="space-y-2">
@@ -227,6 +236,7 @@ function FirstRun() {
           saved, so the dashboard can show you where you need practice.
         </p>
       </header>
+      {!hasModel && <NoProviderNotice detail="Corrections are written by the AI, so they need a key." />}
       <div data-area="write" className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-2 rounded-xl border bg-card p-4">
           <h2 className="font-semibold">Correction</h2>

@@ -11,10 +11,12 @@ export function LevelCard({
   estimate,
   evolution,
   explanation,
+  hasModel,
 }: {
   estimate: LevelEstimate;
   evolution: LevelWindow[];
   explanation: StoredLevelExplanation | null;
+  hasModel: boolean;
 }) {
   if (estimate.level === null) {
     return (
@@ -103,7 +105,7 @@ export function LevelCard({
         it to see the trend, not as a certificate.
       </p>
 
-      <LevelExplanationPanel initial={explanation} />
+      <LevelExplanationPanel initial={explanation} hasModel={hasModel} />
     </div>
   );
 }
