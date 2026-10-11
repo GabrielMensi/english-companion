@@ -1,6 +1,6 @@
 # Calibración del nivel CEFR estimado
 
-> Area: Progress · Kind: Eval · Status: Done · Board: #37
+> Area: Progress · Kind: Eval · Status: Done · Board: #37, #101
 
 El nivel de **Insights** sale de reglas fijas en `src/lib/insights/level-core.ts`: cuatro señales (precisión, vocabulario, complejidad de las oraciones y rango de tiempos verbales) que se pasan a un puntaje de 1 (A1) a 6 (C2) con puntos de anclaje fijos, y se promedian con pesos. Al principio esos anclajes y pesos eran aproximaciones (precisión 40 %, el resto 20 % cada una). Este documento cuenta cómo se contrastaron con textos de alumnos calificados por humanos (issue #37) y qué cambió.
 
@@ -74,11 +74,50 @@ Split _dev_ (no usado para ajustar), errores en escala de la app:
 
 En _train_ (1.000 palabras): 23 % / 76 % antes, 62 % / 97 % después. Antes, casi todo caía en B1 o B2 (A2 → B2, C1 → B2); ahora la matriz es diagonal, con los errores en niveles vecinos. Los nativos de LOCNESS salen C1 o C2. Con todo dictado (`--spoken`, que simula que la mitad de los errores no se cuentan) da 59 % / 98 %.
 
+## Revisión por proveedor y en chat real (#101, octubre 2026)
+
+**Groq (qwen/qwen3.8-27b), los mismos 30 textos de _dev_.** Solo 22 se pudieron analizar: el plan gratis de Groq limita a Qwen a **1.000 tokens de salida por minuto** y la corrección de un ensayo de ~200 palabras con muchos errores pide 1.000–1.900, así que Groq rechaza el pedido entero ("Request too large", HTTP 429) por más que se espere. Con 75 s entre pedidos pasan los demás (con 15 s se corta al tercero). Comparando los 22 textos que salieron con lo que contó Gemini en esos mismos textos:
+
+|       | Corpus | Gemini flash-lite | Groq Qwen | Gemini ÷ corpus | Groq ÷ corpus |
+| ----- | ------ | ----------------- | --------- | --------------- | ------------- |
+| A1    | 53     | 35                | 38        | 0,66            | 0,72          |
+| A2    | 35     | 19                | 16        | 0,54            | 0,46          |
+| B1    | 41     | 26                | 26        | 0,63            | 0,63          |
+| B2    | 43     | 33                | 38        | 0,77            | 0,88          |
+| C1    | 53     | 22                | 22        | 0,42            | 0,42          |
+| C2    | 15     | 9                 | 15        | 0,60            | 1,00          |
+| Total | 240    | 144               | 155       | **0,60**        | **0,65**      |
+
+Groq cuenta un 8 % más que Gemini en los mismos textos; por nivel salta entre 0,42 y 1,0, pero con 2 a 5 textos por nivel eso es ruido (C2 son 15 errores en total). Un 8 % más de errores mueve el puntaje de precisión menos de un cuarto de nivel. Además, en la app Groq es solo el respaldo: 2 de los 59 mensajes reales los corrigió Groq, 52 Gemini flash-lite (el modelo principal sigue siendo `gemini-flash-lite-latest`, el mismo del puente original, así que no hizo falta gastar cuota de Gemini).
+
+**Chat real: no hay calificación del profesor.** La base no guarda ningún nivel ni nota del profesor por sesión (no existe ese campo), así que calibrar contra el profesor sigue bloqueado hasta que se registre. Lo que sí se puede medir sin IA, con `countsInStats` y la taxonomía, sobre `data/dev.db` (copia del 28/9 al 8/10, 59 mensajes):
+
+| Mensajes | Mensajes | Palabras | Errores contados | Cada 100 palabras | En categorías no medibles al hablar |
+| -------- | -------- | -------- | ---------------- | ----------------- | ----------------------------------- |
+| Escritos | 55       | 2.648    | 189              | 7,1               | 108 de 189 (**57 %**)               |
+| Dictados | 4        | 105      | 5 (9 reportados) | 4,8 (×2 = 9,5)    | 4 de 9 (excluidos)                  |
+
+**Factor de dictado.** Si una proporción _p_ de los errores cae en categorías que no se cuentan al dictar, el factor que compensa es 1 / (1 − _p_):
+
+| Fuente                                   | _p_  | Factor |
+| ---------------------------------------- | ---- | ------ |
+| Ensayos, Gemini (30 textos, 252 errores) | 0,50 | 1,98   |
+| Ensayos, Groq (22 textos, 155 errores)   | 0,52 | 2,09   |
+| Chat escrito real (55 mensajes, 189)     | 0,57 | 2,33   |
+
+En el chat real el intervalo (bootstrap por mensaje, 95 %) es 0,50–0,64, o sea un factor de 2,0 a 2,8. Pesa la ortografía: 37 errores de spelling marcados como error y no como typo; sin ellos _p_ baja a 0,47. Con 4 mensajes dictados no se puede comparar la tasa hablada con la escrita.
+
+**Decisión.**
+
+- **0,6 se queda.** Groq da 0,65 en los mismos textos, dentro del ruido de la muestra, y casi todo el chat lo corrige Gemini.
+- **El factor 2 se queda.** Los tres números lo incluyen en su rango; el chat real apunta a algo más (~2,3), pero son 55 mensajes de diez días y una parte es ortografía. Si con más datos se mantiene por encima de 2,2, subirlo a 2,3 (`SPOKEN_MISTAKE_FACTOR`).
+- **Pendiente:** calibrar contra el profesor cuando haya sesiones con su nivel (hace falta guardarlo); repetir el factor con unos 500 errores de chat escrito; comparar tasa dictada vs escrita cuando haya unas 1.000 palabras dictadas.
+
 ## Límites
 
 - **Ensayos, no chat.** Los textos son respuestas a consignas de examen. Tus mensajes son prompts y charla: más cortos, más técnicos, otro registro. No hay corpus CEFR de chat, así que no se puede medir cuánto cambia; se bajó el peso de lo que más depende del registro, pero la precisión también puede variar (en un prompt se escribe rápido).
-- **Los errores de la app los cuenta la IA.** El puente (0,6) sale de 30 textos y un modelo (gemini-flash-lite); otro modelo de la cadena (Groq) puede contar más o menos. Vale repetir `--analyze` si cambia el modelo principal.
-- **El factor de dictado sale de texto escrito.** Al hablar, la mezcla de errores puede ser distinta; 2 es una aproximación.
+- **Los errores de la app los cuenta la IA.** El puente (0,6) sale de 30 textos con gemini-flash-lite; Groq (Qwen) dio 0,65 en 22 de esos textos (ver arriba). Vale repetir `--analyze` si cambia el modelo principal.
+- **El factor de dictado sale de texto escrito.** En ensayos y en el chat escrito real da 2 a 2,3; al hablar la mezcla de errores puede ser distinta y todavía hay muy pocos mensajes dictados para medirlo.
 - **Niveles de Write & Improve.** Los asignan evaluadores de Cambridge para la plataforma, no son exámenes oficiales; A1 tiene pocos textos y muy cortos.
 - **Señales flojas.** Con tan poca diferencia entre niveles, A1 vs A2 se distingue mal (en A1 los errores por palabra no suben más que en A2) y C1 vs C2 también.
 - **Alumnos simulados.** Los bloques juntan textos de un mismo nivel; cuando un alumno no llega a 1.000 palabras, se completa con otro.
@@ -90,6 +129,7 @@ pnpm eval:level                     # alumnos de 1.000 palabras, sin IA
 pnpm eval:level --words=300         # o 3000
 pnpm eval:level --spoken            # todo dictado
 pnpm eval:level --analyze=gemini:gemini-flash-lite-latest --limit=30   # puente con la IA (gasta cuota; queda en caché)
+pnpm eval:level --analyze=groq:qwen/qwen3.8-27b --limit=30 --delay=75000   # Groq: más pausa por su límite de tokens por minuto
 ```
 
-Los resultados se guardan en `.eval-results/level-*.json` (con las mediciones de cada alumno simulado, para recalcular anclajes).
+Los resultados se guardan en `.eval-results/level-*.json` (con las mediciones de cada alumno simulado, para recalcular anclajes). `--analyze` se corta en el primer error de cuota; los textos que Groq rechaza por largos se saltean.
