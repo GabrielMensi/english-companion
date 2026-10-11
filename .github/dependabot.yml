@@ -1,3 +1,5 @@
+# target-branch only applies to version updates: Dependabot security updates open against main,
+# so retarget those PRs to develop.
 version: 2
 updates:
   - package-ecosystem: npm # pnpm-lock.yaml is supported by the npm ecosystem

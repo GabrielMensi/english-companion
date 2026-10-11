@@ -32,7 +32,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
-      # better-sqlite3 (the only allowed build script) downloads its prebuilt binary here.
+      # better-sqlite3 (the only allowed build script) compiles from source here with node-gyp.
       - run: pnpm install --frozen-lockfile
 
       - name: Typecheck

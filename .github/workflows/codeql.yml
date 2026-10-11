@@ -17,12 +17,14 @@ concurrency:
 
 jobs:
   analyze:
-    # Code scanning on a private repo needs GitHub Advanced Security, which this account doesn't have:
-    # the job is skipped until the repo is public (or the feature is enabled), then it runs as is.
-    if: ${{ !github.event.repository.private }}
+    # Code scanning on a private repo needs GitHub Advanced Security, which this account doesn't have.
+    # Set the repo variable CODEQL_ENABLED=true once the repo is public or Advanced Security is on.
+    # (A `repository.private` check doesn't work: scheduled runs have no repository payload.)
+    if: ${{ vars.CODEQL_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
+      actions: read
       contents: read
       security-events: write
     steps:
