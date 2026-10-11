@@ -93,9 +93,6 @@ export function toggleStep(chain: Chain, id: ProviderId, on: boolean): Chain {
   return { provider, fallbacks: on ? [...rest, id] : rest };
 }
 
-/** Shown when no provider has an API key, so no AI feature can work. */
-export const NO_PROVIDER_MESSAGE = "No AI model is set up yet. Add a Gemini or Groq API key in Settings.";
-
 export class AllModelsFailedError extends Error {
   constructor(
     readonly attempts: FallbackAttempt[],

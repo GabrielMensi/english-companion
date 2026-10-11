@@ -1,6 +1,6 @@
 import { KeyRound } from "lucide-react";
 import Link from "next/link";
-import { NO_PROVIDER_MESSAGE } from "@/lib/ai/fallback";
+import { NEEDS_API_KEY, NO_PROVIDER_MESSAGE } from "@/lib/ai/provider-info";
 import { cn } from "@/lib/utils";
 
 /** Shown where AI features live when no provider has an API key (see `hasConfiguredProvider`). */
@@ -24,5 +24,15 @@ export function NoProviderNotice({ detail, className }: { detail?: string; class
   );
 }
 
-/** Tooltip for an AI action that is disabled because no provider has an API key. */
-export const NEEDS_API_KEY = "Needs a Gemini or Groq API key (Settings)";
+/**
+ * Explains, on hover, why an AI action is disabled. The tooltip sits on a wrapper because disabled
+ * buttons ignore the pointer (`disabled:pointer-events-none`), so their own `title` never shows.
+ */
+export function NeedsKeyHint({ active, children }: { active: boolean; children: React.ReactNode }) {
+  if (!active) return children;
+  return (
+    <span title={NEEDS_API_KEY} className="inline-flex">
+      {children}
+    </span>
+  );
+}

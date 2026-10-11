@@ -74,6 +74,7 @@ export default async function PracticePage() {
                 <StartPracticeButton
                   variant="outline"
                   request={{ kind: "conversation", tense: t.tense, contrastWith: null }}
+                  hasModel={hasModel}
                 >
                   Talk using it
                 </StartPracticeButton>

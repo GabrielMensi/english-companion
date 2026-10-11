@@ -3,7 +3,7 @@
 import { Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { NEEDS_API_KEY } from "@/components/no-provider-notice";
+import { NeedsKeyHint } from "@/components/no-provider-notice";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import type { StoredLevelExplanation } from "@/lib/insights/insights";
@@ -33,16 +33,12 @@ export function LevelExplanationPanel({
 
   if (!stored) {
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={explain}
-        disabled={loading || !hasModel}
-        title={hasModel ? undefined : NEEDS_API_KEY}
-      >
-        {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
-        {loading ? "Explaining…" : "Explain with AI"}
-      </Button>
+      <NeedsKeyHint active={!hasModel}>
+        <Button variant="outline" size="sm" onClick={explain} disabled={loading || !hasModel}>
+          {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
+          {loading ? "Explaining…" : "Explain with AI"}
+        </Button>
+      </NeedsKeyHint>
     );
   }
 
@@ -58,16 +54,12 @@ export function LevelExplanationPanel({
       )}
       <div className="flex items-center justify-between gap-2 pt-1 text-xs text-muted-foreground">
         <span>Written by {stored.modelId} · the AI explains the estimate, it doesn’t change it</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={explain}
-          disabled={loading || !hasModel}
-          title={hasModel ? undefined : NEEDS_API_KEY}
-        >
-          {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
-          Regenerate
-        </Button>
+        <NeedsKeyHint active={!hasModel}>
+          <Button variant="ghost" size="sm" onClick={explain} disabled={loading || !hasModel}>
+            {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
+            Regenerate
+          </Button>
+        </NeedsKeyHint>
       </div>
     </div>
   );
