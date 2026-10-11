@@ -4,8 +4,11 @@ import { bucketKey, computeStats, type StatCorrection, type StatsInput } from ".
 const DAY = 86_400_000;
 const now = new Date(2026, 8, 26, 12).getTime();
 
+let nextId = 0;
+
 function correction(partial: Partial<StatCorrection>): StatCorrection {
   return {
+    id: `c${nextId++}`,
     messageId: "m1",
     createdAt: now - DAY,
     category: "articles",
@@ -166,7 +169,9 @@ describe("computeStats", () => {
       subcategory: "missing_article",
       count: 2,
       example: { original: "new" },
+      exampleId: stats.categories[0].recent[0].id,
     });
+    expect(stats.categories[0].recent.map((m) => m.original)).toEqual(["new", "go to park", "old"]);
   });
 
   it("groups classified mistakes by their fixed type, whatever the free label", () => {

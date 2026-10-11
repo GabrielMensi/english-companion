@@ -39,7 +39,7 @@ export function ClassificationDialog({
   correction: ChatCorrection;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved: (correction: ChatCorrection) => void;
+  onSaved: (update: CorrectionUpdate) => void;
 }) {
   const [category, setCategory] = useState<ErrorCategory>(correction.category);
   const [subtype, setSubtype] = useState(correction.subtype ?? "");
@@ -56,7 +56,7 @@ export function ClassificationDialog({
   async function save() {
     setSaving(true);
     try {
-      const { correction: updated } = await api<CorrectionUpdate>(`/api/corrections/${correction.id}`, {
+      const update = await api<CorrectionUpdate>(`/api/corrections/${correction.id}`, {
         method: "PATCH",
         body: {
           category,
@@ -65,7 +65,7 @@ export function ClassificationDialog({
           tenseUsed: hasTense && tense !== NONE && tenseUsed !== NONE ? (tenseUsed as Tense) : null,
         },
       });
-      onSaved(updated);
+      onSaved(update);
       onOpenChange(false);
     } catch (error) {
       toast.error((error as Error).message);
