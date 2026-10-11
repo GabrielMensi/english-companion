@@ -43,7 +43,7 @@ Arreglo: `void` donde es intencional y `.catch` con un toast donde el usuario de
 ### Producción
 
 - **Sin logs en el servidor**: las rutas atrapan los errores de la IA y los devuelven como mensaje (502), pero no los registran en ningún lado. En local se ven en la UI; desplegada, un error no deja rastro. Hace falta un logger mínimo (nivel, ruta, tipo de error) que **nunca** loguee API keys ni el texto del alumno.
-- **Configuración sin validar al arrancar**: `DATABASE_PATH` y `ASR_SAMPLES_DIR` se leen con un default y las keys pueden venir del entorno o de Settings. Para desplegar conviene un esquema zod de las variables de entorno que falle al arrancar con un mensaje claro.
+- **Configuración sin validar al arrancar**: `DATABASE_PATH` y `ASR_SAMPLES_DIR` se leen con un default y las keys pueden venir del entorno o de Settings. Para desplegar conviene un esquema zod de las variables de entorno que falle al arrancar con un mensaje claro. **Hecho** en #94: `src/lib/env.ts`, validado en `src/instrumentation.ts` (ver [SECURITY_REVIEW.md](SECURITY_REVIEW.md)).
 - `errorToMessage` devuelve el mensaje crudo del proveedor cuando no reconoce el error. Útil en local; para desplegar, revisarlo junto con la revisión de seguridad (#76).
 - `/api/transcribe` lee el body entero antes de mirar el tamaño (`MAX_BYTES`); con la app expuesta, el límite debería aplicarse antes (también para #76).
 
