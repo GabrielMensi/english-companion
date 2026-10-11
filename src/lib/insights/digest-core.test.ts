@@ -24,6 +24,7 @@ function correction(partial: Partial<Row>): Row {
     tense: null,
     tenseUsed: null,
     classification: "done",
+    discardedAt: null,
     ...partial,
   };
 }

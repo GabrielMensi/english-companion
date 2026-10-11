@@ -24,7 +24,7 @@ import {
   TENSE_LABELS,
   TENSES,
 } from "@/lib/taxonomy";
-import type { ChatCorrection } from "@/lib/types";
+import type { ChatCorrection, CorrectionUpdate } from "@/lib/types";
 
 // Radix Select items can't have an empty value.
 const NONE = "none";
@@ -56,7 +56,7 @@ export function ClassificationDialog({
   async function save() {
     setSaving(true);
     try {
-      const updated = await api<ChatCorrection>(`/api/corrections/${correction.id}`, {
+      const { correction: updated } = await api<CorrectionUpdate>(`/api/corrections/${correction.id}`, {
         method: "PATCH",
         body: {
           category,

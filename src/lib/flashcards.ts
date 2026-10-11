@@ -74,6 +74,7 @@ function loadMistakeCards(): MistakeCard[] {
       sessionId: schema.messages.sessionId,
       sentence: schema.messages.content,
       inputMode: schema.messages.inputMode,
+      discardedAt: schema.corrections.discardedAt,
     })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.messages.id, schema.corrections.messageId))

@@ -482,12 +482,21 @@ export function isMeasurable(category: ErrorCategory, inputMode: "typed" | "spok
   return inputMode === "typed" || !NOT_MEASURABLE_WHEN_SPOKEN.includes(category);
 }
 
-/** Whether a mistake counts in the stats: a real mistake, in a category its input mode can measure. */
+/** Whether the learner discarded a correction as wrong: it's kept, but never counted anywhere. */
+export function isDiscarded(c: { discardedAt: Date | number | null }): boolean {
+  return c.discardedAt !== null;
+}
+
+/**
+ * Whether a mistake counts in the stats: a real mistake, not discarded by the
+ * learner, in a category its input mode can measure. `discardedAt` is required
+ * so every query that feeds a statistic has to select it.
+ */
 export function countsInStats(
-  c: { severity: Severity; category: ErrorCategory; inputMode: "typed" | "spoken" },
+  c: { severity: Severity; category: ErrorCategory; inputMode: "typed" | "spoken"; discardedAt: Date | number | null },
   countTypos: boolean,
 ): boolean {
-  return countsAsMistake(c.severity, countTypos) && isMeasurable(c.category, c.inputMode);
+  return !isDiscarded(c) && countsAsMistake(c.severity, countTypos) && isMeasurable(c.category, c.inputMode);
 }
 
 /**

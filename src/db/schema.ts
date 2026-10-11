@@ -108,6 +108,13 @@ export const corrections = sqliteTable(
     /** Who assigned the subtype: "rule", "user" or "<provider>:<model>". */
     classifiedBy: text("classified_by"),
     classificationAttempts: integer("classification_attempts").notNull().default(0),
+    /**
+     * When the learner discarded it as a wrong correction. It's kept (and can be
+     * restored), shown in the chat, but never counted in the stats (`countsInStats`).
+     */
+    discardedAt: integer("discarded_at", { mode: "timestamp_ms" }),
+    /** Why it was discarded, if the learner said. */
+    discardReason: text("discard_reason"),
     createdAt: createdAt(),
   },
   (t) => [

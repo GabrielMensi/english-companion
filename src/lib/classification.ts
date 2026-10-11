@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { classifyBatch } from "@/lib/ai/classify";
 import { type Classification, type ClassificationItem, ruleClassification } from "@/lib/ai/classify-core";
@@ -8,7 +8,6 @@ import { AllModelsFailedError, errorToMessage } from "@/lib/ai/fallback";
 import { getSettings } from "@/lib/settings";
 import { severityAfterManualType } from "@/lib/correction-review";
 import { type ErrorCategory, isValidSubtype, type Tense, TENSE_CATEGORIES } from "@/lib/taxonomy";
-import type { ChatCorrection } from "@/lib/types";
 
 /**
  * Deferred fine classification of mistakes. The chat saves each mistake as
@@ -49,6 +48,8 @@ export function getClassificationStatus(): ClassificationStatus {
   const counts = db
     .select({ classification: schema.corrections.classification, n: count() })
     .from(schema.corrections)
+    // Discarded mistakes wait outside the queue: they're classified if the learner restores them.
+    .where(isNull(schema.corrections.discardedAt))
     .groupBy(schema.corrections.classification)
     .all();
   const of = (status: string) => counts.find((c) => c.classification === status)?.n ?? 0;
@@ -146,7 +147,7 @@ function loadPending(): ClassificationItem[] {
     })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
-    .where(eq(schema.corrections.classification, "pending"))
+    .where(and(eq(schema.corrections.classification, "pending"), isNull(schema.corrections.discardedAt)))
     .orderBy(asc(schema.corrections.createdAt))
     .limit(BATCH_SIZE)
     .all();
@@ -195,7 +196,7 @@ export interface ManualClassification {
  * The learner's own classification ("wrong type?"). It's final and is kept as a label for evaluations.
  * Picking Spelling → Typo also makes it a typo (see `severityAfterManualType`).
  */
-export function classifyManually(id: string, input: ManualClassification): ChatCorrection | undefined {
+export function classifyManually(id: string, input: ManualClassification): boolean {
   if (!isValidSubtype(input.category, input.subtype)) throw new Error("That type doesn't belong to the category");
   const current = db
     .select({
@@ -207,10 +208,10 @@ export function classifyManually(id: string, input: ManualClassification): ChatC
     .from(schema.corrections)
     .where(eq(schema.corrections.id, id))
     .get();
-  if (!current) return undefined;
+  if (!current) return false;
   const hasTense = TENSE_CATEGORIES.includes(input.category);
   const tense = hasTense ? input.tense : null;
-  const row = db
+  const result = db
     .update(schema.corrections)
     .set({
       category: input.category,
@@ -223,7 +224,6 @@ export function classifyManually(id: string, input: ManualClassification): ChatC
       classifiedBy: "user",
     })
     .where(eq(schema.corrections.id, id))
-    .returning()
-    .get();
-  return row ? { ...row, createdAt: row.createdAt.getTime() } : undefined;
+    .run();
+  return result.changes > 0;
 }

@@ -3,7 +3,14 @@
  * so everything is computed in memory from the raw rows of the period.
  */
 import type { InputMode } from "@/db/schema";
-import { countsInStats, type ErrorCategory, SEVERITIES, type Severity, SEVERITY_WEIGHTS } from "@/lib/taxonomy";
+import {
+  countsInStats,
+  type ErrorCategory,
+  isDiscarded,
+  SEVERITIES,
+  type Severity,
+  SEVERITY_WEIGHTS,
+} from "@/lib/taxonomy";
 
 export interface StatMessage {
   createdAt: number;
@@ -23,6 +30,8 @@ export interface StatCorrection {
   explanation: string;
   /** Mistakes in dictated messages only count in categories speech-to-text can measure. */
   inputMode: InputMode;
+  /** Discarded by the learner as a wrong correction: left out of every number. */
+  discardedAt: number | null;
 }
 
 export interface StatsInput {
@@ -84,7 +93,7 @@ export function computeStats(input: StatsInput): Stats {
   const previousWords = sum(input.previousMessages.map((m) => m.wordCount));
 
   const bySeverity = emptySeverityRecord();
-  for (const c of input.corrections) bySeverity[c.severity]++;
+  for (const c of input.corrections) if (!isDiscarded(c)) bySeverity[c.severity]++;
 
   const messagesWithErrors = new Set(counted.map((c) => c.messageId)).size;
 

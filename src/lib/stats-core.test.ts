@@ -16,6 +16,7 @@ function correction(partial: Partial<StatCorrection>): StatCorrection {
     original: "go to park",
     correction: "go to the park",
     explanation: "...",
+    discardedAt: null,
     ...partial,
   };
 }
@@ -74,6 +75,25 @@ describe("computeStats", () => {
       ["verb_tense", 1],
       ["articles", 1],
     ]);
+  });
+
+  it("leaves discarded corrections out of every number", () => {
+    const stats = computeStats(
+      input({
+        messages: [{ createdAt: now - DAY, wordCount: 50 }],
+        corrections: [
+          correction({ discardedAt: now }),
+          correction({ severity: "typo", category: "spelling", discardedAt: now }),
+          correction({ category: "verb_tense" }),
+        ],
+        previousCorrections: [correction({ createdAt: now - 8 * DAY, discardedAt: now })],
+      }),
+    );
+    expect(stats.totals.errors).toBe(1);
+    expect(stats.totals.typos).toBe(0);
+    expect(stats.bySeverity.minor).toBe(1);
+    expect(stats.categories.map((c) => c.category)).toEqual(["verb_tense"]);
+    expect(stats.topMistakes.map((m) => m.category)).toEqual(["verb_tense"]);
   });
 
   it("ranks categories by severity-weighted score", () => {

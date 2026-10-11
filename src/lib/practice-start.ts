@@ -95,6 +95,7 @@ function recentMistakes(category: ErrorCategory, subtype: string | null) {
       severity: schema.corrections.severity,
       category: schema.corrections.category,
       inputMode: schema.messages.inputMode,
+      discardedAt: schema.corrections.discardedAt,
     })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.messages.id, schema.corrections.messageId))

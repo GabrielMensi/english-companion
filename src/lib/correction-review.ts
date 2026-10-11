@@ -2,7 +2,14 @@
  * Pure rules for the learner's own review of a reported mistake: fixing its
  * type by hand ("Wrong type?") and discarding a wrong correction.
  */
+import type { Correction } from "@/db/schema";
 import type { ErrorCategory, Severity } from "@/lib/taxonomy";
+import type { ChatCorrection } from "@/lib/types";
+
+/** A stored correction as client components get it: dates as milliseconds. */
+export function toChatCorrection(row: Correction): ChatCorrection {
+  return { ...row, createdAt: row.createdAt.getTime(), discardedAt: row.discardedAt?.getTime() ?? null };
+}
 
 /** The type the model and the classifier use for an accidental keyboard slip. */
 export function isTypoType(category: ErrorCategory, subtype: string | null): boolean {

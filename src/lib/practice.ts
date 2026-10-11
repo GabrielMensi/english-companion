@@ -175,7 +175,10 @@ export function exerciseReplyFor(
 
   // Only mistakes that count in the stats decide whether an answer is wrong.
   const { countTyposInStats } = getSettings();
-  const counted = mistakes.filter((m) => countsInStats({ ...m, inputMode: message.inputMode }, countTyposInStats));
+  // Just found by the correction, so none of them can be discarded yet.
+  const counted = mistakes.filter((m) =>
+    countsInStats({ ...m, inputMode: message.inputMode, discardedAt: null }, countTyposInStats),
+  );
   const results =
     practice.kind === "category"
       ? gradeCategorySet(practice, message.content, counted)
