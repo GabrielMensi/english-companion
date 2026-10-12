@@ -88,11 +88,11 @@ En _train_ (1.000 palabras): 23 % / 76 % antes, 62 % / 97 % después. Antes, cas
 | C2    | 15     | 9                 | 15        | 0,60            | 1,00          |
 | Total | 240    | 144               | 155       | **0,60**        | **0,65**      |
 
-Groq cuenta un 8 % más que Gemini en los mismos textos; por nivel salta entre 0,42 y 1,0, pero con 2 a 5 textos por nivel eso es ruido (C2 son 15 errores en total). Un 8 % más de errores mueve el puntaje de precisión menos de un cuarto de nivel. Además, en la app Groq es solo el respaldo: 2 de los 59 mensajes reales los corrigió Groq, 52 Gemini flash-lite (el modelo principal sigue siendo `gemini-flash-lite-latest`, el mismo del puente original, así que no hizo falta gastar cuota de Gemini).
+Groq cuenta un 8 % más que Gemini en los mismos textos; por nivel salta entre 0,42 y 1,0, pero con 2 a 5 textos por nivel eso es ruido (C2 son 15 errores en total). Un 8 % más de errores mueve el puntaje de precisión menos de un cuarto de nivel. Además, en la app Groq es solo el respaldo: de los 59 mensajes reales, 52 los corrigió Gemini flash-lite, 2 Groq y 5 Ollama (gemma4:12b, de antes de sacar los modelos locales en #72) (el modelo principal sigue siendo `gemini-flash-lite-latest`, el mismo del puente original, así que no hizo falta gastar cuota de Gemini).
 
 **Chat real: no hay calificación del profesor.** La base no guarda ningún nivel ni nota del profesor por sesión (no existe ese campo), así que calibrar contra el profesor sigue bloqueado hasta que se registre. Lo que sí se puede medir sin IA, con `countsInStats` y la taxonomía, sobre `data/dev.db` (copia del 28/9 al 8/10, 59 mensajes):
 
-| Mensajes | Mensajes | Palabras | Errores contados | Cada 100 palabras | En categorías no medibles al hablar |
+| Tipo     | Mensajes | Palabras | Errores contados | Cada 100 palabras | En categorías no medibles al hablar |
 | -------- | -------- | -------- | ---------------- | ----------------- | ----------------------------------- |
 | Escritos | 55       | 2.648    | 189              | 7,1               | 108 de 189 (**57 %**)               |
 | Dictados | 4        | 105      | 5 (9 reportados) | 4,8 (×2 = 9,5)    | 4 de 9 (excluidos)                  |
