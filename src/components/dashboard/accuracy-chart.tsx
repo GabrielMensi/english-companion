@@ -16,7 +16,7 @@ export function AccuracyChart({ data }: { data: AccuracyPoint[] }) {
   if (points.filter((p) => p.percent !== null).length < 2) {
     return (
       <p className="py-6 text-center text-sm text-muted-foreground">
-        Read aloud on at least two different days to see your accuracy over time.
+        Read aloud on at least two different days (or weeks, for long periods) to see your accuracy over time.
       </p>
     );
   }
