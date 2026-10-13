@@ -1,13 +1,15 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { ClassificationDialog } from "@/components/chat/classification-dialog";
 import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
+import { discardCorrection, restoreCorrection } from "@/lib/api";
 import { groupMistakes } from "@/lib/correction-marks";
 import { categoryLabel, SEVERITY_LABELS, subtypeLabel, tenseLabel } from "@/lib/taxonomy";
-import type { ChatCorrection } from "@/lib/types";
+import type { ChatCorrection, CorrectionUpdate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** Mistakes shown per category before "Show more". */
@@ -21,13 +23,16 @@ export function MistakeGroups({
   mistakes,
   numbers,
   compact = false,
+  highlight = null,
   onUpdate,
 }: {
   mistakes: ChatCorrection[];
   numbers: Map<string, number>;
-  /** The floating window: no severity badges, no "Wrong type?", every mistake visible. */
+  /** The floating window: no severity badges, no "Wrong type?" or "Discard", every mistake visible. */
   compact?: boolean;
-  onUpdate?: (c: ChatCorrection) => void;
+  /** A correction to point out for a moment, e.g. one just marked as a typo. */
+  highlight?: string | null;
+  onUpdate?: (update: CorrectionUpdate) => void;
 }) {
   return (
     <div className={cn("flex flex-col", compact ? "gap-3" : "gap-4")}>
@@ -38,6 +43,7 @@ export function MistakeGroups({
           items={group.items}
           numbers={numbers}
           compact={compact}
+          highlight={highlight}
           onUpdate={onUpdate}
         />
       ))}
@@ -50,13 +56,15 @@ function MistakeGroup({
   items,
   numbers,
   compact,
+  highlight,
   onUpdate,
 }: {
   title: string;
   items: ChatCorrection[];
   numbers: Map<string, number>;
   compact: boolean;
-  onUpdate?: (c: ChatCorrection) => void;
+  highlight: string | null;
+  onUpdate?: (update: CorrectionUpdate) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const visible = compact || expanded ? items : items.slice(0, VISIBLE_PER_GROUP);
@@ -70,7 +78,14 @@ function MistakeGroup({
       </div>
       <ul className={cn("flex flex-col", compact ? "gap-2" : "gap-3")}>
         {visible.map((e) => (
-          <MistakeItem key={e.id} error={e} number={numbers.get(e.id)} compact={compact} onUpdate={onUpdate} />
+          <MistakeItem
+            key={e.id}
+            error={e}
+            number={numbers.get(e.id)}
+            compact={compact}
+            highlighted={e.id === highlight}
+            onUpdate={onUpdate}
+          />
         ))}
       </ul>
       {hidden > 0 && (
@@ -91,14 +106,31 @@ export function MistakeItem({
   error: e,
   number,
   compact = false,
+  highlighted = false,
   onUpdate,
 }: {
   error: ChatCorrection;
   number?: number;
   compact?: boolean;
-  onUpdate?: (c: ChatCorrection) => void;
+  highlighted?: boolean;
+  /** Enables "Wrong type?" and "Discard" (or "Undo" once discarded). */
+  onUpdate?: (update: CorrectionUpdate) => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const discarded = e.discardedAt !== null;
+
+  async function toggleDiscard() {
+    if (!onUpdate) return;
+    setBusy(true);
+    try {
+      onUpdate(await (discarded ? restoreCorrection(e.id) : discardCorrection(e.id)));
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   const rawSubtype = subtypeLabel(e.category, e.subtype);
   // A typo classified as "Typo" would just repeat its badge.
   const subtype = rawSubtype?.toLowerCase() === SEVERITY_LABELS[e.severity].toLowerCase() ? null : rawSubtype;
@@ -109,7 +141,12 @@ export function MistakeItem({
     .join(". ");
 
   return (
-    <li className="group flex gap-2 text-sm">
+    <li
+      className={cn(
+        "group flex gap-2 rounded-md text-sm transition-colors duration-700",
+        highlighted && "bg-muted ring-4 ring-muted",
+      )}
+    >
       <span
         className="w-4 shrink-0 pt-1 text-right text-xs font-semibold text-muted-foreground tabular-nums"
         aria-label={number ? `Mark ${number}` : undefined}
@@ -120,9 +157,16 @@ export function MistakeItem({
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-serif text-base text-mark-wrong line-through">{e.original}</span>
           <ArrowRight className="size-3.5 text-muted-foreground" />
-          <span className="font-serif text-base font-medium text-mark-right">{e.correction}</span>
-          {!compact && <SeverityBadge severity={e.severity} />}
-          {!compact && onUpdate && (
+          <span
+            className={cn(
+              "font-serif text-base font-medium",
+              discarded ? "text-muted-foreground line-through" : "text-mark-right",
+            )}
+          >
+            {e.correction}
+          </span>
+          {!compact && <SeverityBadge severity={e.severity} className={cn(discarded && "opacity-60")} />}
+          {!compact && onUpdate && !discarded && (
             <Button
               variant="ghost"
               size="xs"
@@ -132,9 +176,25 @@ export function MistakeItem({
               Wrong type?
             </Button>
           )}
+          {!compact && onUpdate && (
+            <Button
+              variant="ghost"
+              size="xs"
+              className={cn(
+                "text-muted-foreground",
+                !discarded && "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+              )}
+              onClick={toggleDiscard}
+              disabled={busy}
+              title={discarded ? undefined : "Not a mistake: leave it out of your stats"}
+            >
+              {busy && <Loader2 className="animate-spin" />}
+              {discarded ? "Undo" : "Discard"}
+            </Button>
+          )}
         </div>
         {detail && !compact && <p className="text-xs text-muted-foreground">{detail}</p>}
-        <p className="text-muted-foreground">{e.explanation}</p>
+        <p className={cn("text-muted-foreground", discarded && "line-through")}>{e.explanation}</p>
       </div>
       {editing && onUpdate && (
         <ClassificationDialog correction={e} open={editing} onOpenChange={setEditing} onSaved={onUpdate} />

@@ -3,7 +3,17 @@ import type { AnalysisPreview } from "@/lib/ai/analysis";
 import type { FluencyMetrics } from "@/lib/fluency";
 
 /** Serializable shapes sent from the server to client components. */
-export type ChatCorrection = Omit<Correction, "createdAt"> & { createdAt: number };
+export type ChatCorrection = Omit<Correction, "createdAt" | "discardedAt"> & {
+  createdAt: number;
+  discardedAt: number | null;
+};
+
+/** A correction the learner changed (type fixed by hand, discarded or restored), as the routes return it. */
+export interface CorrectionUpdate {
+  correction: ChatCorrection;
+  /** Whether it counts in the stats now, with the current Settings. */
+  countsInStats: boolean;
+}
 export type ChatVocabulary = Omit<VocabularyEntry, "createdAt"> & { createdAt: number };
 
 export type ChatMessage = Omit<Message, "createdAt" | "tenseCounts"> & {

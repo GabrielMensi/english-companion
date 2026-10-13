@@ -22,6 +22,7 @@ export interface TenseStatCorrection {
   original: string;
   correction: string;
   inputMode: InputMode;
+  discardedAt: number | null;
 }
 
 export type TenseStatus = "strong" | "shaky" | "weak" | "not_enough_data" | "avoided";

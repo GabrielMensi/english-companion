@@ -58,6 +58,8 @@ export interface LevelCorrection {
   severity: Severity;
   category: ErrorCategory;
   inputMode: InputMode;
+  /** Discarded by the learner as a wrong correction: never counted. */
+  discardedAt: Date | number | null;
 }
 
 export type SignalId = "accuracy" | "grammar" | "complexity" | "vocabulary";

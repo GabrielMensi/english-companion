@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { classifyManually } from "@/lib/classification";
+import { getCorrectionUpdate } from "@/lib/corrections";
 import { ERROR_CATEGORIES, TENSES } from "@/lib/taxonomy";
 import { readJson } from "@/lib/request-body";
 
@@ -10,15 +11,15 @@ const bodySchema = z.object({
   tenseUsed: z.enum(TENSES).nullable(),
 });
 
-/** The learner fixes a mistake's type by hand. */
+/** The learner fixes a mistake's type by hand. Returns a `CorrectionUpdate`. */
 export async function PATCH(request: Request, ctx: RouteContext<"/api/corrections/[id]">) {
   const { id } = await ctx.params;
   const body = bodySchema.safeParse(await readJson(request));
   if (!body.success) return Response.json({ error: "Invalid type" }, { status: 400 });
   try {
-    const correction = classifyManually(id, body.data);
-    if (!correction) return Response.json({ error: "Mistake not found" }, { status: 404 });
-    return Response.json(correction);
+    const update = classifyManually(id, body.data) ? getCorrectionUpdate(id) : undefined;
+    if (!update) return Response.json({ error: "Mistake not found" }, { status: 404 });
+    return Response.json(update);
   } catch (error) {
     return Response.json({ error: (error as Error).message }, { status: 400 });
   }

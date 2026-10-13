@@ -40,6 +40,7 @@ function mistakes(messageId: string, n: number, partial: Partial<LevelCorrection
     severity: "moderate" as const,
     category: "prepositions" as const,
     inputMode: "typed" as const,
+    discardedAt: null,
     ...partial,
   }));
 }
@@ -108,13 +109,14 @@ describe("estimateLevel", () => {
     expect(low.signals.find((s) => s.id === "accuracy")!.level).toBe("A1");
   });
 
-  it("doesn't count typos, suggestions or categories dictation can't measure", () => {
+  it("doesn't count typos, suggestions, discarded mistakes or categories dictation can't measure", () => {
     const messages = repeat(SIMPLE, 20);
     const base = estimateLevel({ messages, corrections: [], countTypos: false });
     const ignored = [
       ...mistakes("m0", 10, { severity: "typo", category: "spelling" }),
       ...mistakes("m1", 10, { severity: "suggestion" }),
       ...mistakes("m2", 10, { inputMode: "spoken", category: "articles" }),
+      ...mistakes("m3", 10, { severity: "major", discardedAt: 1 }),
     ];
     expect(estimateLevel({ messages, corrections: ignored, countTypos: false }).score).toBe(base.score);
     expect(estimateLevel({ messages, corrections: ignored, countTypos: true }).score).toBeLessThan(base.score!);

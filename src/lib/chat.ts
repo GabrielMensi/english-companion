@@ -8,6 +8,7 @@ import { errorToMessage } from "@/lib/ai/fallback";
 import type { HistoryTurn } from "@/lib/ai/analysis";
 import { improvePrompt } from "@/lib/ai/improve-prompt";
 import { withChatPriority } from "@/lib/classification";
+import { toChatCorrection } from "@/lib/correction-review";
 import { deletePractice, exerciseReplyFor, getPractice, practiceReplyRule } from "@/lib/practice";
 import { recordExerciseResult } from "@/lib/missed-exercises";
 import { getSettings } from "@/lib/settings";
@@ -67,7 +68,7 @@ function toChatMessage(row: Message & { corrections: Correction[]; vocabulary: V
   return {
     ...row,
     createdAt: row.createdAt.getTime(),
-    corrections: row.corrections.map((c) => ({ ...c, createdAt: c.createdAt.getTime() })),
+    corrections: row.corrections.map(toChatCorrection),
     vocabulary: row.vocabulary.map((v) => ({ ...v, createdAt: v.createdAt.getTime() })),
   };
 }

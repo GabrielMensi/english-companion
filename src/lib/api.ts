@@ -1,4 +1,4 @@
-import { type ChatMessage, TURN_STREAM_TYPE, type TurnEvent } from "@/lib/types";
+import { type ChatMessage, type CorrectionUpdate, TURN_STREAM_TYPE, type TurnEvent } from "@/lib/types";
 
 /** Tiny fetch wrapper for client components: throws with the server's error message. */
 export async function api<T>(url: string, init?: { method?: string; body?: unknown }): Promise<T> {
@@ -11,6 +11,16 @@ export async function api<T>(url: string, init?: { method?: string; body?: unkno
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
   return data as T;
+}
+
+/** Discards a wrong correction (it stays, but no statistic counts it). */
+export function discardCorrection(id: string): Promise<CorrectionUpdate> {
+  return api<CorrectionUpdate>(`/api/corrections/${id}/discard`, { method: "POST" });
+}
+
+/** Undoes a discard. */
+export function restoreCorrection(id: string): Promise<CorrectionUpdate> {
+  return api<CorrectionUpdate>(`/api/corrections/${id}/discard`, { method: "DELETE" });
 }
 
 /** Splits a byte stream into lines, however the chunks happen to be cut. */

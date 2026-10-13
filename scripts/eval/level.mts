@@ -190,10 +190,10 @@ function toLevelInput(list: Essay[]) {
 
 /** The corpus' corrections as the app would store them (mechanics are suggestions, spelling slips typos). */
 function toCorrection(messageId: string, edit: Edit): LevelCorrection {
-  if (edit.kind === "mechanics")
-    return { messageId, severity: "suggestion", category: "punctuation", inputMode: "typed" };
-  if (edit.kind === "spelling") return { messageId, severity: "typo", category: "spelling", inputMode: "typed" };
-  return { messageId, severity: "moderate", category: "other", inputMode: "typed" };
+  const base = { messageId, inputMode: "typed", discardedAt: null } as const;
+  if (edit.kind === "mechanics") return { ...base, severity: "suggestion", category: "punctuation" };
+  if (edit.kind === "spelling") return { ...base, severity: "typo", category: "spelling" };
+  return { ...base, severity: "moderate", category: "other" };
 }
 
 function signalScore(estimate: LevelEstimate, id: SignalId) {
@@ -307,6 +307,7 @@ async function compareWithApp(spec: string) {
         severity: e.severity,
         category: e.category,
         inputMode: "typed" as const,
+        discardedAt: null,
       }));
       cache[key] = {
         counted: stored.filter((e) => countsInStats(e, false)).length,

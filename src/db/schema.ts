@@ -95,6 +95,8 @@ export const corrections = sqliteTable(
     category: text("category").$type<ErrorCategory>().notNull(),
     subcategory: text("subcategory").notNull(),
     severity: text("severity").$type<Severity>().notNull(),
+    /** The severity before the learner marked it as a typo by hand, restored if they change the type back. */
+    severityBeforeTypo: text("severity_before_typo").$type<Severity>(),
     explanation: text("explanation").notNull(),
     /** Fixed fine-grained type from `SUBTYPES[category]`; null until classified. */
     subtype: text("subtype"),
@@ -106,6 +108,13 @@ export const corrections = sqliteTable(
     /** Who assigned the subtype: "rule", "user" or "<provider>:<model>". */
     classifiedBy: text("classified_by"),
     classificationAttempts: integer("classification_attempts").notNull().default(0),
+    /**
+     * When the learner discarded it as a wrong correction. It's kept (and can be
+     * restored), shown in the chat, but never counted in the stats (`countsInStats`).
+     */
+    discardedAt: integer("discarded_at", { mode: "timestamp_ms" }),
+    /** Why it was discarded, if the learner said. */
+    discardReason: text("discard_reason"),
     createdAt: createdAt(),
   },
   (t) => [

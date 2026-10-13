@@ -156,7 +156,12 @@ function loadCorrections(
     .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
     .where(and(inputFilter(input), ...rangeFilter(schema.corrections.createdAt, from, to)))
     .all()
-    .map(({ correction, inputMode }) => ({ ...correction, inputMode, createdAt: correction.createdAt.getTime() }));
+    .map(({ correction, inputMode }) => ({
+      ...correction,
+      inputMode,
+      createdAt: correction.createdAt.getTime(),
+      discardedAt: correction.discardedAt?.getTime() ?? null,
+    }));
 }
 
 function rangeFilter(column: AnySQLiteColumn, from: number | null, to: number | null) {

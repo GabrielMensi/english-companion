@@ -1,0 +1,1 @@
+ALTER TABLE `corrections` ADD `severity_before_typo` text;
