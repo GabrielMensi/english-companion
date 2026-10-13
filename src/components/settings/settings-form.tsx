@@ -70,15 +70,18 @@ export function SettingsForm({
   function runTest(id: ProviderId) {
     setTests((t) => ({ ...t, [id]: { status: "testing" } }));
     // Test what's saved, including changes still on their way.
-    queue.current.then(async () => {
-      const result = await api<TestResponse>("/api/settings/test", { body: { provider: id } }).catch(
-        (error: Error): TestResponse => ({ ok: false, error: error.message }),
-      );
-      setTests((t) => ({
-        ...t,
-        [id]: result.ok ? { status: "ok", ms: result.ms } : { status: "error", error: result.error },
-      }));
-    });
+    queue.current
+      .then(async () => {
+        const result = await api<TestResponse>("/api/settings/test", { body: { provider: id } }).catch(
+          (error: Error): TestResponse => ({ ok: false, error: error.message }),
+        );
+        setTests((t) => ({
+          ...t,
+          [id]: result.ok ? { status: "ok", ms: result.ms } : { status: "error", error: result.error },
+        }));
+      })
+      // Don't leave the test spinning if something unexpected fails.
+      .catch((error: Error) => setTests((t) => ({ ...t, [id]: { status: "error", error: error.message } })));
   }
 
   function onProvidersChange(next: Providers) {
