@@ -1,10 +1,11 @@
 import { defineConfig } from "drizzle-kit";
+import { parseEnv } from "./src/lib/env";
 
 export default defineConfig({
   dialect: "sqlite",
   schema: "./src/db/schema.ts",
   out: "./drizzle",
   dbCredentials: {
-    url: process.env.DATABASE_PATH ?? "data/companion.db",
+    url: parseEnv(process.env).DATABASE_PATH,
   },
 });
