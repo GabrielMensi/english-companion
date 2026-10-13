@@ -53,3 +53,9 @@ export const MODEL_INFO: Record<string, ModelInfo> = {
     note: "Spends many reasoning tokens and sometimes returns invalid JSON.",
   },
 };
+
+/** Shown when no provider has an API key, so no AI feature can work. */
+export const NO_PROVIDER_MESSAGE = "No AI model is set up yet. Add a Gemini or Groq API key in Settings.";
+
+/** Tooltip for an AI action that is disabled because no provider has an API key. */
+export const NEEDS_API_KEY = "Needs a Gemini or Groq API key (Settings)";

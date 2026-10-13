@@ -4,7 +4,9 @@ import { CustomCategoryPractice, CustomPractice } from "@/components/practice/cu
 import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { Page, PageHeader, Section } from "@/components/layout/page";
 import { CATEGORY_STATUS, EXERCISE_LABELS, STATUS } from "@/components/practice/labels";
+import { NoProviderNotice } from "@/components/no-provider-notice";
 import { StatusBadge } from "@/components/status-badge";
+import { hasConfiguredProvider } from "@/lib/ai/providers";
 import { categoryTopic, NOT_PRACTICED } from "@/lib/category-practice";
 import { getPracticeSuggestions } from "@/lib/practice-start";
 import { ERROR_CATEGORIES, TENSE_LABELS } from "@/lib/taxonomy";
@@ -14,6 +16,7 @@ export default async function PracticePage() {
   const { tenses: targets, categories } = getPracticeSuggestions();
   const suggestedCategories = categories.every((c) => c.status === "suggested");
   const suggested = targets.every((t) => t.status === "suggested");
+  const hasModel = hasConfiguredProvider();
 
   return (
     <Page area="train">
@@ -34,6 +37,8 @@ export default async function PracticePage() {
           </>
         }
       />
+
+      {!hasModel && <NoProviderNotice detail="Exercises are written by the AI, so they need a key." />}
 
       <Section
         title={suggested ? "Suggested for you" : "Your weak spots"}
@@ -60,12 +65,16 @@ export default async function PracticePage() {
               </div>
               <p className="text-sm text-muted-foreground">{t.reason}</p>
               <div className="flex flex-wrap gap-2">
-                <StartPracticeButton request={{ kind: t.kind, tense: t.tense, contrastWith: t.contrastWith }}>
+                <StartPracticeButton
+                  request={{ kind: t.kind, tense: t.tense, contrastWith: t.contrastWith }}
+                  hasModel={hasModel}
+                >
                   {EXERCISE_LABELS[t.kind]}
                 </StartPracticeButton>
                 <StartPracticeButton
                   variant="outline"
                   request={{ kind: "conversation", tense: t.tense, contrastWith: null }}
+                  hasModel={hasModel}
                 >
                   Talk using it
                 </StartPracticeButton>
@@ -94,7 +103,10 @@ export default async function PracticePage() {
                 <StatusBadge tone={CATEGORY_STATUS[c.status].tone}>{CATEGORY_STATUS[c.status].label}</StatusBadge>
               </div>
               <p className="text-sm text-muted-foreground">{c.reason}</p>
-              <StartPracticeButton request={{ kind: "category", category: c.category, subtype: c.subtype }}>
+              <StartPracticeButton
+                request={{ kind: "category", category: c.category, subtype: c.subtype }}
+                hasModel={hasModel}
+              >
                 Exercises
               </StartPracticeButton>
             </li>
@@ -106,14 +118,17 @@ export default async function PracticePage() {
         title="Practice any tense"
         description="Contrast exercises mix two tenses; form drills practice building one; “use it” and conversation make you use a tense you rarely write."
       >
-        <CustomPractice />
+        <CustomPractice hasModel={hasModel} />
       </Section>
 
       <Section
         title="Practice any type of mistake"
         description="Exercises for any category, using your own mistakes in it as material."
       >
-        <CustomCategoryPractice categories={ERROR_CATEGORIES.filter((c) => !NOT_PRACTICED.includes(c))} />
+        <CustomCategoryPractice
+          categories={ERROR_CATEGORIES.filter((c) => !NOT_PRACTICED.includes(c))}
+          hasModel={hasModel}
+        />
       </Section>
     </Page>
   );

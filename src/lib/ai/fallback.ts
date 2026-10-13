@@ -35,8 +35,13 @@ function isProviderId(value: unknown): value is ProviderId {
  * The chain saved by an older version, without providers that no longer exist
  * (Ollama, removed in settings v3). If the primary was one of them, the first
  * remaining fallback takes its place; with none left, `defaultProvider` does.
+ * Without a saved `fallbacks` key, every other provider is a fallback (the default).
  */
 export function upgradeChain(stored: { provider?: unknown; fallbacks?: unknown }, defaultProvider: ProviderId): Chain {
+  if (stored.fallbacks === undefined) {
+    const provider = isProviderId(stored.provider) ? stored.provider : defaultProvider;
+    return normalizeChain({ provider, fallbacks: [...PROVIDER_IDS] });
+  }
   const fallbacks = Array.isArray(stored.fallbacks) ? stored.fallbacks.filter(isProviderId) : [];
   if (isProviderId(stored.provider)) return normalizeChain({ provider: stored.provider, fallbacks });
   const [provider = defaultProvider, ...rest] = fallbacks;
@@ -87,9 +92,6 @@ export function toggleStep(chain: Chain, id: ProviderId, on: boolean): Chain {
   const rest = fallbacks.filter((p) => p !== id);
   return { provider, fallbacks: on ? [...rest, id] : rest };
 }
-
-/** Shown when no provider has an API key, so no AI feature can work. */
-export const NO_PROVIDER_MESSAGE = "No AI model is set up yet. Add a Gemini or Groq API key in Settings.";
 
 export class AllModelsFailedError extends Error {
   constructor(

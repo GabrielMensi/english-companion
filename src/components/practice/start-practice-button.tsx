@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { NeedsKeyHint } from "@/components/no-provider-notice";
 import { Button } from "@/components/ui/button";
 import type { Session } from "@/db/schema";
 import { api } from "@/lib/api";
@@ -20,11 +21,14 @@ export function StartPracticeButton({
   children,
   variant = "default",
   disabled,
+  hasModel,
 }: {
   request: StartPracticeRequest;
   children: React.ReactNode;
   variant?: "default" | "outline";
   disabled?: boolean;
+  /** Whether an AI provider is set up. Without one, exercises can't be generated (conversations still start). */
+  hasModel: boolean;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -41,10 +45,14 @@ export function StartPracticeButton({
     }
   }
 
+  const needsKey = !hasModel && request.kind !== "conversation";
+
   return (
-    <Button variant={variant} size="sm" onClick={start} disabled={pending || disabled}>
-      {pending && <Loader2 className="animate-spin" />}
-      {pending && request.kind !== "conversation" ? "Preparing exercises…" : children}
-    </Button>
+    <NeedsKeyHint active={needsKey}>
+      <Button variant={variant} size="sm" onClick={start} disabled={pending || disabled || needsKey}>
+        {pending && <Loader2 className="animate-spin" />}
+        {pending && request.kind !== "conversation" ? "Preparing exercises…" : children}
+      </Button>
+    </NeedsKeyHint>
   );
 }

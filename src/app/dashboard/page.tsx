@@ -12,6 +12,7 @@ import { TopMistakes } from "@/components/dashboard/top-mistakes";
 import { Page, PageHeader, Section, SectionLink } from "@/components/layout/page";
 import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
+import { hasConfiguredProvider } from "@/lib/ai/providers";
 import { categoryTopic, selectCategoryTargets } from "@/lib/category-practice";
 import { getClassificationStatus } from "@/lib/classification";
 import { dashboardDetail, dashboardHeadline } from "@/lib/dashboard-summary";
@@ -25,6 +26,7 @@ const INPUT_LABELS: Record<InputFilter, string> = { all: "All", typed: "Written"
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   await connection();
+  const hasModel = hasConfiguredProvider();
   const { range: rawRange, input: rawInput } = await searchParams;
   const range: RangeKey = typeof rawRange === "string" && rawRange in RANGES ? (rawRange as RangeKey) : "30";
   const input: InputFilter = INPUT_FILTERS.includes(rawInput as InputFilter) ? (rawInput as InputFilter) : "all";
@@ -124,6 +126,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
                         key={`${t.category}/${t.subtype}`}
                         variant="outline"
                         request={{ kind: "category", category: t.category, subtype: t.subtype }}
+                        hasModel={hasModel}
                       >
                         {categoryTopic(t)}
                       </StartPracticeButton>
