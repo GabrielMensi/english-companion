@@ -2,12 +2,11 @@ import "server-only";
 
 import fs from "node:fs";
 import path from "node:path";
+import { serverEnv } from "@/lib/env";
 import { ASR_SAMPLES } from "./asr-samples";
 
 /** Recordings for the speech-to-text eval: data/asr-samples/<id>.wav (never in git), or ASR_SAMPLES_DIR. */
-export const ASR_SAMPLES_DIR = path.resolve(
-  /*turbopackIgnore: true*/ process.env.ASR_SAMPLES_DIR ?? "data/asr-samples",
-);
+export const ASR_SAMPLES_DIR = path.resolve(/*turbopackIgnore: true*/ serverEnv().ASR_SAMPLES_DIR);
 
 export const MAX_RECORDING_BYTES = 5 * 1024 * 1024;
 

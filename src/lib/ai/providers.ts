@@ -6,8 +6,8 @@ import type { generateText } from "ai";
 import { type KeyProvider, maskKey } from "@/lib/credentials";
 import { resolveApiKey } from "@/lib/secrets";
 import type { Settings } from "@/lib/settings";
-import { fallbackOrder, NO_PROVIDER_MESSAGE, runWithFallback } from "./fallback";
-import { PROVIDER_IDS, type ProviderId, PROVIDERS } from "./provider-info";
+import { fallbackOrder, runWithFallback } from "./fallback";
+import { NO_PROVIDER_MESSAGE, PROVIDER_IDS, type ProviderId, PROVIDERS } from "./provider-info";
 
 export interface ProviderStatus {
   configured: boolean;

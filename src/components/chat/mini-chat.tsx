@@ -26,6 +26,7 @@ import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
 import type { SessionMode } from "@/db/schema";
 import type { AnalysisPreview } from "@/lib/ai/analysis";
+import { cardSections } from "@/lib/analysis-card-core";
 import { markDiff } from "@/lib/correction-marks";
 import { SEVERITIES } from "@/lib/taxonomy";
 import type { ChatMessage } from "@/lib/types";
@@ -205,7 +206,9 @@ function LastCorrection({
   }
 
   const corrected = message.correctedText ?? message.content;
-  const errors = message.corrections.filter((c) => c.severity !== "suggestion");
+  // Mistakes and typos, without discarded ones; the marks only number what's listed here.
+  const { mistakes, typos, counts } = cardSections(message.content, corrected, message.corrections);
+  const errors = [...mistakes, ...typos];
   const marked = markDiff(message.content, corrected, errors);
 
   const copyFailed = () => notify("error", "Couldn't copy to the clipboard");
@@ -219,14 +222,13 @@ function LastCorrection({
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-1.5">
-          {SEVERITIES.filter((s) => s !== "suggestion").map((s) => {
-            const count = errors.filter((e) => e.severity === s).length;
-            return count > 0 ? (
+          {SEVERITIES.filter((s) => s !== "suggestion").map((s) =>
+            counts[s] > 0 ? (
               <SeverityBadge key={s} severity={s}>
-                {count}
+                {counts[s]}
               </SeverityBadge>
-            ) : null;
-          })}
+            ) : null,
+          )}
         </div>
       )}
 

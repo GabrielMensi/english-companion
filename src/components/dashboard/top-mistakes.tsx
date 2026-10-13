@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import { DiscardButton } from "@/components/dashboard/discard-button";
 import type { Stats } from "@/lib/stats-core";
 import { categoryLabel, subtypeLabel } from "@/lib/taxonomy";
 
@@ -21,6 +22,11 @@ export function TopMistakes({ mistakes }: { mistakes: Stats["topMistakes"] }) {
               <span className="text-mark-wrong line-through">{m.example.original}</span>
               <ArrowRight className="size-3.5 text-muted-foreground" />
               <span className="text-mark-right">{m.example.correction}</span>
+              <DiscardButton
+                correctionId={m.exampleId}
+                label="Discard this example"
+                title="Not a mistake: leave this example out of your stats (the others in the group still count)"
+              />
             </div>
             <p className="text-muted-foreground">{m.example.explanation}</p>
           </div>

@@ -4,10 +4,10 @@ export const KEY_PROVIDERS = ["gemini", "groq"] as const;
 export type KeyProvider = (typeof KEY_PROVIDERS)[number];
 
 /** Environment variable used as fallback when no key is saved in the app. */
-export const KEY_ENV_VARS: Record<KeyProvider, string> = {
+export const KEY_ENV_VARS = {
   gemini: "GOOGLE_GENERATIVE_AI_API_KEY",
   groq: "GROQ_API_KEY",
-};
+} as const satisfies Record<KeyProvider, string>;
 
 /** Shows only the last characters, so the UI can tell keys apart without exposing them. */
 export function maskKey(key: string): string {

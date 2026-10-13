@@ -24,6 +24,7 @@ function category(partial: Partial<CategoryStat> & Pick<CategoryStat, "category"
     trend: null,
     bySeverity: { suggestion: 0, typo: 0, minor: 0, moderate: 0, major: 0 },
     topSubtypes: [],
+    recent: [],
     ...partial,
   };
 }
@@ -75,6 +76,7 @@ describe("selectCategoryTargets", () => {
             subcategory: "x",
             count: 4,
             example: { original: "depend of", correction: "depend on", explanation: "" },
+            exampleId: "c1",
           },
         ],
       ),

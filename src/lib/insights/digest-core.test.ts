@@ -12,6 +12,7 @@ type Row = StatCorrection & TenseStatCorrection;
 
 function correction(partial: Partial<Row>): Row {
   return {
+    id: "c1",
     messageId: "m1",
     createdAt: now - DAY,
     category: "prepositions",
@@ -25,6 +26,7 @@ function correction(partial: Partial<Row>): Row {
     tense: null,
     tenseUsed: null,
     classification: "done",
+    discardedAt: null,
     ...partial,
   };
 }

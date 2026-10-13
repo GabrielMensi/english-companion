@@ -12,6 +12,7 @@ function correction(partial: Partial<TenseStatCorrection>): TenseStatCorrection 
     original: "I lived",
     correction: "I have lived",
     inputMode: "typed",
+    discardedAt: null,
     ...partial,
   };
 }
@@ -46,6 +47,18 @@ describe("computeTenseStats", () => {
     expect(perfect.confusedWith).toEqual([
       { tense: "past_simple", count: 1, example: { original: "I lived", correction: "I have lived" } },
     ]);
+  });
+
+  it("leaves discarded mistakes out", () => {
+    const result = stats({
+      messages: [message({ present_perfect: 10 })],
+      corrections: [
+        correction({ discardedAt: 1 }),
+        correction({ classification: "pending", tense: null, discardedAt: 1 }),
+      ],
+    });
+    expect(result.tenses.find((t) => t.tense === "present_perfect")).toMatchObject({ usageErrors: 0, accuracy: 100 });
+    expect(result.unclassified).toBe(0);
   });
 
   it("doesn't give an accuracy with too few uses, and smooths small samples", () => {

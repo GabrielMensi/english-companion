@@ -141,6 +141,7 @@ function loadLevelInput() {
       severity: schema.corrections.severity,
       category: schema.corrections.category,
       inputMode: schema.messages.inputMode,
+      discardedAt: schema.corrections.discardedAt,
     })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
