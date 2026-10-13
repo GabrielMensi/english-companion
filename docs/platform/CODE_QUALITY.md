@@ -51,18 +51,46 @@ Revisión del código entero (creció feature por feature) antes de _Deploy the 
 ### Dependencias
 
 - Ninguna dependencia sin usar (knip). `cn` y `shadcn` parecen raras pero se usan (`cn` en los componentes de UI, `shadcn/tailwind.css` en `globals.css`).
-- Majors atrasados: `typescript` 5 → 7, `eslint` 9 → 10 (esperar a que `eslint-config-next` lo soporte), `@huggingface/transformers` 3 → 4 (fijo en 3.8.1 por `kokoro-js`: no tocar sin probar la voz), `@types/node` 20 → debería seguir al Node que se use (22 hoy; vitest ya avisa del peer `@types/node >= 22`).
-- Minors al día salvo `next` 16.3 → 16.4, `react` 19.2 → 19.3, `ai`, `radix-ui`: una actualización de rutina.
+- Actualizadas en #89/#90 (ver abajo). Quedan atrasados `eslint` 10, `typescript` 7 y `@huggingface/transformers` 4, cada uno con su motivo.
+
+## Actualización de dependencias (#89, #90)
+
+Octubre de 2026, sobre la rama de #86. Un commit por paso para poder revertir uno solo.
+
+- **Minors y patches**: `next` y `eslint-config-next` 16.3.8 → 16.4.0, `react`/`react-dom` 19.2.8 → 19.3.0, `ai` 7.0.116 → 7.0.137, `@ai-sdk/google` 4.0.82 → 4.0.93, `@ai-sdk/groq` 4.0.50 → 4.0.59 (los changelogs son fixes y features nuevas, nada que rompa lo que usa la app), `drizzle-orm` 0.45.3 → 0.45.4 (`pnpm db:generate` no genera migración), `radix-ui` 1.7.0, `lucide-react` 1.55.0, `zod` 4.6.6, `compromise` 14.18.0, `vitest` 5.0.3, `prettier` 3.9.10, `shadcn` 4.21.4. Los rangos sueltos (`^4`, `^19`) quedaron con la versión instalada.
+- **`@types/node` 20 → 22**, el Node que se usa (vitest pedía `>= 22`).
+- **TypeScript 5.9 → 6.0**: pasa typecheck, lint, tests, knip y build sin cambios.
+- **`shadcn` a devDependencies**: es el CLI para agregar componentes. Lo único que usa la app es `shadcn/tailwind.css`, que Tailwind incorpora al CSS en el build, así que alcanza con que esté instalado al buildear.
+- **`sharp` 0.34.5 → 0.35.5** con un override en `pnpm-workspace.yaml`: transformers.js 3.8.1 pide `^0.34`, que tiene avisos altos (libvips, libheif, librsvg). Solo lo usan sus helpers de imágenes en Node (Kokoro corre en el navegador y no lo toca); transformers.js 4 usa el mismo código con `^0.35.4`. Se probó `RawImage` (cargar un PNG y redimensionarlo) con 0.35.5. Next venía en 0.35.4 (también afectado por el aviso de librsvg); el override deja a los dos en 0.35.5. La app no usa `next/image`.
+
+**`pnpm audit`**: antes 9 avisos (7 altos, 2 moderados); después 3 (1 alto, 2 moderados). En dependencias de producción (`--prod`) queda 1 moderado:
+
+| Aviso                  | Severidad | Viene de                                              | Por qué queda                                                                                            |
+| ---------------------- | --------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `braces` (DoS)         | Alta      | `eslint-config-next` → `fast-glob` → `micromatch`     | Solo lint; no hay versión arreglada                                                                      |
+| `esbuild` (dev server) | Moderada  | `drizzle-kit` → `@esbuild-kit/*`                      | Solo `pnpm db:generate`, que no levanta el servidor de esbuild                                           |
+| `sprintf-js` (DoS)     | Moderada  | transformers.js → `onnxruntime-node` → `global-agent` | No hay versión arreglada; `onnxruntime-node` no se compila (`ignoredBuiltDependencies`) ni lo usa la app |
+
+Se arreglaron solos con los minors: `source-map-js` (Tailwind) y `@modelcontextprotocol/sdk` (shadcn 4.21.4).
+
+**Majors que no se subieron**:
+
+- **ESLint 10**: `eslint-config-next` 16.4 trae `eslint-plugin-react`, `eslint-plugin-import` y `eslint-plugin-jsx-a11y`, que declaran peer `eslint` hasta `^9`. Probado: `pnpm lint` corre igual (los mismos 10 warnings), pero con peers sin cumplir. Esperar a que esos plugins (o `eslint-config-next`) declaren soporte. Ojo: npm ya marca `eslint@9` como _deprecated_ (sin soporte).
+- **TypeScript 7** (el compilador nativo): el paquete no trae la API de JavaScript (`typescript` exporta solo la versión y APIs `unstable/*`), así que `typescript-eslint` (peer `typescript <6.1`), el chequeo de tipos de `next build` y knip no pueden usarlo. Esperar soporte en `typescript-eslint` y Next. Se subió a 6.0, el release puente.
+- **`@huggingface/transformers` 4**: `kokoro-js` 1.2.1 depende de `^3.5.1` y la app fija 3.8.1 para compartir la instancia (ver `docs/voice/VOICE.md`). Pasar a 4 implica reemplazar `kokoro-js` y probar la voz en la GPU real.
 
 ## Follow-ups
 
 En el tablero como Backlog (Area Platform salvo que se diga otra cosa):
 
-| Item                                                                                      | Priority | Size | Kind    |
-| ----------------------------------------------------------------------------------------- | -------- | ---- | ------- |
-| Logger mínimo en el servidor para los errores de las rutas (sin keys ni texto del alumno) | P1       | S    | Feature |
-| Validar las variables de entorno al arrancar (zod)                                        | P1       | XS   | Chore   |
-| Helper `parseBody` para las rutas                                                         | P2       | S    | Chore   |
-| Partir `review-session.tsx` y los archivos grandes de lógica                              | P2       | M    | Chore   |
-| Actualizar dependencias: minors, `@types/node` a 22; evaluar TypeScript 7 y ESLint 10     | P2       | M    | Chore   |
-| Correr lint, knip y `format:check` en CI (parte de _Release workflow_)                    | P1       | S    | Chore   |
+| Item                                                                                                     | Priority | Size | Kind    |
+| -------------------------------------------------------------------------------------------------------- | -------- | ---- | ------- |
+| ~~Arreglar los 10 warnings de promesas y subir esas reglas a error~~ (hecho en #91)                      | P2       | S    | Chore   |
+| Logger mínimo en el servidor para los errores de las rutas (sin keys ni texto del alumno)                | P1       | S    | Feature |
+| Validar las variables de entorno al arrancar (zod)                                                       | P1       | XS   | Chore   |
+| Helper `parseBody` para las rutas                                                                        | P2       | S    | Chore   |
+| Partir `review-session.tsx` y los archivos grandes de lógica                                             | P2       | M    | Chore   |
+| ~~Actualizar dependencias: minors, `@types/node` a 22; evaluar TypeScript 7 y ESLint 10~~ (hecho en #89) | P2       | M    | Chore   |
+| Subir a ESLint 10 cuando `eslint-config-next` y sus plugins lo soporten                                  | P2       | S    | Chore   |
+| Subir a TypeScript 7 cuando `typescript-eslint` y Next lo soporten                                       | P2       | S    | Chore   |
+| Correr lint, knip y `format:check` en CI (parte de _Release workflow_)                                   | P1       | S    | Chore   |
