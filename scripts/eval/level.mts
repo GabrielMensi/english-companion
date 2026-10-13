@@ -31,7 +31,9 @@
  *   --spoken         treat every essay as dictated
  *   --analyze=<provider>:<model>  compare corpus mistakes with the app's (needs --limit)
  *   --limit=<n>      essays to analyze, spread across levels (default 24)
- *   --delay=<ms>     pause between requests (default 4000)
+ *   --delay=<ms>     pause between requests (default 4000; Groq with Qwen needs ~75000 for its tokens-per-minute limit)
+ *
+ * It stops at the first quota or rate-limit error.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -259,7 +261,7 @@ async function compareWithApp(spec: string) {
   // Settings and API keys come from the database in DATABASE_PATH; read it from .env.local like the app does.
   if (!process.env.DATABASE_PATH && fs.existsSync(".env.local")) process.loadEnvFile(".env.local");
   const { analyzeMessage } = await import("../../src/lib/ai/analyze");
-  const { errorToMessage } = await import("../../src/lib/ai/fallback");
+  const { AllModelsFailedError, errorToMessage, shortReason } = await import("../../src/lib/ai/fallback");
   const { PROVIDER_IDS } = await import("../../src/lib/ai/provider-info");
   const { getSettings } = await import("../../src/lib/settings");
   type ProviderId = (typeof PROVIDER_IDS)[number];
@@ -319,6 +321,9 @@ async function compareWithApp(spec: string) {
       console.log(`  ${essay.level} ${essay.id}: ${cache[key].counted} counted (corpus: ${countedEdits(essay)})`);
     } catch (error) {
       console.log(`  FAIL ${essay.id}: ${errorToMessage(error)}`);
+      // Out of quota: stop instead of spending more requests (what's done stays in the cache).
+      const cause = error instanceof AllModelsFailedError ? error.lastError : error;
+      if (shortReason(cause) === "quota exceeded") break;
     }
   }
 

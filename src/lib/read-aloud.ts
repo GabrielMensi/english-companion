@@ -8,6 +8,8 @@ import { cmuLookup } from "@/lib/cmu-lookup";
 import type { PronunciationCard } from "@/lib/flashcards-core";
 import { type ReadAloudResult, scoreReading } from "@/lib/pronunciation-core";
 import {
+  type AccuracyPoint,
+  accuracyTimeline,
   pronunciationCards,
   type PronunciationProgress,
   pronunciationProgress,
@@ -40,6 +42,26 @@ export function getPronunciationProgress(days: number | null): PronunciationProg
   const from = new Date(Date.now() - days * DAY_MS);
   const previousFrom = new Date(from.getTime() - days * DAY_MS);
   return pronunciationProgress(summarizeBetween(from, null), summarizeBetween(previousFrom, from));
+}
+
+/** Read-aloud accuracy per day (or week) over the last `days` days (all time with null), for the dashboard chart. */
+export function getAccuracyTimeline(days: number | null): AccuracyPoint[] {
+  const now = Date.now();
+  const from = days === null ? null : now - days * DAY_MS;
+  const attempts = db
+    .select({
+      createdAt: schema.readAloudAttempts.createdAt,
+      correctWords: schema.readAloudAttempts.correctWords,
+      totalWords: schema.readAloudAttempts.totalWords,
+    })
+    .from(schema.readAloudAttempts)
+    .where(from === null ? undefined : gte(schema.readAloudAttempts.createdAt, new Date(from)))
+    .all();
+  return accuracyTimeline(
+    attempts.map((a) => ({ ...a, createdAt: a.createdAt.getTime() })),
+    from,
+    now,
+  );
 }
 
 /** Readings made in [from, to); null leaves that end open. */

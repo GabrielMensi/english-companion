@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { computeStats, type StatCorrection } from "@/lib/stats-core";
 import { computeTenseStats, type TenseStatCorrection } from "@/lib/tense-stats";
 import type { VocabularyWord } from "@/lib/vocabulary-core";
+import { pronunciationProgress, summarizePronunciation } from "@/lib/read-aloud-core";
 import { buildDigest, digestToMarkdown, digestToPromptText } from "./digest-core";
 
 const DAY = 86_400_000;
@@ -44,7 +45,12 @@ function word(spanish: string, english: string, times: number): VocabularyWord {
   };
 }
 
-function digestFor(corrections: Row[], previous: Row[], vocabulary: VocabularyWord[] = []) {
+function digestFor(
+  corrections: Row[],
+  previous: Row[],
+  vocabulary: VocabularyWord[] = [],
+  pronunciation: Parameters<typeof buildDigest>[0]["pronunciation"] = null,
+) {
   const messages = [{ createdAt: now - DAY, wordCount: 200, tenseCounts: { past_simple: 8, present_perfect: 6 } }];
   const previousMessages = [{ createdAt: now - 9 * DAY, wordCount: 200, tenseCounts: {} }];
   const base = { countTypos: false, messages, corrections, previousMessages, previousCorrections: previous };
@@ -54,6 +60,7 @@ function digestFor(corrections: Row[], previous: Row[], vocabulary: VocabularyWo
     stats: computeStats({ ...base, from: now - 7 * DAY, now }),
     tenses: computeTenseStats(base),
     vocabulary,
+    pronunciation,
   });
 }
 
@@ -117,5 +124,53 @@ describe("buildDigest", () => {
     expect(d.weakest).toEqual([]);
     expect(d.topMistakes).toEqual([]);
     expect(digestToPromptText(d)).toContain("Weakest areas (weakest first):\n- none");
+  });
+});
+
+describe("pronunciation in the digest", () => {
+  const ship = { category: "vowel_length" as const, expected: "ship", heard: "sheep" };
+  const current = summarizePronunciation(
+    [
+      { correctWords: 9, totalWords: 10 },
+      { correctWords: 8, totalWords: 10 },
+    ],
+    [ship, ship, { category: "th_sounds" as const, expected: "think", heard: "tink" }],
+  );
+  const previous = summarizePronunciation([{ correctWords: 7, totalWords: 10 }], [ship, ship, ship]);
+
+  it("summarizes accuracy, problem sounds and the trend", () => {
+    const d = digestFor([], [], [], pronunciationProgress(current, previous));
+    expect(d.pronunciation).toMatchObject({ readings: 2, words: 20, accuracy: 85, previousAccuracy: 70 });
+    expect(d.pronunciation?.sounds[0]).toMatchObject({
+      category: "vowel_length",
+      count: 2,
+      per100Words: 10,
+      trend: -20,
+      example: { expected: "ship", heard: "sheep" },
+    });
+    // Only sounds heard differently in this period.
+    expect(d.pronunciation?.sounds.every((s) => s.count > 0)).toBe(true);
+
+    const text = digestToPromptText(d);
+    expect(text).toContain("Pronunciation (read-aloud practice");
+    expect(text).toContain("85% of 20 words heard as written in 2 readings (previous period: 70%)");
+    expect(text).toContain('"ship" heard as "sheep"');
+    expect(digestToMarkdown(d)).toContain("## Pronunciation (reading aloud)");
+  });
+
+  it("leaves it out without readings", () => {
+    const none = summarizePronunciation([], []);
+    for (const p of [null, pronunciationProgress(none, none)]) {
+      const d = digestFor([], [], [], p);
+      expect(d.pronunciation).toBeNull();
+      expect(digestToPromptText(d)).not.toContain("Pronunciation");
+      expect(digestToMarkdown(d)).not.toContain("Pronunciation");
+    }
+  });
+
+  it("keeps it when there were readings only in the previous period", () => {
+    const d = digestFor([], [], [], pronunciationProgress(summarizePronunciation([], []), previous));
+    expect(d.pronunciation).toMatchObject({ readings: 0, accuracy: null, previousAccuracy: 70, sounds: [] });
+    expect(digestToPromptText(d)).toContain("No readings in this period (previous period: 70%)");
   });
 });
