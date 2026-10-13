@@ -66,15 +66,15 @@ Bajo _Authentication_ (el draft que ya está en el tablero):
 
 Fuera de _Authentication_:
 
-| Título                                                                                                                                                     | Priority | Size | Area     | Kind    |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---- | -------- | ------- |
-| Content-Security-Policy completa (script-src, connect-src, worker-src con `wasm-unsafe-eval` y los hosts de Hugging Face), probada con Kokoro en GPU y CPU | P1       | S    | Platform | Chore   |
-| CodeQL + Dependabot + gitleaks en GitHub Actions (junto con _Release workflow_)                                                                            | P1       | S    | Platform | Chore   |
-| Lista de hosts permitidos (`Host` header) contra DNS rebinding, configurable para el deploy                                                                | P2       | XS   | Platform | Chore   |
-| `pnpm dev` escuchando solo en `127.0.0.1` (verificar que el navegador de Windows siga llegando desde WSL)                                                  | P2       | XS   | Platform | Chore   |
-| Mover `shadcn` (CLI) a devDependencies y revisar los avisos de `sharp` al subir transformers.js                                                            | P2       | XS   | Platform | Chore   |
-| Migraciones como paso del deploy, con backup y permisos de la base en el servidor (parte de _Deploy the app_)                                              | P1       | S    | Platform | Chore   |
-| Cifrar las API keys guardadas (parte de _Per-user API keys_)                                                                                               | P1       | M    | Platform | Feature |
+| Título                                                                                                                                                                                                                              | Priority | Size | Area     | Kind    |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---- | -------- | ------- |
+| Content-Security-Policy completa (script-src, connect-src, worker-src con `wasm-unsafe-eval` y los hosts de Hugging Face), probada con Kokoro en GPU y CPU                                                                          | P1       | S    | Platform | Chore   |
+| CodeQL + Dependabot + gitleaks en GitHub Actions (junto con _Release workflow_). Hecho en #88; CodeQL corre solo con la variable del repo `CODEQL_ENABLED=true`, que se define cuando el repo sea público o tenga Advanced Security | P1       | S    | Platform | Chore   |
+| Lista de hosts permitidos (`Host` header) contra DNS rebinding, configurable para el deploy                                                                                                                                         | P2       | XS   | Platform | Chore   |
+| `pnpm dev` escuchando solo en `127.0.0.1` (verificar que el navegador de Windows siga llegando desde WSL)                                                                                                                           | P2       | XS   | Platform | Chore   |
+| Mover `shadcn` (CLI) a devDependencies y revisar los avisos de `sharp` al subir transformers.js                                                                                                                                     | P2       | XS   | Platform | Chore   |
+| Migraciones como paso del deploy, con backup y permisos de la base en el servidor (parte de _Deploy the app_)                                                                                                                       | P1       | S    | Platform | Chore   |
+| Cifrar las API keys guardadas (parte de _Per-user API keys_)                                                                                                                                                                        | P1       | M    | Platform | Feature |
 
 ## Checklist antes de desplegar
 
