@@ -5,12 +5,13 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { serverEnv } from "@/lib/env";
 import * as schema from "./schema";
 
 type DB = BetterSQLite3Database<typeof schema>;
 
 function openSqlite(): Database.Database {
-  const file = path.resolve(/*turbopackIgnore: true*/ process.env.DATABASE_PATH ?? "data/companion.db");
+  const file = path.resolve(/*turbopackIgnore: true*/ serverEnv().DATABASE_PATH);
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
 
   const sqlite = new Database(file);

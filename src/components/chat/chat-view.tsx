@@ -208,7 +208,8 @@ export function ChatView({
   /** In voice mode the reply is read aloud; the corrections just show up in the chat. */
   function readReplyAloud(turn: ChatMessage[]) {
     const reply = turn.find((m) => m.role === "assistant");
-    if (voiceConversation && reply) speak(reply.content, reply.id);
+    // Fire and forget: the reply is already on screen and speak() never rejects (it resolves when it ends).
+    if (voiceConversation && reply) void speak(reply.content, reply.id);
   }
 
   function toggleVoiceMode() {

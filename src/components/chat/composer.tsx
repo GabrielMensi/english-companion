@@ -79,7 +79,11 @@ export function useComposer({
     setText("");
     setDictation(null);
     // Give the text back if sending failed, so nothing is lost.
-    if (!(await onSend(value, voice))) {
+    const sent = await onSend(value, voice).catch((error: Error) => {
+      notify("error", `Couldn't send: ${error.message}`);
+      return false;
+    });
+    if (!sent) {
       setText(value);
       setDictation(draftDictation);
     }
@@ -137,8 +141,9 @@ export function useComposer({
   usePushToTalk({
     enabled: canDictate && !transcribing,
     recording: recorder.recording,
-    onStart: startRecording,
-    onStop: finishRecording,
+    // Both catch and report their own errors.
+    onStart: () => void startRecording(),
+    onStop: () => void finishRecording(),
     keyWindow,
   });
 
@@ -148,7 +153,9 @@ export function useComposer({
     submit,
     multiline,
     toggleRecording,
-    cancelRecording: recorder.cancel,
+    cancelRecording: () => {
+      recorder.cancel().catch((error: Error) => notify("error", `Couldn't stop the microphone: ${error.message}`));
+    },
     recording: recorder.recording,
     transcribing,
     disabled,
@@ -182,7 +189,8 @@ export function Composer({ composer, canDictate }: { composer: ComposerState; ca
             const send = multiline ? e.ctrlKey || e.metaKey : !e.shiftKey;
             if (!send) return;
             e.preventDefault();
-            composer.submit();
+            // submit() reports its own errors (the draft is given back if sending fails).
+            void composer.submit();
           }
         }}
         placeholder={placeholder}
