@@ -11,14 +11,14 @@ Revisión del código entero (creció feature por feature) antes de _Deploy the 
 - **Prettier** (`.prettierrc.json`: 120 columnas, comillas dobles, con `prettier-plugin-tailwindcss` para ordenar las clases) y el script `pnpm format:check`. En #77 no se formateó el código porque había ramas abiertas que un reformateo masivo habría roto; se hizo después, en #86 (ver abajo).
 - **ESLint más estricto** (`eslint.config.mjs`), con reglas que usan los tipos (`projectService`):
   - Errores (el código ya las cumple): `await-thenable`, `no-unused-vars` (con `_` para ignorar), `eqeqeq` (salvo `== null`).
-  - Warnings (marcan código existente o son de estilo): `no-floating-promises`, `no-misused-promises`, `no-unnecessary-type-assertion`, `switch-exhaustiveness-check`, `consistent-type-imports`, `import/no-duplicates`, `no-console` (permite `debug`, `warn` y `error`; los scripts de eval quedan afuera porque imprimir es su salida).
+  - Warnings (marcaban código existente o son de estilo; desde #91 son errores, ver abajo): `no-floating-promises`, `no-misused-promises`, `no-unnecessary-type-assertion`, `switch-exhaustiveness-check`, `consistent-type-imports`, `import/no-duplicates`, `no-console` (permite `debug`, `warn` y `error`; los scripts de eval quedan afuera porque imprimir es su salida).
   - `eslint-config-prettier` apaga las reglas de estilo que pelearían con Prettier.
   - Con las reglas que usan tipos, `pnpm lint` tarda ~12 s.
 - **knip** (`knip.json`, `pnpm knip`): archivos, exports y dependencias sin usar. Toma los scripts de `scripts/` como puntos de entrada (son CLIs sueltos, no los importa nadie). Ignora `src/components/ui/` (componentes de shadcn: se copian enteros y exportan de más a propósito) y los exports que se usan dentro del mismo archivo. Hoy da limpio.
 - **Código muerto** (lo encontró knip): `card`, `scroll-area`, `separator` y `skeleton` de shadcn, que no usaba nadie, y `getPracticeTargets` (lo reemplazó `getPracticeSuggestions`).
 - **Duplicado**: `escapeRegExp` estaba copiado en tres archivos; ahora vive en `src/lib/text.ts`.
 - **Error boundaries**: no había ninguno, así que un error al renderizar dejaba la pantalla en blanco. `src/app/error.tsx` muestra "Something went wrong" con _Try again_ y deja la barra lateral para ir a otra página; `src/app/global-error.tsx` cubre un error del layout raíz (por ejemplo, que no abra la base) con una página simple, sin estilos de la app.
-- CLAUDE.md: los warnings conocidos no deben crecer y `pnpm knip` tiene que quedar limpio.
+- CLAUDE.md: `pnpm lint` tiene que dar 0 errores y 0 warnings (desde #91) y `pnpm knip` tiene que quedar limpio.
 
 ## Reformateo con Prettier (#86)
 
@@ -26,19 +26,14 @@ Revisión del código entero (creció feature por feature) antes de _Deploy the 
 - Script `pnpm format` (`prettier --write .`) junto a `pnpm format:check`, y `pnpm format:check` es parte de los checks en CLAUDE.md. Antes de commitear: `pnpm exec prettier --write <archivos cambiados>` (o `pnpm format`).
 - `.git-blame-ignore-revs` tiene el sha de ese commit para que `git blame` lo saltee. GitHub lo usa solo; en local hay que activarlo una vez: `git config blame.ignoreRevsFile .git-blame-ignore-revs`.
 
+## Warnings de lint a error (#91)
+
+- Los 10 warnings de promesas (`no-floating-promises` x7, `no-misused-promises` x3, en `speech.ts`, `chat-view.tsx`, `composer.tsx`, `classification-status.tsx`, `provider-card.tsx` y `settings-form.tsx`) se arreglaron caso por caso: `.catch` que muestra el error donde el usuario debería enterarse, y `void` con un comentario donde la promesa no puede fallar o se lanza sin esperar a propósito (leer la respuesta en voz alta, el polling de la clasificación, guardar una key, que ya muestran sus propios errores).
+- Errores que antes se perdían en silencio y ahora se muestran: reintentar la clasificación (toast), un `onSend` que tira (se avisa y se devuelve el borrador), cancelar la grabación con Esc, y un test de proveedor que falla de forma inesperada (queda en error en vez de girar para siempre).
+- Todas las reglas que eran warning pasaron a **error**: `no-floating-promises`, `no-misused-promises`, `no-unnecessary-type-assertion`, `switch-exhaustiveness-check`, `consistent-type-imports`, `import/no-duplicates` y `no-console` (con la misma lista de permitidos y los scripts de eval afuera). `pnpm lint` da 0 errores y 0 warnings.
+- `no-misused-promises` sigue sin mirar los atributos de JSX (`checksVoidReturn: { attributes: false }`): un `onClick={async () => …}` no se marca, así que esos handlers tienen que atrapar sus errores por su cuenta.
+
 ## Hallazgos que quedan
-
-### Warnings de lint (10)
-
-Todas son promesas que se lanzan sin esperar a propósito (fire-and-forget) en componentes de cliente; ninguna es un bug hoy, pero si la promesa falla el error se pierde en silencio:
-
-- `src/components/audio/speech.ts:210` (`speakBrowser(...).then(finish)`)
-- `src/components/chat/chat-view.tsx:214` (`speak(...)` del modo voz)
-- `src/components/chat/composer.tsx:140,141,179,185` (empezar/terminar la grabación, `submit()`)
-- `src/components/dashboard/classification-status.tsx:32,42` (el polling)
-- `src/components/settings/provider-card.tsx:263`, `src/components/settings/settings-form.tsx:73`
-
-Arreglo: `void` donde es intencional y `.catch` con un toast donde el usuario debería enterarse. Después, subir esas reglas a error. No se tocaron acá porque `chat-view`, `composer` y `settings` están en ramas abiertas.
 
 ### Producción
 
@@ -90,7 +85,7 @@ En el tablero como Backlog (Area Platform salvo que se diga otra cosa):
 
 | Item                                                                                                     | Priority | Size | Kind    |
 | -------------------------------------------------------------------------------------------------------- | -------- | ---- | ------- |
-| Arreglar los 10 warnings de promesas y subir esas reglas a error                                         | P2       | S    | Chore   |
+| ~~Arreglar los 10 warnings de promesas y subir esas reglas a error~~ (hecho en #91)                      | P2       | S    | Chore   |
 | Logger mínimo en el servidor para los errores de las rutas (sin keys ni texto del alumno)                | P1       | S    | Feature |
 | Validar las variables de entorno al arrancar (zod)                                                       | P1       | XS   | Chore   |
 | Helper `parseBody` para las rutas                                                                        | P2       | S    | Chore   |

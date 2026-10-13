@@ -20,7 +20,7 @@ Qué hay que testear y cómo, para poder desplegar una instancia pública (_Depl
 - **Unit**: 33 archivos y ~380 tests de vitest, todos sobre lógica pura (normalización del análisis, stats, flashcards, SRS, fallback, tiempos verbales, fluidez, nivel CEFR, preferencias de voz...). Corren en ~1 s. Están bien y se quedan.
 - **Sin tests**: los 22 route handlers de `src/app/api/`, los 23 módulos `server-only` de `src/lib/` (los que tocan la base o llaman a la IA: `chat.ts`, `classification.ts`, `flashcards.ts`, `practice.ts`, `settings.ts`, `secrets.ts`, `stats.ts`...), las 12 migraciones de `drizzle/` y la UI.
 - **IA**: la calidad se mide aparte con los evals, que llaman a los proveedores reales y gastan free tier. No tienen umbrales: muestran números y una persona decide.
-- **CI**: no hay (no existe `.github/`). Los checks (`pnpm typecheck && pnpm lint && pnpm test`) se corren a mano.
+- **CI**: GitHub Actions (`.github/workflows/ci.yml`, #87) corre typecheck, lint, test, knip, format:check y build en cada PR a `develop` y `main` y en cada push a `develop`, con Node 22 (`.nvmrc`) y una base temporal para el build. La cobertura todavía no.
 - **Seguridad**: hoy no hay auth (la app es local). `POST /api/transcribe` y `PUT /api/eval/asr-samples/[id]` leen el body entero sin límite de tamaño. Las demás rutas validan con zod y casi todas limitan largos.
 
 ## Las capas
@@ -109,7 +109,7 @@ Esto se engancha con el draft _Release workflow_: el release solo sale con el E2
 
 En este orden (la prioridad se puede revisar con el tablero):
 
-1. **CI en GitHub Actions** con los checks que ya existen + build. Es lo más barato y lo que más protege.
+1. **CI en GitHub Actions** con los checks que ya existen + build. Es lo más barato y lo que más protege. Hecho en #87.
 2. **Integración de rutas**: setup compartido y tests de las rutas del chat, retry, práctica, flashcards y settings/keys.
 3. **Test de migraciones** con fixture de datos viejos y el check de migraciones aditivas.
 4. **Cobertura** con piso para `src/lib/**`.

@@ -3,6 +3,7 @@
 import { AlertTriangle, Loader2, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import type { ClassificationStatus as Status } from "@/lib/classification";
@@ -29,7 +30,7 @@ export function ClassificationStatus({ initial }: { initial: Status }) {
         if (stopped) return;
         setStatus(next);
         if (next.running) {
-          timer = setTimeout(() => poll(false), POLL_MS);
+          timer = setTimeout(() => void poll(false), POLL_MS);
         } else if (hadPending.current) {
           hadPending.current = false;
           router.refresh();
@@ -39,7 +40,8 @@ export function ClassificationStatus({ initial }: { initial: Status }) {
       }
     }
 
-    poll(true);
+    // poll() catches its own errors: the status is informative only.
+    void poll(true);
     return () => {
       stopped = true;
       clearTimeout(timer);
@@ -48,9 +50,13 @@ export function ClassificationStatus({ initial }: { initial: Status }) {
 
   async function retry() {
     hadPending.current = true;
-    const next = await api<Status>("/api/classification", { body: { retryFailed: true } });
-    setStatus(next);
-    if (next.running) setTimeout(() => router.refresh(), POLL_MS);
+    try {
+      const next = await api<Status>("/api/classification", { body: { retryFailed: true } });
+      setStatus(next);
+      if (next.running) setTimeout(() => router.refresh(), POLL_MS);
+    } catch (error) {
+      toast.error(`Couldn't retry the classification: ${(error as Error).message}`);
+    }
   }
 
   if (status.running) {
