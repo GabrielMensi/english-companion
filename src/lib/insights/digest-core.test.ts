@@ -29,7 +29,17 @@ function correction(partial: Partial<Row>): Row {
 }
 
 function word(spanish: string, english: string, times: number): VocabularyWord {
-  return { key: spanish, spanish, english: [english], note: null, timesLookedUp: times, firstSeen: now, lastSeen: now, ids: [], contexts: [] };
+  return {
+    key: spanish,
+    spanish,
+    english: [english],
+    note: null,
+    timesLookedUp: times,
+    firstSeen: now,
+    lastSeen: now,
+    ids: [],
+    contexts: [],
+  };
 }
 
 function digestFor(corrections: Row[], previous: Row[], vocabulary: VocabularyWord[] = []) {
@@ -87,7 +97,9 @@ describe("buildDigest", () => {
 
     const plan = {
       summary: "Good week.",
-      focus: [{ topic: "Prepositions", why: "4 mistakes", practice: "Write 5 sentences", example: "It depends on you." }],
+      focus: [
+        { topic: "Prepositions", why: "4 mistakes", practice: "Write 5 sentences", example: "It depends on you." },
+      ],
       goal: "Fewer than 1 per 100 words",
     };
     const md = digestToMarkdown(d, plan);

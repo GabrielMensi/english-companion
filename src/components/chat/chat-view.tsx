@@ -167,9 +167,7 @@ export function ChatView({
   function mergeTurn(turn: ChatMessage[], replaceId?: string) {
     setMessages((prev) => {
       const ids = new Set(turn.map((m) => m.id));
-      const kept = prev.filter(
-        (m) => m.id !== replaceId && !ids.has(m.id) && m.replyToId !== turn[0].id,
-      );
+      const kept = prev.filter((m) => m.id !== replaceId && !ids.has(m.id) && m.replyToId !== turn[0].id);
       return [...kept, ...turn].sort((a, b) => a.createdAt - b.createdAt);
     });
   }

@@ -30,7 +30,8 @@ import { ASR_SAMPLES_DIR } from "../../src/lib/eval/asr-store";
 import { resolveApiKey } from "../../src/lib/secrets";
 
 /** Whisper imitates the prompt's style: an ungrammatical, disfluent one discourages "cleaning up". */
-const VERBATIM_PROMPT = "Umm, so yesterday I goed to the... the store, and eh, I buyed some thing. He don't know nothing about it.";
+const VERBATIM_PROMPT =
+  "Umm, so yesterday I goed to the... the store, and eh, I buyed some thing. He don't know nothing about it.";
 
 const args = process.argv.slice(2);
 const delayMs = Number(args.find((a) => a.startsWith("--delay="))?.split("=")[1] ?? 3000);
@@ -72,7 +73,11 @@ function transcriber(engine: string, model: string): Transcriber {
             audio,
             abortSignal,
             providerOptions: {
-              groq: { language: "en", temperature: 0, ...(engine === "groq-verbatim" ? { prompt: VERBATIM_PROMPT } : {}) },
+              groq: {
+                language: "en",
+                temperature: 0,
+                ...(engine === "groq-verbatim" ? { prompt: VERBATIM_PROMPT } : {}),
+              },
             },
           })
         ).text;
@@ -120,7 +125,11 @@ function transcriber(engine: string, model: string): Transcriber {
         form.append("temperature", "0");
         form.append("language", "en");
         form.append("response_format", "json");
-        const res = await fetch(`${model.replace(/\/$/, "")}/inference`, { method: "POST", body: form, signal: abortSignal });
+        const res = await fetch(`${model.replace(/\/$/, "")}/inference`, {
+          method: "POST",
+          body: form,
+          signal: abortSignal,
+        });
         if (!res.ok) throw new Error(`whisper.cpp responded ${res.status}`);
         return ((await res.json()) as { text: string }).text;
       };
@@ -190,7 +199,9 @@ for (const spec of specs) {
   });
 }
 
-console.log("\nkept = the mistake survived (good) · fixed = the engine corrected it (hides it from the tutor) · lost = neither\n");
+console.log(
+  "\nkept = the mistake survived (good) · fixed = the engine corrected it (hides it from the tutor) · lost = neither\n",
+);
 console.table(summary);
 
 const dir = path.resolve(".eval-results");

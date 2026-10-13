@@ -1,0 +1,3 @@
+# Bulk formatting commits skipped by git blame (git config blame.ignoreRevsFile .git-blame-ignore-revs)
+# Prettier reformat of the whole tree (#86)
+817317e75ec505647aa4aa9ffc5faeb25f7c4117

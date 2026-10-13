@@ -15,7 +15,7 @@ El nivel de **Insights** sale de reglas fijas en `src/lib/insights/level-core.ts
   mkdir -p data/cefr && curl -L https://www.cl.cam.ac.uk/research/nl/bea2019st/data/wi+locness_v2.1.bea19.tar.gz | tar xz -C data/cefr
   ```
 
-- Cita: Yannakoudakis, Andersen, Geranpayeh, Briscoe y Nicholls (2018). *Developing an automated writing placement system for ESL learners*. Applied Measurement in Education 31:3.
+- Cita: Yannakoudakis, Andersen, Geranpayeh, Briscoe y Nicholls (2018). _Developing an automated writing placement system for ESL learners_. Applied Measurement in Education 31:3.
 
 Se eligió porque es el único corpus abierto (sin registro) que tiene **las dos cosas** que necesita el estimador: nivel CEFR por texto y los errores marcados. EFCAMDAT, ICNALE y el Write & Improve 2024 completo piden registro o acuerdo de uso; ELLIPSE tiene puntajes holísticos 1–5, no niveles CEFR; CEFR-SP y los textos "levelled" de Kaggle son textos de lectura, no escritura de alumnos.
 
@@ -24,29 +24,29 @@ Se eligió porque es el único corpus abierto (sin registro) que tiene **las dos
 `pnpm eval:level` (`scripts/eval/level.mts` y `level-data.ts`):
 
 1. **Alumnos simulados.** El estimador necesita al menos 300 palabras y en la app suele ver entre 1.000 y 3.000. Un texto del corpus tiene 65 (A1) a 270 (C2) palabras, así que se juntan textos del mismo nivel, ordenados por usuario (en general son del mismo alumno), en bloques de ~1.000 palabras (`--words=300` y `--words=3000` para los otros tamaños). Cada bloque se estima igual que en la app: un mensaje por texto, tiempos verbales contados sobre el texto corregido.
-2. **Errores.** Las correcciones del corpus se clasifican como lo haría la app: si solo cambian puntuación, espacios o mayúsculas son *sugerencias* (casi siempre comas opcionales); una palabra cambiada por otra muy parecida que no es una flexión ("resaon" → "reason") es *typo*; el resto cuenta como error.
-3. **Puente con la IA de la app.** Los anotadores de Cambridge corrigen más que la IA de la app (también corrigen estilo y fluidez). Para medir la diferencia, `pnpm eval:level --analyze=gemini:gemini-flash-lite-latest --limit=30` pasa 30 textos (5 por nivel, del split *dev*) por el análisis real de la app y compara: **la app cuenta 0,6 de los errores** que cuenta el corpus, y esa proporción es estable en todos los niveles (0,52–0,70). El eval usa ese 0,6 (`--app-ratio`) para que las tasas estén en la escala de la app. Los resultados de la IA quedan en caché en `.eval-results/level-analysis-cache.json`.
-4. **Ajuste en *train*, medición en *dev*.** Los anclajes se sacaron de las medianas por nivel del split *train* (495 alumnos de 1.000 palabras); los pesos, de una búsqueda en grilla sobre *train*, eligiendo una opción conservadora (ver abajo). *Dev* (46 alumnos + 17 nativos) no se usó para ajustar y es el número honesto. Se reporta acuerdo exacto, acuerdo ±1 nivel, error medio, sesgo y matriz de confusión.
+2. **Errores.** Las correcciones del corpus se clasifican como lo haría la app: si solo cambian puntuación, espacios o mayúsculas son _sugerencias_ (casi siempre comas opcionales); una palabra cambiada por otra muy parecida que no es una flexión ("resaon" → "reason") es _typo_; el resto cuenta como error.
+3. **Puente con la IA de la app.** Los anotadores de Cambridge corrigen más que la IA de la app (también corrigen estilo y fluidez). Para medir la diferencia, `pnpm eval:level --analyze=gemini:gemini-flash-lite-latest --limit=30` pasa 30 textos (5 por nivel, del split _dev_) por el análisis real de la app y compara: **la app cuenta 0,6 de los errores** que cuenta el corpus, y esa proporción es estable en todos los niveles (0,52–0,70). El eval usa ese 0,6 (`--app-ratio`) para que las tasas estén en la escala de la app. Los resultados de la IA quedan en caché en `.eval-results/level-analysis-cache.json`.
+4. **Ajuste en _train_, medición en _dev_.** Los anclajes se sacaron de las medianas por nivel del split _train_ (495 alumnos de 1.000 palabras); los pesos, de una búsqueda en grilla sobre _train_, eligiendo una opción conservadora (ver abajo). _Dev_ (46 alumnos + 17 nativos) no se usó para ajustar y es el número honesto. Se reporta acuerdo exacto, acuerdo ±1 nivel, error medio, sesgo y matriz de confusión.
 
 ## Qué mostró la evidencia
 
 Correlación de rango (Spearman) de cada señal con el nivel humano, en alumnos de 1.000 palabras:
 
-| Señal | Spearman | Conclusión |
-|---|---|---|
-| Precisión (errores cada 100 palabras) | **0,92** | La mejor señal por lejos. |
-| Vocabulario (MATTR + palabras largas) | 0,52 | Ayuda, con rangos chicos entre niveles. |
-| Complejidad (palabras por oración + conectores) | 0,05 | No separa niveles: los A1 casi no puntúan, así que sus "oraciones" son largas. |
-| Rango de tiempos verbales | 0,10 | No separa niveles: la consigna decide los tiempos, y todos usan más o menos los mismos. |
+| Señal                                           | Spearman | Conclusión                                                                              |
+| ----------------------------------------------- | -------- | --------------------------------------------------------------------------------------- |
+| Precisión (errores cada 100 palabras)           | **0,92** | La mejor señal por lejos.                                                               |
+| Vocabulario (MATTR + palabras largas)           | 0,52     | Ayuda, con rangos chicos entre niveles.                                                 |
+| Complejidad (palabras por oración + conectores) | 0,05     | No separa niveles: los A1 casi no puntúan, así que sus "oraciones" son largas.          |
+| Rango de tiempos verbales                       | 0,10     | No separa niveles: la consigna decide los tiempos, y todos usan más o menos los mismos. |
 
-Medianas por nivel en *train* (errores en escala de la app, ×0,6):
+Medianas por nivel en _train_ (errores en escala de la app, ×0,6):
 
-| | A1 | A2 | B1 | B2 | C1 | C2 |
-|---|---|---|---|---|---|---|
-| Errores / 100 palabras | 8,2 | 7,4 | 5,7 | 4,0 | 2,6 | 1,5 |
+|                            | A1    | A2    | B1    | B2    | C1    | C2    |
+| -------------------------- | ----- | ----- | ----- | ----- | ----- | ----- |
+| Errores / 100 palabras     | 8,2   | 7,4   | 5,7   | 4,0   | 2,6   | 1,5   |
 | Palabras distintas (MATTR) | 0,772 | 0,781 | 0,787 | 0,798 | 0,796 | 0,799 |
-| Palabras de 7+ letras | 17 % | 18 % | 19 % | 19 % | 21 % | 21 % |
-| Palabras por oración | 14,8 | 16,9 | 16,4 | 16,5 | 16,9 | 16,7 |
+| Palabras de 7+ letras      | 17 %  | 18 %  | 19 %  | 19 %  | 21 %  | 21 %  |
+| Palabras por oración       | 14,8  | 16,9  | 16,4  | 16,5  | 16,9  | 16,7  |
 
 Los anclajes viejos de errores (20, 13, 8, 4,5, 2,2, 1) eran demasiado exigentes abajo (nadie llegaba a A1) y todo terminaba en B1–B2; los de vocabulario (MATTR 0,55–0,82) ponían a todos en C1–C2.
 
@@ -64,15 +64,15 @@ Los anclajes viejos de errores (20, 13, 8, 4,5, 2,2, 1) eran demasiado exigentes
 
 ## Resultados
 
-Split *dev* (no usado para ajustar), errores en escala de la app:
+Split _dev_ (no usado para ajustar), errores en escala de la app:
 
 | Palabras por alumno | Antes: exacto / ±1 / error medio | Después: exacto / ±1 / error medio |
-|---|---|---|
-| 300 (134 alumnos) | 23 % / 75 % / 1,04 | **40 % / 93 % / 0,66** |
-| 1.000 (46 alumnos) | 20 % / 74 % / 1,07 | **59 % / 100 % / 0,41** |
-| 3.000 (16 alumnos) | 19 % / 75 % / 1,06 | **81 % / 100 % / 0,19** |
+| ------------------- | -------------------------------- | ---------------------------------- |
+| 300 (134 alumnos)   | 23 % / 75 % / 1,04               | **40 % / 93 % / 0,66**             |
+| 1.000 (46 alumnos)  | 20 % / 74 % / 1,07               | **59 % / 100 % / 0,41**            |
+| 3.000 (16 alumnos)  | 19 % / 75 % / 1,06               | **81 % / 100 % / 0,19**            |
 
-En *train* (1.000 palabras): 23 % / 76 % antes, 62 % / 97 % después. Antes, casi todo caía en B1 o B2 (A2 → B2, C1 → B2); ahora la matriz es diagonal, con los errores en niveles vecinos. Los nativos de LOCNESS salen C1 o C2. Con todo dictado (`--spoken`, que simula que la mitad de los errores no se cuentan) da 59 % / 98 %.
+En _train_ (1.000 palabras): 23 % / 76 % antes, 62 % / 97 % después. Antes, casi todo caía en B1 o B2 (A2 → B2, C1 → B2); ahora la matriz es diagonal, con los errores en niveles vecinos. Los nativos de LOCNESS salen C1 o C2. Con todo dictado (`--spoken`, que simula que la mitad de los errores no se cuentan) da 59 % / 98 %.
 
 ## Límites
 

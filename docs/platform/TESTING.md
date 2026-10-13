@@ -2,7 +2,7 @@
 
 > Area: Platform · Kind: Research · Status: Decided · Board: #78
 
-Qué hay que testear y cómo, para poder desplegar una instancia pública (*Deploy the app*) y seguir cambiando cosas sin miedo. Va antes del deploy, junto con *Security review* (#76), *Code quality review* (#77) y el draft *Release workflow*.
+Qué hay que testear y cómo, para poder desplegar una instancia pública (_Deploy the app_) y seguir cambiando cosas sin miedo. Va antes del deploy, junto con _Security review_ (#76), _Code quality review_ (#77) y el draft _Release workflow_.
 
 ## Decisión
 
@@ -42,7 +42,7 @@ Es la capa que más falta y la que más protege antes del deploy: cubre lo que u
 
 **Lo que aprendimos con el ejemplo**:
 
-- Un error de proveedor *reintentable* (429, 503) hace que el último modelo de la cadena reintente con backoff y el test tarde segundos o haga timeout. Los mocks tiran `APICallError` con `isRetryable: false`.
+- Un error de proveedor _reintentable_ (429, 503) hace que el último modelo de la cadena reintente con backoff y el test tarde segundos o haga timeout. Los mocks tiran `APICallError` con `isRetryable: false`.
 - `@/db` guarda la conexión en `globalThis.__sqlite` (para el hot reload). El test la cierra y la borra en `afterAll`, para que otro archivo en el mismo worker no reuse una base ajena.
 - `withChatPriority` deja un timer de 5 minutos para la clasificación diferida. No molesta (vitest cierra el worker), pero un test de la clasificación tiene que usar fake timers.
 - Corre en menos de un segundo, así que va en `pnpm test` con los unit. No hace falta separar comandos.
@@ -83,7 +83,7 @@ Cuesta: una dependencia de desarrollo, los navegadores (~150 MB en CI, cacheable
 
 ### Seguridad como tests de regresión
 
-Cuando *Security review* (#76) agregue auth:
+Cuando _Security review_ (#76) agregue auth:
 
 - Un test que recorra **todos** los `route.ts` de `src/app/api/` (glob) y verifique que sin sesión responden 401. Así una ruta nueva sin auth falla sola, sin acordarse de agregarla.
 - Límites de entrada: un caso por ruta con body de más (texto, audio). Primero hay que agregar el límite a `transcribe` y `eval/asr-samples`.
@@ -97,13 +97,13 @@ Cuando *Security review* (#76) agregue auth:
 
 ## Qué corre dónde
 
-| Cuándo | Qué | Tiempo aprox. |
-|---|---|---|
-| Cada PR y push a `develop` | `pnpm typecheck`, `pnpm lint`, `pnpm test` (unit + integración + migraciones), cobertura con piso, `pnpm build` | ~2-3 min |
-| Nightly y antes de un release | Lo anterior + E2E con Playwright | ~5-8 min |
-| Manual, antes de cambiar modelo o prompt | `pnpm eval:*` con proveedores reales | minutos, gasta free tier |
+| Cuándo                                   | Qué                                                                                                             | Tiempo aprox.            |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Cada PR y push a `develop`               | `pnpm typecheck`, `pnpm lint`, `pnpm test` (unit + integración + migraciones), cobertura con piso, `pnpm build` | ~2-3 min                 |
+| Nightly y antes de un release            | Lo anterior + E2E con Playwright                                                                                | ~5-8 min                 |
+| Manual, antes de cambiar modelo o prompt | `pnpm eval:*` con proveedores reales                                                                            | minutos, gasta free tier |
 
-Esto se engancha con el draft *Release workflow*: el release solo sale con el E2E en verde.
+Esto se engancha con el draft _Release workflow_: el release solo sale con el E2E en verde.
 
 ## Plan
 

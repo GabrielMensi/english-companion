@@ -91,7 +91,10 @@ describe("chain editing", () => {
 
   it("keeps the previous primary as the first fallback when switching", () => {
     expect(setPrimary(chain, "groq")).toEqual({ provider: "groq", fallbacks: ["gemini"] });
-    expect(setPrimary({ provider: "gemini", fallbacks: [] }, "groq")).toEqual({ provider: "groq", fallbacks: ["gemini"] });
+    expect(setPrimary({ provider: "gemini", fallbacks: [] }, "groq")).toEqual({
+      provider: "groq",
+      fallbacks: ["gemini"],
+    });
     expect(setPrimary(chain, "gemini")).toEqual(chain);
   });
 });
@@ -127,11 +130,19 @@ describe("runWithFallback", () => {
 
   it("throws with every attempt when all models fail", async () => {
     const error = await runWithFallback(candidates, async (c) => {
-      throw new Error(c.modelId === "qwen/qwen3.8-27b" ? "fetch failed" : "This model is currently experiencing high demand");
+      throw new Error(
+        c.modelId === "qwen/qwen3.8-27b" ? "fetch failed" : "This model is currently experiencing high demand",
+      );
     }).catch((e) => e);
     expect(error).toBeInstanceOf(AllModelsFailedError);
-    expect(error.attempts.map((a: { reason: string }) => a.reason)).toEqual(["overloaded", "unreachable", "overloaded"]);
-    expect(errorToMessage(error)).toMatch(/^All models failed: gemini-flash-latest \(overloaded\), .*overloaded right now/);
+    expect(error.attempts.map((a: { reason: string }) => a.reason)).toEqual([
+      "overloaded",
+      "unreachable",
+      "overloaded",
+    ]);
+    expect(errorToMessage(error)).toMatch(
+      /^All models failed: gemini-flash-latest \(overloaded\), .*overloaded right now/,
+    );
   });
 
   it("keeps the plain message when only one model was tried", async () => {
@@ -151,7 +162,9 @@ describe("shortReason", () => {
   });
 
   it("never repeats an unrecognized provider message", () => {
-    expect(shortReason(providerError("Request 7f3a for projects/123 failed: internal detail", 400))).toBe("provider error 400");
+    expect(shortReason(providerError("Request 7f3a for projects/123 failed: internal detail", 400))).toBe(
+      "provider error 400",
+    );
     expect(shortReason(new TypeError("Cannot read properties of undefined"))).toBe("provider error");
   });
 });
@@ -185,12 +198,18 @@ describe("errorToMessage", () => {
   });
 
   it("keeps the app's own messages", () => {
-    expect(errorToMessage(new Error("There are no messages in this period yet"))).toBe("There are no messages in this period yet");
-    expect(errorToMessage(new UserFacingError("Dictation needs a Groq API key."))).toBe("Dictation needs a Groq API key.");
+    expect(errorToMessage(new Error("There are no messages in this period yet"))).toBe(
+      "There are no messages in this period yet",
+    );
+    expect(errorToMessage(new UserFacingError("Dictation needs a Groq API key."))).toBe(
+      "Dictation needs a Groq API key.",
+    );
   });
 
   it("translates a rejected key and a missing model without the provider's wording", () => {
-    expect(errorToMessage(providerError("API key not valid. Please pass a valid API key.", 400))).toMatch(/rejected the API key/);
+    expect(errorToMessage(providerError("API key not valid. Please pass a valid API key.", 400))).toMatch(
+      /rejected the API key/,
+    );
     expect(errorToMessage(providerError("models/foo is not found for API version v1beta", 404))).toBe(
       "The provider doesn't have that model. Check the model name in Settings.",
     );

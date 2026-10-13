@@ -72,7 +72,9 @@ for (const voice of VOICES) {
     times.push(Date.now() - started);
     const heardTokens = heard.map((h) => h.token);
 
-    const okIpa = CLIPS.find((c) => c.id === clip.id.replace(/-(stress|schwa|accent)$/, clip.variant === "accent" ? "-accent-ok" : "-ok"))!.ipa;
+    const okIpa = CLIPS.find(
+      (c) => c.id === clip.id.replace(/-(stress|schwa|accent)$/, clip.variant === "accent" ? "-accent-ok" : "-ok"),
+    )!.ipa;
     const said = tokenizeIpa(clip.ipa, phonemeSet);
     const canonical = tokenizeIpa(okIpa, phonemeSet);
 
@@ -117,7 +119,11 @@ for (const voice of VOICES) {
             length: end - start + 1,
           };
         });
-        const [db, f0, length] = [zscores(features.map((f) => f.db)), zscores(features.map((f) => f.f0)), zscores(features.map((f) => f.length))];
+        const [db, f0, length] = [
+          zscores(features.map((f) => f.db)),
+          zscores(features.map((f) => f.f0)),
+          zscores(features.map((f) => f.length)),
+        ];
         const score = features.map((_, i) => db[i] + f0[i] + length[i]);
         stressGuess = score.indexOf(Math.max(...score));
       }

@@ -5,9 +5,18 @@ import { type Tense, TENSE_LABELS } from "@/lib/taxonomy";
 import { cn } from "@/lib/utils";
 
 const FAMILIES: { title: string; tenses: Tense[] }[] = [
-  { title: "Present", tenses: ["present_simple", "present_continuous", "present_perfect", "present_perfect_continuous"] },
-  { title: "Past", tenses: ["past_simple", "past_continuous", "past_perfect", "past_perfect_continuous", "used_to_would"] },
-  { title: "Future and conditional", tenses: ["future_will", "future_going_to", "future_continuous", "future_perfect", "conditional_would"] },
+  {
+    title: "Present",
+    tenses: ["present_simple", "present_continuous", "present_perfect", "present_perfect_continuous"],
+  },
+  {
+    title: "Past",
+    tenses: ["past_simple", "past_continuous", "past_perfect", "past_perfect_continuous", "used_to_would"],
+  },
+  {
+    title: "Future and conditional",
+    tenses: ["future_will", "future_going_to", "future_continuous", "future_perfect", "conditional_would"],
+  },
 ];
 
 const STATUS: Record<TenseStatus, { label: string; className: string }> = {
@@ -145,7 +154,8 @@ function Summary({ tenses }: { tenses: TenseStat[] }) {
   if (strongest) {
     parts.push(
       <span key="strong">
-        Strongest: <strong>{TENSE_LABELS[strongest.tense].toLowerCase()}</strong> ({Math.round(strongest.accuracy ?? 0)}%).
+        Strongest: <strong>{TENSE_LABELS[strongest.tense].toLowerCase()}</strong> ({Math.round(strongest.accuracy ?? 0)}
+        %).
       </span>,
     );
   }

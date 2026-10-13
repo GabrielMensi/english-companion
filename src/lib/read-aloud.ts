@@ -44,7 +44,8 @@ export function getPronunciationProgress(days: number | null): PronunciationProg
 
 /** Readings made in [from, to); null leaves that end open. */
 function summarizeBetween(from: Date | null, to: Date | null): PronunciationSummary {
-  const window = (column: AnySQLiteColumn) => and(from ? gte(column, from) : undefined, to ? lt(column, to) : undefined);
+  const window = (column: AnySQLiteColumn) =>
+    and(from ? gte(column, from) : undefined, to ? lt(column, to) : undefined);
   const attempts = db
     .select({ correctWords: schema.readAloudAttempts.correctWords, totalWords: schema.readAloudAttempts.totalWords })
     .from(schema.readAloudAttempts)
@@ -84,7 +85,13 @@ function correctionItems(skip: Set<string>): ReadAloudItem[] {
   const rows = db
     .select({ id: schema.messages.id, corrected: schema.messages.correctedText, natural: schema.messages.naturalText })
     .from(schema.messages)
-    .where(and(eq(schema.messages.role, "user"), eq(schema.messages.status, "done"), isNotNull(schema.messages.correctedText)))
+    .where(
+      and(
+        eq(schema.messages.role, "user"),
+        eq(schema.messages.status, "done"),
+        isNotNull(schema.messages.correctedText),
+      ),
+    )
     .orderBy(desc(schema.messages.createdAt))
     .limit(200)
     .all();
@@ -95,7 +102,15 @@ function correctionItems(skip: Set<string>): ReadAloudItem[] {
     for (const text of readableSentences(row.natural ?? row.corrected ?? "")) {
       if (seen.has(text)) continue;
       seen.add(text);
-      items.push({ key: `correction:${items.length}`, text, source: "correction", sourceId: row.id, focus: null, target: null, confusedWith: null });
+      items.push({
+        key: `correction:${items.length}`,
+        text,
+        source: "correction",
+        sourceId: row.id,
+        focus: null,
+        target: null,
+        confusedWith: null,
+      });
       if (items.length >= MAX_ITEMS) return items;
     }
   }
@@ -120,7 +135,15 @@ function vocabularyItems(skip: Set<string>): ReadAloudItem[] {
       const text = sentences.find((s) => pattern.test(s));
       if (!text || seen.has(text)) continue;
       seen.add(text);
-      items.push({ key: `vocabulary:${items.length}`, text, source: "vocabulary", sourceId: row.id, focus: null, target: word, confusedWith: null });
+      items.push({
+        key: `vocabulary:${items.length}`,
+        text,
+        source: "vocabulary",
+        sourceId: row.id,
+        focus: null,
+        target: word,
+        confusedWith: null,
+      });
       break;
     }
     if (items.length >= MAX_ITEMS) break;

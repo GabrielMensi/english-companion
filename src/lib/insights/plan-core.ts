@@ -71,9 +71,7 @@ export function normalizePlan(raw: RawStudyPlan): StudyPlan {
 // ---------- Level explanation ----------
 
 export const levelExplanationSchema = z.object({
-  explanation: z
-    .string()
-    .describe("3-5 sentences: what the estimate means and which signals pull it up or down."),
+  explanation: z.string().describe("3-5 sentences: what the estimate means and which signals pull it up or down."),
   nextSteps: z.array(z.string()).describe("2 or 3 concrete things to do to reach the next level."),
 });
 
@@ -104,7 +102,9 @@ export function buildLevelPrompt(estimate: LevelEstimate, evolution: LevelWindow
     ),
   ];
   if (estimate.lookupsPer1000Words !== null) {
-    lines.push(`- Words looked up in Spanish: ${estimate.lookupsPer1000Words} per 1,000 words (context only, not scored).`);
+    lines.push(
+      `- Words looked up in Spanish: ${estimate.lookupsPer1000Words} per 1,000 words (context only, not scored).`,
+    );
   }
   if (evolution.length > 1) {
     lines.push("", "Evolution (oldest first):");
@@ -116,7 +116,13 @@ export function buildLevelPrompt(estimate: LevelEstimate, evolution: LevelWindow
 export function normalizeLevelExplanation(raw: LevelExplanation): LevelExplanation {
   const explanation = raw.explanation.trim();
   if (!explanation) throw new Error("The model returned an empty explanation");
-  return { explanation, nextSteps: raw.nextSteps.map((s) => s.trim()).filter(Boolean).slice(0, 3) };
+  return {
+    explanation,
+    nextSteps: raw.nextSteps
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 3),
+  };
 }
 
 /** Whether a stored AI text still matches the current estimate (same level and roughly the same data). */

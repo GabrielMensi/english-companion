@@ -112,7 +112,9 @@ beforeEach(() => {
 });
 
 async function newSession(mode: "correction" | "conversation" = "conversation"): Promise<string> {
-  const res = await sessions.POST(new Request("http://test/api/sessions", { method: "POST", body: JSON.stringify({ mode }) }));
+  const res = await sessions.POST(
+    new Request("http://test/api/sessions", { method: "POST", body: JSON.stringify({ mode }) }),
+  );
   expect(res.status).toBe(201);
   return ((await res.json()) as { id: string }).id;
 }
@@ -139,13 +141,17 @@ describe("POST /api/sessions/[id]/messages", () => {
     expect(reply).toMatchObject({ role: "assistant", content: ANALYSIS.reply });
 
     // And it's what a reload of the chat shows.
-    const stored = (await (await messages.GET(new Request("http://test"), { params: Promise.resolve({ id }) })).json()) as ChatMessage[];
+    const stored = (await (
+      await messages.GET(new Request("http://test"), { params: Promise.resolve({ id }) })
+    ).json()) as ChatMessage[];
     expect(stored.map((m) => m.id)).toEqual([message.id, reply.id]);
   });
 
   it("falls back to the next provider when the selected one fails", async () => {
     ai.gemini.fail = true;
-    const [message] = (await (await send(await newSession(), { text: "I go to the park yesterday." })).json()) as ChatMessage[];
+    const [message] = (await (
+      await send(await newSession(), { text: "I go to the park yesterday." })
+    ).json()) as ChatMessage[];
     expect(message).toMatchObject({ status: "done", provider: "groq" });
     expect(message.fallbackAttempts).toHaveLength(1);
   });
@@ -159,7 +165,11 @@ describe("POST /api/sessions/[id]/messages", () => {
   });
 
   it("streams previews as NDJSON and ends with the saved turn", async () => {
-    const res = await send(await newSession(), { text: "I go to the park yesterday." }, { Accept: "application/x-ndjson" });
+    const res = await send(
+      await newSession(),
+      { text: "I go to the park yesterday." },
+      { Accept: "application/x-ndjson" },
+    );
     const events = (await res.text())
       .trim()
       .split("\n")

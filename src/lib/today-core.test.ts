@@ -19,7 +19,9 @@ describe("todaySummary", () => {
   });
 
   it("points at writing when there's nothing to do", () => {
-    expect(todaySummary({ cardsToStudy: 0, focus: null, wroteThisWeek: true })).toBe("Nothing due. Write something new.");
+    expect(todaySummary({ cardsToStudy: 0, focus: null, wroteThisWeek: true })).toBe(
+      "Nothing due. Write something new.",
+    );
     expect(todaySummary({ cardsToStudy: 0, focus: null, wroteThisWeek: false })).toBe(
       "Nothing written this week yet. Start with a chat.",
     );
@@ -30,7 +32,9 @@ describe("weekSummary", () => {
   const totals = { messages: 30, words: 1322, per100Words: 7.19, previousPer100Words: 4.72 };
 
   it("compares with the week before", () => {
-    expect(weekSummary(totals)).toBe("30 messages, 1,322 words and 7.19 mistakes per 100 words, 2.47 more than the week before.");
+    expect(weekSummary(totals)).toBe(
+      "30 messages, 1,322 words and 7.19 mistakes per 100 words, 2.47 more than the week before.",
+    );
     expect(weekSummary({ ...totals, previousPer100Words: 8.2 })).toBe(
       "30 messages, 1,322 words and 7.19 mistakes per 100 words, 1.01 fewer than the week before.",
     );

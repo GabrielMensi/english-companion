@@ -43,7 +43,9 @@ export const classificationSchema = z.object({
     z.object({
       index: z.number().int().describe("The item number."),
       subtype: z.string().describe("One of the item's options, exactly as written."),
-      tense: z.enum([...TENSES, NONE]).describe("Tense the sentence needed, or 'none' if the mistake isn't about a verb."),
+      tense: z
+        .enum([...TENSES, NONE])
+        .describe("Tense the sentence needed, or 'none' if the mistake isn't about a verb."),
       tenseUsed: z
         .enum([...TENSES, NONE])
         .describe("Tense the learner used instead, or 'none' if they used the right tense."),

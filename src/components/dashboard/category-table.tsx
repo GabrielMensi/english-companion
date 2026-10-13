@@ -30,7 +30,9 @@ export function CategoryTable({ categories }: { categories: CategoryStat[] }) {
               <td className="py-2 pr-4 text-muted-foreground">
                 {c.topSubtypes.length === 0
                   ? "—"
-                  : c.topSubtypes.map((t) => `${subtypeLabel(c.category, t.subtype) ?? t.subtype} (${t.count})`).join(", ")}
+                  : c.topSubtypes
+                      .map((t) => `${subtypeLabel(c.category, t.subtype) ?? t.subtype} (${t.count})`)
+                      .join(", ")}
               </td>
               <td className="py-2">
                 <Trend value={c.trend} />

@@ -3,17 +3,34 @@ import { cmuLookup } from "./cmu-lookup";
 import { classifyMismatch, scoreReading, speechWords } from "./pronunciation-core";
 import { SOUND_SENTENCES } from "./read-aloud-sentences";
 
-const classify = (expected: string, heard: string) => classifyMismatch(expected.split(" "), heard.split(" "), cmuLookup);
+const classify = (expected: string, heard: string) =>
+  classifyMismatch(expected.split(" "), heard.split(" "), cmuLookup);
 
 describe("speechWords", () => {
   it("lowercases, spells out small numbers and expands contractions", () => {
     expect(speechWords("I think it's 3. Don't won't can't!")).toEqual([
-      "i", "think", "it", "is", "three", "do", "not", "will", "not", "cannot",
+      "i",
+      "think",
+      "it",
+      "is",
+      "three",
+      "do",
+      "not",
+      "will",
+      "not",
+      "cannot",
     ]);
   });
 
   it("splits hyphens and keeps possessives", () => {
-    expect(speechWords("A well-known teacher's book — really")).toEqual(["a", "well", "known", "teacher's", "book", "really"]);
+    expect(speechWords("A well-known teacher's book — really")).toEqual([
+      "a",
+      "well",
+      "known",
+      "teacher's",
+      "book",
+      "really",
+    ]);
   });
 });
 
@@ -55,7 +72,9 @@ describe("scoreReading", () => {
 
   it("finds the word heard differently and keeps the rest", () => {
     const result = scoreReading("I'll call you later.", "I'll kill you later.", cmuLookup);
-    expect(result.issues).toEqual([{ expected: "call", heard: "kill", category: "vowel_quality", detail: "/ɔ/ → /ɪ/" }]);
+    expect(result.issues).toEqual([
+      { expected: "call", heard: "kill", category: "vowel_quality", detail: "/ɔ/ → /ɪ/" },
+    ]);
     expect(result.tokens.filter((t) => t.status === "wrong").map((t) => t.text)).toEqual(["call"]);
     expect(result.correctWords).toBe(4);
   });
@@ -101,7 +120,8 @@ describe("SOUND_SENTENCES", () => {
 
   it("classifies each minimal pair as its own category", () => {
     for (const [category, sentences] of Object.entries(SOUND_SENTENCES)) {
-      for (const s of sentences) expect(classify(s.target, s.confusedWith)?.category, `${s.target} / ${s.confusedWith}`).toBe(category);
+      for (const s of sentences)
+        expect(classify(s.target, s.confusedWith)?.category, `${s.target} / ${s.confusedWith}`).toBe(category);
     }
   });
 });

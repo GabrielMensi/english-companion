@@ -36,11 +36,11 @@ export function AnalysisCard({
     setImproving(true);
     try {
       const update = await api<
-        Pick<ChatMessage, "improvedPrompt" | "improvedPromptProvider" | "improvedPromptModel" | "improvedPromptDurationMs">
-      >(
-        `/api/messages/${message.id}/prompt`,
-        { method: "POST" },
-      );
+        Pick<
+          ChatMessage,
+          "improvedPrompt" | "improvedPromptProvider" | "improvedPromptModel" | "improvedPromptDurationMs"
+        >
+      >(`/api/messages/${message.id}/prompt`, { method: "POST" });
       onUpdate({ id: message.id, ...update });
     } catch (error) {
       toast.error((error as Error).message);
@@ -72,7 +72,9 @@ export function AnalysisCard({
 
       {message.naturalText && (
         <div className="flex flex-col gap-1 border-l-2 pl-4">
-          <SectionTitle icon={<MessageCircleHeart className="size-4" />}>How a native speaker would say it</SectionTitle>
+          <SectionTitle icon={<MessageCircleHeart className="size-4" />}>
+            How a native speaker would say it
+          </SectionTitle>
           <div className="flex items-start gap-1">
             <p className="flex-1 font-serif text-reading whitespace-pre-wrap italic">{message.naturalText}</p>
             <SpeakButton text={message.naturalText} />
@@ -106,7 +108,8 @@ export function AnalysisCard({
             <ChevronRight className="size-4 transition-transform group-open/details:rotate-90" />
             {[
               typos.length > 0 && `${typos.length} ${typos.length === 1 ? "typo" : "typos"}`,
-              suggestions.length > 0 && `${suggestions.length} ${suggestions.length === 1 ? "suggestion" : "suggestions"}`,
+              suggestions.length > 0 &&
+                `${suggestions.length} ${suggestions.length === 1 ? "suggestion" : "suggestions"}`,
             ]
               .filter(Boolean)
               .join(" and ")}

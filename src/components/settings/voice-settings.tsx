@@ -94,10 +94,7 @@ export function VoiceSettings() {
           </div>
           <div className="flex items-center justify-between gap-4">
             <Label>Device</Label>
-            <Select
-              value={current.kokoroDevice}
-              onValueChange={(v) => update({ kokoroDevice: v as KokoroDevicePref })}
-            >
+            <Select value={current.kokoroDevice} onValueChange={(v) => update({ kokoroDevice: v as KokoroDevicePref })}>
               <SelectTrigger className="w-72">
                 <SelectValue />
               </SelectTrigger>

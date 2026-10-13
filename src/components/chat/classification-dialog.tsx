@@ -150,7 +150,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function TenseSelect({ value, onChange, noneLabel }: { value: string; onChange: (v: string) => void; noneLabel: string }) {
+function TenseSelect({
+  value,
+  onChange,
+  noneLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  noneLabel: string;
+}) {
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="w-full">

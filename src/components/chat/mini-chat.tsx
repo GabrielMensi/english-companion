@@ -96,13 +96,22 @@ export function MiniChat({
               Voice
             </Button>
           )}
-          <span className="text-xs text-muted-foreground">{mode === "conversation" ? "Conversation" : "Correction"}</span>
+          <span className="text-xs text-muted-foreground">
+            {mode === "conversation" ? "Conversation" : "Correction"}
+          </span>
         </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {message ? (
-          <LastCorrection message={message} preview={preview} reply={reply} notify={notify} onRetry={onRetry} onClose={onClose} />
+          <LastCorrection
+            message={message}
+            preview={preview}
+            reply={reply}
+            notify={notify}
+            onRetry={onRetry}
+            onClose={onClose}
+          />
         ) : (
           <p className="py-8 text-center text-muted-foreground">
             Write or dictate something in English: the correction shows up here, ready to copy.
@@ -253,7 +262,9 @@ function LastCorrection({
       <div className="-mb-1 flex flex-wrap gap-1 border-t pt-2">
         <SpeakButton text={corrected} label="Listen" />
         <CopyButton text={corrected} label="Copy corrected" onError={copyFailed} />
-        {message.improvedPrompt && <CopyButton text={message.improvedPrompt} label="Copy prompt" onError={copyFailed} />}
+        {message.improvedPrompt && (
+          <CopyButton text={message.improvedPrompt} label="Copy prompt" onError={copyFailed} />
+        )}
         <CopyAndCloseButton text={corrected} onClose={onClose} onError={copyFailed} />
         {message.naturalText && (
           <Button

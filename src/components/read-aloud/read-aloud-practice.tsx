@@ -22,7 +22,8 @@ const SOURCES: { value: PageSource; label: string; empty: string }[] = [
   {
     value: "correction",
     label: "Your corrections",
-    empty: "No sentences yet. The corrected versions of your messages show up here (the ones read in the last two weeks are left out).",
+    empty:
+      "No sentences yet. The corrected versions of your messages show up here (the ones read in the last two weeks are left out).",
   },
   {
     value: "vocabulary",
@@ -135,7 +136,11 @@ export function ReadAloudPractice({
         {item ? (
           <div className="space-y-4">
             <div className="space-y-2">
-              {shown ? <ScoredSentence result={shown.score} /> : <TargetSentence text={item.text} targets={item.target ? [item.target] : []} />}
+              {shown ? (
+                <ScoredSentence result={shown.score} />
+              ) : (
+                <TargetSentence text={item.text} targets={item.target ? [item.target] : []} />
+              )}
               <ItemHint item={item} />
             </div>
 
@@ -145,7 +150,15 @@ export function ReadAloudPractice({
                 disabled={!canRecord || busy}
                 aria-label={recorder.recording ? "Stop recording" : "Record"}
               >
-                {busy ? <Loader2 className="animate-spin" /> : recorder.recording ? <Square /> : shown ? <RotateCcw /> : <Mic />}
+                {busy ? (
+                  <Loader2 className="animate-spin" />
+                ) : recorder.recording ? (
+                  <Square />
+                ) : shown ? (
+                  <RotateCcw />
+                ) : (
+                  <Mic />
+                )}
                 {busy ? "Checking…" : recorder.recording ? "Stop" : shown ? "Try again" : "Record"}
               </Button>
               <SpeakButton text={item.text} label="Listen" />
@@ -173,7 +186,15 @@ export function ReadAloudPractice({
   );
 }
 
-function FocusButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function FocusButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <Button variant={active ? "secondary" : "ghost"} size="sm" aria-pressed={active} onClick={onClick}>
       {children}
@@ -192,7 +213,8 @@ function ItemHint({ item }: { item: ReadAloudItem }) {
   if (item.source === "vocabulary" && item.target) {
     return <p className="text-sm text-muted-foreground">You looked up “{item.target}”.</p>;
   }
-  if (item.source === "correction") return <p className="text-sm text-muted-foreground">From one of your corrected messages.</p>;
+  if (item.source === "correction")
+    return <p className="text-sm text-muted-foreground">From one of your corrected messages.</p>;
   return null;
 }
 
@@ -220,7 +242,8 @@ function SoundsToWorkOn({
             <li key={c.category} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5 first:pt-0 last:pb-0">
               <div className="min-w-0 flex-1">
                 <p className="font-medium">
-                  {PRONUNCIATION_LABELS[c.category]} <span className="text-sm font-normal text-muted-foreground tabular-nums">{c.count}</span>
+                  {PRONUNCIATION_LABELS[c.category]}{" "}
+                  <span className="text-sm font-normal text-muted-foreground tabular-nums">{c.count}</span>
                 </p>
                 <p className="text-sm text-muted-foreground">
                   {c.examples.map((e, i) => (

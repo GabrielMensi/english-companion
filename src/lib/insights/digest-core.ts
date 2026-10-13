@@ -78,31 +78,27 @@ export function buildDigest(input: {
   vocabulary: VocabularyWord[];
 }): StatsDigest {
   const { stats } = input;
-  const areas = stats.categories.map(
-    (c): DigestArea => ({
-      category: c.category,
-      label: categoryLabel(c.category),
-      count: c.count,
-      per100Words: c.per100Words,
-      trend: c.trend,
-      types: c.topSubtypes.map((t) => subtypeLabel(c.category, t.subtype) ?? t.subtype),
-    }),
-  );
+  const areas = stats.categories.map((c): DigestArea => ({
+    category: c.category,
+    label: categoryLabel(c.category),
+    count: c.count,
+    per100Words: c.per100Words,
+    trend: c.trend,
+    types: c.topSubtypes.map((t) => subtypeLabel(c.category, t.subtype) ?? t.subtype),
+  }));
 
   const tenses = input.tenses.tenses
     .filter((t) => t.status === "weak" || t.status === "shaky" || t.status === "avoided")
     .sort((a, b) => statusRank(a.status) - statusRank(b.status) || a.smoothedAccuracy - b.smoothedAccuracy)
-    .map(
-      (t): DigestTense => ({
-        tense: t.tense,
-        label: tenseLabel(t.tense) ?? t.tense,
-        status: t.status as DigestTense["status"],
-        uses: t.uses,
-        accuracy: t.accuracy,
-        confusedWith: t.confusedWith[0] ? (tenseLabel(t.confusedWith[0].tense) ?? t.confusedWith[0].tense) : null,
-        example: t.confusedWith[0]?.example ?? null,
-      }),
-    );
+    .map((t): DigestTense => ({
+      tense: t.tense,
+      label: tenseLabel(t.tense) ?? t.tense,
+      status: t.status as DigestTense["status"],
+      uses: t.uses,
+      accuracy: t.accuracy,
+      confusedWith: t.confusedWith[0] ? (tenseLabel(t.confusedWith[0].tense) ?? t.confusedWith[0].tense) : null,
+      example: t.confusedWith[0]?.example ?? null,
+    }));
 
   return {
     period: {
@@ -193,7 +189,10 @@ export function digestToPromptText(d: StatsDigest): string {
 export function digestToMarkdown(d: StatsDigest, plan?: MarkdownPlan | null): string {
   const out: string[] = [];
   const period = d.period.days === null ? "All time" : `Last ${d.period.days} days`;
-  out.push(`# English report — ${period} (${formatDate(d.period.from ?? d.period.to)} – ${formatDate(d.period.to)})`, "");
+  out.push(
+    `# English report — ${period} (${formatDate(d.period.from ?? d.period.to)} – ${formatDate(d.period.to)})`,
+    "",
+  );
   out.push(
     `${d.totals.messages} messages · ${d.totals.words} words · ${d.totals.errors} mistakes · ` +
       `${d.totals.per100Words} per 100 words` +

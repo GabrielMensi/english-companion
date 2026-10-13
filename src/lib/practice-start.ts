@@ -99,10 +99,7 @@ function recentMistakes(category: ErrorCategory, subtype: string | null) {
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.messages.id, schema.corrections.messageId))
     .where(
-      and(
-        eq(schema.corrections.category, category),
-        subtype ? eq(schema.corrections.subtype, subtype) : undefined,
-      ),
+      and(eq(schema.corrections.category, category), subtype ? eq(schema.corrections.subtype, subtype) : undefined),
     )
     .orderBy(desc(schema.corrections.createdAt))
     .limit(50)

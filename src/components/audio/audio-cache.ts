@@ -92,7 +92,12 @@ export async function getCachedAudio(
     const tx = db.transaction([AUDIO, META], "readwrite");
     const stored = await result(tx.objectStore(AUDIO).get(key) as IDBRequest<CachedAudio | undefined>);
     if (!stored || !usableFor(stored, pref, running)) return undefined;
-    tx.objectStore(META).put({ key, bytes: audioBytes(stored), lastUsed: Date.now(), device: stored.device } satisfies Meta);
+    tx.objectStore(META).put({
+      key,
+      bytes: audioBytes(stored),
+      lastUsed: Date.now(),
+      device: stored.device,
+    } satisfies Meta);
     memory.set(key, stored);
     return stored;
   } catch {

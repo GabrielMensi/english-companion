@@ -16,7 +16,9 @@ describe("dashboardHeadline", () => {
 
   it("has no comparison for all time or without a previous period", () => {
     expect(dashboardHeadline({ per100Words: 6.43, previousPer100Words: 6 }, null)).toBe("6.43 mistakes per 100 words.");
-    expect(dashboardHeadline({ per100Words: 6.43, previousPer100Words: null }, 30)).toBe("6.43 mistakes per 100 words.");
+    expect(dashboardHeadline({ per100Words: 6.43, previousPer100Words: null }, 30)).toBe(
+      "6.43 mistakes per 100 words.",
+    );
   });
 });
 

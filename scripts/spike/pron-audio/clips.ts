@@ -175,7 +175,15 @@ export const CLIPS: Clip[] = [
   ...ITEMS.flatMap((item): Clip[] => {
     const base = { text: item.text, word: item.word, syllables: item.syllables };
     const clips: Clip[] = [
-      { ...base, id: `${item.key}-ok`, variant: "ok", ipa: item.ok, expected: [], stressed: item.stressed, reduced: true },
+      {
+        ...base,
+        id: `${item.key}-ok`,
+        variant: "ok",
+        ipa: item.ok,
+        expected: [],
+        stressed: item.stressed,
+        reduced: true,
+      },
     ];
     if (item.stress) {
       clips.push({

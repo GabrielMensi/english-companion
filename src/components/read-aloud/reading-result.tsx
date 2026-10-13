@@ -53,7 +53,15 @@ export function ScoredSentence({ result }: { result: ReadAloudResult }) {
   );
 }
 
-export function ResultDetails({ result, transcript, language }: { result: ReadAloudResult; transcript: string; language: Language }) {
+export function ResultDetails({
+  result,
+  transcript,
+  language,
+}: {
+  result: ReadAloudResult;
+  transcript: string;
+  language: Language;
+}) {
   const perfect = result.issues.length === 0 && result.missedWords.length === 0;
   return (
     <div className="space-y-4 border-t pt-4">
@@ -82,7 +90,9 @@ export function ResultDetails({ result, transcript, language }: { result: ReadAl
                   {issue.detail && <> · {issue.detail}</>}
                 </span>
               </p>
-              <p className="max-w-[68ch] text-sm text-muted-foreground">{PRONUNCIATION_TIPS[issue.category][language]}</p>
+              <p className="max-w-[68ch] text-sm text-muted-foreground">
+                {PRONUNCIATION_TIPS[issue.category][language]}
+              </p>
             </li>
           ))}
         </ol>

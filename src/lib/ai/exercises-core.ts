@@ -23,7 +23,9 @@ export const MIN_EXERCISES = 3;
 export const exercisesSchema = z.object({
   items: z.array(
     z.object({
-      sentence: z.string().describe("The exercise: a sentence with a ___ gap and the base verb in brackets, or a short task."),
+      sentence: z
+        .string()
+        .describe("The exercise: a sentence with a ___ gap and the base verb in brackets, or a short task."),
       answer: z.string().describe("The full correct sentence."),
       why: z.string().describe("One short sentence explaining why that tense."),
     }),
@@ -44,15 +46,24 @@ export interface ExerciseRequest {
 const CONTRAST_CLUES: Record<string, string> = {
   "past_simple/present_perfect":
     "yesterday, last week, in 2019, ago, when (finished time → past simple) vs since, for, ever, never, just, already, yet, so far, this week, recently (unfinished time or life experience → present perfect)",
-  "past_simple/present_simple": "yesterday, last night, ago (past) vs every day, usually, always, on Mondays (habits and facts)",
-  "present_perfect/present_simple": "since and for with states that are still true (I have lived / I have known) vs habits and general facts",
-  "past_continuous/past_simple": "when, while, at 8 pm yesterday (an action in progress, interrupted) vs a completed action or a sequence of actions",
-  "present_continuous/present_simple": "now, at the moment, these days, this week (temporary) vs usually, always, every day (habits, permanent facts); stative verbs (know, like, want) are never continuous",
-  "future_going_to/future_will": "plans already decided and evidence (look at those clouds) → going to vs decisions made while speaking, promises, offers and predictions based on opinion → will",
-  "past_perfect/past_simple": "before, after, by the time, already, when (the earlier of two past actions → past perfect)",
-  "present_perfect/present_perfect_continuous": "how long, all day, lately (an activity in progress) vs how many, how much, results (present perfect)",
-  "conditional_would/future_will": "unreal or imaginary situations (if I had…, I would…) vs real possibilities (if I have…, I will…)",
-  "present_simple/future_will": "after if, when, as soon as, before, until the verb stays in the present simple even about the future",
+  "past_simple/present_simple":
+    "yesterday, last night, ago (past) vs every day, usually, always, on Mondays (habits and facts)",
+  "present_perfect/present_simple":
+    "since and for with states that are still true (I have lived / I have known) vs habits and general facts",
+  "past_continuous/past_simple":
+    "when, while, at 8 pm yesterday (an action in progress, interrupted) vs a completed action or a sequence of actions",
+  "present_continuous/present_simple":
+    "now, at the moment, these days, this week (temporary) vs usually, always, every day (habits, permanent facts); stative verbs (know, like, want) are never continuous",
+  "future_going_to/future_will":
+    "plans already decided and evidence (look at those clouds) → going to vs decisions made while speaking, promises, offers and predictions based on opinion → will",
+  "past_perfect/past_simple":
+    "before, after, by the time, already, when (the earlier of two past actions → past perfect)",
+  "present_perfect/present_perfect_continuous":
+    "how long, all day, lately (an activity in progress) vs how many, how much, results (present perfect)",
+  "conditional_would/future_will":
+    "unreal or imaginary situations (if I had…, I would…) vs real possibilities (if I have…, I will…)",
+  "present_simple/future_will":
+    "after if, when, as soon as, before, until the verb stays in the present simple even about the future",
 };
 
 function contrastClues(a: Tense, b: Tense): string {
@@ -149,8 +160,12 @@ export function normalizeExercises(raw: RawExercises, request: ExerciseRequest):
 export const categoryExercisesSchema = z.object({
   items: z.array(
     z.object({
-      sentence: z.string().describe("The exercise: a sentence with a ___ gap, or \"Fix the mistake: \" and a sentence with one mistake."),
-      options: z.string().describe("Multiple choice only: 2 or 3 options for the gap separated by \" / \". Empty for the other formats."),
+      sentence: z
+        .string()
+        .describe('The exercise: a sentence with a ___ gap, or "Fix the mistake: " and a sentence with one mistake.'),
+      options: z
+        .string()
+        .describe('Multiple choice only: 2 or 3 options for the gap separated by " / ". Empty for the other formats.'),
       answer: z.string().describe("The full correct sentence, with the gap filled in."),
       why: z.string().describe("One short sentence explaining the rule."),
     }),
@@ -220,7 +235,10 @@ export function buildCategoryExercisePrompt(input: CategoryExerciseRequest): str
  * the gapped sentence, an empty gap, a choice answer that isn't one of the
  * options, a "mistake" that is already correct, and duplicates.
  */
-export function normalizeCategoryExercises(raw: RawCategoryExercises, request: CategoryExerciseRequest): CategoryExerciseItem[] {
+export function normalizeCategoryExercises(
+  raw: RawCategoryExercises,
+  request: CategoryExerciseRequest,
+): CategoryExerciseItem[] {
   const count = request.count ?? EXERCISE_COUNT;
   const seen = new Set<string>();
   const items: CategoryExerciseItem[] = [];

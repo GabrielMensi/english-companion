@@ -26,7 +26,10 @@ export function SuspendedCards({ cards }: { cards: SuspendedCard[] }) {
     const id = `${card.kind}:${card.key}`;
     setBusy(id);
     try {
-      await api("/api/flashcards/cards", { method: "PATCH", body: { kind: card.kind, key: card.key, suspended: false } });
+      await api("/api/flashcards/cards", {
+        method: "PATCH",
+        body: { kind: card.kind, key: card.key, suspended: false },
+      });
       router.refresh();
     } catch (error) {
       toast.error((error as Error).message);

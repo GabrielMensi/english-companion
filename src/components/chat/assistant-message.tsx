@@ -13,7 +13,12 @@ export function AssistantMessage({ message }: { message: ChatMessage }) {
         <p className="font-serif text-reading whitespace-pre-wrap">{message.content}</p>
         <div className="flex items-center gap-1">
           <SpeakButton text={message.content} id={message.id} />
-          <ModelNote verb="Replied by" provider={message.provider} model={message.model} durationMs={message.durationMs} />
+          <ModelNote
+            verb="Replied by"
+            provider={message.provider}
+            model={message.model}
+            durationMs={message.durationMs}
+          />
         </div>
       </div>
     </div>

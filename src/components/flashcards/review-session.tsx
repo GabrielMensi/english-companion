@@ -36,7 +36,15 @@ import {
   type QueuedCard,
   type VocabularyCard,
 } from "@/lib/flashcards-core";
-import { formatDelay, type Grade, GRADE_LABELS, GRADES, newReviewState, previewIntervals, type ReviewState } from "@/lib/srs";
+import {
+  formatDelay,
+  type Grade,
+  GRADE_LABELS,
+  GRADES,
+  newReviewState,
+  previewIntervals,
+  type ReviewState,
+} from "@/lib/srs";
 import { categoryLabel, PRONUNCIATION_LABELS, subtypeLabel, tenseLabel } from "@/lib/taxonomy";
 import { cn } from "@/lib/utils";
 
@@ -91,7 +99,8 @@ export function ReviewSession({
   const rawMatch = revealedAt !== null ? checkAnswer(typed, accepted) : null;
   // Exercises hinge on one small word (in / on, a / an): one letter off is a different answer, not a typo.
   const match = rawMatch === "close" && current?.card.kind === "exercise" ? "wrong" : rawMatch;
-  const previews = revealedAt !== null && current ? previewIntervals(current.state ?? newReviewState(revealedAt), revealedAt) : null;
+  const previews =
+    revealedAt !== null && current ? previewIntervals(current.state ?? newReviewState(revealedAt), revealedAt) : null;
 
   function reveal() {
     setRevealedAt(Date.now());
@@ -112,7 +121,8 @@ export function ReviewSession({
     setSaving(true);
     try {
       const body = { kind, key: current.card.key };
-      if (action === "suspend") await api("/api/flashcards/cards", { method: "PATCH", body: { ...body, suspended: true } });
+      if (action === "suspend")
+        await api("/api/flashcards/cards", { method: "PATCH", body: { ...body, suspended: true } });
       else await api("/api/flashcards/cards", { method: "DELETE", body });
       setConfirmDelete(false);
       setQueue((q) => q.filter((c) => c.card.key !== current.card.key));
@@ -277,7 +287,9 @@ export function ReviewSession({
                   Show answer
                 </Button>
                 <span className="text-xs text-muted-foreground">
-                  {canRecord ? `Or hold ${PUSH_TO_TALK_KEYS}` : "Recording needs a Groq API key: read it, then grade yourself."}
+                  {canRecord
+                    ? `Or hold ${PUSH_TO_TALK_KEYS}`
+                    : "Recording needs a Groq API key: read it, then grade yourself."}
                 </span>
               </div>
             )}
@@ -327,7 +339,12 @@ export function ReviewSession({
             {revealed && (
               <div className="space-y-4 border-t pt-4">
                 {match && (
-                  <span className={cn("inline-block rounded-md px-2 py-0.5 text-xs font-medium", MATCH_STYLES[match].className)}>
+                  <span
+                    className={cn(
+                      "inline-block rounded-md px-2 py-0.5 text-xs font-medium",
+                      MATCH_STYLES[match].className,
+                    )}
+                  >
                     {MATCH_STYLES[match].label}
                   </span>
                 )}
@@ -364,7 +381,11 @@ export function ReviewSession({
                 variant="outline"
                 disabled={saving}
                 onClick={() => grade(g)}
-                className={cn("h-auto flex-col gap-0 py-2", GRADE_STYLES[g], suggested === g && "ring-2 ring-foreground/50 ring-offset-2 ring-offset-background")}
+                className={cn(
+                  "h-auto flex-col gap-0 py-2",
+                  GRADE_STYLES[g],
+                  suggested === g && "ring-2 ring-foreground/50 ring-offset-2 ring-offset-background",
+                )}
                 aria-describedby={suggested === g ? "suggested-grade" : undefined}
               >
                 <span>
@@ -461,7 +482,8 @@ function PronunciationBack({
           <ul className="space-y-1 text-sm">
             {card.words.map((w) => (
               <li key={`${w.expected}|${w.heard}`}>
-                <span className="font-serif">{w.expected}</span> <span className="text-muted-foreground">sounded like</span>{" "}
+                <span className="font-serif">{w.expected}</span>{" "}
+                <span className="text-muted-foreground">sounded like</span>{" "}
                 <span className="font-serif text-mark-wrong">{w.heard}</span>
                 <span className="ml-2 text-muted-foreground">
                   {PRONUNCIATION_LABELS[w.category]}
@@ -485,7 +507,8 @@ function HeardList({ words }: { words: PronunciationCard["words"] }) {
       {words.map((w, i) => (
         <span key={`${w.expected}|${w.heard}`}>
           {i > 0 && ", "}
-          <span className="font-serif">{w.expected}</span> sounded like <span className="font-serif text-mark-wrong">{w.heard}</span>
+          <span className="font-serif">{w.expected}</span> sounded like{" "}
+          <span className="font-serif text-mark-wrong">{w.heard}</span>
         </span>
       ))}
     </>
@@ -633,9 +656,7 @@ function Marked({ text, terms, tone }: { text: string; terms: string[]; tone: "g
         <mark
           className={cn(
             "rounded-sm px-0.5",
-            tone === "good"
-              ? "bg-mark-right/12 text-mark-right"
-              : "bg-sev-major/12 text-sev-major-text",
+            tone === "good" ? "bg-mark-right/12 text-mark-right" : "bg-sev-major/12 text-sev-major-text",
           )}
         >
           {text.slice(i, i + term.length)}

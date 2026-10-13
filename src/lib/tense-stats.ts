@@ -57,7 +57,13 @@ const STRONG_ACCURACY = 0.9;
 const WEAK_ACCURACY = 0.75;
 /** Common tenses that are suspicious if they barely appear in this many words. */
 const AVOIDED_MIN_WORDS = 1000;
-const COMMON_TENSES: readonly Tense[] = ["past_simple", "present_perfect", "present_continuous", "future_will", "future_going_to"];
+const COMMON_TENSES: readonly Tense[] = [
+  "past_simple",
+  "present_perfect",
+  "present_continuous",
+  "future_will",
+  "future_going_to",
+];
 
 /**
  * The counter can't tell "I'm meeting him tomorrow" from "I'm meeting him now",
@@ -101,17 +107,15 @@ export function computeTenseStats(input: {
       smoothedAccuracy: round(smoothed * 100),
       trend: accuracy !== null && previousAccuracy !== null ? round((accuracy - previousAccuracy) * 100) : null,
       status: status(uses, smoothed, avoided),
-      confusedWith: [...(data?.confusions.values() ?? [])].sort((a, b) => b.count - a.count || b.last - a.last).map(
-        ({ tense: t, count, example }) => ({ tense: t, count, example }),
-      ),
+      confusedWith: [...(data?.confusions.values() ?? [])]
+        .sort((a, b) => b.count - a.count || b.last - a.last)
+        .map(({ tense: t, count, example }) => ({ tense: t, count, example })),
     });
   }
 
   const unclassified = input.corrections.filter(
     (c) =>
-      countsInStats(c, input.countTypos) &&
-      c.classification === "pending" &&
-      TENSE_CATEGORIES.includes(c.category),
+      countsInStats(c, input.countTypos) && c.classification === "pending" && TENSE_CATEGORIES.includes(c.category),
   ).length;
 
   return { tenses, unclassified };
@@ -121,7 +125,10 @@ interface Aggregate {
   uses: number;
   usageErrors: number;
   formErrors: number;
-  confusions: Map<Tense, { tense: Tense; count: number; last: number; example: { original: string; correction: string } }>;
+  confusions: Map<
+    Tense,
+    { tense: Tense; count: number; last: number; example: { original: string; correction: string } }
+  >;
 }
 
 function aggregate(messages: TenseStatMessage[], corrections: TenseStatCorrection[], countTypos: boolean) {

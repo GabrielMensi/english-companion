@@ -142,7 +142,11 @@ describe("computeStats", () => {
         ],
       }),
     );
-    expect(stats.topMistakes[0]).toMatchObject({ subcategory: "missing_article", count: 2, example: { original: "new" } });
+    expect(stats.topMistakes[0]).toMatchObject({
+      subcategory: "missing_article",
+      count: 2,
+      example: { original: "new" },
+    });
   });
 
   it("groups classified mistakes by their fixed type, whatever the free label", () => {

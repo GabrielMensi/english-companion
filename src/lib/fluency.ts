@@ -97,7 +97,15 @@ export function computeFluency(timed: TimedWord[]): FluencyMetrics | null {
   }
 
   const speechMs = Math.max(0, Math.round((words[words.length - 1].end - words[0].start) * 1000));
-  return { version: FLUENCY_VERSION, words: words.length - fillerWords, speechMs, pauses, pauseMs, longestPauseMs, fillers };
+  return {
+    version: FLUENCY_VERSION,
+    words: words.length - fillerWords,
+    speechMs,
+    pauses,
+    pauseMs,
+    longestPauseMs,
+    fillers,
+  };
 }
 
 /** Adds up the metrics of several takes or messages. */

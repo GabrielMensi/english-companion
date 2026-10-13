@@ -77,7 +77,12 @@ for (const spec of specs) {
     console.error(`Invalid spec "${spec}". Use <provider>:<model>, e.g. gemini:gemini-flash-lite-latest`);
     continue;
   }
-  const settings = { ...base, provider: provider as ProviderId, models: { ...base.models, [provider]: model }, fallbacks: [] };
+  const settings = {
+    ...base,
+    provider: provider as ProviderId,
+    models: { ...base.models, [provider]: model },
+    fallbacks: [],
+  };
 
   let subtypeOk = 0;
   let tenseOk = 0;
@@ -117,7 +122,9 @@ for (const spec of specs) {
         if (got.tenseUsed === (sample.tenseUsed ?? null)) tenseUsedOk++;
         else problems.push(`used ${got.tenseUsed} (expected ${sample.tenseUsed ?? null})`);
       }
-      console.log(`  ${problems.length === 0 ? "✓" : "✗"} ${sample.original}${problems.length ? `  · ${problems.join(", ")}` : ""}`);
+      console.log(
+        `  ${problems.length === 0 ? "✓" : "✗"} ${sample.original}${problems.length ? `  · ${problems.join(", ")}` : ""}`,
+      );
       details.push({ spec, sample, got });
     }
   }

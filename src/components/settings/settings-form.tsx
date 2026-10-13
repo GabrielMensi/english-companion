@@ -147,7 +147,11 @@ export function SettingsForm({
               Typos are always highlighted in corrections, but they don’t reflect a lack of knowledge.
             </p>
           </div>
-          <Switch id="typos" checked={settings.countTyposInStats} onCheckedChange={(v) => save({ countTyposInStats: v })} />
+          <Switch
+            id="typos"
+            checked={settings.countTyposInStats}
+            onCheckedChange={(v) => save({ countTyposInStats: v })}
+          />
         </div>
       </section>
 

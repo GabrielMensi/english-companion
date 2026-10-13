@@ -35,7 +35,8 @@ export async function POST(request: Request) {
       if (!choice) return Response.json({ error: "Choose a topic or type one" }, { status: 400 });
       return Response.json(startTopicChat(choice), { status: 201 });
     }
-    const session = body.data.kind === "category" ? await startCategoryPractice(body.data) : await startPractice(body.data);
+    const session =
+      body.data.kind === "category" ? await startCategoryPractice(body.data) : await startPractice(body.data);
     return Response.json(session, { status: 201 });
   } catch (error) {
     return Response.json({ error: errorToMessage(error) }, { status: 502 });

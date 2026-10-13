@@ -25,11 +25,7 @@ export function getSession(id: string) {
 }
 
 export function createSession(mode: SessionMode) {
-  return db
-    .insert(schema.sessions)
-    .values({ id: crypto.randomUUID(), title: "New chat", mode })
-    .returning()
-    .get();
+  return db.insert(schema.sessions).values({ id: crypto.randomUUID(), title: "New chat", mode }).returning().get();
 }
 
 export function updateSession(id: string, data: { title?: string; mode?: SessionMode }) {
@@ -260,4 +256,3 @@ export async function improveMessagePrompt(messageId: string) {
   db.update(schema.messages).set(update).where(eq(schema.messages.id, messageId)).run();
   return update;
 }
-

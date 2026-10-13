@@ -133,7 +133,11 @@ export const TRANSCRIPTION_MODEL = { provider: "groq", modelId: "whisper-large-v
 
 type GroqTranscriptionModel = ReturnType<ReturnType<typeof createGroq>["transcription"]>;
 
-export function resolveTranscriptionModel(): { model: GroqTranscriptionModel; provider: string; modelId: string } | null {
+export function resolveTranscriptionModel(): {
+  model: GroqTranscriptionModel;
+  provider: string;
+  modelId: string;
+} | null {
   const resolved = resolveApiKey("groq");
   if (!resolved) return null;
   return {
@@ -153,7 +157,10 @@ export async function listModels(provider: ProviderId): Promise<string[]> {
         headers: { "x-goog-api-key": key },
         signal,
       });
-      if (!res.ok) throw new Error(res.status === 400 || res.status === 403 ? "Invalid Gemini API key" : `Gemini responded ${res.status}`);
+      if (!res.ok)
+        throw new Error(
+          res.status === 400 || res.status === 403 ? "Invalid Gemini API key" : `Gemini responded ${res.status}`,
+        );
       const data = (await res.json()) as {
         models: { name: string; supportedGenerationMethods?: string[] }[];
       };

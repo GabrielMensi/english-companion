@@ -253,7 +253,10 @@ export const pronunciationIssues = sqliteTable(
     detail: text("detail"),
     createdAt: createdAt(),
   },
-  (t) => [index("pronunciation_issues_attempt_idx").on(t.attemptId), index("pronunciation_issues_created_idx").on(t.createdAt)],
+  (t) => [
+    index("pronunciation_issues_attempt_idx").on(t.attemptId),
+    index("pronunciation_issues_created_idx").on(t.createdAt),
+  ],
 );
 
 export const settings = sqliteTable("settings", {

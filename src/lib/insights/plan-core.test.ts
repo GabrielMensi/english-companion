@@ -65,7 +65,15 @@ describe("level explanation", () => {
     lookupsPer1000Words: 0.7,
     period: { from: 0, to: 1 },
     signals: [
-      { id: "accuracy", label: "Accuracy", score: 3.4, level: "B1", weight: 0.4, value: "6.3 mistakes per 100 words", basis: "…" },
+      {
+        id: "accuracy",
+        label: "Accuracy",
+        score: 3.4,
+        level: "B1",
+        weight: 0.4,
+        value: "6.3 mistakes per 100 words",
+        basis: "…",
+      },
     ],
   };
 

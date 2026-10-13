@@ -16,7 +16,10 @@ function correction(partial: Partial<TenseStatCorrection>): TenseStatCorrection 
   };
 }
 
-const message = (tenseCounts: TenseStatMessage["tenseCounts"], wordCount = 50): TenseStatMessage => ({ tenseCounts, wordCount });
+const message = (tenseCounts: TenseStatMessage["tenseCounts"], wordCount = 50): TenseStatMessage => ({
+  tenseCounts,
+  wordCount,
+});
 
 function stats(input: Partial<Parameters<typeof computeTenseStats>[0]>) {
   return computeTenseStats({
@@ -40,12 +43,19 @@ describe("computeTenseStats", () => {
     });
     const perfect = result.tenses.find((t) => t.tense === "present_perfect")!;
     expect(perfect).toMatchObject({ uses: 10, usageErrors: 1, formErrors: 1, accuracy: 80 });
-    expect(perfect.confusedWith).toEqual([{ tense: "past_simple", count: 1, example: { original: "I lived", correction: "I have lived" } }]);
+    expect(perfect.confusedWith).toEqual([
+      { tense: "past_simple", count: 1, example: { original: "I lived", correction: "I have lived" } },
+    ]);
   });
 
   it("doesn't give an accuracy with too few uses, and smooths small samples", () => {
     const result = stats({ messages: [message({ past_perfect: 1 })] });
-    expect(result.tenses[0]).toMatchObject({ tense: "past_perfect", uses: 1, accuracy: null, status: "not_enough_data" });
+    expect(result.tenses[0]).toMatchObject({
+      tense: "past_perfect",
+      uses: 1,
+      accuracy: null,
+      status: "not_enough_data",
+    });
     expect(result.tenses[0].smoothedAccuracy).toBeCloseTo(66.7);
   });
 

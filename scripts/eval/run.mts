@@ -75,8 +75,13 @@ for (const spec of specs) {
     } catch (error) {
       failures++;
       // A failed request still counts its possible points, so failures lower the score.
-      possible += scoreSample(sample, { correctedText: "", naturalText: null, errors: [], spanishPhrases: [], reply: null })
-        .possible;
+      possible += scoreSample(sample, {
+        correctedText: "",
+        naturalText: null,
+        errors: [],
+        spanishPhrases: [],
+        reply: null,
+      }).possible;
       console.log(`  FAIL  ${sample.text.slice(0, 60)}\n        · ${errorToMessage(error)}`);
       details.push({ spec, text: sample.text, error: errorToMessage(error) });
     }

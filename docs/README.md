@@ -5,20 +5,20 @@ Una carpeta por **Area** del tablero ([GitHub Project](https://github.com/users/
 - **Kind**: Feature, Bug, Research (exploración: el resultado es un doc y una decisión), Eval (medir calidad), Chore.
 - **Status**: Exploring, Decided, In progress, Done, Discarded.
 
-| Area | Carpeta | Doc | Kind | Status |
-|---|---|---|---|---|
-| Chat & corrections | `chat/` | — | | |
-| Voice | `voice/` | [VOICE.md](voice/VOICE.md): investigación y plan de voz (dictado, escuchar, pronunciación) | Research | In progress |
-| Voice | `voice/` | [PRONUNCIATION_AUDIO.md](voice/PRONUNCIATION_AUDIO.md): schwa, acento de palabra y acento desde el audio (Gemini vs wav2vec2) | Research | Decided |
-| Practice | `practice/` | [VERB_TENSES.md](practice/VERB_TENSES.md): diagnóstico y práctica por tiempo verbal | Feature | Done |
-| Progress | `progress/` | [LEVEL_CALIBRATION.md](progress/LEVEL_CALIBRATION.md): calibración del nivel CEFR | Eval | Done |
-| Class & textbook | `class/` | [TEXTBOOKS.md](class/TEXTBOOKS.md): resolver los ejercicios de los libros en la app | Research | Exploring |
-| AI pipeline | `ai/` | [ERROR_CLASSIFICATION.md](ai/ERROR_CLASSIFICATION.md): clasificación diferida de errores (Kev / Jev) | Research | Done |
-| AI pipeline | `ai/` | [LOCAL_MODELS.md](ai/LOCAL_MODELS.md): modelos locales con Ollama, archivados (cómo recuperarlos) | Chore | Done |
-| UI/UX | `ui/` | [UI-PLAN.md](ui/UI-PLAN.md): plan de UI "el margen del cuaderno" | Feature | Done |
-| Platform | `platform/` | [CODE_QUALITY.md](platform/CODE_QUALITY.md): revisión de calidad de código y las reglas (lint, formato, knip) | Chore | Done |
-| Platform | `platform/` | [SECURITY_REVIEW.md](platform/SECURITY_REVIEW.md): revisión de seguridad antes de desplegar, arreglos y checklist | Chore | Done |
-| Platform | `platform/` | [TESTING.md](platform/TESTING.md): estrategia de tests antes del deploy (capas, CI, plan) | Research | Decided |
+| Area               | Carpeta     | Doc                                                                                                                           | Kind     | Status      |
+| ------------------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------- | -------- | ----------- |
+| Chat & corrections | `chat/`     | —                                                                                                                             |          |             |
+| Voice              | `voice/`    | [VOICE.md](voice/VOICE.md): investigación y plan de voz (dictado, escuchar, pronunciación)                                    | Research | In progress |
+| Voice              | `voice/`    | [PRONUNCIATION_AUDIO.md](voice/PRONUNCIATION_AUDIO.md): schwa, acento de palabra y acento desde el audio (Gemini vs wav2vec2) | Research | Decided     |
+| Practice           | `practice/` | [VERB_TENSES.md](practice/VERB_TENSES.md): diagnóstico y práctica por tiempo verbal                                           | Feature  | Done        |
+| Progress           | `progress/` | [LEVEL_CALIBRATION.md](progress/LEVEL_CALIBRATION.md): calibración del nivel CEFR                                             | Eval     | Done        |
+| Class & textbook   | `class/`    | [TEXTBOOKS.md](class/TEXTBOOKS.md): resolver los ejercicios de los libros en la app                                           | Research | Exploring   |
+| AI pipeline        | `ai/`       | [ERROR_CLASSIFICATION.md](ai/ERROR_CLASSIFICATION.md): clasificación diferida de errores (Kev / Jev)                          | Research | Done        |
+| AI pipeline        | `ai/`       | [LOCAL_MODELS.md](ai/LOCAL_MODELS.md): modelos locales con Ollama, archivados (cómo recuperarlos)                             | Chore    | Done        |
+| UI/UX              | `ui/`       | [UI-PLAN.md](ui/UI-PLAN.md): plan de UI "el margen del cuaderno"                                                              | Feature  | Done        |
+| Platform           | `platform/` | [CODE_QUALITY.md](platform/CODE_QUALITY.md): revisión de calidad de código y las reglas (lint, formato, knip)                 | Chore    | Done        |
+| Platform           | `platform/` | [SECURITY_REVIEW.md](platform/SECURITY_REVIEW.md): revisión de seguridad antes de desplegar, arreglos y checklist             | Chore    | Done        |
+| Platform           | `platform/` | [TESTING.md](platform/TESTING.md): estrategia de tests antes del deploy (capas, CI, plan)                                     | Research | Decided     |
 
 [ROADMAP.md](ROADMAP.md) queda en la raíz: lo hecho y lo próximo, de todas las áreas.
 

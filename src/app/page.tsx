@@ -89,7 +89,11 @@ export default async function Today() {
             <ul className="divide-y">
               <TrainRow
                 icon={<Layers className="size-4 text-train" />}
-                title={cardsToStudy > 0 ? `${cardsToStudy} ${cardsToStudy === 1 ? "card" : "cards"} to study` : "No cards due"}
+                title={
+                  cardsToStudy > 0
+                    ? `${cardsToStudy} ${cardsToStudy === 1 ? "card" : "cards"} to study`
+                    : "No cards due"
+                }
                 detail="Words you looked up, your mistakes and the exercises you missed."
                 action={
                   <Button asChild size="sm" variant={cardsToStudy > 0 ? "default" : "outline"}>

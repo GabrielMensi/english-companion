@@ -10,9 +10,9 @@ Corre en tu máquina (la base de datos es un SQLite local) y está pensado para 
   - **Corrección**: solo corrige. Ideal para escribir prompts o mensajes y después usarlos en otro lado.
   - **Conversación**: corrige y además te responde para seguir la charla.
 - **Correcciones detalladas**: diff del texto, lista de errores con categoría (taxonomía fija: tiempos verbales, preposiciones, falsos amigos…), gravedad (`typo`, leve, moderado, grave) y explicación.
-- **Tipos de error detallados**: además de la categoría, cada error recibe un tipo fijo (p. ej. *Preposiciones › Verbo + preposición*) y, en los errores verbales, qué tiempo correspondía y cuál usaste. Se clasifica después, en lotes, al abrir el dashboard o cuando la app está inactiva, así el chat no se hace más lento. Si un tipo está mal, "Wrong type?" lo corrige a mano.
+- **Tipos de error detallados**: además de la categoría, cada error recibe un tipo fijo (p. ej. _Preposiciones › Verbo + preposición_) y, en los errores verbales, qué tiempo correspondía y cuál usaste. Se clasifica después, en lotes, al abrir el dashboard o cuando la app está inactiva, así el chat no se hace más lento. Si un tipo está mal, "Wrong type?" lo corrige a mano.
 - **Tiempos verbales**: el dashboard muestra, para cada tiempo, cuántas veces lo necesitaste y con qué precisión lo usaste, si fallás al elegirlo o al formarlo, qué tiempo usás en su lugar y cuáles casi no usás. Los usos se cuentan en el texto corregido sin IA (con [compromise](https://github.com/spencermountain/compromise)).
-- **Práctica de tiempos verbales** (página **Practice**): elige los tiempos flojos o poco usados a partir de ese diagnóstico y propone ejercicios de contraste (p. ej. past simple vs present perfect con *yesterday / since / ever*), drills de forma o tareas para usar un tiempo que evitás, y conversaciones cuyas preguntas obligan a usarlo. Los ejercicios se muestran completos y se responden en un solo mensaje (una línea por ítem): se corrige una vez, suma a las estadísticas como cualquier mensaje y la respuesta es un resumen con ✓/✗ por ítem y el puntaje.
+- **Práctica de tiempos verbales** (página **Practice**): elige los tiempos flojos o poco usados a partir de ese diagnóstico y propone ejercicios de contraste (p. ej. past simple vs present perfect con _yesterday / since / ever_), drills de forma o tareas para usar un tiempo que evitás, y conversaciones cuyas preguntas obligan a usarlo. Los ejercicios se muestran completos y se responden en un solo mensaje (una línea por ítem): se corrige una vez, suma a las estadísticas como cualquier mensaje y la respuesta es un resumen con ✓/✗ por ítem y el puntaje.
 - **Ejercicios dirigidos** (también en **Practice**): para las 3 categorías con más errores cada 100 palabras (y su tipo más frecuente), ejercicios cortos de completar el hueco, elegir la opción correcta y corregir el error, armados con tus propios errores de esa categoría como material. Cada respuesta se corrige, suma a las estadísticas y recibe ✓/✗ con la respuesta y la regla.
 - **Dictado**: con el botón de micrófono hablás en inglés y Whisper (Groq, gratis) lo transcribe tal cual, con tus errores. El mensaje se corrige como cualquier otro, pero no se marcan la ortografía ni la puntuación (las decide el transcriptor) y en el dashboard podés ver tus errores escritos y hablados por separado. Requiere una API key de Groq.
 - **Tolerante a typos**: los errores de tipeo se marcan, pero no cuentan en las estadísticas (se puede cambiar en Configuración).
@@ -58,12 +58,12 @@ La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migr
 
 Configuración recomendada: **Gemini Flash-Lite como principal y `qwen/qwen3.8-27b` en Groq como fallback**. Estos datos (puntaje, velocidad y límite gratis) se muestran en Configuración desde `MODEL_INFO` en `src/lib/ai/provider-info.ts`; actualizalos juntos. Resultados de `pnpm eval:models` (septiembre 2026, 16 oraciones con errores típicos de hispanohablantes; los modelos locales de esa corrida están en [LOCAL_MODELS.md](docs/ai/LOCAL_MODELS.md)):
 
-| Modelo | Puntaje | Tiempo promedio | Notas |
-|---|---|---|---|
-| `gemini-flash-lite-latest` (API) | 96 % | 2 s | ~500 requests/día gratis. El más preciso. |
-| `qwen/qwen3.8-27b` (Groq) | 93 % | ~2 s | ~110 correcciones/día gratis (200K tokens/día, 8K tokens/minuto). Sin tokens de razonamiento. |
-| `openai/gpt-oss-120b` (Groq) | 81 % | ~13 s | Gasta ~1.100 tokens de razonamiento por corrección (~60/día) y a veces devuelve JSON inválido. |
-| Gemma 4 26B / 31B (API) | 44–63 % | 7–44 s | Lentos y con timeouts en el free tier. |
+| Modelo                           | Puntaje | Tiempo promedio | Notas                                                                                          |
+| -------------------------------- | ------- | --------------- | ---------------------------------------------------------------------------------------------- |
+| `gemini-flash-lite-latest` (API) | 96 %    | 2 s             | ~500 requests/día gratis. El más preciso.                                                      |
+| `qwen/qwen3.8-27b` (Groq)        | 93 %    | ~2 s            | ~110 correcciones/día gratis (200K tokens/día, 8K tokens/minuto). Sin tokens de razonamiento.  |
+| `openai/gpt-oss-120b` (Groq)     | 81 %    | ~13 s           | Gasta ~1.100 tokens de razonamiento por corrección (~60/día) y a veces devuelve JSON inválido. |
+| Gemma 4 26B / 31B (API)          | 44–63 % | 7–44 s          | Lentos y con timeouts en el free tier.                                                         |
 
 `gemini-flash-latest` es más capaz, pero en el free tier tiene solo ~20 requests/día.
 
@@ -71,17 +71,17 @@ Configuración recomendada: **Gemini Flash-Lite como principal y `qwen/qwen3.8-2
 
 ## Scripts
 
-| Comando | Qué hace |
-|---|---|
-| `pnpm dev` | Levanta la app en modo desarrollo |
-| `pnpm test` | Tests unitarios (vitest) |
-| `pnpm typecheck` | Genera tipos de rutas y corre `tsc` |
-| `pnpm lint` | ESLint |
-| `pnpm eval:models <provider>:<model> …` | Compara modelos sobre un set de oraciones con errores conocidos (ej. `gemini:gemini-flash-lite-latest groq:qwen/qwen3.8-27b`) |
-| `pnpm eval:classify <provider>:<model> …` | Compara modelos clasificando errores ya detectados (tipo fino y tiempos verbales). `--with-user-labels` suma los tipos corregidos a mano en la app |
-| `pnpm eval:asr [engine:model …]` | Transcribe las grabaciones de `/eval/asr` con cada motor de speech-to-text y mide si conservan tus errores o los "corrigen" (ver [docs/voice/VOICE.md](docs/voice/VOICE.md)) |
-| `pnpm eval:level` | Compara el nivel CEFR estimado con textos de alumnos calificados por Cambridge (Write & Improve, se descarga aparte; ver [docs/progress/LEVEL_CALIBRATION.md](docs/progress/LEVEL_CALIBRATION.md)) |
-| `pnpm db:generate` | Genera una migración después de cambiar `src/db/schema.ts` |
+| Comando                                   | Qué hace                                                                                                                                                                                           |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                                | Levanta la app en modo desarrollo                                                                                                                                                                  |
+| `pnpm test`                               | Tests unitarios (vitest)                                                                                                                                                                           |
+| `pnpm typecheck`                          | Genera tipos de rutas y corre `tsc`                                                                                                                                                                |
+| `pnpm lint`                               | ESLint                                                                                                                                                                                             |
+| `pnpm eval:models <provider>:<model> …`   | Compara modelos sobre un set de oraciones con errores conocidos (ej. `gemini:gemini-flash-lite-latest groq:qwen/qwen3.8-27b`)                                                                      |
+| `pnpm eval:classify <provider>:<model> …` | Compara modelos clasificando errores ya detectados (tipo fino y tiempos verbales). `--with-user-labels` suma los tipos corregidos a mano en la app                                                 |
+| `pnpm eval:asr [engine:model …]`          | Transcribe las grabaciones de `/eval/asr` con cada motor de speech-to-text y mide si conservan tus errores o los "corrigen" (ver [docs/voice/VOICE.md](docs/voice/VOICE.md))                       |
+| `pnpm eval:level`                         | Compara el nivel CEFR estimado con textos de alumnos calificados por Cambridge (Write & Improve, se descarga aparte; ver [docs/progress/LEVEL_CALIBRATION.md](docs/progress/LEVEL_CALIBRATION.md)) |
+| `pnpm db:generate`                        | Genera una migración después de cambiar `src/db/schema.ts`                                                                                                                                         |
 
 ## Stack
 
