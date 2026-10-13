@@ -269,7 +269,8 @@ function ApiKeyField({
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (value.trim()) save(value);
+          // save() shows its own errors in a toast.
+          if (value.trim()) void save(value);
         }}
       >
         <Input
