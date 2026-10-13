@@ -28,6 +28,16 @@ describe("isCrossSiteWrite", () => {
     expect(isCrossSiteWrite(request("POST", { origin: "null" }))).toBe(true);
   });
 
+  it("behind a trusted proxy, compares the Origin with X-Forwarded-Host", () => {
+    const proxied = { host: "127.0.0.1:3737", "x-forwarded-host": "companion.example.com" };
+    expect(isCrossSiteWrite(request("POST", { ...proxied, origin: "https://companion.example.com" }), true)).toBe(
+      false,
+    );
+    expect(isCrossSiteWrite(request("POST", { ...proxied, origin: "https://evil.example" }), true)).toBe(true);
+    // Without TRUST_PROXY the forwarded header is ignored, so the app's real origin doesn't match Host.
+    expect(isCrossSiteWrite(request("POST", { ...proxied, origin: "https://companion.example.com" }))).toBe(true);
+  });
+
   it("lets non-browser clients through", () => {
     expect(isCrossSiteWrite(request("POST", {}))).toBe(false);
   });

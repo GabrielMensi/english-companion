@@ -4,7 +4,9 @@ import { LevelCard } from "@/components/insights/level-card";
 import { ReportView } from "@/components/insights/report-view";
 import { StudyPlan } from "@/components/insights/study-plan";
 import { Page, PageHeader, Section } from "@/components/layout/page";
+import { NoProviderNotice } from "@/components/no-provider-notice";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
+import { hasConfiguredProvider } from "@/lib/ai/providers";
 import { getLevelData, getReportDigest, getStoredPlan, REPORT_RANGES, type ReportRange } from "@/lib/insights/insights";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +18,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
   const range: ReportRange = REPORT_RANGES.includes(rawRange as ReportRange) ? (rawRange as ReportRange) : "7";
   const digest = getReportDigest(range);
   const level = getLevelData();
+  const hasModel = hasConfiguredProvider();
 
   return (
     <Page area="review" width="xl">
@@ -23,6 +26,10 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
         title="Insights"
         description="Your report, a study plan for the week and an estimate of your level."
       />
+
+      {!hasModel && (
+        <NoProviderNotice detail="The report and the level estimate still work; the study plan and the level explanation need a key." />
+      )}
 
       <Section
         title="Report"
@@ -57,7 +64,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
 
       {digest.totals.messages > 0 && (
         <Section title="Study plan" description="What to practice next, based on the report">
-          <StudyPlan key={range} digest={digest} range={range} initial={getStoredPlan()} />
+          <StudyPlan key={range} digest={digest} range={range} initial={getStoredPlan()} hasModel={hasModel} />
         </Section>
       )}
 
@@ -65,7 +72,12 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
         title="Estimated level (CEFR)"
         description="A rough estimate from your mistakes and the vocabulary you use"
       >
-        <LevelCard estimate={level.estimate} evolution={level.evolution} explanation={level.explanation} />
+        <LevelCard
+          estimate={level.estimate}
+          evolution={level.evolution}
+          explanation={level.explanation}
+          hasModel={hasModel}
+        />
       </Section>
     </Page>
   );

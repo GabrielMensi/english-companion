@@ -1,7 +1,6 @@
 "use client";
 
-import { Headphones, KeyRound, PictureInPicture2 } from "lucide-react";
-import Link from "next/link";
+import { Headphones, PictureInPicture2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -12,13 +11,13 @@ import { AssistantMessage } from "@/components/chat/assistant-message";
 import { ChatMenu, type ModelOption, ModeSwitch } from "@/components/chat/chat-controls";
 import { Composer, type Notify, useComposer } from "@/components/chat/composer";
 import { MiniChat, type Notice } from "@/components/chat/mini-chat";
+import { NoProviderNotice } from "@/components/no-provider-notice";
 import { UserMessage } from "@/components/chat/user-message";
 import { usePipWindow } from "@/components/pip/use-pip-window";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import type { SessionMode } from "@/db/schema";
 import type { AnalysisPreview } from "@/lib/ai/analysis";
-import { NO_PROVIDER_MESSAGE } from "@/lib/ai/fallback";
 import type { ProviderId } from "@/lib/ai/provider-info";
 import { api, streamTurn } from "@/lib/api";
 import type { ChatMessage, SessionSummary, VoiceInput } from "@/lib/types";
@@ -209,7 +208,8 @@ export function ChatView({
   /** In voice mode the reply is read aloud; the corrections just show up in the chat. */
   function readReplyAloud(turn: ChatMessage[]) {
     const reply = turn.find((m) => m.role === "assistant");
-    if (voiceConversation && reply) speak(reply.content, reply.id);
+    // Fire and forget: the reply is already on screen and speak() never rejects (it resolves when it ends).
+    if (voiceConversation && reply) void speak(reply.content, reply.id);
   }
 
   function toggleVoiceMode() {
@@ -309,17 +309,7 @@ export function ChatView({
             </div>
           ) : (
             <>
-              {!hasModel && (
-                <p className="mb-3 flex items-center gap-2 rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-                  <KeyRound className="size-4 shrink-0" />
-                  <span>
-                    {NO_PROVIDER_MESSAGE}{" "}
-                    <Link href="/settings" className="underline underline-offset-4">
-                      Open Settings
-                    </Link>
-                  </span>
-                </p>
-              )}
+              {!hasModel && <NoProviderNotice className="mb-3" />}
               <Composer composer={composer} canDictate={canDictate} />
               {voiceConversation && (
                 <p className="mt-2 text-xs text-muted-foreground">

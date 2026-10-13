@@ -212,7 +212,8 @@ function speakKokoro(text: string, id: string, prefs: SpeechPrefs, current: numb
         toast.error(`Kokoro couldn't load (${error.message}). Using the browser's voice instead.`);
       }
       if (played) return maybeEnd();
-      speakBrowser(text, id, prefs, current).then(finish);
+      // speakBrowser doesn't reject, but `finished` must resolve whatever happens.
+      speakBrowser(text, id, prefs, current).then(finish, finish);
     },
   );
   return finished;

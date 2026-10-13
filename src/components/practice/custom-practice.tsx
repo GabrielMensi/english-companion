@@ -15,7 +15,7 @@ const KIND_LABELS: Record<ExerciseKind | "conversation", string> = {
 };
 
 /** Practice any tense, not only the ones the diagnosis picked. */
-export function CustomPractice() {
+export function CustomPractice({ hasModel }: { hasModel: boolean }) {
   const [tense, setTense] = useState<Tense>("present_perfect");
   const [kind, setKind] = useState<ExerciseKind | "conversation">("contrast");
   const [contrastWith, setContrastWith] = useState<Tense>("past_simple");
@@ -69,6 +69,7 @@ export function CustomPractice() {
       <StartPracticeButton
         request={{ kind, tense, contrastWith: kind === "contrast" ? contrastWith : null }}
         disabled={kind === "contrast" && contrastWith === tense}
+        hasModel={hasModel}
       >
         Start
       </StartPracticeButton>
@@ -77,7 +78,13 @@ export function CustomPractice() {
 }
 
 /** Exercises for any error category, not only the ones the stats picked. */
-export function CustomCategoryPractice({ categories }: { categories: readonly ErrorCategory[] }) {
+export function CustomCategoryPractice({
+  categories,
+  hasModel,
+}: {
+  categories: readonly ErrorCategory[];
+  hasModel: boolean;
+}) {
   const [category, setCategory] = useState<ErrorCategory>(categories[0]);
   return (
     <div className="flex flex-wrap items-end gap-3">
@@ -95,7 +102,9 @@ export function CustomCategoryPractice({ categories }: { categories: readonly Er
           </SelectContent>
         </Select>
       </Field>
-      <StartPracticeButton request={{ kind: "category", category, subtype: null }}>Start</StartPracticeButton>
+      <StartPracticeButton request={{ kind: "category", category, subtype: null }} hasModel={hasModel}>
+        Start
+      </StartPracticeButton>
     </div>
   );
 }
