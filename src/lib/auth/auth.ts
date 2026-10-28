@@ -8,15 +8,14 @@ import { count } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { serverEnv } from "@/lib/env";
 import {
-  authCookiePrefix,
   canSignUp,
-  ipAddressOptions,
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
   normalizeEmail,
   SIGNUP_CLOSED_MESSAGE,
   trustedOriginsFor,
 } from "./auth-core";
+import { authCookiePrefix, ipAddressOptions } from "./auth-node";
 import { getAuthSecret } from "./secret";
 
 const SESSION_DAYS = 30;

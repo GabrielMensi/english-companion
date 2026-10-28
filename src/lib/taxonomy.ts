@@ -237,8 +237,9 @@ export function countsInStats(
 /**
  * Fixed pronunciation taxonomy, for Spanish speakers (see docs/voice/VOICE.md, Phase 3).
  * Assigned by rules from read-aloud attempts (`src/lib/pronunciation-core.ts`),
- * never by a model. Only sounds a transcript can reveal are here: word stress and
- * schwa reduction don't change which word speech-to-text hears.
+ * never by a model. Apart from the beta ones below, only sounds a transcript can reveal
+ * are here: word stress and schwa reduction don't change which word speech-to-text hears
+ * (schwa is found from the audio by `src/lib/phonemes-core.ts`).
  */
 export const PRONUNCIATION_CATEGORIES = [
   "vowel_length",
@@ -248,10 +249,24 @@ export const PRONUNCIATION_CATEGORIES = [
   "h_j_sounds",
   "initial_s_cluster",
   "final_consonants",
+  "schwa_reduction",
   "other",
 ] as const;
 
 export type PronunciationCategory = (typeof PRONUNCIATION_CATEGORIES)[number];
+
+/**
+ * Categories in beta: found from the audio (docs/voice/PRONUNCIATION_AUDIO.md), shown on the attempt
+ * as a hint, but never saved as issues, never counted in stats and with no practice sentences until
+ * the real-recordings eval (#136) validates them. `summarizePronunciation` also ignores them.
+ */
+export const BETA_PRONUNCIATION_CATEGORIES: readonly PronunciationCategory[] = ["schwa_reduction"];
+
+export const isBetaPronunciation = (category: PronunciationCategory): boolean =>
+  BETA_PRONUNCIATION_CATEGORIES.includes(category);
+
+/** Categories that are saved, counted and practiced. */
+export const STABLE_PRONUNCIATION_CATEGORIES = PRONUNCIATION_CATEGORIES.filter((c) => !isBetaPronunciation(c));
 
 export const PRONUNCIATION_LABELS: Record<PronunciationCategory, string> = {
   vowel_length: "Long and short vowels",
@@ -261,6 +276,7 @@ export const PRONUNCIATION_LABELS: Record<PronunciationCategory, string> = {
   h_j_sounds: "H, Y and J",
   initial_s_cluster: "S at the start (st-, sp-)",
   final_consonants: "Final consonants (-ed, -s)",
+  schwa_reduction: "Weak vowels (schwa)",
   other: "Other",
 };
 
@@ -293,6 +309,10 @@ export const PRONUNCIATION_TIPS: Record<PronunciationCategory, Record<"es" | "en
   final_consonants: {
     es: "Pronunciá la consonante final: worked termina en /t/ (workt), wanted en /ɪd/, cats en /s/. En español casi ninguna palabra termina así, por eso se pierde o se cambia (bed / bet).",
     en: "Say the final consonant: worked ends in /t/ (workt), wanted in /ɪd/, cats in /s/. Few Spanish words end like this, so it gets dropped or changed (bed / bet).",
+  },
+  schwa_reduction: {
+    es: "En inglés las sílabas sin acento y las palabras cortas (to, of, and, for, a) se debilitan: la vocal pasa a una /ə/ muy corta y relajada, la boca casi no se mueve. Decí banana como bə-NA-nə y to como /tə/, no /tuː/. En español cada vocal suena plena; acá la clave es acentuar una sílaba fuerte y aflojar las demás.",
+    en: "Unstressed syllables and short words (to, of, and, for, a) get weak in English: the vowel becomes a very short, relaxed /ə/, with the mouth barely moving. Say banana as bə-NA-nə and to as /tə/, not /tuː/. In Spanish every vowel stays full; here the trick is one strong syllable and the others relaxed.",
   },
   other: {
     es: "Se escuchó otra palabra. Escuchá la oración, repetila más despacio y fijate en qué sonido cambia.",

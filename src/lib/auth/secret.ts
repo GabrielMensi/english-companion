@@ -51,7 +51,9 @@ export function getAuthSecret(env: Env): string {
   try {
     fs.linkSync(temp, file);
     return secret;
-  } catch {
+  } catch (error) {
+    // Only "already there" means another process won the race; anything else is a real failure.
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     const winner = readSaved(file);
     if (!winner) throw invalid(file);
     return winner;
