@@ -37,16 +37,21 @@ jobs:
           persist-credentials: false
       - name: Build the image
         run: docker build --tag english-companion:ci .
-      - name: Start it on a throwaway database and check the health endpoint
+      - name: Migrate a throwaway database, start the app and check the health endpoint
         run: |
-          docker run --rm --detach --name companion -p 3737:3737 \
+          # MIGRATE_ON_START=false in the image: the migrate step comes first (as deploy.sh does).
+          docker volume create companion-data
+          docker run --rm -v companion-data:/data english-companion:ci node scripts/db-migrate.mjs --init
+          docker run --detach --name companion -p 3737:3737 -v companion-data:/data \
             -e ALLOWED_HOSTS=localhost english-companion:ci
-          # MIGRATE_ON_START=false in the image: the migrate step comes first.
-          docker run --rm --volumes-from companion english-companion:ci node scripts/db-migrate.mjs --init
-          docker restart companion
           for _ in $(seq 1 30); do
             curl -fsS http://127.0.0.1:3737/api/health && exit 0
             sleep 2
           done
-          docker logs companion
           exit 1
+      - name: Container logs
+        if: always()
+        run: docker logs companion || true
+      - name: Clean up
+        if: always()
+        run: docker rm -f companion || true
