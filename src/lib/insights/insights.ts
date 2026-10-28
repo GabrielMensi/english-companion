@@ -46,11 +46,12 @@ export interface StoredLevelExplanation {
   modelId: string;
 }
 
-export function getReportDigest(range: ReportRange): StatsDigest {
+/** `withPronunciation: false` skips the read-aloud queries, for callers that only use the totals. */
+export function getReportDigest(range: ReportRange, { withPronunciation = true } = {}): StatsDigest {
   const { stats, tenses, vocabulary } = getDashboardData(range);
   const days = Number(range);
   // Read-aloud readings aren't messages: the written/spoken filter and countsInStats don't apply.
-  const pronunciation = getPronunciationProgress(days);
+  const pronunciation = withPronunciation ? getPronunciationProgress(days) : null;
   return buildDigest({ days, now: Date.now(), stats, tenses, vocabulary, pronunciation });
 }
 

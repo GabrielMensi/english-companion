@@ -12,7 +12,8 @@ import {
   parseGaps,
   rewriteSource,
 } from "@/lib/category-practice";
-import { type ErrorCategory, SUBTYPES, type Tense, TENSE_HINTS, TENSE_LABELS } from "@/lib/taxonomy";
+import { type ErrorCategory, type Tense, TENSE_HINTS, TENSE_LABELS } from "@/lib/taxonomy";
+import { SUBTYPES } from "@/lib/subtypes";
 import { countTenses } from "@/lib/tenses-core";
 import { comparable, type ExerciseItem, type ExerciseKind, focusTenses, tensesAmong } from "@/lib/tense-practice";
 

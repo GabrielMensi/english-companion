@@ -14,6 +14,26 @@ Cada sección dice qué probar y qué tendrías que ver. Marcá `[x]` lo que fun
 
 <!-- Las secciones se agregan a medida que se mergea cada PR. -->
 
+## Tanda 1
+
+### Tests (#129: #111–#114)
+
+Nada para probar a mano. Opcional: la app arranca y abre un chat (cambió dónde vive `migrate` en `src/db/`).
+
+### Limpieza (#130: #119–#123)
+
+- [ ] Descartar un error en el chat, en Top mistakes y en una fila de categoría: funciona, sin error 400.
+- [ ] Flashcards: repasar una tarjeta de vocabulario, una de error, una de ejercicio y una de pronunciación (frente/dorso, pista, nota, suspender/borrar).
+- [ ] Dashboard: "Retry" en el aviso de clasificación sigue reintentando y refrescando.
+- [ ] Chat: mandar, dictar y reintentar un mensaje: todo igual que antes.
+- [ ] Today: los totales de la semana y la fila de pronunciación se ven igual.
+- [ ] Settings → Test con una key mal escrita: en la consola del servidor aparece una línea tipo `[POST /api/settings/test] 502 …` sin la key ni texto tuyo.
+
+### Diseño y releases (#131: research de #124–#127, #128)
+
+- [ ] Leer `docs/platform/AUTH_MULTIUSER.md`, `DEPLOY.md` y `RELEASES.md` y confirmar las decisiones: registro cerrado con lista de emails permitidos (`SIGNUP_ALLOWED_EMAILS`; vacía = solo la primera cuenta), tus datos pasan a tu cuenta con `pnpm auth:claim-data <email>`, VPS + Docker + Caddy (revisar los precios en DEPLOY.md, se estimaron), sin archivo CHANGELOG.
+- Labels para las notas de release creados en el repo: `feature`, `bug`, `security`, `chore`, `research`, `eval`, `skip-changelog`.
+
 ## Problemas encontrados
 
 -

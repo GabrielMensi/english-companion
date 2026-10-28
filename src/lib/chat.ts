@@ -15,6 +15,7 @@ import { carryOverReviews } from "@/lib/review-carry-over";
 import { getSettings } from "@/lib/settings";
 import { countWords, makeTitle } from "@/lib/text";
 import type { ChatMessage, VoiceInput } from "@/lib/types";
+import { logRouteError } from "@/lib/server-log";
 
 const HISTORY_TURNS = 10;
 
@@ -204,6 +205,7 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
     // Missed exercise items go to the "Missed exercises" flashcard deck.
     if (exercise) recordExerciseResult(message.sessionId, exercise);
   } catch (error) {
+    logRouteError("chat turn", error);
     db.update(schema.messages)
       .set({ status: "error", errorMessage: errorToMessage(error) })
       .where(eq(schema.messages.id, message.id))

@@ -5,7 +5,8 @@ import { useState } from "react";
 import { DiscardButton } from "@/components/dashboard/discard-button";
 import { SeverityBadge } from "@/components/severity-badge";
 import type { CategoryStat } from "@/lib/stats-core";
-import { categoryLabel, subtypeLabel } from "@/lib/taxonomy";
+import { categoryLabel } from "@/lib/taxonomy";
+import { subtypeLabel } from "@/lib/subtypes";
 import { cn } from "@/lib/utils";
 
 /** A row of the category table that opens to list its latest mistakes, each one with "Discard". */

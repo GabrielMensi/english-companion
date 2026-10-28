@@ -29,7 +29,7 @@ export function SpeakButton({
       variant="ghost"
       size={label ? "sm" : "icon-xs"}
       className="text-muted-foreground hover:text-foreground"
-      onClick={() => (speaking ? stopSpeaking() : speak(text, id))}
+      onClick={() => void (speaking ? stopSpeaking() : speak(text, id))}
       aria-label={speaking ? "Stop" : `Listen: ${text}`}
       title={preparing ? "Preparing the voice… (click to cancel)" : speaking ? "Stop" : "Listen"}
     >

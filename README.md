@@ -96,7 +96,8 @@ src/
   db/                  schema de Drizzle y conexión (migra al arrancar)
   lib/
     ai/                providers, prompt de análisis, "convertir en prompt"
-    taxonomy.ts        categorías, tipos, tiempos verbales y gravedades (fijos)
+    taxonomy.ts        categorías, tiempos verbales y gravedades (fijos)
+    subtypes.ts        tipos finos de error por categoría (fijos)
     classification.ts  clasificación diferida de errores (lotes, prioridad del chat)
     chat.ts            sesiones, mensajes y persistencia del análisis
     stats-core.ts      cálculo de estadísticas (puro, testeado)

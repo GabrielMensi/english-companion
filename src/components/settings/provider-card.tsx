@@ -253,7 +253,7 @@ function ApiKeyField({
           <span>
             Saved in the app: <code>{status.detail}</code>
           </span>
-          <Button variant="ghost" size="sm" onClick={() => save(null)} disabled={saving}>
+          <Button variant="ghost" size="sm" onClick={() => void save(null)} disabled={saving}>
             Remove
           </Button>
         </div>
