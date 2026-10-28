@@ -82,7 +82,7 @@ describe("migrations on an empty database", () => {
     const { sqlite } = tempDb();
     migrate(sqlite, MIGRATIONS);
 
-    const tables = Object.values(schema).filter((v): v is SQLiteTable => is(v, SQLiteTable));
+    const tables = Object.values(schema).filter((v) => is(v, SQLiteTable)) as Parameters<typeof getTableConfig>[0][];
     expect(tables.length).toBeGreaterThan(5);
     for (const table of tables) {
       const config = getTableConfig(table);

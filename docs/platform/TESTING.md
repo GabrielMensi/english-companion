@@ -18,9 +18,12 @@ Qué hay que testear y cómo, para poder desplegar una instancia pública (_Depl
 ## Estado actual
 
 - **Unit**: 33 archivos y ~380 tests de vitest, todos sobre lógica pura (normalización del análisis, stats, flashcards, SRS, fallback, tiempos verbales, fluidez, nivel CEFR, preferencias de voz...). Corren en ~1 s. Están bien y se quedan.
-- **Sin tests**: los 22 route handlers de `src/app/api/`, los 23 módulos `server-only` de `src/lib/` (los que tocan la base o llaman a la IA: `chat.ts`, `classification.ts`, `flashcards.ts`, `practice.ts`, `settings.ts`, `secrets.ts`, `stats.ts`...), las 12 migraciones de `drizzle/` y la UI.
+- **Integración (#111)**: tests de rutas con base temporal e IA mockeada para mensajes (envío, reintento y errores reintentables con fake timers), reintento, práctica, flashcards (reviews y cards) y settings/keys. Setup compartido en `src/test/`.
+- **Migraciones (#112, #113)**: `src/db/migrations.test.ts` (base vacía contra `schema.ts`, fixture de datos viejos, chequeo de migraciones aditivas) y `src/db/migrate.test.ts` (migrador con varias conexiones y procesos).
+- **Cobertura (#114)**: `pnpm test:coverage`, con piso para `src/lib/**` (ver abajo).
+- **Sin tests**: las rutas que faltan (`corrections`, `vocabulary`, `classification`, `insights`, `read-aloud`, `transcribe`, `tts`, `eval/*`, `sessions/[id]`), los módulos `server-only` que no pasan por esas rutas y la UI.
 - **IA**: la calidad se mide aparte con los evals, que llaman a los proveedores reales y gastan free tier. No tienen umbrales: muestran números y una persona decide.
-- **CI**: GitHub Actions (`.github/workflows/ci.yml`, #87) corre typecheck, lint, test, knip, format:check y build en cada PR a `develop` y `main` y en cada push a `develop`, con Node 22 (`.nvmrc`) y una base temporal para el build. La cobertura todavía no.
+- **CI**: GitHub Actions (`.github/workflows/ci.yml`, #87) corre typecheck, lint, test (con cobertura), knip, format:check y build en cada PR a `develop` y `main` y en cada push a `develop`, con Node 22 (`.nvmrc`) y una base temporal para el build.
 - **Seguridad**: hoy no hay auth (la app es local). `POST /api/transcribe` y `PUT /api/eval/asr-samples/[id]` leen el body entero sin límite de tamaño. Las demás rutas validan con zod y casi todas limitan largos.
 
 ## Las capas
@@ -33,32 +36,41 @@ Sigue la regla de `CLAUDE.md`: la lógica pura va en archivos sin `server-only`,
 
 Es la capa que más falta y la que más protege antes del deploy: cubre lo que une las piezas (validación de la request, queries de Drizzle, migraciones, transacciones, la cadena de fallback, el stream NDJSON) sin levantar un servidor.
 
-**Cómo** (ver el test de ejemplo):
+**Cómo** (ejemplo completo: `src/app/api/sessions/[id]/messages/route.test.ts`; los demás están al lado de cada `route.ts`):
 
-- El route handler se importa y se llama con un `Request` y `{ params: Promise.resolve({ id }) }`. No hace falta levantar Next.
-- **Base**: `DATABASE_PATH` apunta a un archivo en un directorio temporal, y se setea en `vi.hoisted` porque `@/db` lo lee al importarse. `@/db` aplica las migraciones al abrirla, así que cada archivo de test arranca con el esquema real. Nunca `data/companion.db` ni `data/dev.db`.
-- **IA**: se mockean `@ai-sdk/google` y `@ai-sdk/groq` para que devuelvan un `MockLanguageModelV4` de `ai/test`. Se reemplaza solo el borde (el cliente HTTP del proveedor), así que `resolveModel`, `withFallback`, `analyzeMessage`, el streaming y `normalizeAnalysis` corren de verdad. Las keys se ponen como variables de entorno falsas.
-- **`server-only`**: se mockea con `vi.mock("server-only", () => ({}))`.
+- El route handler se importa y se llama con un `Request` y `{ params: Promise.resolve({ id }) }`. No hace falta levantar Next. Los imports del handler van con `await import(...)` o estáticos, da igual: el setup ya corrió.
+- **Setup compartido** (`src/test/setup.ts`, `setupFiles` de vitest, corre antes de cada archivo): crea una base temporal por archivo y apunta `DATABASE_PATH` a ella, pone keys falsas, mockea `server-only` y reemplaza `@ai-sdk/google` y `@ai-sdk/groq` por modelos mock. `@/db` aplica las migraciones reales al abrirla. Al terminar cierra la conexión y borra el directorio.
+- **Guard**: si el path de la base resuelve dentro de `data/` (`companion.db`, `dev.db`...), el setup y los helpers tiran un error (`assertSafeDatabasePath`). Nunca se toca una base real.
+- **IA**: solo se reemplaza el borde (el cliente HTTP del proveedor), así que `resolveModel`, `withFallback`, `analyzeMessage`, el streaming y `normalizeAnalysis` corren de verdad.
+
+**Helpers** (`src/test/`, pensados para que los equipos siguientes — auth, multiusuario — los extiendan en vez de copiar):
+
+| Archivo      | Qué da                                                                                                                                                                                                                |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai.ts`      | `fakeAi.gemini` / `fakeAi.groq` (`output`: el JSON que "escribe" el modelo; `fail`: `"quota"`, `"unavailable"` o `"unavailable-retryable"`; `calls`: pedidos recibidos) y `resetFakeAi(output)` para el `beforeEach`. |
+| `db.ts`      | `db` y `schema` de la app, `resetDb()` (vacía las tablas entre tests), `seedSession`, `seedUserMessage`, `seedCorrection` (filas con valores por defecto, se pisan con un objeto).                                    |
+| `temp-db.ts` | Sin `@/db`: `tempDatabasePath()`, `makeTempDir()`/`removeTempDir()`, `openDatabase(file)` (conexión con los pragmas de la app) y el guard `assertSafeDatabasePath`.                                                   |
+| `setup.ts`   | El setup global descrito arriba; no se importa a mano.                                                                                                                                                                |
+
+Un test nuevo de ruta es casi siempre: `beforeEach(() => { resetDb(); resetFakeAi(salida); })`, sembrar filas con `seed*`, llamar al handler y mirar la respuesta y `db`. Si hace falta otro proveedor o un modo de fallo nuevo, se agrega en `ai.ts`.
 
 **Lo que aprendimos con el ejemplo**:
 
-- Un error de proveedor _reintentable_ (429, 503) hace que el último modelo de la cadena reintente con backoff y el test tarde segundos o haga timeout. Los mocks tiran `APICallError` con `isRetryable: false`.
-- `@/db` guarda la conexión en `globalThis.__sqlite` (para el hot reload). El test la cierra y la borra en `afterAll`, para que otro archivo en el mismo worker no reuse una base ajena.
+- Un error de proveedor _reintentable_ (429, 503) hace que el último modelo de la cadena reintente con backoff y el test tarde segundos o haga timeout. `fail: "quota"` y `"unavailable"` tiran un `APICallError` no reintentable y el test termina al toque; `"unavailable-retryable"` ejercita el reintento: usar `vi.useFakeTimers()` y `vi.advanceTimersByTimeAsync(30_000)` (no `runAllTimersAsync`, que dispararía también el timer de 5 minutos de la clasificación diferida). Ver el test "retries a retryable error on the last provider".
+- `@/db` guarda la conexión en `globalThis.__sqlite` (para el hot reload). El setup la cierra y la borra en `afterAll`, para que otro archivo en el mismo worker no reuse una base ajena.
 - `withChatPriority` deja un timer de 5 minutos para la clasificación diferida. No molesta (vitest cierra el worker), pero un test de la clasificación tiene que usar fake timers.
 - Corre en menos de un segundo, así que va en `pnpm test` con los unit. No hace falta separar comandos.
 
-**Cuando haya un segundo test de integración**: pasar el mock de `server-only` y la base temporal a un `setupFiles` compartido (`src/test/`) y dejar en cada test solo los mocks de IA.
-
-**Qué cubrir** (por prioridad): mandar un mensaje y reintentar (`messages`, `retry`), práctica (`practice`), flashcards (`cards`, `reviews`), settings y keys (`settings`, `settings/keys`: que la key nunca vuelva entera), corrections y vocabulary, y la clasificación diferida (`classification`).
+**Qué cubrir** (por prioridad): mandar un mensaje y reintentar, práctica, flashcards, settings y keys (la key nunca vuelve entera) — hecho; falta corrections y vocabulary, y la clasificación diferida (`classification`, con fake timers).
 
 ### Migraciones
 
-Las migraciones se aplican solas al arrancar sobre la base real del usuario, así que un error ahí rompe la app con datos. Dos tests:
+Las migraciones se aplican solas al arrancar sobre la base real del usuario, así que un error ahí rompe la app con datos. El migrador vive en `src/db/migrate.ts` (sin `server-only`, para poder testearlo) y los tests en `src/db/`:
 
-1. **Base vacía**: aplica todas las migraciones y compara el esquema resultante con `schema.ts` (cubierto en parte por el test de integración, que ya las aplica).
-2. **Fixture con datos viejos**: un `.sql` chico con filas creadas por una versión vieja del esquema (sesiones, mensajes con correcciones, vocabulario, flashcards). Se aplican las migraciones nuevas encima y se verifica que no se pierdan filas y que las columnas nuevas tengan sus defaults. Cuando una migración agregue un backfill, se suma un caso.
-
-Además, un check barato: que ningún `.sql` nuevo de `drizzle/` tenga `DROP COLUMN`, `DROP TABLE` o `RENAME` sin una marca explícita, porque los cambios tienen que ser aditivos.
+1. **Base vacía** (`migrations.test.ts`): aplica todas, verifica que cada una quede registrada, que el esquema resultante coincida con `schema.ts` (tablas, columnas, NOT NULL y claves primarias) y que aplicar de nuevo no haga nada.
+2. **Datos viejos** (`migrations.test.ts`): se arma la base con las migraciones hasta `0005_tense_counts` (copia de `drizzle/` con el journal recortado), se insertan filas representativas (chat, mensajes, correcciones clasificadas y sin clasificar, vocabulario, settings), se aplican las migraciones actuales encima y se verifica que no se pierda ninguna fila, que los valores viejos sigan igual, que las columnas nuevas tengan sus defaults y que el `ON DELETE CASCADE` funcione. Cuando una migración agregue un backfill, se suma un caso con filas que lo ejerciten.
+3. **Migraciones aditivas** (`migrations.test.ts`): ninguna migración posterior al fixture puede tener `DROP TABLE`, `DROP COLUMN`, `RENAME`, `DELETE FROM` ni `ADD ... NOT NULL` sin `DEFAULT`. Si de verdad hace falta, se marca con un comentario `-- allow-destructive: <motivo>` en el `.sql`. Al subir el fixture a una versión más nueva, se actualiza `FIXTURE_LAST_TAG`.
+4. **Concurrencia** (`migrate.test.ts`): una conexión con el lock de escritura bloquea a la otra sin dejar nada a medias; una segunda conexión después de la primera no encuentra nada pendiente; y cuatro procesos (`src/test/migrate-worker.ts`, con `tsx`) migran la misma base a la vez sin errores ni filas duplicadas en `__drizzle_migrations`. También verifica que la conexión reusada tras un hot reload recibe el `busy_timeout` de 30 s.
 
 ### E2E: Playwright
 
@@ -91,17 +103,17 @@ Cuando _Security review_ (#76) agregue auth:
 
 ### Cobertura
 
-- `@vitest/coverage-v8` y `pnpm test:coverage`.
-- Piso solo para `src/lib/**` (thresholds por glob de vitest), arrancando un par de puntos debajo de lo que se mida al agregarlo y subiéndolo de a poco. Sin meta global: la UI y las rutas se cubren con E2E e integración, y una meta global empuja a tests que no aportan.
-- No se midió en esta investigación porque requiere la dependencia.
+- `@vitest/coverage-v8` (misma versión mayor que vitest) y `pnpm test:coverage`, que corre los mismos tests con cobertura. `pnpm test` queda sin cobertura, más rápido. CI corre `pnpm test:coverage` en lugar de `pnpm test` (cuesta ~1 s más).
+- Piso solo para `src/lib/**` (`coverage.thresholds` en `vitest.config.ts`); sin meta global: la UI y las rutas se cubren con E2E e integración, y una meta global empuja a tests que no aportan.
+- Línea base medida al agregarlo (2026-10-28): statements 80,8 %, branches 76,1 %, functions 76,4 %, lines 81,5 %. Piso: 78 / 73 / 73 / 78. Se sube de a poco cuando la cobertura crece; no se baja para que pase un PR.
 
 ## Qué corre dónde
 
-| Cuándo                                   | Qué                                                                                                             | Tiempo aprox.            |
-| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| Cada PR y push a `develop`               | `pnpm typecheck`, `pnpm lint`, `pnpm test` (unit + integración + migraciones), cobertura con piso, `pnpm build` | ~2-3 min                 |
-| Nightly y antes de un release            | Lo anterior + E2E con Playwright                                                                                | ~5-8 min                 |
-| Manual, antes de cambiar modelo o prompt | `pnpm eval:*` con proveedores reales                                                                            | minutos, gasta free tier |
+| Cuándo                                   | Qué                                                                                                                         | Tiempo aprox.            |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Cada PR y push a `develop`               | `pnpm typecheck`, `pnpm lint`, `pnpm test:coverage` (unit + integración + migraciones, con piso de cobertura), `pnpm build` | ~2-3 min                 |
+| Nightly y antes de un release            | Lo anterior + E2E con Playwright                                                                                            | ~5-8 min                 |
+| Manual, antes de cambiar modelo o prompt | `pnpm eval:*` con proveedores reales                                                                                        | minutos, gasta free tier |
 
 Esto se engancha con el draft _Release workflow_: el release solo sale con el E2E en verde.
 
@@ -110,9 +122,9 @@ Esto se engancha con el draft _Release workflow_: el release solo sale con el E2
 En este orden (la prioridad se puede revisar con el tablero):
 
 1. **CI en GitHub Actions** con los checks que ya existen + build. Es lo más barato y lo que más protege. Hecho en #87.
-2. **Integración de rutas**: setup compartido y tests de las rutas del chat, retry, práctica, flashcards y settings/keys.
-3. **Test de migraciones** con fixture de datos viejos y el check de migraciones aditivas.
-4. **Cobertura** con piso para `src/lib/**`.
+2. **Integración de rutas**: setup compartido y tests de las rutas del chat, retry, práctica, flashcards y settings/keys. Hecho en #111.
+3. **Test de migraciones** con fixture de datos viejos y el check de migraciones aditivas. Hecho en #112 y #113.
+4. **Cobertura** con piso para `src/lib/**`. Hecho en #114.
 5. **Tests de seguridad** (auth en todas las rutas, límites de entrada), junto con #76.
 6. **E2E con Playwright** y el modo de IA falsa, nightly y antes de cada release.
 7. **Umbrales en los evals**.
