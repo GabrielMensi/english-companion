@@ -12,7 +12,7 @@ export interface SoundSentence {
   confusedWith: string;
 }
 
-export const SOUND_SENTENCES: Record<Exclude<PronunciationCategory, "other">, SoundSentence[]> = {
+export const SOUND_SENTENCES: Record<Exclude<PronunciationCategory, "other" | "schwa_reduction">, SoundSentence[]> = {
   vowel_length: [
     { text: "I saw a big ship in the picture.", target: "ship", confusedWith: "sheep" },
     { text: "Can you fill this form for me?", target: "fill", confusedWith: "feel" },

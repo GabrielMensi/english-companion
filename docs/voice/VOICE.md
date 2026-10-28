@@ -297,7 +297,7 @@ Settings → Listening tiene un **Engine**: _Browser voice_ (default, `speechSyn
 3. Para cada palabra escuchada distinto, se alinean los fonemas (ARPAbet) de las dos y el primer cambio que coincide con una regla decide la categoría: _th_ → t/d/s; b ↔ v; h que se pierde, y ↔ j; una vocal agregada antes de s + consonante (también si Whisper escribe "is students" o "estudent"); iː ↔ ɪ y uː ↔ ʊ; otras vocales; consonantes finales que se pierden o cambian (_worked → work_, _bed → bet_). Si hay varias pronunciaciones (_live_ /lɪv/ o /laɪv/), se usa la más cercana y, si empatan, la regla más específica.
 4. Las palabras que no se escucharon se marcan pero no cuentan como error de pronunciación (pueden ser una palabra salteada).
 
-**Taxonomía** (`PRONUNCIATION_CATEGORIES` en `taxonomy.ts`): `vowel_length`, `vowel_quality` (nueva: _bug / book_, _call / kill_, que Whisper escuchó en la Fase 0), `th_sounds`, `b_v`, `h_j_sounds`, `initial_s_cluster`, `final_consonants`, `other`. Cada una tiene un consejo en español e inglés, según el idioma de las explicaciones. `schwa_reduction` y `word_stress` quedaron afuera: no cambian qué palabra escucha Whisper, así que con esta señal nunca se asignarían.
+**Taxonomía** (`PRONUNCIATION_CATEGORIES` en `taxonomy.ts`): `vowel_length`, `vowel_quality` (nueva: _bug / book_, _call / kill_, que Whisper escuchó en la Fase 0), `th_sounds`, `b_v`, `h_j_sounds`, `initial_s_cluster`, `final_consonants`, `other`. Cada una tiene un consejo en español e inglés, según el idioma de las explicaciones. `word_stress` quedó afuera: no cambia qué palabra escucha Whisper, así que con esta señal nunca se asignaría. `schwa_reduction` (#132) está en la lista pero como **beta**: se encuentra desde el audio con wav2vec2 ([PRONUNCIATION_AUDIO.md](PRONUNCIATION_AUDIO.md)), se muestra como pista en Read aloud y no se guarda ni cuenta en las estadísticas. Ojo: el modelo de fonemas suma ~0,5 GB de RAM al proceso del servidor mientras está cargado (`PHONEME_CHECK=false` lo apaga).
 
 **Guardado**: tablas `read_aloud_attempts` (texto, transcripción, palabras bien / total, fuente, foco) y `pronunciation_issues` (palabra esperada, escuchada, categoría y el sonido que cambió en IPA, p. ej. "/ɪ/ → /iː/"). El audio no se guarda. A Whisper no se le pasa el texto esperado como prompt: lo copiaría y escondería los errores.
 
@@ -315,7 +315,7 @@ Limitaciones:
 
 Pendiente:
 
-- Acento, schwa y word stress desde el audio: investigado en [PRONUNCIATION_AUDIO.md](PRONUNCIATION_AUDIO.md) (#74). Decisión: schwa con un modelo de fonemas wav2vec2 en CPU, acento de palabra pendiente de grabaciones reales, feedback abierto con Gemini descartado.
+- Acento, schwa y word stress desde el audio: investigado en [PRONUNCIATION_AUDIO.md](PRONUNCIATION_AUDIO.md) (#74). Decisión: schwa con un modelo de fonemas wav2vec2 en CPU (hecho como beta, #132/#133), acento de palabra pendiente de grabaciones reales (#134/#136), wav2vec2 en el navegador medido y no necesario por ahora (#135), feedback abierto con Gemini descartado.
 
 ### Fase 4 — Clases
 

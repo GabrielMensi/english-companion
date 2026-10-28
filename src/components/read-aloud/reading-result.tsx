@@ -1,6 +1,7 @@
 "use client";
 
 import { StatusBadge } from "@/components/status-badge";
+import type { PhonemeCheckResult } from "@/lib/phonemes-core";
 import type { ReadAloudResult } from "@/lib/pronunciation-core";
 import { PRONUNCIATION_LABELS, PRONUNCIATION_TIPS } from "@/lib/taxonomy";
 import { escapeRegExp } from "@/lib/text";
@@ -57,11 +58,16 @@ export function ResultDetails({
   result,
   transcript,
   language,
+  soundCheck,
 }: {
   result: ReadAloudResult;
   transcript: string;
   language: Language;
+  /** The beta sound check (from the audio); undefined where it isn't asked for. */
+  soundCheck?: PhonemeCheckResult | "pending" | null;
 }) {
+  const checks =
+    soundCheck && soundCheck !== "pending" && soundCheck.status === "ready" ? soundCheck.analysis.checks : [];
   const perfect = result.issues.length === 0 && result.missedWords.length === 0;
   return (
     <div className="space-y-4 border-t pt-4">
@@ -93,16 +99,109 @@ export function ResultDetails({
               <p className="max-w-[68ch] text-sm text-muted-foreground">
                 {PRONUNCIATION_TIPS[issue.category][language]}
               </p>
+              <IssueCheckNote check={checks.find((c) => c.issue === i)} />
             </li>
           ))}
         </ol>
       )}
+
+      {soundCheck !== undefined && <SoundCheck check={soundCheck} language={language} />}
 
       {result.missedWords.length > 0 && (
         <p className="text-sm text-muted-foreground">
           Not heard: {result.missedWords.join(", ")}. Skipped words aren’t counted as pronunciation mistakes.
         </p>
       )}
+    </div>
+  );
+}
+
+/** What the sounds said about a mistake found from the transcript. */
+function IssueCheckNote({
+  check,
+}: {
+  check: { verdict: "confirmed" | "not_heard" | "unclear"; detail: string | null } | undefined;
+}) {
+  if (!check || check.verdict === "unclear") return null;
+  return (
+    <p className="text-xs text-muted-foreground">
+      Sound check (beta):{" "}
+      {check.verdict === "confirmed"
+        ? `the sounds say the same${check.detail ? `, ${check.detail}` : ""}.`
+        : "the sounds came out right, so the transcript may have misheard this word."}
+    </p>
+  );
+}
+
+/** The beta check from the audio: weak vowels said in full, and th or b/v the transcript missed. */
+function SoundCheck({ check, language }: { check: PhonemeCheckResult | "pending" | null; language: Language }) {
+  const title = (
+    <span className="flex items-center gap-2 text-sm font-medium">
+      Sound check <StatusBadge tone="optional">Beta</StatusBadge>
+    </span>
+  );
+  if (check === null) {
+    return (
+      <div className="space-y-1">
+        {title}
+        <p className="text-sm text-muted-foreground">Sound check unavailable for this reading.</p>
+      </div>
+    );
+  }
+  if (check === "pending") {
+    return (
+      <div className="space-y-1">
+        {title}
+        <p className="text-sm text-muted-foreground">Listening to the sounds…</p>
+      </div>
+    );
+  }
+  if (check.status === "preparing") {
+    const percent = check.progress === null ? "" : ` (${Math.round(check.progress * 100)}%)`;
+    return (
+      <div className="space-y-1">
+        {title}
+        <p className="text-sm text-muted-foreground">
+          Getting the sound model ready{percent}: a one-time download of about 320 MB. It starts working on your next
+          reading.
+        </p>
+      </div>
+    );
+  }
+  if (check.status === "unavailable") {
+    return (
+      <div className="space-y-1">
+        {title}
+        <p className="text-sm text-muted-foreground">{check.reason}</p>
+      </div>
+    );
+  }
+  const { hints } = check.analysis;
+  return (
+    <div className="space-y-2">
+      {title}
+      {hints.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No weak-vowel problems or other sound changes heard.</p>
+      ) : (
+        <ul className="space-y-2">
+          {hints.map((hint, i) => (
+            <li key={i} className="space-y-0.5">
+              <p>
+                <span className="font-serif">{hint.word}</span>
+                <span className="ml-2 text-sm text-muted-foreground">
+                  {PRONUNCIATION_LABELS[hint.category]} · {hint.detail}
+                </span>
+              </p>
+              <p className="max-w-[68ch] text-sm text-muted-foreground">
+                {PRONUNCIATION_TIPS[hint.category][language]}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Beta: found from the audio, not saved and not counted in your stats yet.
+      </p>
     </div>
   );
 }
