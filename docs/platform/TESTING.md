@@ -24,7 +24,7 @@ Qué hay que testear y cómo, para poder desplegar una instancia pública (_Depl
 - **Sin tests**: las rutas que faltan (`corrections`, `vocabulary`, `classification`, `insights`, `read-aloud`, `transcribe`, `tts`, `eval/*`, `sessions/[id]`), los módulos `server-only` que no pasan por esas rutas y la UI.
 - **IA**: la calidad se mide aparte con los evals, que llaman a los proveedores reales y gastan free tier. No tienen umbrales: muestran números y una persona decide.
 - **CI**: GitHub Actions (`.github/workflows/ci.yml`, #87) corre typecheck, lint, test (con cobertura), knip, format:check y build en cada PR a `develop` y `main` y en cada push a `develop`, con Node 22 (`.nvmrc`) y una base temporal para el build.
-- **Seguridad**: hoy no hay auth (la app es local). `POST /api/transcribe` y `PUT /api/eval/asr-samples/[id]` leen el body entero sin límite de tamaño. Las demás rutas validan con zod y casi todas limitan largos.
+- **Seguridad (#138)**: `src/app/security.test.ts` recorre todos los `route.ts` (401 sin sesión y sin leer el body) y los `page.tsx` (llaman a `requirePageUser`), y comprueba los límites de body (413 y 401 antes que 413); `src/proxy.test.ts` cubre host, CSRF y el redirect a `/login`. `POST /api/transcribe` y `PUT /api/eval/asr-samples/[id]` limitan el body a 413; las demás rutas validan con zod y leen el JSON con tope (`readJson`).
 
 ## Las capas
 
@@ -45,12 +45,13 @@ Es la capa que más falta y la que más protege antes del deploy: cubre lo que u
 
 **Helpers** (`src/test/`, pensados para que los equipos siguientes — auth, multiusuario — los extiendan en vez de copiar):
 
-| Archivo      | Qué da                                                                                                                                                                                                                |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ai.ts`      | `fakeAi.gemini` / `fakeAi.groq` (`output`: el JSON que "escribe" el modelo; `fail`: `"quota"`, `"unavailable"` o `"unavailable-retryable"`; `calls`: pedidos recibidos) y `resetFakeAi(output)` para el `beforeEach`. |
-| `db.ts`      | `db` y `schema` de la app, `resetDb()` (vacía las tablas entre tests), `seedSession`, `seedUserMessage`, `seedCorrection` (filas con valores por defecto, se pisan con un objeto).                                    |
-| `temp-db.ts` | Sin `@/db`: `tempDatabasePath()`, `makeTempDir()`/`removeTempDir()`, `openDatabase(file)` (conexión con los pragmas de la app) y el guard `assertSafeDatabasePath` (allowlist del directorio temporal).               |
-| `setup.ts`   | El setup global descrito arriba; no se importa a mano.                                                                                                                                                                |
+| Archivo      | Qué da                                                                                                                                                                                                                                                                                                           |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai.ts`      | `fakeAi.gemini` / `fakeAi.groq` (`output`: el JSON que "escribe" el modelo; `fail`: `"quota"`, `"unavailable"` o `"unavailable-retryable"`; `calls`: pedidos recibidos) y `resetFakeAi(output)` para el `beforeEach`.                                                                                            |
+| `db.ts`      | `db` y `schema` de la app, `resetDb()` (vacía las tablas entre tests), `seedSession`, `seedUserMessage`, `seedCorrection` (filas con valores por defecto, se pisan con un objeto).                                                                                                                               |
+| `auth.ts`    | `createTestUser(email?)`: crea una cuenta y su sesión por Better Auth y devuelve `{ id, email, cookie, request(url, init), headers(init) }`. Toda ruta pide sesión: los tests de rutas llaman al handler con `user.request(...)`, y con `new Request(...)` a secas esperan 401. Llamarlo después de `resetDb()`. |
+| `temp-db.ts` | Sin `@/db`: `tempDatabasePath()`, `makeTempDir()`/`removeTempDir()`, `openDatabase(file)` (conexión con los pragmas de la app) y el guard `assertSafeDatabasePath` (allowlist del directorio temporal).                                                                                                          |
+| `setup.ts`   | El setup global descrito arriba; no se importa a mano.                                                                                                                                                                                                                                                           |
 
 Un test nuevo de ruta es casi siempre: `beforeEach(() => { resetDb(); resetFakeAi(salida); })`, sembrar filas con `seed*`, llamar al handler y mirar la respuesta y `db`. Si hace falta otro proveedor o un modo de fallo nuevo, se agrega en `ai.ts`.
 

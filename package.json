@@ -14,6 +14,7 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "next typegen && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
+    "auth:reset-password": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/auth-reset-password.mts",
     "eval:models": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/run.mts",
     "eval:classify": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/classify.mts",
     "eval:asr": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/asr.mts",

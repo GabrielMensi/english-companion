@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEnv } from "./env";
+import { deployProblems, evalEnabled, parseEnv } from "./env";
 
 describe("parseEnv", () => {
   it("starts with nothing set: paths get their defaults and API keys stay unset", () => {
@@ -63,5 +63,67 @@ describe("parseEnv: hosts and proxy", () => {
     expect(message).toContain("TRUST_PROXY");
     expect(message).toContain("ALLOWED_HOSTS");
     expect(message).not.toContain("yes-secret");
+  });
+});
+
+describe("parseEnv: login", () => {
+  it("has nothing required locally, and sign-up closed beyond the first account", () => {
+    expect(parseEnv({})).toMatchObject({ SIGNUP_ALLOWED_EMAILS: [] });
+    expect(parseEnv({}).BETTER_AUTH_SECRET).toBeUndefined();
+  });
+
+  it("splits SIGNUP_ALLOWED_EMAILS, trimming and lowercasing", () => {
+    expect(parseEnv({ SIGNUP_ALLOWED_EMAILS: " Ana@X.com, ,bruno@y.com " }).SIGNUP_ALLOWED_EMAILS).toEqual([
+      "ana@x.com",
+      "bruno@y.com",
+    ]);
+    expect(() => parseEnv({ SIGNUP_ALLOWED_EMAILS: "ana@x.com,not-an-email" })).toThrow(/SIGNUP_ALLOWED_EMAILS/);
+  });
+
+  it("wants a secret of at least 32 characters, and never prints it", () => {
+    expect(parseEnv({ BETTER_AUTH_SECRET: "x".repeat(32) }).BETTER_AUTH_SECRET).toHaveLength(32);
+    const error = (() => {
+      try {
+        parseEnv({ BETTER_AUTH_SECRET: "too-short-secret" });
+      } catch (e) {
+        return String(e);
+      }
+    })();
+    expect(error).toMatch(/BETTER_AUTH_SECRET: expected at least 32 characters/);
+    expect(error).not.toContain("too-short-secret");
+  });
+
+  it("wants BETTER_AUTH_URL to be an http(s) URL", () => {
+    expect(parseEnv({ BETTER_AUTH_URL: "https://companion.example.com" }).BETTER_AUTH_URL).toBeTruthy();
+    expect(() => parseEnv({ BETTER_AUTH_URL: "companion.example.com" })).toThrow(/BETTER_AUTH_URL/);
+    expect(() => parseEnv({ BETTER_AUTH_URL: "ftp://companion.example.com" })).toThrow(/BETTER_AUTH_URL/);
+  });
+});
+
+describe("deployProblems", () => {
+  it("asks nothing from a local run", () => {
+    expect(deployProblems(parseEnv({}))).toEqual([]);
+  });
+
+  it("a deploy (ALLOWED_HOSTS set) needs the secret and the public URL", () => {
+    const problems = deployProblems(parseEnv({ ALLOWED_HOSTS: "companion.example.com" }));
+    expect(problems).toHaveLength(2);
+    expect(problems.join()).toMatch(/BETTER_AUTH_SECRET/);
+    expect(problems.join()).toMatch(/BETTER_AUTH_URL/);
+    const ready = parseEnv({
+      ALLOWED_HOSTS: "companion.example.com",
+      BETTER_AUTH_SECRET: "x".repeat(32),
+      BETTER_AUTH_URL: "https://companion.example.com",
+    });
+    expect(deployProblems(ready)).toEqual([]);
+  });
+});
+
+describe("evalEnabled", () => {
+  it("is on in development, off in production unless ENABLE_EVAL=true", () => {
+    expect(evalEnabled(parseEnv({}), "development")).toBe(true);
+    expect(evalEnabled(parseEnv({}), "production")).toBe(false);
+    expect(evalEnabled(parseEnv({ ENABLE_EVAL: "true" }), "production")).toBe(true);
+    expect(evalEnabled(parseEnv({ ENABLE_EVAL: "false" }), "development")).toBe(false);
   });
 });

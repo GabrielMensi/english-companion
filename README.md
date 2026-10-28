@@ -37,7 +37,7 @@ pnpm install
 pnpm dev
 ```
 
-Abrí https://localhost:3737 y armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key, el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
+Abrí https://localhost:3737: la app **pide login siempre**, también en local. La primera vez, entrá a `/signup` y creá tu cuenta (email y contraseña de al menos 10 caracteres): la primera cuenta se crea sin más y después el registro se cierra. Para dar de alta a otras personas, poné sus emails en `SIGNUP_ALLOWED_EMAILS` (separados por coma, en `.env.local`) y reiniciá. Después armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key, el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
 
 Si preferís configurarlo por entorno, copiá `.env.example` a `.env.local`: esas variables se usan cuando no hay nada guardado en la app.
 
@@ -52,7 +52,9 @@ certutil -user -addstore Root $env:USERPROFILE\Downloads\mkcert-rootCA.pem
 
 Después reiniciá Chrome. Solo se importa el certificado público; la clave queda en WSL.
 
-La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migra solo al arrancar.
+La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migra solo al arrancar. La clave que firma las cookies de sesión se genera sola la primera vez en `data/auth.secret` (permisos `600`, junto a la base); en un deploy hay que definir `BETTER_AUTH_SECRET` y `BETTER_AUTH_URL` (ver [docs/platform/AUTH_MULTIUSER.md](docs/platform/AUTH_MULTIUSER.md)).
+
+**Olvidé la contraseña**: no hay email para recuperarla. En la carpeta de la app corré `pnpm auth:reset-password <email>`: pide la nueva contraseña, la cambia y cierra todas las sesiones de esa cuenta.
 
 ### Modelos recomendados
 
@@ -81,6 +83,7 @@ Configuración recomendada: **Gemini Flash-Lite como principal y `qwen/qwen3.8-2
 | `pnpm eval:classify <provider>:<model> …` | Compara modelos clasificando errores ya detectados (tipo fino y tiempos verbales). `--with-user-labels` suma los tipos corregidos a mano en la app                                                 |
 | `pnpm eval:asr [engine:model …]`          | Transcribe las grabaciones de `/eval/asr` con cada motor de speech-to-text y mide si conservan tus errores o los "corrigen" (ver [docs/voice/VOICE.md](docs/voice/VOICE.md))                       |
 | `pnpm eval:level`                         | Compara el nivel CEFR estimado con textos de alumnos calificados por Cambridge (Write & Improve, se descarga aparte; ver [docs/progress/LEVEL_CALIBRATION.md](docs/progress/LEVEL_CALIBRATION.md)) |
+| `pnpm auth:reset-password <email>`        | Cambia la contraseña de una cuenta (sin email de recuperación) y cierra sus sesiones                                                                                                               |
 | `pnpm db:generate`                        | Genera una migración después de cambiar `src/db/schema.ts`                                                                                                                                         |
 
 ## Stack

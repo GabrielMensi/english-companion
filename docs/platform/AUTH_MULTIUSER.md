@@ -1,6 +1,8 @@
 # Login, multiusuario y API keys por usuario
 
-> Area: Platform · Kind: Research · Status: Decided · Board: #124, #125, #126
+> Area: Platform · Kind: Research · Status: In progress · Board: #124, #125, #126
+
+> **Estado**: la PR a (auth, #124 y #138) está implementada en `team/auth`; la b (multiusuario) y la c (keys) siguen pendientes. Lo que cambió al implementar la a está marcado como _Implementación_ más abajo.
 
 Diseño para implementar sin volver a investigar. Cubre _Authentication_ (#124), _Multi-user support_ (#125) y _Per-user API keys_ (#126), más el cifrado de las keys guardadas. Parte de [SECURITY_REVIEW.md](SECURITY_REVIEW.md) (hallazgos 1, 6 y 8) y de [TESTING.md](TESTING.md) (capa de integración). El deploy está en [DEPLOY.md](DEPLOY.md).
 
@@ -46,13 +48,13 @@ Las tablas de Better Auth usan ids `text`, fechas `integer timestamp` y nombres 
 **Orígenes (verificado contra los tipos de `better-auth@1.7.14`: `trustedOrigins` acepta `string[]` o `(request?) => Awaitable<(string | null | undefined)[]>`, y `baseURL` acepta un string o `{ allowedHosts, fallback }`)**. `pnpm dev` escucha en `127.0.0.1`, y los worktrees usan otros puertos (3738, 3741–3745...), así que una URL fija local no sirve:
 
 - **Deploy** (`ALLOWED_HOSTS` definido): `baseURL = BETTER_AUTH_URL` (fija) y `trustedOrigins = ["https://<cada host de ALLOWED_HOSTS>"]`. Con `TRUST_PROXY=true`, además `advanced.trustedProxyHeaders: true` para que respete `X-Forwarded-Host/Proto` (el mismo criterio que `requestHost`).
-- **Local** (sin `ALLOWED_HOSTS`): `trustedOrigins` como **función de la request** que devuelve el `Origin` de la request solo si su hostname es loopback (`localhost`, `127.0.0.1`, `[::1]`, cualquier puerto, http o https), la misma regla que `allowed-hosts.ts`; la lógica vive en `auth-core.ts` (`isLoopbackOrigin`, con tests). `baseURL` se deja sin fijar (se infiere de la request) o se usa `{ allowedHosts: [...loopback], fallback }`; el comodín de puerto en `allowedHosts` no está documentado en los tipos: probarlo, y si no anda, inferir.
-- La cookie lleva prefijo `__Secure-` solo con `https`; en `http://127.0.0.1` (`pnpm start`) va sin prefijo. Los tests de login se hacen en `http` y en `https` y en un puerto distinto de 3737.
+- **Local** (sin `ALLOWED_HOSTS`): `trustedOrigins` como **función de la request** que devuelve el `Origin` de la request solo si su hostname es loopback (`localhost`, `127.0.0.1`, `[::1]`, cualquier puerto, http o https), la misma regla que `allowed-hosts.ts`; la lógica vive en `auth-core.ts` (`isLoopbackOrigin`, con tests). `baseURL` se deja sin fijar (se infiere de la request) o se usa `{ allowedHosts: [...loopback], fallback }`; el comodín de puerto en `allowedHosts` no está documentado en los tipos: probarlo, y si no anda, inferir. _Implementación_: anda `{ allowedHosts: ["localhost:*", "127.0.0.1:*", "[::1]:*"], fallback: "https://127.0.0.1:3737" }` (probado con la app real en el puerto 3747); y localmente `advanced.useSecureCookies: false`, así la cookie no cambia de nombre entre `pnpm dev` (https) y `pnpm start` (http); en deploy es `true`.
+- La cookie lleva prefijo `__Secure-` solo con `https`; en `http://127.0.0.1` (`pnpm start`) va sin prefijo. _Implementación_: en local no se usa el prefijo en ningún caso (ver arriba). Los tests de login se hacen en `http` y en `https` y en un puerto distinto de 3737.
 
 ### Sesiones y cookies
 
 - Sesión en base (tabla `session`), cookie `httpOnly`, `SameSite=Lax`, `Secure` automático cuando `BETTER_AUTH_URL` es `https` (prefijo `__Secure-`). Duración 30 días, se renueva cada día (`session.expiresIn` / `updateAge`). `cookieCache` activado 5 minutos para no ir a SQLite en cada request (revocar una sesión tarda hasta 5 min en notarse; aceptable).
-- Cerrar sesión borra la fila. Cambiar la contraseña revoca las demás sesiones (`revokeOtherSessions: true`).
+- Cerrar sesión borra la fila. _Implementación_: una copia de la cookie sigue valiendo hasta 5 minutos por el `cookieCache` (se probó con la app real); el navegador sí pierde las cookies. Cambiar la contraseña revoca las demás sesiones (`revokeOtherSessions: true`).
 - Sin verificación de email (no hay proveedor de correo) y sin "olvidé mi contraseña" por email: el reseteo es un comando de administrador, `pnpm auth:reset-password <email>` (script en `scripts/`, pide la nueva contraseña por stdin, hace el cambio por el camino del core, **no** con `auth.api.setUserPassword` (eso es del plugin `admin` y pide una sesión de admin): hash con `(await auth.$context).password.hash(nueva)`, `UPDATE account SET password = <hash> WHERE user_id = ? AND provider_id = 'credential'` y `DELETE FROM session WHERE user_id = ?`; verificado en los tipos, `ctx.password.hash` existe). Se documenta en el README.
 - Contraseña: mínimo 10 caracteres, máximo 128 (`emailAndPassword.minPasswordLength/maxPasswordLength`). Sin reglas de composición.
 - **Rate limit de Better Auth** (`rateLimit: { enabled: true, storage: "database" }`; por defecto solo se activa en producción): 3 intentos por 10 s en `/sign-in/email` y `/sign-up/email` como mínimo (regla `customRules`). El de las rutas de IA es aparte (sección 4).
@@ -61,8 +63,8 @@ Las tablas de Better Auth usan ids `text`, fechas `integer timestamp` y nombres 
 
 Se mantienen las dos capas y se suma una:
 
-1. `src/proxy.ts` + `src/lib/cross-site.ts` (ya existen): `POST/PUT/PATCH/DELETE` a `/api/*` con `Sec-Fetch-Site` distinto de `same-origin`, o sin él y con `Origin` distinto del host, dan 403. Aplica también a `/api/auth/*`; los formularios de login son same-origin, no se rompen. Con las cookies `SameSite=Lax` el riesgo restante es mínimo.
-2. Better Auth verifica `Origin` contra `trustedOrigins` en cada request con cookie (activo por defecto; **no** poner `advanced.disableCSRFCheck`).
+1. `src/proxy.ts` + `src/lib/cross-site.ts` (ya existen; _Implementación_: el chequeo de login va después de estos dos, y el redirect a `/login` tiene que ser una URL absoluta, que el proxy arma con el host de `requestHost`, no con `request.url`): `POST/PUT/PATCH/DELETE` a `/api/*` con `Sec-Fetch-Site` distinto de `same-origin`, o sin él y con `Origin` distinto del host, dan 403. Aplica también a `/api/auth/*`; los formularios de login son same-origin, no se rompen. Con las cookies `SameSite=Lax` el riesgo restante es mínimo.
+2. Better Auth verifica `Origin` contra `trustedOrigins` en cada request con cookie (activo por defecto; **no** poner `advanced.disableCSRFCheck`). _Implementación_: con `NODE_ENV=test` Better Auth apaga esta verificación por su cuenta, así que no se puede testear en vitest; se cubre con `proxy.test.ts` (la capa 1) y se probó a mano contra el servidor real (`Origin: https://evil.test` con cookie válida da 403).
 3. Las páginas no usan Server Actions para mutar (todo pasa por rutas `/api`), así que no hay que sumar nada de ese lado. Si un día se agregan, Next ya compara `Origin` con `Host` y hay que alinearlo con `serverActions.allowedOrigins`.
 
 Re-chequear con tests: un `POST` con cookie válida pero `Origin: https://evil.test` da 403 (lo cubre `cross-site.test.ts` y un test nuevo de integración).
@@ -88,7 +90,17 @@ Rutas especiales:
 
 ### Test de regresión (parte del PR a, depende de test-infra)
 
-Un test de integración que **recorre los `route.ts` de `src/app/api/`** (glob con `import.meta.glob` o `fs`), importa cada handler (`GET/POST/PUT/PATCH/DELETE`) y lo llama **sin cookie**: debe dar 401, salvo las rutas de la lista pública. Si alguien agrega una ruta nueva sin `withUser`, el test falla solo. Otro recorre `page.tsx` y verifica el redirect. Además: body demasiado grande sigue dando 413, y 401 gana sobre 413 (no se lee el body de quien no tiene sesión).
+_Implementación_: `src/app/security.test.ts`. Un test de integración que **recorre los `route.ts` de `src/app/api/`** (glob con `import.meta.glob` o `fs`), importa cada handler (`GET/POST/PUT/PATCH/DELETE`) y lo llama **sin cookie**: debe dar 401, salvo las rutas de la lista pública. Si alguien agrega una ruta nueva sin `withUser`, el test falla solo. Otro recorre `page.tsx` y verifica el redirect (_Implementación_: como un `page.tsx` async no se puede llamar sin el runtime de Next, el test comprueba en el código fuente que cada página llama a `requirePageUser`; el redirect en sí lo cubre `proxy.test.ts`). Además: body demasiado grande sigue dando 413, y 401 gana sobre 413 (no se lee el body de quien no tiene sesión).
+
+### Implementación de la PR a: lo que se decidió al hacerla
+
+- `getAuth()` es lazy (`src/lib/auth/auth.ts`): `next build` importa las rutas y no debe necesitar el secreto. `BETTER_AUTH_SECRET` local se genera en `auth.secret` **junto a `DATABASE_PATH`** (no en un `data/` fijo), igual que la clave de cifrado futura.
+- `withUser(handler)` pasa `(request, ctx, { userId, email, name })`; `getUser(headers?)`/`requireUser(headers?)` aceptan los headers de la request (los handlers los tienen; las páginas usan los de Next). Las páginas llaman `requirePageUser(path)`. Sin sesión, el layout raíz no dibuja la barra lateral ni lee datos.
+- La exigencia de despliegue (`ALLOWED_HOSTS` sin `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`) es `deployProblems(env)` en `env.ts`, que corre en `instrumentation.ts`; no está en `parseEnv` para no romper cada uso de `ALLOWED_HOSTS` en tests.
+- `ENABLE_EVAL` y el primer usuario como admin: `evalEnabled()` en `env.ts` e `isAdmin`/`canUseEval` en `src/lib/auth/admin.ts`; las páginas y rutas de `eval` dan 404 si no.
+- Tablas de auth: `user`, `session`, `account`, `verification`, `rate_limit` (en `schema.ts` como `authUser`, `authSession`, ...), migración `0014_auth_tables` (solo `CREATE TABLE` e índices).
+- Tests: `createTestUser()` en `src/test/auth.ts` crea la cuenta por Better Auth y devuelve `request()`/`headers()` con la cookie; el setup fija `BETTER_AUTH_SECRET` y `SIGNUP_ALLOWED_EMAILS`. Con `vi.useFakeTimers()` la comprobación de sesión (cripto asíncrona real) no avanza con `advanceTimersByTimeAsync(0)`: crear primero lo que haga falta y esperar con `vi.waitFor` (ver el test de reintentos en `sessions/[id]/messages`).
+- `GET /api/auth/signup-status` existe y es público; `/signup` lee el mismo dato directo de la base.
 
 ## 2. Política de registro
 
