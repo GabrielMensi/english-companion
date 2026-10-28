@@ -41,6 +41,10 @@ const envSchema = z.object({
   DATABASE_PATH: optional(text.default("data/companion.db")),
   /** Recordings for the speech-to-text eval. */
   ASR_SAMPLES_DIR: optional(text.default("data/asr-samples")),
+  /** Where the phoneme model for the read-aloud sound check is downloaded (~320 MB, once). */
+  PHONEME_MODEL_DIR: optional(text.default("data/models")),
+  /** "false" turns the sound check off: no download, no inference. */
+  PHONEME_CHECK: optional(flag.default(true)),
   /** Fallbacks when no key is saved in Settings. */
   GOOGLE_GENERATIVE_AI_API_KEY: optional(text.optional()),
   GROQ_API_KEY: optional(text.optional()),

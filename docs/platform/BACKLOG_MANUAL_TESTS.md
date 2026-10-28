@@ -56,6 +56,15 @@ Nada para probar a mano. Opcional: la app arranca y abre un chat (cambió dónde
 - Si algo se rompe: `CSP_REPORT_ONLY=true` en `.env.local`, reiniciar, y pasame los mensajes de la consola.
 - [ ] En la RX 9070 XT (#45): copiar de `chrome://gpu` las líneas de WebGPU, GL_RENDERER, driver y backend; Device = GPU → Try it; "Copy diagnostics" y pegar el reporte en #45.
 
+### Voz: chequeo de sonidos beta (#145: #132–#136)
+
+- [ ] `/read-aloud`: la primera lectura muestra "Sound check · Beta: Getting the sound model ready (N%)…" hasta que baja el modelo (~318 MB, una sola vez).
+- [ ] Leé una oración diciendo "to" como "tuu" y "banana" con todas las vocales plenas: aparece "Weak vowels (schwa) · /ə/ → /uː/" con un consejo y "not saved and not counted in your stats yet".
+- [ ] Leé "I think this is very good" diciendo "tink" y "bery": los problemas muestran "the sounds say the same, /θ/ → /t/".
+- [ ] "Sounds to work on" y el dashboard no muestran schwa.
+- [ ] El servidor de la app usa ~0,5 GB más de RAM con el modelo cargado (si molesta: `PHONEME_CHECK=false`).
+- [ ] Eval con tus grabaciones (#136): `pnpm tsx scripts/spike/pron-audio/real.mts --list`, después `--init`; grabá los clips en `data/pron-real/` (33 en total, mínimo los 13 marcados con `*`) y corré el script sin flags. Con eso decidimos si schwa pasa a las estadísticas. La guía está en `docs/voice/PRONUNCIATION_AUDIO.md`.
+
 ## Problemas encontrados
 
 -
