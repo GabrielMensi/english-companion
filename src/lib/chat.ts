@@ -1,3 +1,4 @@
+import { carryOverReviews } from "@/lib/review-carry-over";
 import "server-only";
 
 import { and, asc, desc, eq, lt } from "drizzle-orm";
@@ -139,7 +140,9 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
       : analysis.reply && { content: analysis.reply, provider, model: modelId, durationMs };
 
     db.transaction((tx) => {
-      // Retrying replaces any previous result for this message.
+      // Retrying replaces any previous result for this message, keeping the learner's own review of it.
+      const previous = tx.select().from(schema.corrections).where(eq(schema.corrections.messageId, message.id)).all();
+      const carried = carryOverReviews(previous, analysis.errors);
       tx.delete(schema.corrections).where(eq(schema.corrections.messageId, message.id)).run();
       tx.delete(schema.vocabulary).where(eq(schema.vocabulary.messageId, message.id)).run();
       tx.delete(schema.messages).where(eq(schema.messages.replyToId, message.id)).run();
@@ -162,7 +165,13 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
       if (analysis.errors.length > 0) {
         tx.insert(schema.corrections)
           .values(
-            analysis.errors.map((e) => ({ id: crypto.randomUUID(), messageId: message.id, createdAt: now, ...e })),
+            analysis.errors.map((e, i) => ({
+              id: crypto.randomUUID(),
+              messageId: message.id,
+              createdAt: now,
+              ...e,
+              ...carried[i],
+            })),
           )
           .run();
       }
