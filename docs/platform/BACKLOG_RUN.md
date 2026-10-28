@@ -23,9 +23,9 @@ Estado: ⏳ pendiente · 🔨 en curso · 👀 en revisión · ✅ mergeado en l
 | Equipo     | Ítems                                                                                                                                                                                                    | Rama              | PR  | Estado |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | --- | ------ |
 | test-infra | #111 integration tests de rutas, #112 tests de migraciones con fixture viejo, #113 test del migrator race-safe (+ pragma busy_timeout), #114 piso de cobertura `src/lib/**`                              | `team/test-infra` |     | 🔨     |
-| ai-fixes   | #115 fallback de Groq en mensajes largos, #116 conservar descartes al reintentar, #117 umbrales de regresión en `pnpm eval:*`, #118 sacar whisper.cpp del eval de ASR                                    | `team/ai-fixes`   |     | ⏳     |
-| cleanup    | #119 helper `parseBody`, #120 logger mínimo del servidor, #121 lint de handlers async en JSX + nits, #122 resumen de pronunciación sin usar en Today, #123 partir `review-session.tsx` y los lib grandes | `team/cleanup`    |     | ⏳     |
-| design     | Research con docs y decisión: #124 Authentication, #125 Multi-user, #126 keys por usuario, #127 Deploy; implementación de #128 release workflow                                                          | `team/design`     |     | ⏳     |
+| ai-fixes   | #115 fallback de Groq en mensajes largos, #116 conservar descartes al reintentar, #117 umbrales de regresión en `pnpm eval:*`, #118 sacar whisper.cpp del eval de ASR                                    | `team/ai-fixes`   |     | 🔨     |
+| cleanup    | #119 helper `parseBody`, #120 logger mínimo del servidor, #121 lint de handlers async en JSX + nits, #122 resumen de pronunciación sin usar en Today, #123 partir `review-session.tsx` y los lib grandes | `team/cleanup`    |     | 🔨     |
+| design     | Research con docs y decisión: #124 Authentication, #125 Multi-user, #126 keys por usuario, #127 Deploy; implementación de #128 release workflow                                                          | `team/design`     |     | 🔨     |
 
 ### Tanda 2: login y plataforma (después de la tanda 1)
 
