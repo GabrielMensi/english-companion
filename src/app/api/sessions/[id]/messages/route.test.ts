@@ -1,93 +1,13 @@
 // Integration test (docs/platform/TESTING.md): the real route handlers, chat logic and migrations on a
-// throwaway SQLite file, with the providers replaced by the AI SDK's mock models. Never calls a real API.
-import { APICallError } from "ai";
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+// throwaway SQLite file, with the providers replaced by the AI SDK's mock models (src/test/setup.ts).
+// Never calls a real API.
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Analysis } from "@/lib/ai/analysis";
 import type { ChatMessage, TurnEvent } from "@/lib/types";
-
-const env = await vi.hoisted(async () => {
-  const fs = await import("node:fs");
-  const os = await import("node:os");
-  const path = await import("node:path");
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "companion-test-"));
-  // Read when "@/db" is first imported, so it must be set before any import below runs.
-  process.env.DATABASE_PATH = path.join(dir, "test.db");
-  process.env.GOOGLE_GENERATIVE_AI_API_KEY = "test-gemini-key";
-  process.env.GROQ_API_KEY = "test-groq-key";
-  return { dir, rmSync: fs.rmSync };
-});
-
-// What each provider answers; the tests set them.
-const ai = vi.hoisted(() => ({
-  gemini: { output: null as Analysis | null, fail: false },
-  groq: { output: null as Analysis | null, fail: false },
-}));
-
-vi.mock("server-only", () => ({}));
-
-async function mockModel(provider: "gemini" | "groq", modelId: string) {
-  const { MockLanguageModelV4 } = await import("ai/test");
-  const { simulateReadableStream } = await import("ai");
-  const answer = () => {
-    if (ai[provider].fail) {
-      // Not retryable, so the last provider fails right away instead of retrying with backoff.
-      throw new APICallError({
-        message: "Quota exceeded",
-        url: "https://example.test",
-        requestBodyValues: {},
-        statusCode: 429,
-        isRetryable: false,
-      });
-    }
-    return JSON.stringify(ai[provider].output);
-  };
-  const usage = {
-    inputTokens: { total: 10, noCache: 10, cacheRead: undefined, cacheWrite: undefined },
-    outputTokens: { total: 20, text: 20, reasoning: undefined },
-  };
-  const finishReason = { unified: "stop" as const, raw: undefined };
-  return new MockLanguageModelV4({
-    provider,
-    modelId,
-    doGenerate: async () => ({ content: [{ type: "text", text: answer() }], finishReason, usage, warnings: [] }),
-    doStream: async () => {
-      const text = answer();
-      // Split the JSON in two so the route streams at least one partial preview.
-      const half = Math.floor(text.length / 2);
-      return {
-        stream: simulateReadableStream({
-          chunks: [
-            { type: "stream-start" as const, warnings: [] },
-            { type: "text-start" as const, id: "1" },
-            { type: "text-delta" as const, id: "1", delta: text.slice(0, half) },
-            { type: "text-delta" as const, id: "1", delta: text.slice(half) },
-            { type: "text-end" as const, id: "1" },
-            { type: "finish" as const, finishReason, usage },
-          ],
-        }),
-      };
-    },
-  });
-}
-
-vi.mock("@ai-sdk/google", async () => {
-  const model = await mockModel("gemini", "mock-gemini");
-  return { createGoogleGenerativeAI: () => () => model };
-});
-vi.mock("@ai-sdk/groq", async () => {
-  const model = await mockModel("groq", "mock-groq");
-  return { createGroq: () => () => model };
-});
+import { fakeAi, resetFakeAi } from "@/test/ai";
 
 const sessions = await import("@/app/api/sessions/route");
 const messages = await import("@/app/api/sessions/[id]/messages/route");
-
-afterAll(() => {
-  const g = globalThis as { __sqlite?: { close(): void } };
-  g.__sqlite?.close();
-  delete g.__sqlite;
-  env.rmSync(env.dir, { recursive: true, force: true });
-});
 
 const ANALYSIS: Analysis = {
   correctedText: "I went to the park yesterday.",
@@ -106,10 +26,11 @@ const ANALYSIS: Analysis = {
   reply: "Nice! What did you do there?",
 };
 
-beforeEach(() => {
-  ai.gemini = { output: ANALYSIS, fail: false };
-  ai.groq = { output: ANALYSIS, fail: false };
-});
+// Longer than the SDK's retry delays (2 s, then 4 s), shorter than the classification timer (5 min).
+const BACKOFF_MS = 30_000;
+
+beforeEach(() => resetFakeAi(ANALYSIS));
+afterEach(() => vi.useRealTimers());
 
 async function newSession(mode: "correction" | "conversation" = "conversation"): Promise<string> {
   const res = await sessions.POST(
@@ -148,7 +69,7 @@ describe("POST /api/sessions/[id]/messages", () => {
   });
 
   it("falls back to the next provider when the selected one fails", async () => {
-    ai.gemini.fail = true;
+    fakeAi.gemini.fail = "quota";
     const [message] = (await (
       await send(await newSession(), { text: "I go to the park yesterday." })
     ).json()) as ChatMessage[];
@@ -157,11 +78,41 @@ describe("POST /api/sessions/[id]/messages", () => {
   });
 
   it("keeps the message with an error when every provider fails", async () => {
-    ai.gemini.fail = true;
-    ai.groq.fail = true;
+    fakeAi.gemini.fail = "quota";
+    fakeAi.groq.fail = "quota";
     const [message] = (await (await send(await newSession(), { text: "Hello" })).json()) as ChatMessage[];
     expect(message.status).toBe("error");
     expect(message.errorMessage).toBeTruthy();
+  });
+
+  it("retries a retryable error on the last provider with backoff, then gives up", async () => {
+    vi.useFakeTimers();
+    fakeAi.gemini.fail = "quota";
+    fakeAi.groq.fail = "unavailable-retryable";
+    const pending = send(await newSession(), { text: "Hello" });
+    // The SDK waits between retries; fake timers skip it. Not runAllTimers: the 5-minute timer of the
+    // deferred classification would fire too.
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS);
+    const [message] = (await (await pending).json()) as ChatMessage[];
+
+    expect(message.status).toBe("error");
+    // Only the last provider retries: the first request + 2 retries.
+    expect(fakeAi.gemini.calls).toBe(1);
+    expect(fakeAi.groq.calls).toBe(3);
+  });
+
+  it("recovers when the last provider's retry succeeds", async () => {
+    vi.useFakeTimers();
+    fakeAi.gemini.fail = "quota";
+    fakeAi.groq.fail = "unavailable-retryable";
+    const pending = send(await newSession(), { text: "Hello" });
+    // Let the first failed attempt happen, then the provider comes back.
+    await vi.advanceTimersByTimeAsync(0);
+    fakeAi.groq.fail = false;
+    await vi.advanceTimersByTimeAsync(BACKOFF_MS);
+    const [message] = (await (await pending).json()) as ChatMessage[];
+
+    expect(message).toMatchObject({ status: "done", provider: "groq" });
   });
 
   it("streams previews as NDJSON and ends with the saved turn", async () => {
