@@ -1,10 +1,11 @@
 // Integration test (docs/platform/TESTING.md): the real route handlers, chat logic and migrations on a
 // throwaway SQLite file, with the providers replaced by the AI SDK's mock models (src/test/setup.ts).
 // Never calls a real API.
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Analysis } from "@/lib/ai/analysis";
 import type { ChatMessage, TurnEvent } from "@/lib/types";
 import { fakeAi, resetFakeAi } from "@/test/ai";
+import { createTestUser, type TestUser } from "@/test/auth";
 
 const sessions = await import("@/app/api/sessions/route");
 const messages = await import("@/app/api/sessions/[id]/messages/route");
@@ -29,19 +30,25 @@ const ANALYSIS: Analysis = {
 // Longer than the SDK's retry delays (2 s, then 4 s), shorter than the classification timer (5 min).
 const BACKOFF_MS = 30_000;
 
+let user: TestUser;
+
+beforeAll(async () => {
+  user = await createTestUser();
+});
+
 beforeEach(() => resetFakeAi(ANALYSIS));
 afterEach(() => vi.useRealTimers());
 
 async function newSession(mode: "correction" | "conversation" = "conversation"): Promise<string> {
   const res = await sessions.POST(
-    new Request("http://test/api/sessions", { method: "POST", body: JSON.stringify({ mode }) }),
+    user.request("http://test/api/sessions", { method: "POST", body: JSON.stringify({ mode }) }),
   );
   expect(res.status).toBe(201);
   return ((await res.json()) as { id: string }).id;
 }
 
 function send(sessionId: string, body: unknown, headers: Record<string, string> = {}) {
-  const request = new Request(`http://test/api/sessions/${sessionId}/messages`, {
+  const request = user.request(`http://test/api/sessions/${sessionId}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...headers },
     body: JSON.stringify(body),
@@ -63,7 +70,7 @@ describe("POST /api/sessions/[id]/messages", () => {
 
     // And it's what a reload of the chat shows.
     const stored = (await (
-      await messages.GET(new Request("http://test"), { params: Promise.resolve({ id }) })
+      await messages.GET(user.request("http://test"), { params: Promise.resolve({ id }) })
     ).json()) as ChatMessage[];
     expect(stored.map((m) => m.id)).toEqual([message.id, reply.id]);
   });
@@ -86,10 +93,13 @@ describe("POST /api/sessions/[id]/messages", () => {
   });
 
   it("retries a retryable error on the last provider with backoff, then gives up", async () => {
+    const id = await newSession();
     vi.useFakeTimers();
     fakeAi.gemini.fail = "quota";
     fakeAi.groq.fail = "unavailable-retryable";
-    const pending = send(await newSession(), { text: "Hello" });
+    const pending = send(id, { text: "Hello" });
+    // The session check runs first, in real time: wait for the first request before skipping the backoff.
+    await vi.waitFor(() => expect(fakeAi.groq.calls).toBe(1));
     // The SDK waits between retries; fake timers skip it. Not runAllTimers: the 5-minute timer of the
     // deferred classification would fire too.
     await vi.advanceTimersByTimeAsync(BACKOFF_MS);
@@ -102,13 +112,13 @@ describe("POST /api/sessions/[id]/messages", () => {
   });
 
   it("recovers when the last provider's retry succeeds", async () => {
+    const id = await newSession();
     vi.useFakeTimers();
     fakeAi.gemini.fail = "quota";
     fakeAi.groq.fail = "unavailable-retryable";
-    const pending = send(await newSession(), { text: "Hello" });
-    // Let the first failed attempt happen, then the provider comes back.
-    await vi.advanceTimersByTimeAsync(0);
-    expect(fakeAi.groq.calls).toBe(1);
+    const pending = send(id, { text: "Hello" });
+    // Let the first failed attempt happen (the session check comes first, in real time), then the provider comes back.
+    await vi.waitFor(() => expect(fakeAi.groq.calls).toBe(1));
     fakeAi.groq.fail = false;
     await vi.advanceTimersByTimeAsync(BACKOFF_MS);
     const [message] = (await (await pending).json()) as ChatMessage[];

@@ -3,8 +3,9 @@ import { errorToMessage } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "@/lib/ai/provider-info";
 import { listModels } from "@/lib/ai/providers";
 import { logRouteError } from "@/lib/server-log";
+import { withUser } from "@/lib/auth/with-user";
 
-export async function GET(request: NextRequest) {
+export const GET = withUser(async (request: NextRequest) => {
   const params = request.nextUrl.searchParams;
   const provider = params.get("provider") as ProviderId | null;
   if (!provider || !PROVIDER_IDS.includes(provider)) {
@@ -17,4 +18,4 @@ export async function GET(request: NextRequest) {
     logRouteError("GET /api/models (listing models)", error);
     return Response.json({ models: [], error: errorToMessage(error) });
   }
-}
+});

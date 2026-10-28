@@ -20,12 +20,14 @@ import { getAccuracyTimeline, getPronunciationProgress, hasReadings } from "@/li
 import { getReviewDashboard } from "@/lib/review-stats";
 import { getDashboardData, INPUT_FILTERS, type InputFilter, RANGES, type RangeKey } from "@/lib/stats";
 import { cn } from "@/lib/utils";
+import { requirePageUser } from "@/lib/auth/session";
 
 const RANGE_LABELS: Record<RangeKey, string> = { "7": "7 days", "30": "30 days", "90": "90 days", all: "All" };
 const INPUT_LABELS: Record<InputFilter, string> = { all: "All", typed: "Written", spoken: "Spoken" };
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   await connection();
+  await requirePageUser("/dashboard");
   const hasModel = hasConfiguredProvider();
   const { range: rawRange, input: rawInput } = await searchParams;
   const range: RangeKey = typeof rawRange === "string" && rawRange in RANGES ? (rawRange as RangeKey) : "30";

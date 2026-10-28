@@ -1,6 +1,6 @@
 /**
- * Refusing state-changing API calls from other sites (no server-only imports, unit tested). The API
- * has no login yet, so any page the learner visits could otherwise POST to it from their browser:
+ * Refusing state-changing API calls from other sites (no server-only imports, unit tested). The login
+ * cookie is SameSite=Lax, but this is the first layer: any page the learner visits could otherwise POST to the API from their browser:
  * a plain-text POST needs no CORS preflight, and the routes parse the body whatever its type.
  */
 

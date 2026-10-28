@@ -1,17 +1,18 @@
 import { errorToMessage } from "@/lib/ai/fallback";
 import { createLevelExplanation, getLevelData } from "@/lib/insights/insights";
 import { logRouteError } from "@/lib/server-log";
+import { withUser } from "@/lib/auth/with-user";
 
-export function GET() {
+export const GET = withUser(async () => {
   return Response.json(getLevelData());
-}
+});
 
 /** Asks the AI to explain the rule-based estimate (it never changes the level). */
-export async function POST() {
+export const POST = withUser(async () => {
   try {
     return Response.json(await createLevelExplanation());
   } catch (error) {
     logRouteError("POST /api/insights/level", error, 502);
     return Response.json({ error: errorToMessage(error) }, { status: 502 });
   }
-}
+});

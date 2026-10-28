@@ -2,6 +2,7 @@ import { z } from "zod";
 import { cmuLookup } from "@/lib/cmu-lookup";
 import { checkPhonemes } from "@/lib/phonemes";
 import { scoreReading } from "@/lib/pronunciation-core";
+import { withUser } from "@/lib/auth/with-user";
 import { readBody } from "@/lib/request-body";
 
 /** ~30 s of 16 kHz mono WAV (32 KB/s), the longest recording the sound check looks at, plus the form fields. */
@@ -16,10 +17,10 @@ const fieldsSchema = z.object({
 /**
  * Sound check (beta) of a read-aloud attempt: the recording and the sentence in, hints and checks
  * of the transcript-based result out. Nothing is saved. Separate from /api/read-aloud so a slow or
- * missing model never delays the result. The most expensive route in the app: when login lands it
- * must be wrapped in `withUser` like the others.
+ * missing model never delays the result. The most expensive route in the app, so it needs a
+ * session like all the others.
  */
-export async function POST(request: Request) {
+export const POST = withUser(async (request: Request) => {
   // Hard limit on the bytes read, whatever Content-Length says.
   const raw = await readBody(request, MAX_BYTES);
   if (!raw) return Response.json({ error: "The recording is too long" }, { status: 413 });
@@ -38,4 +39,4 @@ export async function POST(request: Request) {
   const { issues } = scoreReading(fields.data.text, fields.data.transcript, cmuLookup);
   const result = await checkPhonemes(new Uint8Array(await audio.arrayBuffer()), fields.data.text, issues);
   return Response.json(result);
-}
+});

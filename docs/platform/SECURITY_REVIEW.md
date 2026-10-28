@@ -18,7 +18,7 @@ Severidad pensando en la app desplegada en internet; entre paréntesis, cómo af
 
 | #   | Severidad | Hallazgo                                                                                                                                                                                                                                                                                                                                                                                    | Estado                                                                  |
 | --- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| 1   | Crítica   | Ninguna ruta pide login: cualquiera que llegue al servidor lee y borra los chats, cambia la configuración, reemplaza las API keys y gasta las cuotas gratis. (Hoy: solo la máquina del usuario, salvo el punto 2.)                                                                                                                                                                          | Follow-up: _Authentication_                                             |
+| 1   | Crítica   | Ninguna ruta pide login: cualquiera que llegue al servidor lee y borra los chats, cambia la configuración, reemplaza las API keys y gasta las cuotas gratis. (Hoy: solo la máquina del usuario, salvo el punto 2.)                                                                                                                                                                          | **Arreglado** (#124, `src/lib/auth/`)                                   |
 | 2   | Alta      | CSRF: cualquier página que el usuario abra podía hacer `POST` a `https://localhost:3737/api/...` sin preflight (un POST `text/plain`, o con un `Blob` sin tipo; las rutas parsean el body sin mirar el `Content-Type`): crear chats y prácticas, pedir planes, transcribir audio, gastar cuota.                                                                                             | **Arreglado** (`src/proxy.ts`)                                          |
 | 3   | Alta      | `/api/transcribe` y `PUT /api/eval/asr-samples/[id]` leían el body entero (`arrayBuffer()`) antes de mirar el tamaño: un upload de cientos de MB llenaba la memoria. Las rutas JSON (`request.json()`) tampoco tenían límite.                                                                                                                                                               | **Arreglado**                                                           |
 | 4   | Alta      | Next.js 16.3.6: SSRF en el optimizador de imágenes y varios avisos de cache (GHSA-f87g-xv8r-7p7x, GHSA-mcj8-r9mp-w47p y otros). La app no usa `next/image`, pero el endpoint `/_next/image` existe igual.                                                                                                                                                                                   | **Arreglado** (16.3.8)                                                  |
@@ -75,7 +75,14 @@ Sin hallazgos:
   | `ALLOWED_HOSTS`                                | —                   | Hostnames o IPv6 entre corchetes, separados por coma, sin esquema ni puerto (`companion.example.com`) |
   | `MIGRATE_ON_START`                             | `true`              | `false`: no migrar al abrir la base; falla si hay migraciones pendientes (deploy, ver DEPLOY.md)      |
   | `TRUST_PROXY`                                  | `false`             | `true`/`false`/`1`/`0`: usar `X-Forwarded-Host`                                                       |
+  | `BETTER_AUTH_SECRET`                           | generada en local   | Firma de cookies (≥ 32 caracteres); obligatoria si `ALLOWED_HOSTS` está definido                      |
+  | `BETTER_AUTH_URL`                              | —                   | URL pública; obligatoria si `ALLOWED_HOSTS` está definido                                             |
+  | `SIGNUP_ALLOWED_EMAILS`                        | —                   | Emails que pueden registrarse; vacío = solo la primera cuenta                                         |
+  | `ENABLE_EVAL`                                  | solo en desarrollo  | `true`/`false`: habilita el eval de speech-to-text (solo el primer usuario)                           |
 
+- **Login** (#124, `src/lib/auth/`, `src/proxy.ts`, con tests; diseño en [AUTH_MULTIUSER.md](AUTH_MULTIUSER.md)): Better Auth con email y contraseña (scrypt), sesiones en la base (30 días, cookie `httpOnly` `SameSite=Lax`), siempre obligatorio, también en local. **Dos niveles**: el proxy deja pasar solo con la cookie de sesión (redirect a `/login?next=` en páginas, `401` en `/api`; optimista, una cookie inventada pasa) y cada route handler (`withUser`, que da `401` antes de leer el body) y cada página (`requirePageUser`) leen la sesión de verdad. Públicos, en la lista cerrada de `public-routes.ts`: `/login`, `/signup`, `/api/auth/*`, `/api/health` y los estáticos. Registro cerrado (`SIGNUP_ALLOWED_EMAILS`; vacío = solo la primera cuenta) aplicado en un hook de la base, así que cubre cualquier camino de alta. Rate limit de Better Auth en la base (3 intentos por 10 s en sign-in y sign-up). `eval/*` solo para el primer usuario y fuera de producción salvo `ENABLE_EVAL=true`. Sin email: el reseteo de contraseña es `pnpm auth:reset-password <email>`. El test `src/app/security.test.ts` recorre todos los `route.ts` y `page.tsx` y falla si alguno queda sin login (#138).
+  - Cerrar sesión borra la fila, pero una copia de la cookie sigue valiendo hasta 5 minutos (`cookieCache`); es el costo de no ir a SQLite en cada request.
+  - Los datos siguen sin dueño (una sola cuenta): el aislamiento por usuario es la PR de multiusuario.
 - **Runtime de TTS**: `Object.hasOwn(FILES, file)`.
 - **Next.js 16.3.8** (y `eslint-config-next`): `pnpm audit` pasó de 15 avisos (8 altos) a 9 (7 altos), ninguno en código que corra en el servidor en producción. Al mergear hay que correr `pnpm install` en la carpeta principal.
 - **Después, en #89/#90**: `shadcn` pasó a devDependencies, `sharp` a 0.35.5 (override en `pnpm-workspace.yaml`) y los minors al día: `pnpm audit` quedó en 3 avisos (1 alto, 2 moderados), y en producción (`--prod`) solo `sprintf-js` (moderado, sin versión arreglada, en `onnxruntime-node`, que la app no usa). Detalle en `CODE_QUALITY.md`.
@@ -84,7 +91,7 @@ Sin hallazgos:
 
 Bajo _Authentication_ (el draft que ya está en el tablero):
 
-- Login y sesiones para todas las rutas y páginas (hallazgo 1), con chequeo en cada route handler además del proxy.
+- ~~Login y sesiones para todas las rutas y páginas (hallazgo 1), con chequeo en cada route handler además del proxy.~~ Hecho en #124 (ver "Login" abajo).
 - Datos por usuario: hoy las tablas no tienen dueño; con más de un usuario hace falta una columna de usuario y filtrar cada consulta.
 - Rate limiting por usuario en las rutas de IA, y un tope diario de pedidos/minutos de audio (hallazgo 8).
 - Re-evaluar el CSRF una vez que haya cookies de sesión: `SameSite=Lax`/`Strict` + el chequeo actual.
@@ -103,7 +110,10 @@ Fuera de _Authentication_:
 
 ## Checklist antes de desplegar
 
-- [ ] _Authentication_ hecho: ninguna ruta ni página responde sin sesión.
+- [x] _Authentication_ hecho: ninguna ruta ni página responde sin sesión (#124, con `src/app/security.test.ts`).
+- [ ] El reverse proxy pone la dirección del cliente en `X-Forwarded-For` (Caddy lo hace) y la app corre con `TRUST_PROXY=true`: el rate limit de login toma la IP de ahí, de derecha a izquierda; sin eso todos comparten un solo contador.
+- [ ] No hay cuentas de otras personas hasta que el multiusuario (PR b) esté mergeado.
+- [ ] `SIGNUP_ALLOWED_EMAILS` definida desde el primer arranque (si no, el primero que llegue a `/signup` se queda con la instancia).
 - [ ] Rate limiting en las rutas de IA y transcripción.
 - [x] CSP completa (#137). [ ] HSTS (en el host o el reverse proxy).
 - [ ] `ALLOWED_HOSTS` con el dominio real (y `TRUST_PROXY=true` si hay un reverse proxy que setea o agrega `X-Forwarded-Host`; la app usa el último valor).

@@ -7,6 +7,7 @@ import { SpeechPreloader } from "@/components/audio/speech-preloader";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getUser } from "@/lib/auth/session";
 import { listSessions } from "@/lib/chat";
 import { countCardsToStudy } from "@/lib/flashcards";
 import { chatLabels } from "@/lib/practice";
@@ -34,17 +35,21 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   await connection();
+  // Signed out, only /login and /signup render (the proxy redirects the rest): no sidebar, no data.
+  const user = await getUser();
   // Set by proxy.ts: the nonce that lets next-themes' inline script run under the CSP.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
-  const labels = chatLabels();
-  const sessions = listSessions().map(({ id, title, mode }) => ({
-    id,
-    title,
-    mode,
-    practice: labels.get(id)?.practice ?? false,
-    topic: labels.get(id)?.topic ?? null,
-  }));
+  const labels = user ? chatLabels() : new Map<string, { practice: boolean; topic: string | null }>();
+  const sessions = user
+    ? listSessions().map(({ id, title, mode }) => ({
+        id,
+        title,
+        mode,
+        practice: labels.get(id)?.practice ?? false,
+        topic: labels.get(id)?.topic ?? null,
+      }))
+    : [];
 
   return (
     <html
@@ -55,10 +60,17 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="flex h-full overflow-hidden">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange nonce={nonce}>
           <TooltipProvider>
-            <AppSidebar sessions={sessions} cardsToStudy={countCardsToStudy()} initialCollapsed={sidebarCollapsed} />
+            {user && (
+              <AppSidebar
+                sessions={sessions}
+                cardsToStudy={countCardsToStudy()}
+                initialCollapsed={sidebarCollapsed}
+                userEmail={user.email}
+              />
+            )}
             <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
             <Toaster richColors position="top-center" />
-            <SpeechPreloader />
+            {user && <SpeechPreloader />}
           </TooltipProvider>
         </ThemeProvider>
       </body>

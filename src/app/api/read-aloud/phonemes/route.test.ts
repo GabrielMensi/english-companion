@@ -1,10 +1,17 @@
 // Route test (docs/platform/TESTING.md): validation and size limits; the model itself is mocked.
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createTestUser, type TestUser } from "@/test/auth";
 
 const checkPhonemes = vi.fn();
 vi.mock("@/lib/phonemes", () => ({ checkPhonemes }));
 
 const route = await import("@/app/api/read-aloud/phonemes/route");
+
+let user: TestUser;
+
+beforeAll(async () => {
+  user = await createTestUser();
+});
 
 beforeEach(() => {
   checkPhonemes.mockReset().mockResolvedValue({ status: "preparing", progress: null });
@@ -13,7 +20,7 @@ beforeEach(() => {
 function post(fields: Record<string, string | Blob | undefined>) {
   const body = new FormData();
   for (const [key, value] of Object.entries(fields)) if (value !== undefined) body.set(key, value);
-  return route.POST(new Request("http://test/api/read-aloud/phonemes", { method: "POST", body }));
+  return route.POST(user.request("http://test/api/read-aloud/phonemes", { method: "POST", body }));
 }
 
 const wav = () => new Blob([new Uint8Array(100)], { type: "audio/wav" });
@@ -38,7 +45,7 @@ describe("POST /api/read-aloud/phonemes", () => {
   });
 
   it("answers 400 for a body that isn't a form", async () => {
-    const res = await route.POST(new Request("http://test/x", { method: "POST", body: "nope" }));
+    const res = await route.POST(user.request("http://test/x", { method: "POST", body: "nope" }));
     expect(res.status).toBe(400);
   });
 
@@ -52,7 +59,7 @@ describe("POST /api/read-aloud/phonemes", () => {
       },
     });
     const streamed = await route.POST(
-      new Request("http://test/x", { method: "POST", body: chunked, duplex: "half" } as RequestInit),
+      user.request("http://test/x", { method: "POST", body: chunked, duplex: "half" } as RequestInit),
     );
     expect(streamed.status).toBe(413);
     expect(checkPhonemes).not.toHaveBeenCalled();

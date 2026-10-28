@@ -1,5 +1,6 @@
 import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
+import { withUser } from "@/lib/auth/with-user";
 
 /**
  * Serves ONNX Runtime Web's WASM build to the Kokoro worker (see kokoro.worker.ts), so the app
@@ -21,7 +22,7 @@ async function runtimeDir() {
   return path.join(transformers, "..", "..", "onnxruntime-web", "dist");
 }
 
-export async function GET(_request: Request, ctx: RouteContext<"/api/tts/runtime/[file]">) {
+export const GET = withUser(async (_request: Request, ctx: RouteContext<"/api/tts/runtime/[file]">) => {
   const { file } = await ctx.params;
   // Own keys only: `FILES["constructor"]` would otherwise be truthy.
   const type = Object.hasOwn(FILES, file) ? FILES[file] : undefined;
@@ -35,4 +36,4 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/tts/runtime
   } catch {
     return new Response("Not found", { status: 404 });
   }
-}
+});

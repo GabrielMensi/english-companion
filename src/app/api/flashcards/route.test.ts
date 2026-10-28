@@ -2,6 +2,7 @@
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { mistakeKey } from "@/lib/flashcards-core";
+import { createTestUser, type TestUser } from "@/test/auth";
 import { db, resetDb, schema, seedCorrection, seedSession, seedUserMessage } from "@/test/db";
 
 const cards = await import("@/app/api/flashcards/cards/route");
@@ -10,7 +11,7 @@ const reviews = await import("@/app/api/flashcards/reviews/route");
 const KEY = mistakeKey("I go", "I went");
 
 function call(handler: (request: Request) => Promise<Response>, method: string, body: unknown) {
-  return handler(new Request("http://test/api/flashcards", { method, body: JSON.stringify(body) }));
+  return handler(user.request("http://test/api/flashcards", { method, body: JSON.stringify(body) }));
 }
 
 function reviewRows() {
@@ -21,8 +22,11 @@ function reviewRows() {
     .all();
 }
 
-beforeEach(() => {
+let user: TestUser;
+
+beforeEach(async () => {
   resetDb();
+  user = await createTestUser();
   seedCorrection(seedUserMessage(seedSession().id).id);
 });
 

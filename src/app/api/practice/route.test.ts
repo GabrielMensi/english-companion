@@ -2,6 +2,7 @@
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { fakeAi, resetFakeAi } from "@/test/ai";
+import { createTestUser, type TestUser } from "@/test/auth";
 import { db, resetDb, schema } from "@/test/db";
 
 const practice = await import("@/app/api/practice/route");
@@ -26,13 +27,16 @@ const EXERCISES = {
   ],
 };
 
-beforeEach(() => {
+let user: TestUser;
+
+beforeEach(async () => {
   resetDb();
   resetFakeAi(EXERCISES);
+  user = await createTestUser();
 });
 
 function start(body: unknown) {
-  return practice.POST(new Request("http://test/api/practice", { method: "POST", body: JSON.stringify(body) }));
+  return practice.POST(user.request("http://test/api/practice", { method: "POST", body: JSON.stringify(body) }));
 }
 
 function openingOf(sessionId: string) {
@@ -40,6 +44,11 @@ function openingOf(sessionId: string) {
 }
 
 describe("POST /api/practice", () => {
+  it("needs a session", async () => {
+    const res = await practice.POST(new Request("http://test/api/practice", { method: "POST", body: "{}" }));
+    expect(res.status).toBe(401);
+  });
+
   it("starts a tense conversation without calling the AI", async () => {
     const res = await start({ kind: "conversation", tense: "past_simple" });
     expect(res.status).toBe(201);

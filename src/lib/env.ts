@@ -36,6 +36,19 @@ const hostnames = z
       "expected comma-separated hostnames or [IPv6] literals without scheme, port or path (e.g. companion.example.com)",
   });
 
+/** Comma-separated emails, lowercased ("ana@example.com,bruno@example.com"). */
+const emails = z
+  .string()
+  .transform((value) =>
+    value
+      .split(",")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean),
+  )
+  .refine((list) => list.every((email) => z.email().safeParse(email).success), {
+    error: "expected comma-separated email addresses (e.g. ana@example.com,bruno@example.com)",
+  });
+
 const envSchema = z.object({
   /** SQLite database file. */
   DATABASE_PATH: optional(text.default("data/companion.db")),
@@ -52,6 +65,14 @@ const envSchema = z.object({
   ALLOWED_HOSTS: optional(hostnames.default([])),
   /** Behind a reverse proxy: use X-Forwarded-Host instead of Host (allowed hosts and cross-site checks). */
   TRUST_PROXY: optional(flag.default(false)),
+  /** Signs the login cookies. Locally it's generated once in a file next to the database (lib/auth/secret.ts). */
+  BETTER_AUTH_SECRET: optional(text.min(32, "expected at least 32 characters (openssl rand -base64 32)").optional()),
+  /** The public URL of a deploy (https://companion.example.com). Locally it's inferred from the request. */
+  BETTER_AUTH_URL: optional(z.url({ protocol: /^https?$/ }).optional()),
+  /** Emails that can create an account. Empty: only the first account can be created. */
+  SIGNUP_ALLOWED_EMAILS: optional(emails.default([])),
+  /** Turns on the speech-to-text eval (recordings are written to disk). Off in a deploy unless set. */
+  ENABLE_EVAL: optional(flag.optional()),
   /**
    * Apply pending migrations when the app opens the database (default). The container sets it to false:
    * migrations run as a deploy step, after a backup (`pnpm db:migrate`, see docs/platform/DEPLOY.md).
@@ -77,4 +98,21 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
  */
 export function serverEnv(): Env {
   return parseEnv(process.env);
+}
+
+/**
+ * What a deploy (`ALLOWED_HOSTS` set) can't start without. Locally the secret is generated, but a server
+ * must never invent one: it would sign out every user at each restart and could not be backed up.
+ */
+export function deployProblems(env: Env): string[] {
+  if (env.ALLOWED_HOSTS.length === 0) return [];
+  const problems: string[] = [];
+  if (!env.BETTER_AUTH_SECRET) problems.push("BETTER_AUTH_SECRET is required when ALLOWED_HOSTS is set");
+  if (!env.BETTER_AUTH_URL) problems.push("BETTER_AUTH_URL is required when ALLOWED_HOSTS is set");
+  return problems;
+}
+
+/** Whether the eval pages and routes are on: always in development, in production only with ENABLE_EVAL. */
+export function evalEnabled(env: Env, nodeEnv: string | undefined): boolean {
+  return env.ENABLE_EVAL ?? nodeEnv !== "production";
 }
