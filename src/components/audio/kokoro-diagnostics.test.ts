@@ -27,6 +27,10 @@ describe("formatKokoroDiagnostics", () => {
     expect(text).toContain("Running on: wasm/fp32, 8 threads");
   });
 
+  it('doesn\'t call a forced-CPU run "no adapter"', () => {
+    expect(formatKokoroDiagnostics({ ...base, devicePref: "wasm" })).toContain("not checked (Device = CPU)");
+  });
+
   it("lists the adapter, the rejection and each audio check with its numbers", () => {
     const text = formatKokoroDiagnostics({
       ...base,

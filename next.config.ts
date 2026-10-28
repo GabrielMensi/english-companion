@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
-import { SCRIPT_CSP } from "./src/lib/csp";
+import { cspHeaderName, SCRIPT_CSP } from "./src/lib/csp";
+
+// Same values as env.ts's flag; read when the server starts.
+const cspReportOnly = ["true", "1"].includes(process.env.CSP_REPORT_ONLY ?? "");
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -24,7 +27,7 @@ const nextConfig: NextConfig = {
         // The build's files never go through the proxy (its matcher skips them): Kokoro's worker takes its
         // policy from this response. The policies live in src/lib/csp.ts.
         source: "/_next/static/:path*",
-        headers: [{ key: "Content-Security-Policy", value: SCRIPT_CSP }],
+        headers: [{ key: cspHeaderName(cspReportOnly), value: SCRIPT_CSP }],
       },
       {
         source: "/:path*",

@@ -59,7 +59,7 @@ export function formatKokoroDiagnostics(input: DiagnosticsReportInput): string {
     `Running on: ${input.running.device}/${input.running.dtype}${input.running.threads ? `, ${input.running.threads} threads` : ""}`,
     `ONNX Runtime Web: ${d?.onnxRuntime ?? "unknown"}`,
   ];
-  if (!d?.adapter) lines.push("WebGPU adapter: none");
+  if (!d?.adapter) lines.push(`WebGPU adapter: ${input.devicePref === "wasm" ? "not checked (Device = CPU)" : "none"}`);
   else {
     const a = d.adapter;
     lines.push(

@@ -10,8 +10,11 @@
  *   WebAssembly, so it gets `'self'` and `wasm-unsafe-eval` (no nonce: nothing in it is inline).
  * - Everything else under /api (`API_CSP`): JSON and files, nothing may load from them.
  *
- * Adding a feature that loads from another origin (e.g. Better Auth's login with an external provider): add
- * its origin to the matching list below, nowhere else.
+ * Adding a feature that loads from another origin: add the origin to the list of the directive that matches how
+ * it is reached, in this file only: `connect-src` for fetch/XHR/WebSocket, `form-action` for a form post that
+ * redirects there (e.g. a social login: Chrome checks redirect targets against it), `img-src` for images
+ * (avatars). Pages another route serves under /api (e.g. an auth error page) get API_CSP and would render
+ * unstyled: give that path its own kind in `policyKind`.
  */
 
 /**
@@ -69,6 +72,11 @@ export const SCRIPT_CSP = join({
 });
 
 export const API_CSP = join({ "default-src": ["'none'"], ...ALWAYS });
+
+/** `Content-Security-Policy`, or its report-only twin (`CSP_REPORT_ONLY`: the browser logs instead of blocking). */
+export function cspHeaderName(reportOnly: boolean) {
+  return reportOnly ? "Content-Security-Policy-Report-Only" : "Content-Security-Policy";
+}
 
 /** A random nonce for one request (base64 of a UUID, as in Next's guide). */
 export function makeNonce() {

@@ -128,6 +128,7 @@ async function load(): Promise<Engine> {
   if (wasm) wasm.numThreads = threads;
   diagnostics.onnxRuntime = (transformersEnv.backends.onnx as { versions?: { web?: string } }).versions?.web ?? null;
   diagnostics.tests = [];
+  diagnostics.adapter = null;
   const gpu = config.device !== "wasm" && (await hasWebGpu());
   const tryGpu = gpu && (config.device === "webgpu" || !config.gpuRejection);
   const attempts: { device: KokoroDevice; dtype: KokoroDtype }[] = [];
