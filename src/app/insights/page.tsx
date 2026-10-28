@@ -9,11 +9,13 @@ import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { hasConfiguredProvider } from "@/lib/ai/providers";
 import { getLevelData, getReportDigest, getStoredPlan, REPORT_RANGES, type ReportRange } from "@/lib/insights/insights";
 import { cn } from "@/lib/utils";
+import { requirePageUser } from "@/lib/auth/session";
 
 const RANGE_LABELS: Record<ReportRange, string> = { "7": "This week", "30": "30 days" };
 
 export default async function InsightsPage({ searchParams }: PageProps<"/insights">) {
   await connection();
+  await requirePageUser("/insights");
   const { range: rawRange } = await searchParams;
   const range: ReportRange = REPORT_RANGES.includes(rawRange as ReportRange) ? (rawRange as ReportRange) : "7";
   const digest = getReportDigest(range);

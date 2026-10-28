@@ -12,6 +12,7 @@ import { getSuspendedCards } from "@/lib/flashcards-upkeep";
 import { getSettings } from "@/lib/settings";
 import { categoryLabel, ERROR_CATEGORIES, type ErrorCategory, type Tense, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
 import { isValidSubtype, subtypeLabel } from "@/lib/subtypes";
+import { requirePageUser } from "@/lib/auth/session";
 
 const DECKS: Record<string, CardKind> = {
   vocabulary: "vocabulary",
@@ -50,6 +51,7 @@ function filterTitle(filter: MistakeFilter): string {
 
 export default async function FlashcardsPage({ searchParams }: PageProps<"/flashcards">) {
   await connection();
+  await requirePageUser("/flashcards");
   const params = await searchParams;
   const kind = typeof params.deck === "string" ? DECKS[params.deck] : undefined;
 

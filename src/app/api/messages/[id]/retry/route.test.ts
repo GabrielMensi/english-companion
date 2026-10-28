@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { Analysis } from "@/lib/ai/analysis";
 import type { ChatMessage } from "@/lib/types";
 import { fakeAi, resetFakeAi } from "@/test/ai";
+import { createTestUser, type TestUser } from "@/test/auth";
 import { db, resetDb, schema, seedCorrection, seedSession, seedUserMessage } from "@/test/db";
 
 const retry = await import("@/app/api/messages/[id]/retry/route");
@@ -24,13 +25,16 @@ const ANALYSIS: Analysis = {
   reply: "Nice! What did you do there?",
 };
 
-beforeEach(() => {
+let user: TestUser;
+
+beforeEach(async () => {
   resetDb();
   resetFakeAi(ANALYSIS);
+  user = await createTestUser();
 });
 
 function post(id: string, headers: Record<string, string> = {}) {
-  return retry.POST(new Request(`http://test/api/messages/${id}/retry`, { method: "POST", headers }), {
+  return retry.POST(user.request(`http://test/api/messages/${id}/retry`, { method: "POST", headers }), {
     params: Promise.resolve({ id }),
   });
 }

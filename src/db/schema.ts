@@ -273,6 +273,81 @@ export const settings = sqliteTable("settings", {
   value: text("value", { mode: "json" }).notNull(),
 });
 
+// Better Auth's tables (src/lib/auth/auth.ts maps them by model name). `session` here is the login
+// session; `sessions` above are the chats. Property names are the ones Better Auth uses.
+const authDate = (name: string) => integer(name, { mode: "timestamp_ms" }).notNull();
+
+export const authUser = sqliteTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+  image: text("image"),
+  createdAt: authDate("created_at").$defaultFn(() => new Date()),
+  updatedAt: authDate("updated_at").$defaultFn(() => new Date()),
+});
+
+export const authSession = sqliteTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: authDate("expires_at"),
+    token: text("token").notNull().unique(),
+    createdAt: authDate("created_at").$defaultFn(() => new Date()),
+    updatedAt: authDate("updated_at").$defaultFn(() => new Date()),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUser.id, { onDelete: "cascade" }),
+  },
+  (t) => [index("session_user_idx").on(t.userId)],
+);
+
+export const authAccount = sqliteTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUser.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp_ms" }),
+    refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp_ms" }),
+    scope: text("scope"),
+    /** Scrypt hash of the password (provider "credential"). */
+    password: text("password"),
+    createdAt: authDate("created_at").$defaultFn(() => new Date()),
+    updatedAt: authDate("updated_at").$defaultFn(() => new Date()),
+  },
+  (t) => [index("account_user_idx").on(t.userId)],
+);
+
+export const authVerification = sqliteTable(
+  "verification",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: authDate("expires_at"),
+    createdAt: authDate("created_at").$defaultFn(() => new Date()),
+    updatedAt: authDate("updated_at").$defaultFn(() => new Date()),
+  },
+  (t) => [index("verification_identifier_idx").on(t.identifier)],
+);
+
+/** Better Auth's rate limiter (`rateLimit.storage: "database"`): one row per client and route. */
+export const authRateLimit = sqliteTable("rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: integer("last_request").notNull(),
+});
+
 export const sessionsRelations = relations(sessions, ({ many }) => ({
   messages: many(messages),
 }));
@@ -300,3 +375,4 @@ export type MissedExercise = typeof missedExercises.$inferSelect;
 export type ReviewLogEntry = typeof reviewLog.$inferSelect;
 export type ReadAloudAttempt = typeof readAloudAttempts.$inferSelect;
 export type PronunciationIssueRow = typeof pronunciationIssues.$inferSelect;
+export type AuthUser = typeof authUser.$inferSelect;

@@ -6,10 +6,12 @@ import { getMessages, getSession } from "@/lib/chat";
 import { answerTemplate } from "@/lib/exercise-set";
 import { getPractice, pendingSetSize } from "@/lib/practice";
 import { getSettings } from "@/lib/settings";
+import { requirePageUser } from "@/lib/auth/session";
 
 export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
   await connection();
   const { id } = await params;
+  await requirePageUser(`/chat/${id}`);
   const session = getSession(id);
   if (!session) notFound();
 

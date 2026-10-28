@@ -1,5 +1,6 @@
 // Integration test (docs/platform/TESTING.md): settings and API keys. The key must never come back whole.
 import { beforeEach, describe, expect, it } from "vitest";
+import { createTestUser, type TestUser } from "@/test/auth";
 import { db, resetDb, schema } from "@/test/db";
 
 const settingsRoute = await import("@/app/api/settings/route");
@@ -11,18 +12,27 @@ type Status = { configured: boolean; source: "app" | "env" | null; detail: strin
 type Body = { settings: Record<string, unknown>; providers: Record<string, Status> };
 
 function patch(body: unknown) {
-  return settingsRoute.PATCH(new Request("http://test/api/settings", { method: "PATCH", body: JSON.stringify(body) }));
+  return settingsRoute.PATCH(user.request("http://test/api/settings", { method: "PATCH", body: JSON.stringify(body) }));
 }
 
 function putKey(body: unknown) {
-  return keysRoute.PUT(new Request("http://test/api/settings/keys", { method: "PUT", body: JSON.stringify(body) }));
+  return keysRoute.PUT(user.request("http://test/api/settings/keys", { method: "PUT", body: JSON.stringify(body) }));
 }
 
-beforeEach(() => resetDb());
+let user: TestUser;
+
+beforeEach(async () => {
+  resetDb();
+  user = await createTestUser();
+});
+
+function get() {
+  return settingsRoute.GET(user.request("http://test/api/settings"));
+}
 
 describe("GET /api/settings", () => {
   it("returns the defaults and the provider status from the environment keys", async () => {
-    const { settings, providers } = (await (await settingsRoute.GET()).json()) as Body;
+    const { settings, providers } = (await (await get()).json()) as Body;
     expect(settings.provider).toBeTruthy();
     expect(providers.gemini).toMatchObject({ configured: true, source: "env" });
   });
@@ -30,11 +40,11 @@ describe("GET /api/settings", () => {
 
 describe("PATCH /api/settings", () => {
   it("saves a partial update and keeps the rest", async () => {
-    const before = ((await (await settingsRoute.GET()).json()) as Body).settings;
+    const before = ((await (await get()).json()) as Body).settings;
     const res = await patch({ explanationLanguage: "en" });
     expect(res.status).toBe(200);
 
-    const { settings } = (await (await settingsRoute.GET()).json()) as Body;
+    const { settings } = (await (await get()).json()) as Body;
     expect(settings).toEqual({ ...before, explanationLanguage: "en" });
   });
 
@@ -62,7 +72,7 @@ describe("PUT /api/settings/keys", () => {
     expect(providers.gemini).toEqual({ configured: true, source: "app", detail: "••••1234" });
 
     // Nor does the settings endpoint ever include it.
-    expect(await (await settingsRoute.GET()).text()).not.toContain(SECRET);
+    expect(await (await get()).text()).not.toContain(SECRET);
   });
 
   it("falls back to the environment key when the saved one is removed", async () => {

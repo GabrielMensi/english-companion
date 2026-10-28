@@ -6,6 +6,7 @@ import { EXERCISE_KINDS } from "@/lib/tense-practice";
 import { parseBody } from "@/lib/request-body";
 import { resolveTopic } from "@/lib/topics";
 import { logRouteError } from "@/lib/server-log";
+import { withUser } from "@/lib/auth/with-user";
 
 const bodySchema = z.union([
   z.object({
@@ -27,7 +28,7 @@ const bodySchema = z.union([
 ]);
 
 /** Starts a practice chat (tense practice, exercises for an error category, or a topic conversation) and returns its session. */
-export async function POST(request: Request) {
+export const POST = withUser(async (request: Request) => {
   const body = await parseBody(request, bodySchema, "Invalid data");
   if (!body.ok) return body.response;
   try {
@@ -43,4 +44,4 @@ export async function POST(request: Request) {
     logRouteError("POST /api/practice", error, 502);
     return Response.json({ error: errorToMessage(error) }, { status: 502 });
   }
-}
+});
