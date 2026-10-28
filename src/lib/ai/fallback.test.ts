@@ -6,6 +6,7 @@ import {
   chainSteps,
   errorToMessage,
   fallbackOrder,
+  isRequestTooLarge,
   moveStep,
   runWithFallback,
   setPrimary,
@@ -173,6 +174,21 @@ describe("shortReason", () => {
     expect(shortReason(new Error("x".repeat(100)))).toHaveLength(78);
   });
 
+  it("recognizes a request refused for being too large", () => {
+    const groq = providerError(
+      "Request too large for model `qwen/qwen3.8-27b` on tokens per minute (TPM): Limit 1000, Requested 1500",
+      429,
+    );
+    expect(isRequestTooLarge(groq)).toBe(true);
+    expect(shortReason(groq)).toBe("request too large");
+    expect(shortReason(providerError("whatever", 413))).toBe("request too large");
+    expect(shortReason(new RetryError({ message: "x", reason: "maxRetriesExceeded", errors: [groq, groq] }))).toBe(
+      "request too large",
+    );
+    expect(isRequestTooLarge(providerError("Rate limit reached", 429))).toBe(false);
+    expect(shortReason(providerError("Rate limit reached", 429))).toBe("quota exceeded");
+  });
+
   it("never repeats an unrecognized provider message", () => {
     expect(shortReason(providerError("Request 7f3a for projects/123 failed: internal detail", 400))).toBe(
       "provider error 400",
@@ -209,6 +225,27 @@ describe("errorToMessage", () => {
     expect(shortReason(error)).toBe("missing API key");
   });
 
+  it("explains a request that is too large", () => {
+    const error = providerError("Request too large for model on tokens per minute (TPM)", 429);
+    expect(errorToMessage(error)).toMatch(/too long for the provider's free tier/);
+  });
+
+  it("lists every model when all of them fail", async () => {
+    const tooLarge = providerError("Request too large on tokens per minute (TPM)", 429);
+    const error = await runWithFallback(
+      [
+        { provider: "gemini" as const, modelId: "g" },
+        { provider: "groq" as const, modelId: "q" },
+      ],
+      async (c) => {
+        throw c.provider === "gemini" ? new Error("fetch failed") : tooLarge;
+      },
+    ).catch((e) => e);
+    expect(errorToMessage(error)).toMatch(
+      /^All models failed: g \(unreachable\), q \(request too large\)\. This message is too long/,
+    );
+  });
+
   it("keeps the app's own messages", () => {
     expect(errorToMessage(new Error("There are no messages in this period yet"))).toBe(
       "There are no messages in this period yet",
@@ -239,5 +276,6 @@ describe("canRetryWithoutStreaming", () => {
     expect(canRetryWithoutStreaming(new Error("The operation was aborted due to timeout"))).toBe(false);
     expect(canRetryWithoutStreaming(new Error("429 RESOURCE_EXHAUSTED"))).toBe(false);
     expect(canRetryWithoutStreaming(new Error("model 'foo' not found"))).toBe(false);
+    expect(canRetryWithoutStreaming(providerError("Request too large on tokens per minute", 429))).toBe(false);
   });
 });

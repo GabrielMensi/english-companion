@@ -152,15 +152,25 @@ function statusOf(error: unknown): number | undefined {
 
 const UNREACHABLE = /Cannot connect to API|ECONNREFUSED|fetch failed|Connect Timeout/i;
 const TIMED_OUT = /aborted due to timeout|timed out|TimeoutError/i;
+// Groq's free tier caps tokens per minute per model; a long, error-heavy correction can exceed the cap
+// on its own, so waiting and retrying never helps ("Request too large", 413 or 429).
+const TOO_LARGE = /request too large|tokens per minute|\bTPM\b|\b413\b|payload too large/i;
 const QUOTA = /429|rate limit|quota|RESOURCE_EXHAUSTED/i;
 const OVERLOADED = /503|high demand|overloaded|UNAVAILABLE/i;
 const INVALID_KEY = /API key not valid|invalid api key|401|PERMISSION_DENIED/i;
+
+/** Whether the provider refused the request for being bigger than its per-minute token limit (or its size limit). */
+export function isRequestTooLarge(error: unknown): boolean {
+  if (RetryError.isInstance(error)) return isRequestTooLarge(error.lastError);
+  return statusOf(error) === 413 || TOO_LARGE.test(messageOf(error));
+}
 
 /** A few words describing why a model failed, for the "fallback" note. */
 export function shortReason(error: unknown): string {
   const message = messageOf(error);
   if (UNREACHABLE.test(message)) return "unreachable";
   if (TIMED_OUT.test(message)) return "timed out";
+  if (isRequestTooLarge(error)) return "request too large";
   if (QUOTA.test(message)) return "quota exceeded";
   if (OVERLOADED.test(message)) return "overloaded";
   if (INVALID_KEY.test(message)) return "invalid API key";
@@ -179,6 +189,7 @@ const SAME_WITHOUT_STREAMING = new Set([
   "unreachable",
   "timed out",
   "quota exceeded",
+  "request too large",
   "overloaded",
   "invalid API key",
   "model not found",
@@ -212,6 +223,9 @@ export function errorToMessage(error: unknown): string {
     return isOwnError(error)
       ? `${message}. Check the model name in Settings.`
       : "The provider doesn't have that model. Check the model name in Settings.";
+  }
+  if (isRequestTooLarge(error)) {
+    return "This message is too long for the provider's free tier limit. Try a shorter message or add another provider in Settings.";
   }
   if (QUOTA.test(message)) {
     return "The provider's free tier limit was reached. Wait a while or switch providers.";
