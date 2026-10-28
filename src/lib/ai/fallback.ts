@@ -152,9 +152,10 @@ function statusOf(error: unknown): number | undefined {
 
 const UNREACHABLE = /Cannot connect to API|ECONNREFUSED|fetch failed|Connect Timeout/i;
 const TIMED_OUT = /aborted due to timeout|timed out|TimeoutError/i;
-// Groq's free tier caps tokens per minute per model; a long, error-heavy correction can exceed the cap
-// on its own, so waiting and retrying never helps ("Request too large", 413 or 429).
-const TOO_LARGE = /request too large|tokens per minute|\bTPM\b|\b413\b|payload too large/i;
+// "Request too large" means the request alone is over the limit (Groq answers 413, or a 429 with this text):
+// waiting never helps. A normal per-minute rate limit ("Rate limit reached ... tokens per minute ... try again
+// in 3s") is temporary and stays "quota exceeded".
+const TOO_LARGE = /request too large|payload too large/i;
 // The model ran out of output tokens before finishing the JSON (Groq: "max completion tokens reached").
 const OUTPUT_TRUNCATED =
   /max(?:imum)? completion tokens|max_completion_tokens|output was truncated|finish.?reason.{0,10}length/i;

@@ -91,7 +91,7 @@ Cuesta: una dependencia de desarrollo, los navegadores (~150 MB en CI, cacheable
 
 - Nunca en CI de PRs: gastan free tier y dan resultados que varían.
 - Siguen manuales (`pnpm eval:*`), y antes de cambiar de modelo o de prompt.
-- Con `--check`, `eval:models`, `eval:classify` y `eval:asr` imprimen PASS/FAIL por modelo contra los umbrales de `scripts/eval/thresholds.json` (puntaje y fallas en models, tipo y tiempos verbales en classify, WER y fallas en asr) y salen con código 1 si algo empeora (#117). La comparación vive en `src/lib/eval/thresholds.ts`, con tests; los números son pisos holgados sobre las últimas corridas buenas: subirlos al mejorar. Opcional: un workflow manual (`workflow_dispatch`) con las keys como secrets.
+- Con `--check`, `eval:models`, `eval:classify` y `eval:asr` imprimen PASS/FAIL por modelo contra los umbrales de `scripts/eval/thresholds.json` (puntaje y fallas en models, tipo y tiempos verbales en classify, WER y fallas en asr) y salen con código 1 si algo empeora (#117). La comparación vive en `src/lib/eval/thresholds.ts`, con tests; los números son **provisorios**: pisos holgados por debajo de los resultados registrados (README y `MODEL_INFO` para models, `ERROR_CLASSIFICATION.md` para classify, VOICE.md para asr; `gpt-oss-120b`, 81 %, tiene su propio piso de 75 en `overrides`), sin medir de nuevo. `falsePositives` y `failures` son estimaciones. Hay que calibrarlos con la próxima corrida real y subirlos al mejorar. Opcional: un workflow manual (`workflow_dispatch`) con las keys como secrets.
 
 ### Seguridad como tests de regresión
 

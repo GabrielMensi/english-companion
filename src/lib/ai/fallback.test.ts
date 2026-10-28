@@ -192,6 +192,12 @@ describe("shortReason", () => {
     expect(isRequestTooLarge(truncated)).toBe(true);
     expect(shortReason(truncated)).toBe("request too large");
     expect(canRetryWithoutStreaming(truncated)).toBe(false);
+    const rateLimit = providerError(
+      "Rate limit reached for model `qwen/qwen3.8-27b` on tokens per minute (TPM): Limit 6000, Used 5200, Requested 900. Please try again in 3s.",
+      429,
+    );
+    expect(isRequestTooLarge(rateLimit)).toBe(false);
+    expect(shortReason(rateLimit)).toBe("quota exceeded");
     expect(isRequestTooLarge(providerError("Rate limit reached", 429))).toBe(false);
     expect(shortReason(providerError("Rate limit reached", 429))).toBe("quota exceeded");
   });

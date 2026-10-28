@@ -1,4 +1,3 @@
-import { carryOverReviews } from "@/lib/review-carry-over";
 import "server-only";
 
 import { and, asc, desc, eq, lt } from "drizzle-orm";
@@ -12,6 +11,7 @@ import { withChatPriority } from "@/lib/classification";
 import { toChatCorrection } from "@/lib/correction-review";
 import { deletePractice, exerciseReplyFor, getPractice, practiceReplyRule } from "@/lib/practice";
 import { recordExerciseResult } from "@/lib/missed-exercises";
+import { carryOverReviews } from "@/lib/review-carry-over";
 import { getSettings } from "@/lib/settings";
 import { countWords, makeTitle } from "@/lib/text";
 import type { ChatMessage, VoiceInput } from "@/lib/types";

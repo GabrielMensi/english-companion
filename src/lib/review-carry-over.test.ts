@@ -4,6 +4,7 @@ import { carryOverReviews, normalizeOriginal, type ReviewedCorrection } from "./
 function old(overrides: Partial<ReviewedCorrection> = {}): ReviewedCorrection {
   return {
     original: "I goed",
+    correction: "I went",
     category: "verb_tense",
     subtype: null,
     tense: null,
@@ -17,8 +18,8 @@ function old(overrides: Partial<ReviewedCorrection> = {}): ReviewedCorrection {
   };
 }
 
-const fresh = (original: string, category = "verb_tense", severity = "major") =>
-  ({ original, category, severity }) as never;
+const fresh = (original: string, category = "verb_tense", severity = "major", correction = "I went") =>
+  ({ original, correction, category, severity }) as never;
 
 describe("normalizeOriginal", () => {
   it("ignores case, spacing and edge punctuation", () => {
@@ -49,6 +50,21 @@ describe("carryOverReviews", () => {
     expect(one.discardReason).toBe("b");
     const [other] = carryOverReviews([previous[0]], [fresh("I goed", "verb_tense")]);
     expect(other.discardReason).toBe("a");
+  });
+
+  it("does not carry a discard to a different fix of the same fragment", () => {
+    const previous = old({ discardedAt: when, discardReason: "It was right" });
+    expect(carryOverReviews([previous], [fresh("I goed", "verb_tense", "major", "I did go")])).toEqual([{}]);
+    expect(carryOverReviews([previous], [fresh("I goed", "verb_tense", "major", " i WENT. ")])[0].discardedAt).toEqual(
+      when,
+    );
+  });
+
+  it("carries the manual type to a different fix, but not the discard", () => {
+    const previous = old({ discardedAt: when, classifiedBy: "user", category: "false_friends", subtype: "x" });
+    const [carried] = carryOverReviews([previous], [fresh("I goed", "verb_tense", "major", "I did go")]);
+    expect(carried.discardedAt).toBeUndefined();
+    expect(carried).toMatchObject({ category: "false_friends", classifiedBy: "user" });
   });
 
   it("uses each old correction once", () => {

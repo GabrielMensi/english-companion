@@ -7,6 +7,7 @@ import { type KeyProvider, maskKey } from "@/lib/credentials";
 import { resolveApiKey } from "@/lib/secrets";
 import type { Settings } from "@/lib/settings";
 import { fallbackOrder, runWithFallback } from "./fallback";
+import { groqReasoningEffort, MAX_OUTPUT_TOKENS } from "./groq-options";
 import { NO_PROVIDER_MESSAGE, PROVIDER_IDS, type ProviderId, PROVIDERS } from "./provider-info";
 
 export interface ProviderStatus {
@@ -40,7 +41,7 @@ function requireApiKey(provider: KeyProvider): string {
 
 type CallSettings = Pick<
   Parameters<typeof generateText>[0],
-  "model" | "providerOptions" | "maxRetries" | "temperature" | "timeout"
+  "model" | "providerOptions" | "maxRetries" | "temperature" | "timeout" | "maxOutputTokens"
 >;
 
 // A hung provider must fail (and fall back) instead of waiting forever.
@@ -75,12 +76,15 @@ export function resolveModel(settings: Settings, provider: ProviderId = settings
     }
     case "groq": {
       const model = createGroq({ apiKey: requireApiKey("groq") })(modelId);
+      const reasoningEffort = groqReasoningEffort(modelId);
       return {
         provider,
         modelId,
         call: ({ temperature, retry = true }) => ({
           model,
           temperature,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
+          ...(reasoningEffort && { providerOptions: { groq: { reasoningEffort } } }),
           maxRetries: retry ? 2 : 0,
           timeout: TIMEOUT_MS,
         }),
