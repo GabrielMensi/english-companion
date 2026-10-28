@@ -53,6 +53,8 @@ const envSchema = z.object({
    * migrations run as a deploy step, after a backup (`pnpm db:migrate`, see docs/platform/DEPLOY.md).
    */
   MIGRATE_ON_START: optional(flag.default(true)),
+  /** Send the Content-Security-Policy as report-only (the browser logs violations instead of blocking): a way back if it breaks something. */
+  CSP_REPORT_ONLY: optional(flag.default(false)),
 });
 
 export type Env = z.infer<typeof envSchema>;

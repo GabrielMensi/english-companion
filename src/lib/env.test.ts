@@ -64,6 +64,12 @@ describe("parseEnv: hosts and proxy", () => {
     expect(() => parseEnv({ MIGRATE_ON_START: "no" })).toThrow(/MIGRATE_ON_START/);
   });
 
+  it("accepts only true/false/1/0 for CSP_REPORT_ONLY, off by default", () => {
+    expect(parseEnv({}).CSP_REPORT_ONLY).toBe(false);
+    expect(parseEnv({ CSP_REPORT_ONLY: "true" }).CSP_REPORT_ONLY).toBe(true);
+    expect(() => parseEnv({ CSP_REPORT_ONLY: "maybe" })).toThrow(/CSP_REPORT_ONLY/);
+  });
+
   it("refuses hosts with a scheme, port or path", () => {
     for (const value of ["https://companion.example.com", "companion.example.com:443", "example.com/app", "a b"]) {
       expect(() => parseEnv({ ALLOWED_HOSTS: value }), value).toThrow(/ALLOWED_HOSTS: expected comma-separated/);

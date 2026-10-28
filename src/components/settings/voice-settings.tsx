@@ -2,6 +2,7 @@
 
 import { Loader2, Volume2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   getGpuRejection,
   type KokoroDevice,
@@ -22,6 +23,7 @@ import {
   useSpeechPreparing,
   useSpeechSupported,
 } from "@/components/audio/speech";
+import { formatKokoroDiagnostics } from "@/components/audio/kokoro-diagnostics";
 import { KOKORO_VOICES, type KokoroDevicePref, type SpeechEngine } from "@/components/audio/speech-prefs";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -186,6 +188,22 @@ function KokoroStatusLine({ status, devicePref }: { status: KokoroStatus; device
   }
   // Read on every render (it changes along with the status): set when the GPU's audio failed the check.
   const rejection = devicePref === "auto" ? getGpuRejection() : null;
+  function copyDiagnostics() {
+    if (status.state !== "ready") return;
+    const report = formatKokoroDiagnostics({
+      userAgent: navigator.userAgent,
+      crossOriginIsolated: window.crossOriginIsolated,
+      devicePref,
+      running: { device: status.device, dtype: status.dtype, threads: status.threads },
+      warning: status.warning,
+      rejection: getGpuRejection(),
+      diagnostics: status.diagnostics,
+    });
+    navigator.clipboard.writeText(report).then(
+      () => toast.success("Diagnostics copied"),
+      () => toast.error("Couldn’t copy to the clipboard"),
+    );
+  }
   return (
     <div className="space-y-2 text-sm text-muted-foreground">
       <div className="flex items-center justify-between gap-4">
@@ -196,6 +214,11 @@ function KokoroStatusLine({ status, devicePref }: { status: KokoroStatus; device
         {status.state === "error" && (
           <Button variant="outline" size="sm" onClick={retryKokoro}>
             Retry
+          </Button>
+        )}
+        {status.state === "ready" && (
+          <Button variant="outline" size="sm" onClick={copyDiagnostics}>
+            Copy diagnostics
           </Button>
         )}
       </div>

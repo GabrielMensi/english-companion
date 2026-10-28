@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { cacheKey } from "@/components/audio/audio-cache-core";
 import { cachedInMemory, getCachedAudio, putCachedAudio } from "@/components/audio/audio-cache";
+import type { KokoroDiagnostics } from "@/components/audio/kokoro-diagnostics";
 import { type GpuRejection, type KokoroDevicePref, parseGpuRejection } from "@/components/audio/speech-prefs";
 
 /**
@@ -43,6 +44,7 @@ export type KokoroResponse =
       adapter: string | null;
       threads: number | null;
       warning: string | null;
+      diagnostics: KokoroDiagnostics;
     }
   /** The GPU's audio failed the check in auto mode; the worker is switching to the CPU. */
   | { type: "gpu-rejected"; reason: string; at: string }
@@ -68,6 +70,7 @@ export type KokoroStatus =
       threads: number | null;
       /** Something to show next to the status: a fallback to the CPU or a failed audio check. */
       warning: string | null;
+      diagnostics: KokoroDiagnostics;
     }
   | { state: "error"; message: string };
 
@@ -205,6 +208,7 @@ function handle(message: KokoroResponse) {
         adapter: message.adapter,
         threads: message.threads,
         warning: message.warning,
+        diagnostics: message.diagnostics,
       });
       readyWaiters.forEach((w) => w.resolve());
       readyWaiters = [];
