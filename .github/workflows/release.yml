@@ -23,13 +23,15 @@ jobs:
       - id: check
         env:
           TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
             echo "::error::Tag '$TAG' is not vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-prerelease"; exit 1
           fi
-          # actions/checkout can leave an annotated tag looking lightweight: refetch the tag object.
-          git fetch --force origin "+refs/tags/$TAG:refs/tags/$TAG"
-          if [ "$(git cat-file -t "refs/tags/$TAG")" != "tag" ]; then
+          # Ask the API for the tag object type: checkout can leave an annotated tag looking lightweight,
+          # and the checkout has no credentials to refetch it.
+          type="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" -q .object.type)"
+          if [ "$type" != "tag" ]; then
             echo "::error::Tag '$TAG' is lightweight. Create it with: git tag -a $TAG -m \"...\""; exit 1
           fi
           version="$(node -p "require('./package.json').version")"

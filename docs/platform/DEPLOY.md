@@ -112,9 +112,12 @@ volumes:
 
 ```
 companion.example.com {
-	# El stream de correcciones (application/x-ndjson) no se comprime: la compresión lo bufferea.
-	@compressible not header Content-Type application/x-ndjson*
-	encode @compressible zstd gzip
+	# Solo se comprimen estos tipos: el stream de correcciones (application/x-ndjson) queda afuera, la compresión lo bufferea.
+	encode zstd gzip {
+		match {
+			header Content-Type text/* application/json* application/javascript* image/svg+xml* application/wasm*
+		}
+	}
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		-Server
