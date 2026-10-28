@@ -185,6 +185,13 @@ describe("shortReason", () => {
     expect(shortReason(new RetryError({ message: "x", reason: "maxRetriesExceeded", errors: [groq, groq] }))).toBe(
       "request too large",
     );
+    const truncated = providerError(
+      "max completion tokens reached before generating a valid document: the output was truncated to fit max_completion_tokens",
+      400,
+    );
+    expect(isRequestTooLarge(truncated)).toBe(true);
+    expect(shortReason(truncated)).toBe("request too large");
+    expect(canRetryWithoutStreaming(truncated)).toBe(false);
     expect(isRequestTooLarge(providerError("Rate limit reached", 429))).toBe(false);
     expect(shortReason(providerError("Rate limit reached", 429))).toBe("quota exceeded");
   });

@@ -155,14 +155,17 @@ const TIMED_OUT = /aborted due to timeout|timed out|TimeoutError/i;
 // Groq's free tier caps tokens per minute per model; a long, error-heavy correction can exceed the cap
 // on its own, so waiting and retrying never helps ("Request too large", 413 or 429).
 const TOO_LARGE = /request too large|tokens per minute|\bTPM\b|\b413\b|payload too large/i;
+// The model ran out of output tokens before finishing the JSON (Groq: "max completion tokens reached").
+const OUTPUT_TRUNCATED =
+  /max(?:imum)? completion tokens|max_completion_tokens|output was truncated|finish.?reason.{0,10}length/i;
 const QUOTA = /429|rate limit|quota|RESOURCE_EXHAUSTED/i;
 const OVERLOADED = /503|high demand|overloaded|UNAVAILABLE/i;
 const INVALID_KEY = /API key not valid|invalid api key|401|PERMISSION_DENIED/i;
 
-/** Whether the provider refused the request for being bigger than its per-minute token limit (or its size limit). */
+/** Whether the provider refused the request for being bigger than its token or size limits, or cut the answer short for the same reason: long, error-heavy messages on a free tier. */
 export function isRequestTooLarge(error: unknown): boolean {
   if (RetryError.isInstance(error)) return isRequestTooLarge(error.lastError);
-  return statusOf(error) === 413 || TOO_LARGE.test(messageOf(error));
+  return statusOf(error) === 413 || TOO_LARGE.test(messageOf(error)) || OUTPUT_TRUNCATED.test(messageOf(error));
 }
 
 /** A few words describing why a model failed, for the "fallback" note. */
