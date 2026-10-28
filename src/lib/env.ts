@@ -49,6 +49,8 @@ const envSchema = z.object({
   ALLOWED_HOSTS: optional(hostnames.default([])),
   /** Behind a reverse proxy: use X-Forwarded-Host instead of Host (allowed hosts and cross-site checks). */
   TRUST_PROXY: optional(flag.default(false)),
+  /** Send the Content-Security-Policy as report-only (the browser logs violations instead of blocking): a way back if it breaks something. */
+  CSP_REPORT_ONLY: optional(flag.default(false)),
 });
 
 export type Env = z.infer<typeof envSchema>;
