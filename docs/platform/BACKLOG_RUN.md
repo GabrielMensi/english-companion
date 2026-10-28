@@ -74,3 +74,4 @@ Estado: ⏳ pendiente · 🔨 en curso · 👀 en revisión · ✅ mergeado en l
 - 2026-10-28: #130 (cleanup) y #131 (design) mergeadas. gitleaks frenó #130 por una key falsa en `server-log.test.ts`: `.gitleaksignore` + `gitleaks:allow`. Tanda 2: voice y kokoro-csp arrancados (#132–#137, #45).
 - 2026-10-28: #141 (ai-fixes) mergeada: tanda 1 completa. Tanda 2 completa en curso: voice, kokoro-csp, auth (#124, #138), deploy-ready (#127, #139, #140). Follow-ups al board: tope de salida de Groq según el mensaje, calibrar umbrales de eval, tests de las rutas que faltan.
 - 2026-10-28: #142 (seguridad, fuera de plan) mergeada: `pnpm audit` marcó 2 RCE críticas en Next 16.4.0 y varias altas en undici 7.30.0 → Next 16.4.3 + override undici ^7.30.1. `develop` (la app en uso) sigue en 16.4.0 hasta que el usuario decida un hotfix. kokoro-csp en revisión.
+- 2026-10-28: #143 (kokoro-csp) mergeada. deploy-ready en revisión; auth y voice implementando.
