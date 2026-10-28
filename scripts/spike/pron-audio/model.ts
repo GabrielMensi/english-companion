@@ -4,19 +4,31 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { AutoModelForCTC, AutoProcessor, type Tensor } from "@huggingface/transformers";
-import { decodeCtc, type HeardPhone, PHONEME_MODEL_ID } from "../../../src/lib/phonemes-core";
+import { AutoModelForCTC, AutoProcessor, env, type Tensor } from "@huggingface/transformers";
+import {
+  decodeCtc,
+  type HeardPhone,
+  PHONEME_MODEL_ID,
+  PHONEME_MODEL_REVISION,
+  PHONEME_VOCAB_FILE,
+} from "../../../src/lib/phonemes-core";
 
-export async function loadRecognizer(dtype: "fp32" | "q8" | "q4" = "q8", cacheDir = "data/pron-audio-spike") {
+export async function loadRecognizer(dtype: "fp32" | "q8" | "q4" = "q8", cacheDir = "data/models") {
   const started = Date.now();
-  const processor = await AutoProcessor.from_pretrained(PHONEME_MODEL_ID);
-  const model = await AutoModelForCTC.from_pretrained(PHONEME_MODEL_ID, { dtype, device: "cpu" });
+  // Same folder and pinned revision as the app, so the model is downloaded once.
+  env.cacheDir = path.resolve(cacheDir);
+  const revision = PHONEME_MODEL_REVISION;
+  const processor = await AutoProcessor.from_pretrained(PHONEME_MODEL_ID, { revision });
+  const model = await AutoModelForCTC.from_pretrained(PHONEME_MODEL_ID, { revision, dtype, device: "cpu" });
   // transformers.js has no Wav2Vec2PhonemeCTCTokenizer: decode with the vocabulary by hand.
-  const vocabFile = path.join(cacheDir, "wav2vec2-vocab.json");
+  const vocabFile = path.join(cacheDir, PHONEME_VOCAB_FILE);
   if (!fs.existsSync(vocabFile)) {
-    const res = await fetch(`https://huggingface.co/${PHONEME_MODEL_ID}/resolve/main/vocab.json`);
+    const res = await fetch(`https://huggingface.co/${PHONEME_MODEL_ID}/resolve/${revision}/vocab.json`);
+    if (!res.ok) throw new Error(`vocabulary download failed (${res.status})`);
+    const text = await res.text();
+    JSON.parse(text);
     fs.mkdirSync(cacheDir, { recursive: true });
-    fs.writeFileSync(vocabFile, await res.text());
+    fs.writeFileSync(vocabFile, text);
   }
   const vocab = JSON.parse(fs.readFileSync(vocabFile, "utf8")) as Record<string, number>;
   const idToToken = Object.fromEntries(Object.entries(vocab).map(([t, id]) => [id, t]));

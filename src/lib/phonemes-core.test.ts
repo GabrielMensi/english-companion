@@ -179,3 +179,34 @@ describe("extra findings", () => {
     ]);
   });
 });
+
+describe("weak forms and the recognizer's limits", () => {
+  it("does not flag ʌ in was or of (the recognizer barely tells ə from ʌ)", () => {
+    expect(analyze("It was good", "ɪ t w ʌ z ɡ ʊ d").hints).toEqual([]);
+    expect(analyze("a cup of tea", "ɐ k ʌ p ʌ v t iː").hints).toEqual([]);
+  });
+
+  it("does not flag an r-colored schwa heard as ɜː", () => {
+    expect(analyze("tea for two", "t iː f ɜː t uː").hints).toEqual([]);
+  });
+
+  it("stays quiet around a word the dictionary doesn't know", () => {
+    const a = analyze("Ask Zorblax to call", "æ s k z ɔː b l æ k s t ə k ɔː l");
+    expect(a.hints).toEqual([]);
+    expect(analyze("Ask Zorblax to call", "æ s k z ɔː b l æ k s t uː k ɔː l").hints).toEqual([
+      { category: "schwa_reduction", word: "to", detail: "/ə/ → /uː/" },
+    ]);
+  });
+
+  it("picks the pronunciation that fits what was heard (record as noun or verb)", () => {
+    // Noun: R EH1 K ER0 D, verb: R IH0 K AO1 R D.
+    expect(analyze("a record", "ɐ ɹ ɛ k ɚ d").hints).toEqual([]);
+    expect(analyze("to record it", "t ə ɹ ɪ k ɔː ɹ d ɪ t").hints).toEqual([]);
+    // The noun's reduced vowel said in full is still found.
+    expect(analyze("a record", "ɐ ɹ ɛ k ɔː ɹ d").hints.map((h) => h.word)).toEqual(["record"]);
+  });
+
+  it("the before a vowel can be heard as ðiː", () => {
+    expect(analyze("the apple", "ð iː æ p əl").hints).toEqual([]);
+  });
+});

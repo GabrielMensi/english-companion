@@ -4,7 +4,15 @@ import fs from "node:fs";
 import path from "node:path";
 import type { AutoModelForCTC, AutoProcessor, Tensor } from "@huggingface/transformers";
 import { serverEnv } from "@/lib/env";
-import { analyzePhonemes, decodeCtc, type PhonemeCheckResult, PHONEME_MODEL_ID, parseWav } from "@/lib/phonemes-core";
+import {
+  analyzePhonemes,
+  decodeCtc,
+  type PhonemeCheckResult,
+  PHONEME_MODEL_ID,
+  PHONEME_MODEL_REVISION,
+  PHONEME_VOCAB_FILE,
+  parseWav,
+} from "@/lib/phonemes-core";
 import { cmuLookup } from "@/lib/cmu-lookup";
 import type { PronunciationCategory } from "@/lib/taxonomy";
 
@@ -30,18 +38,37 @@ type State =
 /** After a failed load, wait this long before trying (and downloading) again. */
 const RETRY_AFTER_MS = 5 * 60 * 1000;
 /** Longer recordings aren't checked: a sentence takes seconds, and this bounds the inference time. */
-const MAX_SECONDS = 60;
+const MAX_SECONDS = 30;
 const SAMPLE_RATE = 16_000;
 
-const g = globalThis as { __phonemeState?: State; __phonemeQueue?: Promise<unknown> };
+const g = globalThis as { __phonemeState?: State; __phonemeQueue?: Promise<unknown>; __phonemePending?: number };
 const getState = (): State => (g.__phonemeState ??= { kind: "idle" });
 const setState = (state: State) => {
   g.__phonemeState = state;
 };
 
+/** A download that takes longer than this counts as failed (the state would stay "preparing" forever). */
+const LOAD_TIMEOUT_MS = 15 * 60 * 1000;
+
+const modelDir = () => path.resolve(serverEnv().PHONEME_MODEL_DIR);
+
+/** The vocabulary, downloaded once at the pinned revision; a bad body is never cached. */
+async function loadVocab(dir: string): Promise<Record<string, number>> {
+  const file = path.join(dir, PHONEME_VOCAB_FILE);
+  if (!fs.existsSync(file)) {
+    const res = await fetch(`https://huggingface.co/${PHONEME_MODEL_ID}/resolve/${PHONEME_MODEL_REVISION}/vocab.json`);
+    if (!res.ok) throw new Error(`vocabulary download failed (${res.status})`);
+    const text = await res.text();
+    JSON.parse(text); // throws on anything but JSON
+    fs.writeFileSync(`${file}.tmp`, text);
+    fs.renameSync(`${file}.tmp`, file);
+  }
+  return JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, number>;
+}
+
 async function load(): Promise<Loaded> {
   const { AutoModelForCTC, AutoProcessor, env } = await import("@huggingface/transformers");
-  const dir = path.resolve(serverEnv().PHONEME_MODEL_DIR);
+  const dir = modelDir();
   fs.mkdirSync(dir, { recursive: true });
   env.cacheDir = dir;
 
@@ -56,45 +83,63 @@ async function load(): Promise<Loaded> {
     }
   };
 
-  const processor = await AutoProcessor.from_pretrained(PHONEME_MODEL_ID, { progress_callback });
+  const revision = PHONEME_MODEL_REVISION;
+  const processor = await AutoProcessor.from_pretrained(PHONEME_MODEL_ID, { revision, progress_callback });
   const model = await AutoModelForCTC.from_pretrained(PHONEME_MODEL_ID, {
+    revision,
     dtype: "q8",
     device: "cpu",
+    // Don't keep the memory a long recording needed (the arena would hold on to it).
+    session_options: { enableCpuMemArena: false },
     progress_callback,
   });
 
-  // transformers.js has no tokenizer for this model: the vocabulary is decoded by hand.
-  const vocabFile = path.join(dir, "wav2vec2-lv-60-espeak-cv-ft-vocab.json");
-  if (!fs.existsSync(vocabFile)) {
-    const res = await fetch(`https://huggingface.co/${PHONEME_MODEL_ID}/resolve/main/vocab.json`);
-    if (!res.ok) throw new Error(`vocabulary download failed (${res.status})`);
-    fs.writeFileSync(vocabFile, await res.text());
-  }
-  const vocab = JSON.parse(fs.readFileSync(vocabFile, "utf8")) as Record<string, number>;
+  const vocab = await loadVocab(dir);
   const idToToken = Object.fromEntries(Object.entries(vocab).map(([token, id]) => [id, token]));
   return { processor, model, idToToken };
 }
 
+/** Deletes the cached model and vocabulary, so the next try downloads them again (a truncated file would fail forever). */
+function clearCache() {
+  const dir = modelDir();
+  fs.rmSync(path.join(dir, PHONEME_MODEL_ID), { recursive: true, force: true });
+  fs.rmSync(path.join(dir, PHONEME_VOCAB_FILE), { force: true });
+}
+
 function startLoading(): State {
+  const fail = (error: unknown) => {
+    console.error("Phoneme model could not be loaded:", error instanceof Error ? error.message : error);
+    // The cached files may be partial or corrupt: start clean on the next try.
+    try {
+      clearCache();
+    } catch {
+      // Nothing more to do; the doc says to delete the folder by hand.
+    }
+    setState({ kind: "failed", reason: "The sound-check model couldn't be loaded.", at: Date.now() });
+  };
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("model load timed out")), LOAD_TIMEOUT_MS).unref(),
+  );
   const state: State = {
     kind: "loading",
     progress: null,
-    promise: load().then(
-      (loaded) => setState({ kind: "ready", loaded }),
-      (error: unknown) => {
-        console.error("Phoneme model could not be loaded:", error instanceof Error ? error.message : error);
-        setState({ kind: "failed", reason: "The sound-check model couldn't be loaded.", at: Date.now() });
-      },
-    ),
+    promise: Promise.race([load(), timeout]).then((loaded) => setState({ kind: "ready", loaded }), fail),
   };
   setState(state);
   return state;
 }
 
+/** At most this many recordings wait for or run in the model; more are answered "busy". */
+const MAX_PENDING = 2;
+
 /** Runs the model one recording at a time (the CPU is shared with the rest of the app). */
 function enqueue<T>(job: () => Promise<T>): Promise<T> {
+  g.__phonemePending = (g.__phonemePending ?? 0) + 1;
   const run = (g.__phonemeQueue ?? Promise.resolve()).then(job, job);
-  g.__phonemeQueue = run.catch(() => undefined);
+  g.__phonemeQueue = run.then(
+    () => void g.__phonemePending!--,
+    () => void g.__phonemePending!--,
+  );
   return run;
 }
 
@@ -134,6 +179,7 @@ export async function checkPhonemes(
     return { status: "unavailable", reason: "The recording is too long for the sound check." };
   }
 
+  if ((g.__phonemePending ?? 0) >= MAX_PENDING) return { status: "unavailable", reason: "The sound check is busy." };
   const { loaded } = state;
   try {
     const started = Date.now();

@@ -140,7 +140,14 @@ function SoundCheck({ check, language }: { check: PhonemeCheckResult | "pending"
       Sound check <StatusBadge tone="optional">Beta</StatusBadge>
     </span>
   );
-  if (check === null) return null;
+  if (check === null) {
+    return (
+      <div className="space-y-1">
+        {title}
+        <p className="text-sm text-muted-foreground">Sound check unavailable for this reading.</p>
+      </div>
+    );
+  }
   if (check === "pending") {
     return (
       <div className="space-y-1">

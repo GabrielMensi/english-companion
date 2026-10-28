@@ -12,6 +12,9 @@ import { speechWords } from "./pronunciation-core";
 import type { PronunciationCategory } from "./taxonomy";
 
 export const PHONEME_MODEL_ID = "onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX";
+/** Pinned commit of the model repo (weights, config and vocabulary), so upstream changes can't swap them silently. */
+export const PHONEME_MODEL_REVISION = "c69750f5043e5e1f8a71ab95dd3b98338c280c92";
+export const PHONEME_VOCAB_FILE = "wav2vec2-lv-60-espeak-cv-ft-vocab.json";
 
 // ---- Audio and model output -------------------------------------------------
 
@@ -366,9 +369,10 @@ export function analyzePhonemes(
 
   // Schwa: a reduced vowel heard as a full one (ɪ is a normal way to reduce, so it doesn't count).
   slots.forEach((s) => {
-    // The recognizer often writes an r-colored schwa (ɚ) as ɜː, which isn't a full vowel here.
+    // Not full vowels here: the recognizer often writes an r-colored schwa (ɚ) as ɜː, and it barely
+    // tells ə from ʌ (was /wʌz/, of /ʌv/ are normal), so ʌ is accepted too.
     const rColored = s.token === "ɚ" && (s.heard === "ɜː" || s.heard === "ɜ");
-    if (s.reduced && isVowel(s.heard) && !REDUCED.has(s.heard) && s.heard !== "ɪ" && !rColored) {
+    if (s.reduced && isVowel(s.heard) && !REDUCED.has(s.heard) && s.heard !== "ɪ" && s.heard !== "ʌ" && !rColored) {
       hints.push({ category: "schwa_reduction", word: words[s.word], detail: `/${s.token}/ → /${s.heard}/` });
     }
   });
