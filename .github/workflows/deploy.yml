@@ -1,0 +1,54 @@
+name: Deploy
+
+# NOT ACTIVE: nothing deploys until DEPLOY.md's checklist is done. It only runs by hand (workflow_dispatch),
+# and only after the secrets below are loaded and the repository variable DEPLOY_ENABLED is "true".
+# Builds the image from a tag, pushes it to GHCR and runs deploy/deploy.sh on the server over SSH.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to deploy (e.g. v1.0.0)
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      IMAGE: ghcr.io/gabrielmensi/english-companion
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - name: Build and push the image
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+        run: |
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
+          docker build --tag "$IMAGE:$TAG" .
+          docker push "$IMAGE:$TAG"
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "$DEPLOY_SSH_KEY" >~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          echo "$DEPLOY_KNOWN_HOSTS" >~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" "cd $DEPLOY_PATH/deploy && ./deploy.sh $TAG $DEPLOY_URL"

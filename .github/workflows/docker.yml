@@ -1,0 +1,47 @@
+name: Docker
+
+# Builds the production image (no push) when something that goes into it changes.
+on:
+  pull_request:
+    branches: [develop, main, "integration/**"]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - deploy/**
+      - scripts/db-migrate.mts
+      - scripts/backup.mts
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - next.config.ts
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the image
+        run: docker build --tag english-companion:ci .
+      - name: Start it on a throwaway database and check the health endpoint
+        run: |
+          docker run --rm --detach --name companion -p 3737:3737 \
+            -e ALLOWED_HOSTS=localhost english-companion:ci
+          # MIGRATE_ON_START=false in the image: the migrate step comes first.
+          docker run --rm --volumes-from companion english-companion:ci node scripts/db-migrate.mjs
+          docker restart companion
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3737/api/health && exit 0
+            sleep 2
+          done
+          docker logs companion
+          exit 1

@@ -30,6 +30,18 @@ function hostname(host: string): string {
 }
 
 /**
+ * `host` without the port the scheme already implies (":443" for https, ":80" for http), lowercased and
+ * without a trailing dot. Behind a proxy, `X-Forwarded-Host` often carries the default port ("example.com:443")
+ * while a browser's `Origin` never does, so cross-site checks compare hosts in this form.
+ */
+export function withoutDefaultPort(host: string, protocol: string): string {
+  const value = host.trim().toLowerCase();
+  const defaultPort = protocol === "https:" ? ":443" : protocol === "http:" ? ":80" : null;
+  const bare = defaultPort && value.endsWith(defaultPort) ? value.slice(0, -defaultPort.length) : value;
+  return bare.replace(/\.(?=:\d+$|$)/, "");
+}
+
+/**
  * Whether the app should answer a request for `host`: loopback names, plus the hostnames in
  * `ALLOWED_HOSTS` (any port). A missing `Host` is refused: HTTP/1.1 requires it.
  */

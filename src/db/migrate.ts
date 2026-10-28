@@ -5,6 +5,21 @@ import { MIGRATIONS_TABLE, pendingMigrations } from "./migrations-core";
 /** How long a connection waits for another process's lock before failing with SQLITE_BUSY. */
 export const BUSY_TIMEOUT_MS = 30_000;
 
+/** How many migrations in `migrationsFolder` the database hasn't applied yet (a database never migrated: all). */
+export function countPendingMigrations(sqlite: Database.Database, migrationsFolder: string): number {
+  const migrations = readMigrationFiles({ migrationsFolder });
+  const hasTable = sqlite
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .pluck()
+    .get(MIGRATIONS_TABLE);
+  if (!hasTable) return migrations.length;
+  const last = sqlite
+    .prepare(`SELECT created_at FROM "${MIGRATIONS_TABLE}" ORDER BY created_at DESC LIMIT 1`)
+    .pluck()
+    .get() as number | string | null | undefined;
+  return pendingMigrations(migrations, last).length;
+}
+
 /**
  * Applies the pending migrations, safely when several processes do it at once
  * (`next build` imports this module from parallel workers). Drizzle's own

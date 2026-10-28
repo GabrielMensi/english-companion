@@ -1,0 +1,14 @@
+.git
+.github
+.next
+node_modules
+scripts-dist
+data
+.env*
+.eval-results
+coverage
+docs
+deploy
+*.md
+Dockerfile
+.dockerignore
