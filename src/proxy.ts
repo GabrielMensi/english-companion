@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { isAllowedHost, requestHost } from "@/lib/allowed-hosts";
 import { isPublicPath } from "@/lib/auth/public-routes";
 import { isCrossSiteWrite } from "@/lib/cross-site";
+import { withCsp } from "@/lib/csp-response";
 import { serverEnv } from "@/lib/env";
 
 /**
@@ -21,9 +22,10 @@ function loginUrl(request: NextRequest, trustProxy: boolean, next: string): URL 
  * API writes coming from other sites (see lib/cross-site.ts) and, outside the public list
  * (lib/auth/public-routes.ts), requests without a session cookie. That last check is only
  * optimistic (a made-up cookie passes): every route handler and page checks the real session.
+ * Sets the Content-Security-Policy with `withCsp` (lib/csp-response.ts): use it for every pass-through response.
  */
 export function proxy(request: NextRequest) {
-  const { ALLOWED_HOSTS, TRUST_PROXY } = serverEnv();
+  const { ALLOWED_HOSTS, TRUST_PROXY, CSP_REPORT_ONLY } = serverEnv();
   const isApi = request.nextUrl.pathname.startsWith("/api/");
 
   if (!isAllowedHost(requestHost(request, TRUST_PROXY), ALLOWED_HOSTS)) {
@@ -40,7 +42,7 @@ export function proxy(request: NextRequest) {
     if (isApi) return NextResponse.json({ error: "Sign in to continue" }, { status: 401 });
     return NextResponse.redirect(loginUrl(request, TRUST_PROXY, pathname + search));
   }
-  return NextResponse.next();
+  return withCsp(request, CSP_REPORT_ONLY);
 }
 
 export const config = {

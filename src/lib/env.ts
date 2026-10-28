@@ -66,6 +66,8 @@ const envSchema = z.object({
   SIGNUP_ALLOWED_EMAILS: optional(emails.default([])),
   /** Turns on the speech-to-text eval (recordings are written to disk). Off in a deploy unless set. */
   ENABLE_EVAL: optional(flag.optional()),
+  /** Send the Content-Security-Policy as report-only (the browser logs violations instead of blocking): a way back if it breaks something. */
+  CSP_REPORT_ONLY: optional(flag.default(false)),
 });
 
 export type Env = z.infer<typeof envSchema>;

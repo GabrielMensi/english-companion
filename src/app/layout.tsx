@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk, Newsreader } from "next/font/google";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { connection } from "next/server";
 import { ThemeProvider } from "next-themes";
 import { SpeechPreloader } from "@/components/audio/speech-preloader";
@@ -37,6 +37,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   await connection();
   // Signed out, only /login and /signup render (the proxy redirects the rest): no sidebar, no data.
   const user = await getUser();
+  // Set by proxy.ts: the nonce that lets next-themes' inline script run under the CSP.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
   const labels = user ? chatLabels() : new Map<string, { practice: boolean; topic: string | null }>();
   const sessions = user
@@ -56,7 +58,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${uiFont.variable} ${readingFont.variable} h-full antialiased`}
     >
       <body className="flex h-full overflow-hidden">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange nonce={nonce}>
           <TooltipProvider>
             {user && (
               <AppSidebar
