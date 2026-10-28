@@ -82,6 +82,8 @@ Configuración recomendada: **Gemini Flash-Lite como principal y `qwen/qwen3.8-2
 | `pnpm eval:asr [engine:model …]`          | Transcribe las grabaciones de `/eval/asr` con cada motor de speech-to-text y mide si conservan tus errores o los "corrigen" (ver [docs/voice/VOICE.md](docs/voice/VOICE.md))                                                                 |
 | `pnpm eval:level`                         | Compara el nivel CEFR estimado con textos de alumnos calificados por Cambridge (Write & Improve, se descarga aparte; ver [docs/progress/LEVEL_CALIBRATION.md](docs/progress/LEVEL_CALIBRATION.md))                                           |
 | `pnpm db:generate`                        | Genera una migración después de cambiar `src/db/schema.ts`                                                                                                                                                                                   |
+| `pnpm db:migrate`                         | Aplica las migraciones pendientes haciendo antes un backup (`data/backups/`); es el paso de migración del deploy ([docs/platform/DEPLOY.md](docs/platform/DEPLOY.md)). Con `pnpm dev` no hace falta: migra al arrancar                       |
+| `pnpm db:backup`                          | Copia consistente de la base en `data/backups/` (`--prefix`, `--keep`)                                                                                                                                                                       |
 
 ## Stack
 
