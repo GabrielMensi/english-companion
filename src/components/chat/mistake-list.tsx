@@ -11,6 +11,7 @@ import { groupMistakes } from "@/lib/correction-marks";
 import { categoryLabel, SEVERITY_LABELS, subtypeLabel, tenseLabel } from "@/lib/taxonomy";
 import type { ChatCorrection, CorrectionUpdate } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { voided } from "@/lib/voided";
 
 /** Mistakes shown per category before "Show more". */
 const VISIBLE_PER_GROUP = 3;
@@ -184,7 +185,7 @@ export function MistakeItem({
                 "text-muted-foreground",
                 !discarded && "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
               )}
-              onClick={toggleDiscard}
+              onClick={voided(toggleDiscard)}
               disabled={busy}
               title={discarded ? undefined : "Not a mistake: leave it out of your stats"}
             >

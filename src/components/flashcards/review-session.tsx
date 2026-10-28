@@ -235,7 +235,7 @@ export function ReviewSession({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => removeCurrent("suspend")}>
+              <DropdownMenuItem onSelect={() => void removeCurrent("suspend")}>
                 <PauseCircle /> Suspend card
               </DropdownMenuItem>
               <DropdownMenuItem variant="destructive" onSelect={() => setConfirmDelete(true)}>
@@ -258,10 +258,10 @@ export function ReviewSession({
             <Button variant="outline" onClick={() => setConfirmDelete(false)}>
               Cancel
             </Button>
-            <Button variant="outline" disabled={saving} onClick={() => removeCurrent("suspend")}>
+            <Button variant="outline" disabled={saving} onClick={() => void removeCurrent("suspend")}>
               Suspend instead
             </Button>
-            <Button variant="destructive" disabled={saving} onClick={() => removeCurrent("delete")}>
+            <Button variant="destructive" disabled={saving} onClick={() => void removeCurrent("delete")}>
               Delete
             </Button>
           </DialogFooter>
@@ -380,7 +380,7 @@ export function ReviewSession({
                 key={g}
                 variant="outline"
                 disabled={saving}
-                onClick={() => grade(g)}
+                onClick={() => void grade(g)}
                 className={cn(
                   "h-auto flex-col gap-0 py-2",
                   GRADE_STYLES[g],

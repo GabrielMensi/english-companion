@@ -101,7 +101,7 @@ export function ChatMenu({
           <Cpu className="size-3.5" />
           Model that corrects
         </DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={value} onValueChange={(v) => changeModel(v as ProviderId)}>
+        <DropdownMenuRadioGroup value={value} onValueChange={(v) => void changeModel(v as ProviderId)}>
           {models.map((m) => (
             <DropdownMenuRadioItem key={m.provider} value={m.provider}>
               {modelLabel(m.provider, m.model)}

@@ -25,6 +25,7 @@ import {
   TENSES,
 } from "@/lib/taxonomy";
 import type { ChatCorrection, CorrectionUpdate } from "@/lib/types";
+import { voided } from "@/lib/voided";
 
 // Radix Select items can't have an empty value.
 const NONE = "none";
@@ -132,7 +133,7 @@ export function ClassificationDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={save} disabled={!subtype || saving}>
+          <Button onClick={voided(save)} disabled={!subtype || saving}>
             Save
           </Button>
         </DialogFooter>

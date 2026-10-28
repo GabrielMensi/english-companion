@@ -56,7 +56,7 @@ export function SuspendedCards({ cards }: { cards: SuspendedCard[] }) {
                 <span className="font-medium">{card.front}</span>
                 {card.back && <span className="text-muted-foreground"> → {card.back}</span>}
               </div>
-              <Button variant="ghost" size="sm" disabled={busy === id} onClick={() => unsuspend(card)}>
+              <Button variant="ghost" size="sm" disabled={busy === id} onClick={() => void unsuspend(card)}>
                 <PlayCircle /> Unsuspend
               </Button>
             </li>
