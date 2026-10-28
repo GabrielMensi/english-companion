@@ -1,13 +1,16 @@
 import { z } from "zod";
 import { getPronunciationSummary, saveAttempt } from "@/lib/read-aloud";
-import { PRONUNCIATION_CATEGORIES } from "@/lib/taxonomy";
+import { isBetaPronunciation, PRONUNCIATION_CATEGORIES } from "@/lib/taxonomy";
 import { readJson } from "@/lib/request-body";
 
 const bodySchema = z.object({
   text: z.string().trim().min(1).max(500),
   source: z.enum(["sounds", "correction", "vocabulary", "review"]),
   sourceId: z.string().nullable(),
-  focus: z.enum(PRONUNCIATION_CATEGORIES).nullable(),
+  focus: z
+    .enum(PRONUNCIATION_CATEGORIES)
+    .refine((c) => !isBetaPronunciation(c))
+    .nullable(),
   transcript: z.string().max(2000),
   transcriptionProvider: z.string().nullable(),
   transcriptionModel: z.string().nullable(),

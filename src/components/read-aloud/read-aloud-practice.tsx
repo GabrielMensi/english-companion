@@ -10,6 +10,7 @@ import { useReadAloud } from "@/components/read-aloud/use-read-aloud";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ReadAloudSource } from "@/db/schema";
+import type { PhonemeCheckResult } from "@/lib/phonemes-core";
 import type { ReadAloudResult } from "@/lib/pronunciation-core";
 import type { PronunciationSummary, ReadAloudItem } from "@/lib/read-aloud-core";
 import { PRONUNCIATION_LABELS, type PronunciationCategory } from "@/lib/taxonomy";
@@ -50,6 +51,10 @@ export function ReadAloudPractice({
   const [focus, setFocus] = useState<PronunciationCategory | null>(initialFocus);
   const [index, setIndex] = useState(0);
   const [result, setResult] = useState<{ item: string; transcript: string; score: ReadAloudResult } | null>(null);
+  /** The beta sound check of the shown reading: "pending" while it runs, null when it couldn't be asked. */
+  const [soundCheck, setSoundCheck] = useState<{ item: string; check: PhonemeCheckResult | "pending" | null } | null>(
+    null,
+  );
   const [summary, setSummary] = useState(initialSummary);
   const recorder = useReadAloud();
   const busy = recorder.busy;
@@ -87,10 +92,12 @@ export function ReadAloudPractice({
   async function stopRecording() {
     if (!item) return;
     const current = item;
-    const outcome = await recorder.stop(current);
+    const outcome = await recorder.stop(current, { soundCheck: true });
     if (!outcome) return;
     setResult({ item: current.key, transcript: outcome.transcript, score: outcome.score });
     if (outcome.summary) setSummary(outcome.summary);
+    setSoundCheck({ item: current.key, check: "pending" });
+    void outcome.soundCheck?.then((check) => setSoundCheck({ item: current.key, check }));
   }
 
   usePushToTalk({
@@ -170,7 +177,14 @@ export function ReadAloudPractice({
               </span>
             </div>
 
-            {shown && <ResultDetails result={shown.score} transcript={shown.transcript} language={language} />}
+            {shown && (
+              <ResultDetails
+                result={shown.score}
+                transcript={shown.transcript}
+                language={language}
+                soundCheck={soundCheck?.item === item.key ? soundCheck.check : undefined}
+              />
+            )}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">{SOURCES.find((s) => s.value === source)?.empty}</p>
