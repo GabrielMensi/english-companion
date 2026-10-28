@@ -4,6 +4,7 @@
  */
 import { APICallError, LoadAPIKeyError, NoObjectGeneratedError, RetryError } from "ai";
 import { PROVIDER_IDS, type ProviderId } from "./provider-info";
+import { scrub } from "@/lib/server-log";
 
 export interface FallbackAttempt {
   provider: ProviderId;
@@ -230,7 +231,7 @@ export function errorToMessage(error: unknown): string {
   }
   if (isOwnError(error)) return message;
   // The raw details stay in the server log only.
-  console.warn("AI provider error:", message);
+  console.warn("AI provider error:", scrub(message));
   const status = statusOf(error);
   return `The AI provider returned an error${status ? ` (HTTP ${status})` : ""}. Try again or switch providers.`;
 }

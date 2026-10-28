@@ -2,6 +2,7 @@ import { z } from "zod";
 import { errorToMessage } from "@/lib/ai/fallback";
 import { createStudyPlan, REPORT_RANGES } from "@/lib/insights/insights";
 import { parseBody } from "@/lib/request-body";
+import { logRouteError } from "@/lib/server-log";
 
 const bodySchema = z.object({ range: z.enum(REPORT_RANGES).default("7") });
 
@@ -12,6 +13,7 @@ export async function POST(request: Request) {
   try {
     return Response.json(await createStudyPlan(body.data.range));
   } catch (error) {
+    logRouteError("POST /api/insights/plan", error, 502);
     return Response.json({ error: errorToMessage(error) }, { status: 502 });
   }
 }

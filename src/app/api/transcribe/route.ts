@@ -1,7 +1,7 @@
 import { errorToMessage } from "@/lib/ai/fallback";
 import { TranscriptionUnavailableError, transcribeSpeech } from "@/lib/ai/transcribe";
 import { readBody } from "@/lib/request-body";
-
+import { logRouteError } from "@/lib/server-log";
 const MAX_BYTES = 10 * 1024 * 1024; // ~5 minutes of 16 kHz mono WAV
 
 /** Transcribes a dictated message recorded in the browser (16 kHz mono WAV). */
@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     return Response.json(await transcribeSpeech(audio));
   } catch (error) {
     const status = error instanceof TranscriptionUnavailableError ? 409 : 502;
+    logRouteError("POST /api/transcribe", error, status);
     return Response.json({ error: errorToMessage(error) }, { status });
   }
 }

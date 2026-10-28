@@ -5,6 +5,7 @@ import { PROVIDER_IDS } from "@/lib/ai/provider-info";
 import { resolveModel } from "@/lib/ai/providers";
 import { getSettings } from "@/lib/settings";
 import { parseBody } from "@/lib/request-body";
+import { logRouteError } from "@/lib/server-log";
 
 const bodySchema = z.object({ provider: z.enum(PROVIDER_IDS) });
 
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
     });
     return Response.json({ ok: true, reply: text.trim(), ms: Date.now() - started });
   } catch (error) {
+    logRouteError("POST /api/settings/test", error, 502);
     return Response.json({ ok: false, error: errorToMessage(error) }, { status: 502 });
   }
 }

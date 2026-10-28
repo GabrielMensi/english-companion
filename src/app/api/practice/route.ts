@@ -5,6 +5,7 @@ import { ERROR_CATEGORIES, TENSES } from "@/lib/taxonomy";
 import { EXERCISE_KINDS } from "@/lib/tense-practice";
 import { parseBody } from "@/lib/request-body";
 import { resolveTopic } from "@/lib/topics";
+import { logRouteError } from "@/lib/server-log";
 
 const bodySchema = z.union([
   z.object({
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       body.data.kind === "category" ? await startCategoryPractice(body.data) : await startPractice(body.data);
     return Response.json(session, { status: 201 });
   } catch (error) {
+    logRouteError("POST /api/practice", error, 502);
     return Response.json({ error: errorToMessage(error) }, { status: 502 });
   }
 }
