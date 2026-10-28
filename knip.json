@@ -2,5 +2,6 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": ["scripts/**/*.{ts,mts}", "src/test/migrate-worker.ts"],
   "ignore": ["src/components/ui/**"],
+  "ignoreDependencies": ["esbuild"],
   "ignoreExportsUsedInFile": true
 }

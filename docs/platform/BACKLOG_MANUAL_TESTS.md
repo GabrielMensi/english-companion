@@ -65,6 +65,13 @@ Nada para probar a mano. Opcional: la app arranca y abre un chat (cambió dónde
 - [ ] El servidor de la app usa ~0,5 GB más de RAM con el modelo cargado (si molesta: `PHONEME_CHECK=false`).
 - [ ] Eval con tus grabaciones (#136): `pnpm tsx scripts/spike/pron-audio/real.mts --list`, después `--init`; grabá los clips en `data/pron-real/` (33 en total, mínimo los 13 marcados con `*`) y corré el script sin flags. Con eso decidimos si schwa pasa a las estadísticas. La guía está en `docs/voice/PRONUNCIATION_AUDIO.md`.
 
+### Listo para deploy (#144: #127, #139, #140)
+
+- [ ] `pnpm dev` como siempre: migra al arrancar y https://localhost:3738/api/health devuelve `{"ok":true}`.
+- [ ] `pnpm db:backup` en el worktree de integración crea un backup de `data/dev.db` en `data/backups/` (nunca toca `data/companion.db`).
+- [ ] Opcional, si instalás Docker: los comandos de "Probar la imagen" en `docs/platform/DEPLOY.md` (base descartable). CI ya construye la imagen y chequea `/api/health` en cada PR que toca esos archivos.
+- [ ] Leer la guía "Cómo desplegar" en DEPLOY.md. No se publicó nada; el workflow de deploy está apagado.
+
 ## Problemas encontrados
 
 -

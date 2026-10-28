@@ -11,6 +11,7 @@
  * Also scores the labels you fixed by hand with "Wrong type?" in the app
  * (--with-user-labels), read from the database in DATABASE_PATH.
  */
+import "./load-env";
 import fs from "node:fs";
 import path from "node:path";
 import { classifyBatch } from "../../src/lib/ai/classify";

@@ -6,6 +6,7 @@
  * Reads DATABASE_PATH and writes .eval-results/discards.json (gitignored: it holds your own
  * text, never commit it). Then `pnpm eval:models <spec> --with-discards` includes them.
  */
+import "./load-env";
 import fs from "node:fs";
 import path from "node:path";
 import { and, eq, isNotNull } from "drizzle-orm";

@@ -17,6 +17,7 @@
  * API keys come from the app's settings (or .env.local).
  * Results are printed as a table and saved to .eval-results/.
  */
+import "./load-env";
 import fs from "node:fs";
 import path from "node:path";
 import { analyzeMessage } from "../../src/lib/ai/analyze";

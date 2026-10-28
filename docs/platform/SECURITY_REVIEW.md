@@ -64,16 +64,17 @@ Sin hallazgos:
   - **Con WSL en modo NAT** (el default de WSL2), el _localhost forwarding_ de WSL también llega a servicios que escuchan en `127.0.0.1`, así que debería seguir andando. Si alguna vez el navegador de Windows no llega, se puede volver a todas las interfaces con `pnpm dev --hostname 0.0.0.0` (el último `--hostname` gana) y queda la lista de hosts permitidos (abajo) como protección.
   - El cambio aplica recién al **reiniciar** el servidor de desarrollo: el hot reload no cambia en qué interfaz escucha.
 - **Hosts permitidos** (#92, `src/proxy.ts` + `src/lib/allowed-hosts.ts`, con tests): contra DNS rebinding, el proxy ahora corre en páginas y API (todo menos `_next/static`, que es JS/CSS del build sin datos) y responde **403** ("Host not allowed", JSON en `/api`, texto en las páginas) si el `Host` no es `localhost`, `127.0.0.1` o `[::1]` (cualquier puerto) ni uno de `ALLOWED_HOSTS`. Una página en `evil.example` que hace resolver su dominio a `127.0.0.1` sigue mandando `Host: evil.example`, así que no llega a nada. El chequeo de CSRF sigue solo en `/api`.
-- **Detrás de un reverse proxy** (`TRUST_PROXY`): el `Host` que ve la app es el que usó el proxy, y el del navegador viene en `X-Forwarded-Host`. Con `TRUST_PROXY=true`, el chequeo de hosts y el de CSRF (`cross-site.ts`, que compara el `Origin` con el host) usan el **último** valor de `X-Forwarded-Host`: es el que agregó nuestro proxy, y si el proxy agrega en vez de pisar, lo que mandó el cliente queda adelante. Apagado por defecto: sin un proxy delante, cualquier cliente puede mandar ese header. Prendelo solo si hay un proxy delante que siempre setea o agrega ese header.
+- **Detrás de un reverse proxy** (`TRUST_PROXY`): el `Host` que ve la app es el que usó el proxy, y el del navegador viene en `X-Forwarded-Host`. Con `TRUST_PROXY=true`, el chequeo de hosts y el de CSRF (`cross-site.ts`, que compara el `Origin` con el host) usan el **último** valor de `X-Forwarded-Host`: es el que agregó nuestro proxy, y si el proxy agrega en vez de pisar, lo que mandó el cliente queda adelante. Apagado por defecto: sin un proxy delante, cualquier cliente puede mandar ese header. Prendelo solo si hay un proxy delante que siempre setea o agrega ese header. El `X-Forwarded-Host` con el puerto por defecto (`example.com:443`) coincide con un `Origin` sin puerto (#140); `ALLOWED_HOSTS` acepta también IPv6 entre corchetes (`[2001:db8::1]`).
 - **Variables de entorno validadas** (#94, `src/lib/env.ts`, con tests): un esquema zod de todas las variables que lee la app, validado una vez al arrancar en `src/instrumentation.ts` (`register`); el resto del código lee `serverEnv()` en vez de `process.env` (el proxy también: corre en Node.js, pero en otro bundle). Todo es opcional, porque las keys pueden estar en Settings: falta de key no frena el arranque. Un valor vacío cuenta como no seteado. Un valor inválido corta el arranque con un mensaje que nombra cada variable y el problema, nunca el valor (puede ser una key):
 
-  | Variable                                       | Default             | Qué es                                                                              |
-  | ---------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------- |
-  | `DATABASE_PATH`                                | `data/companion.db` | Archivo SQLite                                                                      |
-  | `ASR_SAMPLES_DIR`                              | `data/asr-samples`  | Grabaciones del eval de speech-to-text                                              |
-  | `GOOGLE_GENERATIVE_AI_API_KEY`, `GROQ_API_KEY` | —                   | Fallback si no hay key guardada en Settings                                         |
-  | `ALLOWED_HOSTS`                                | —                   | Hostnames extra separados por coma, sin esquema ni puerto (`companion.example.com`) |
-  | `TRUST_PROXY`                                  | `false`             | `true`/`false`/`1`/`0`: usar `X-Forwarded-Host`                                     |
+  | Variable                                       | Default             | Qué es                                                                                                |
+  | ---------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------- |
+  | `DATABASE_PATH`                                | `data/companion.db` | Archivo SQLite                                                                                        |
+  | `ASR_SAMPLES_DIR`                              | `data/asr-samples`  | Grabaciones del eval de speech-to-text                                                                |
+  | `GOOGLE_GENERATIVE_AI_API_KEY`, `GROQ_API_KEY` | —                   | Fallback si no hay key guardada en Settings                                                           |
+  | `ALLOWED_HOSTS`                                | —                   | Hostnames o IPv6 entre corchetes, separados por coma, sin esquema ni puerto (`companion.example.com`) |
+  | `MIGRATE_ON_START`                             | `true`              | `false`: no migrar al abrir la base; falla si hay migraciones pendientes (deploy, ver DEPLOY.md)      |
+  | `TRUST_PROXY`                                  | `false`             | `true`/`false`/`1`/`0`: usar `X-Forwarded-Host`                                                       |
 
 - **Runtime de TTS**: `Object.hasOwn(FILES, file)`.
 - **Next.js 16.3.8** (y `eslint-config-next`): `pnpm audit` pasó de 15 avisos (8 altos) a 9 (7 altos), ninguno en código que corra en el servidor en producción. Al mergear hay que correr `pnpm install` en la carpeta principal.
@@ -105,8 +106,8 @@ Fuera de _Authentication_:
 - [ ] _Authentication_ hecho: ninguna ruta ni página responde sin sesión.
 - [ ] Rate limiting en las rutas de IA y transcripción.
 - [x] CSP completa (#137). [ ] HSTS (en el host o el reverse proxy).
-- [ ] `ALLOWED_HOSTS` con el dominio real (y `TRUST_PROXY=true` si hay un reverse proxy que pisa `X-Forwarded-Host`).
+- [ ] `ALLOWED_HOSTS` con el dominio real (y `TRUST_PROXY=true` si hay un reverse proxy que setea o agrega `X-Forwarded-Host`; la app usa el último valor).
 - [ ] `pnpm audit` sin avisos altos en dependencias de runtime; CodeQL y Dependabot andando.
 - [ ] API keys cifradas en la base, o variables de entorno del host.
-- [ ] Base fuera de la carpeta pública, con backup automático y permisos `600`; migraciones como paso del deploy.
+- [ ] Base fuera de la carpeta pública, con backup automático y permisos `600`; migraciones como paso del deploy (`scripts/db-migrate`, hecho en #139).
 - [ ] `next build` + `next start` (no `next dev`) detrás de HTTPS.

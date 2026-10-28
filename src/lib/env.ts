@@ -14,13 +14,15 @@ function optional<T extends z.ZodType>(schema: T) {
 const text = z.string().trim();
 
 const HOSTNAME = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;
+/** An IPv6 literal in brackets, as browsers send it in Host ("[::1]", "[2001:db8::1]"). */
+const IPV6_LITERAL = /^\[[0-9a-f:.]*:[0-9a-f:.]*\]$/i;
 
 /** "true"/"false" or "1"/"0", nothing else: a typo like "ture" shouldn't silently mean false. */
 const flag = z
   .enum(["true", "false", "1", "0"], { error: 'expected "true", "false", "1" or "0"' })
   .transform((value) => value === "true" || value === "1");
 
-/** Comma-separated hostnames, without scheme or port ("companion.example.com,www.example.com"). */
+/** Comma-separated hostnames or bracketed IPv6 literals, without scheme or port ("companion.example.com,[2001:db8::1]"). */
 const hostnames = z
   .string()
   .transform((value) =>
@@ -29,8 +31,9 @@ const hostnames = z
       .map((host) => host.trim().toLowerCase())
       .filter(Boolean),
   )
-  .refine((hosts) => hosts.every((host) => HOSTNAME.test(host)), {
-    error: "expected comma-separated hostnames without scheme, port or path (e.g. companion.example.com)",
+  .refine((hosts) => hosts.every((host) => HOSTNAME.test(host) || IPV6_LITERAL.test(host)), {
+    error:
+      "expected comma-separated hostnames or [IPv6] literals without scheme, port or path (e.g. companion.example.com)",
   });
 
 const envSchema = z.object({
@@ -49,6 +52,11 @@ const envSchema = z.object({
   ALLOWED_HOSTS: optional(hostnames.default([])),
   /** Behind a reverse proxy: use X-Forwarded-Host instead of Host (allowed hosts and cross-site checks). */
   TRUST_PROXY: optional(flag.default(false)),
+  /**
+   * Apply pending migrations when the app opens the database (default). The container sets it to false:
+   * migrations run as a deploy step, after a backup (`pnpm db:migrate`, see docs/platform/DEPLOY.md).
+   */
+  MIGRATE_ON_START: optional(flag.default(true)),
   /** Send the Content-Security-Policy as report-only (the browser logs violations instead of blocking): a way back if it breaks something. */
   CSP_REPORT_ONLY: optional(flag.default(false)),
 });
