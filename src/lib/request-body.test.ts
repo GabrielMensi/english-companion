@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { readBody, readJson } from "./request-body";
+import { z } from "zod";
+import { MAX_JSON_BYTES, parseBody, readBody, readJson } from "./request-body";
 
 /** A request whose body arrives in chunks, without Content-Length (like a chunked upload). */
 function chunkedRequest(chunks: Uint8Array[], onCancel?: () => void) {
@@ -60,5 +61,41 @@ describe("readJson", () => {
     expect(await readJson(post("{nope"))).toBeNull();
     expect(await readJson(new Request("http://localhost/api", { method: "POST" }))).toBeNull();
     expect(await readJson(post('{"a":"long enough"}'), 5)).toBeNull();
+  });
+});
+
+describe("parseBody", () => {
+  const schema = z.object({ n: z.number() });
+  const post = (body?: string) => new Request("http://localhost/api", { method: "POST", body });
+
+  it("returns the validated data", async () => {
+    const result = await parseBody(post('{"n":1}'), schema, "Bad");
+    expect(result).toEqual({ ok: true, data: { n: 1 } });
+  });
+
+  it("answers 400 with the message for invalid or missing bodies", async () => {
+    for (const body of ['{"n":"x"}', "not json", undefined]) {
+      const result = await parseBody(post(body), schema, "Bad");
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.response.status).toBe(400);
+        expect(await result.response.json()).toEqual({ error: "Bad" });
+      }
+    }
+  });
+
+  it("answers 400 for a body over the limit", async () => {
+    const big = JSON.stringify({ n: 1, pad: "x".repeat(MAX_JSON_BYTES) });
+    expect((await parseBody(post(big), schema, "Bad")).ok).toBe(false);
+  });
+
+  it("uses emptyAs when the body is missing", async () => {
+    const result = await parseBody(post(), z.object({ a: z.string().default("d") }), "Bad", { emptyAs: {} });
+    expect(result).toEqual({ ok: true, data: { a: "d" } });
+  });
+
+  it("gives the schema null when the body is missing and emptyAs isn't set", async () => {
+    const result = await parseBody(post(), z.object({ reason: z.string() }).nullable(), "Bad");
+    expect(result).toEqual({ ok: true, data: null });
   });
 });

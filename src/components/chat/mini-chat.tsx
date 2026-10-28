@@ -31,6 +31,7 @@ import { markDiff } from "@/lib/correction-marks";
 import { SEVERITIES } from "@/lib/taxonomy";
 import type { ChatMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { voided } from "@/lib/voided";
 
 export interface Notice {
   kind: "error" | "info";
@@ -351,7 +352,7 @@ function CopyAndCloseButton({ text, onClose, onError }: { text: string; onClose:
     <Button
       variant="ghost"
       size="sm"
-      onClick={copyAndClose}
+      onClick={voided(copyAndClose)}
       disabled={copied}
       title="Copy the corrected text and close this window"
     >

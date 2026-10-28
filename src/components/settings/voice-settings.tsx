@@ -145,7 +145,7 @@ export function VoiceSettings() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => speak(SAMPLE)} disabled={trying}>
+          <Button variant="outline" size="sm" onClick={() => void speak(SAMPLE)} disabled={trying}>
             {trying ? <Loader2 className="animate-spin" /> : <Volume2 />}
             {/* Waiting for the model only happens once; after that it's just synthesizing the sample. */}
             {!trying ? "Try it" : kokoro.state === "loading" ? "Loading model…" : "Synthesizing…"}
@@ -232,7 +232,7 @@ function KokoroStatusLine({ status, devicePref }: { status: KokoroStatus; device
             The GPU’s audio failed the check on {new Date(rejection.at).toLocaleDateString()} ({rejection.reason}), so
             Auto uses the CPU in this browser.
           </p>
-          <Button variant="outline" size="sm" onClick={() => retryKokoroGpu().catch(() => {})}>
+          <Button variant="outline" size="sm" onClick={() => void retryKokoroGpu().catch(() => {})}>
             Try the GPU again
           </Button>
         </div>

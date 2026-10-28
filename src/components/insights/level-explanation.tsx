@@ -7,6 +7,7 @@ import { NeedsKeyHint } from "@/components/no-provider-notice";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import type { StoredLevelExplanation } from "@/lib/insights/insights";
+import { voided } from "@/lib/voided";
 
 /** Optional AI layer: explains the rule-based estimate in plain words. */
 export function LevelExplanationPanel({
@@ -34,7 +35,7 @@ export function LevelExplanationPanel({
   if (!stored) {
     return (
       <NeedsKeyHint active={!hasModel}>
-        <Button variant="outline" size="sm" onClick={explain} disabled={loading || !hasModel}>
+        <Button variant="outline" size="sm" onClick={voided(explain)} disabled={loading || !hasModel}>
           {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
           {loading ? "Explaining…" : "Explain with AI"}
         </Button>
@@ -55,7 +56,7 @@ export function LevelExplanationPanel({
       <div className="flex items-center justify-between gap-2 pt-1 text-xs text-muted-foreground">
         <span>Written by {stored.modelId} · the AI explains the estimate, it doesn’t change it</span>
         <NeedsKeyHint active={!hasModel}>
-          <Button variant="ghost" size="sm" onClick={explain} disabled={loading || !hasModel}>
+          <Button variant="ghost" size="sm" onClick={voided(explain)} disabled={loading || !hasModel}>
             {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
             Regenerate
           </Button>

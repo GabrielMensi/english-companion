@@ -21,6 +21,7 @@ import type { AnalysisPreview } from "@/lib/ai/analysis";
 import type { ProviderId } from "@/lib/ai/provider-info";
 import { api, streamTurn } from "@/lib/api";
 import type { ChatMessage, SessionSummary, VoiceInput } from "@/lib/types";
+import { voided } from "@/lib/voided";
 
 export function ChatView({
   session,
@@ -265,7 +266,7 @@ export function ChatView({
               Voice
             </Button>
           )}
-          <ModeSwitch value={mode} onChange={changeMode} />
+          <ModeSwitch value={mode} onChange={voided(changeMode)} />
           <ChatMenu
             key={selectedProvider}
             models={models}
@@ -286,7 +287,13 @@ export function ChatView({
           )}
           {messages.map((m) =>
             m.role === "user" ? (
-              <UserMessage key={m.id} message={m} preview={previews[m.id]} onRetry={retry} onUpdate={updateMessage} />
+              <UserMessage
+                key={m.id}
+                message={m}
+                preview={previews[m.id]}
+                onRetry={voided(retry)}
+                onUpdate={voided(updateMessage)}
+              />
             ) : (
               <AssistantMessage key={m.id} message={m} />
             ),
@@ -335,7 +342,7 @@ export function ChatView({
             notice={notice?.window === pipWindow ? notice : null}
             onDismissNotice={() => setNotice(null)}
             notify={notify}
-            onRetry={retry}
+            onRetry={voided(retry)}
             onClose={closePip}
             voice={
               mode === "conversation" && speechSupported

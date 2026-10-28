@@ -1,7 +1,7 @@
 import { setPrimary } from "@/lib/ai/fallback";
 import { providerStatus } from "@/lib/ai/providers";
 import { getSettings, saveSettings, settingsSchema } from "@/lib/settings";
-import { readJson } from "@/lib/request-body";
+import { parseBody } from "@/lib/request-body";
 
 export async function GET() {
   const settings = getSettings();
@@ -14,8 +14,8 @@ export async function GET() {
  * previous one as the first fallback.
  */
 export async function PATCH(request: Request) {
-  const patch = settingsSchema.partial().safeParse(await readJson(request));
-  if (!patch.success) return Response.json({ error: "Invalid settings" }, { status: 400 });
+  const patch = await parseBody(request, settingsSchema.partial(), "Invalid settings");
+  if (!patch.ok) return patch.response;
   const current = getSettings();
   const chain = patch.data.provider && !patch.data.fallbacks ? setPrimary(current, patch.data.provider) : {};
   const merged = settingsSchema.safeParse({ ...current, ...patch.data, ...chain });

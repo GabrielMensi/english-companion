@@ -78,7 +78,7 @@ export function VocabularyList({ initialWords }: { initialWords: VocabularyWord[
                   {w.timesLookedUp > 1 ? `${w.timesLookedUp}× · ` : ""}
                   {dateFormat.format(w.lastSeen)}
                 </span>
-                <DeleteButton onConfirm={() => remove(w)} />
+                <DeleteButton onConfirm={() => void remove(w)} />
               </div>
             </div>
             {w.note && <p className="text-sm text-muted-foreground">{w.note}</p>}
