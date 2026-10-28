@@ -18,13 +18,14 @@ import {
   CATEGORY_LABELS,
   ERROR_CATEGORIES,
   type ErrorCategory,
-  SUBTYPES,
   type Tense,
   TENSE_CATEGORIES,
   TENSE_LABELS,
   TENSES,
 } from "@/lib/taxonomy";
+import { SUBTYPES } from "@/lib/subtypes";
 import type { ChatCorrection, CorrectionUpdate } from "@/lib/types";
+import { voided } from "@/lib/voided";
 
 // Radix Select items can't have an empty value.
 const NONE = "none";
@@ -132,7 +133,7 @@ export function ClassificationDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={save} disabled={!subtype || saving}>
+          <Button onClick={voided(save)} disabled={!subtype || saving}>
             Save
           </Button>
         </DialogFooter>

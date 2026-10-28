@@ -23,7 +23,8 @@ import { loadExerciseCards } from "@/lib/missed-exercises";
 import { loadPronunciationCards } from "@/lib/read-aloud";
 import { getSettings } from "@/lib/settings";
 import { type Grade, newReviewState, type ReviewState, schedule } from "@/lib/srs";
-import { categoryLabel, countsInStats, subtypeLabel, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
+import { categoryLabel, countsInStats, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
+import { subtypeLabel } from "@/lib/subtypes";
 import { getVocabulary } from "@/lib/vocabulary";
 
 /**

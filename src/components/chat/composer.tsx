@@ -30,6 +30,11 @@ const toastNotify: Notify = (kind, message) => toast[kind](message);
  * The composer's draft, dictation and recorder. It lives in `ChatView` rather than in `Composer`,
  * so the draft (and a dictation in progress) survives moving between the tab and the floating window.
  */
+/** The message of whatever was thrown (not every rejection is an Error). */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function useComposer({
   onSend,
   disabled,
@@ -79,8 +84,8 @@ export function useComposer({
     setText("");
     setDictation(null);
     // Give the text back if sending failed, so nothing is lost.
-    const sent = await onSend(value, voice).catch((error: Error) => {
-      notify("error", `Couldn't send: ${error.message}`);
+    const sent = await onSend(value, voice).catch((error: unknown) => {
+      notify("error", `Couldn't send: ${messageOf(error)}`);
       return false;
     });
     if (!sent) {
@@ -154,7 +159,7 @@ export function useComposer({
     multiline,
     toggleRecording,
     cancelRecording: () => {
-      recorder.cancel().catch((error: Error) => notify("error", `Couldn't stop the microphone: ${error.message}`));
+      recorder.cancel().catch((error: unknown) => notify("error", `Couldn't stop the microphone: ${messageOf(error)}`));
     },
     recording: recorder.recording,
     transcribing,
@@ -204,7 +209,7 @@ export function Composer({ composer, canDictate }: { composer: ComposerState; ca
       />
       <div className="flex flex-col gap-2">
         <Button
-          onClick={composer.toggleRecording}
+          onClick={() => void composer.toggleRecording()}
           disabled={!canDictate || disabled || transcribing}
           size="icon-lg"
           variant={recording ? "destructive" : "outline"}
@@ -221,7 +226,7 @@ export function Composer({ composer, canDictate }: { composer: ComposerState; ca
           {transcribing ? <Loader2 className="animate-spin" /> : recording ? <Square /> : <Mic />}
         </Button>
         <Button
-          onClick={composer.submit}
+          onClick={() => void composer.submit()}
           disabled={disabled || !text.trim() || recording || transcribing}
           size="icon-lg"
           aria-label="Send"

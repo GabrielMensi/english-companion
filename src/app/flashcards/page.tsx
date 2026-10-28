@@ -10,16 +10,8 @@ import { resolveTranscriptionModel } from "@/lib/ai/providers";
 import { getFlashcardsOverview, getStudyQueue } from "@/lib/flashcards";
 import { getSuspendedCards } from "@/lib/flashcards-upkeep";
 import { getSettings } from "@/lib/settings";
-import {
-  categoryLabel,
-  ERROR_CATEGORIES,
-  type ErrorCategory,
-  isValidSubtype,
-  subtypeLabel,
-  type Tense,
-  TENSE_LABELS,
-  TENSES,
-} from "@/lib/taxonomy";
+import { categoryLabel, ERROR_CATEGORIES, type ErrorCategory, type Tense, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
+import { isValidSubtype, subtypeLabel } from "@/lib/subtypes";
 
 const DECKS: Record<string, CardKind> = {
   vocabulary: "vocabulary",
