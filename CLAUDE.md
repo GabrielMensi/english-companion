@@ -28,6 +28,10 @@ The user runs the app every day from this folder (`pnpm dev` on port 3737, `deve
 - Before removing a worktree, move anything the user created there that git doesn't track (recordings in `data/asr-samples/`, eval results in `.eval-results/`) into this folder: removing the worktree deletes it.
 - Schema changes must be additive and migrations safe on existing data (nullable columns or defaults, backfills that don't lose rows).
 
+## Releases
+
+Rules in `docs/platform/RELEASES.md`: `main` = published, `develop` = integration; SemVer (`0.x` until the first deploy, `1.0.0` = first public deploy); annotated `vX.Y.Z` tags on `main` (and `archive/<topic>` tags for removed work, never starting with `v`); no Conventional Commits, no CHANGELOG file (the GitHub Release notes are generated from PR titles and labels). Pushing a tag runs `release.yml` (checks, then the Release). Never create tags or releases unless the user asks.
+
 ## Project board (mandatory)
 
 Task status lives in the GitHub Project **English Companion**: https://github.com/users/GabrielMensi/projects/1 (project #1, owner `GabrielMensi`, linked to this repo). Keep it up to date in every session without being asked, using `gh project` / `gh issue` (the token has the `project` scope; get field and option IDs with `gh project field-list 1 --owner GabrielMensi --format json`).

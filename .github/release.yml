@@ -1,0 +1,19 @@
+# Groups the generated release notes by PR label (docs/platform/RELEASES.md). PRs without a
+# label land in "Other changes", so notes never come out empty.
+changelog:
+  exclude:
+    labels: [skip-changelog]
+    authors: [dependabot, "dependabot[bot]"]
+  categories:
+    - title: New features
+      labels: [feature]
+    - title: Bug fixes
+      labels: [bug]
+    - title: Security
+      labels: [security]
+    - title: Platform and maintenance
+      labels: [chore, dependencies]
+    - title: Research and evals
+      labels: [research, eval]
+    - title: Other changes
+      labels: ["*"]
