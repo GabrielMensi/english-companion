@@ -18,12 +18,12 @@ import {
   CATEGORY_LABELS,
   ERROR_CATEGORIES,
   type ErrorCategory,
-  SUBTYPES,
   type Tense,
   TENSE_CATEGORIES,
   TENSE_LABELS,
   TENSES,
 } from "@/lib/taxonomy";
+import { SUBTYPES } from "@/lib/subtypes";
 import type { ChatCorrection, CorrectionUpdate } from "@/lib/types";
 import { voided } from "@/lib/voided";
 

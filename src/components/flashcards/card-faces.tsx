@@ -12,7 +12,8 @@ import {
   type PronunciationCard,
   type VocabularyCard,
 } from "@/lib/flashcards-core";
-import { categoryLabel, PRONUNCIATION_LABELS, subtypeLabel, tenseLabel } from "@/lib/taxonomy";
+import { categoryLabel, PRONUNCIATION_LABELS, tenseLabel } from "@/lib/taxonomy";
+import { subtypeLabel } from "@/lib/subtypes";
 import { cn } from "@/lib/utils";
 
 export function PronunciationFront({
