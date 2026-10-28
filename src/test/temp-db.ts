@@ -5,16 +5,29 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 
-/** Whether `file` is inside the repo's `data/` folder, where the real databases live. */
-export function isUnderDataDir(file: string): boolean {
-  const relative = path.relative(path.resolve(process.cwd(), "data"), path.resolve(file));
+/** Resolves symlinks of the file's folder (the file may not exist yet) so the check can't be sidestepped. */
+function realLocation(file: string): string {
+  const absolute = path.resolve(file);
+  try {
+    return path.join(fs.realpathSync(path.dirname(absolute)), path.basename(absolute));
+  } catch {
+    return absolute;
+  }
+}
+
+/** Whether `file` really lives inside the OS temp directory (after resolving symlinks and `..`). */
+export function isInTempDir(file: string): boolean {
+  const relative = path.relative(fs.realpathSync(os.tmpdir()), realLocation(file));
   return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
-/** Throws when a test is about to use a database under `data/` (companion.db, dev.db...). */
+/**
+ * Allowlist: tests only ever use databases inside the OS temp directory. Anything else (data/companion.db,
+ * data/dev.db, the live app's folder reached by an absolute path or a symlink) throws.
+ */
 export function assertSafeDatabasePath(file: string): void {
-  if (isUnderDataDir(file)) {
-    throw new Error(`Refusing to run tests against ${file}: databases under data/ are never used in tests.`);
+  if (!isInTempDir(file)) {
+    throw new Error(`Refusing to run tests against ${file}: test databases must live in the OS temp directory.`);
   }
 }
 

@@ -180,23 +180,30 @@ describe("migrations on a database with old data", () => {
   });
 });
 
-/** Why a migration's SQL isn't additive, or null. `-- allow-destructive: <reason>` opts a statement out. */
-function nonAdditiveReason(sql: string): string | null {
-  if (/--\s*allow-destructive:\s*\S/i.test(sql)) return null;
-  const code = sql.replace(/--[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+/**
+ * Why a statement isn't additive, or null. `-- allow-destructive: <reason>` in the statement's chunk
+ * (the SQL between `--> statement-breakpoint` markers) opts that statement out.
+ */
+function statementReason(statement: string): string | null {
+  if (/--\s*allow-destructive:\s*\S/i.test(statement)) return null;
+  const code = statement.replace(/--[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
+  // drizzle-kit's SQLite table rebuild: dangerous here, see docs/platform/TESTING.md.
+  if (/__new_/i.test(code)) return "table rebuild (__new_*): DROP TABLE cascades to child rows";
   if (/\bDROP\s+TABLE\b/i.test(code)) return "DROP TABLE";
   if (/\bDROP\s+COLUMN\b/i.test(code)) return "DROP COLUMN";
   if (/\bRENAME\b/i.test(code)) return "RENAME";
   if (/\bDELETE\s+FROM\b/i.test(code)) return "DELETE FROM";
-  const addsRequiredColumn = code
-    .split(";")
-    .some(
-      (statement) =>
-        /\bALTER\s+TABLE\b[\s\S]*\bADD\b/i.test(statement) &&
-        /\bNOT\s+NULL\b/i.test(statement) &&
-        !/\bDEFAULT\b/i.test(statement),
-    );
-  if (addsRequiredColumn) return "ADD COLUMN ... NOT NULL without DEFAULT";
+  if (/\bALTER\s+TABLE\b[\s\S]*\bADD\b/i.test(code) && /\bNOT\s+NULL\b/i.test(code) && !/\bDEFAULT\b/i.test(code)) {
+    return "ADD COLUMN ... NOT NULL without DEFAULT";
+  }
+  return null;
+}
+
+function nonAdditiveReason(sql: string): string | null {
+  for (const statement of sql.split("--> statement-breakpoint")) {
+    const reason = statementReason(statement);
+    if (reason) return reason;
+  }
   return null;
 }
 
@@ -223,6 +230,13 @@ describe("new migrations are additive", () => {
     expect(nonAdditiveReason("DELETE FROM `vocabulary`;")).toBe("DELETE FROM");
     expect(nonAdditiveReason("ALTER TABLE `m` ADD `x` text NOT NULL;")).toBe("ADD COLUMN ... NOT NULL without DEFAULT");
     expect(nonAdditiveReason("-- allow-destructive: dead column\nALTER TABLE `m` DROP COLUMN `x`;")).toBeNull();
+    // The marker covers its own statement only.
+    expect(
+      nonAdditiveReason("-- allow-destructive: ok\nDROP INDEX `i`;--> statement-breakpoint\nDROP TABLE `messages`;"),
+    ).toBe("DROP TABLE");
+    const rebuild =
+      "PRAGMA foreign_keys=OFF;--> statement-breakpoint\nCREATE TABLE `__new_m` (`id` text);--> statement-breakpoint\nINSERT INTO `__new_m` SELECT `id` FROM `m`;--> statement-breakpoint\nDROP TABLE `m`;--> statement-breakpoint\nALTER TABLE `__new_m` RENAME TO `m`;";
+    expect(nonAdditiveReason(rebuild)).toMatch(/table rebuild/);
   });
 
   it("the older migrations are not held to the rule (0002 deletes bad rows once, on purpose)", () => {

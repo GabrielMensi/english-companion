@@ -1,7 +1,7 @@
 // Runs before every test file (vitest `setupFiles`). Gives each file its own throwaway database and
 // replaces the edges (server-only, the AI providers), so the app's own code runs for real.
 // See docs/platform/TESTING.md.
-import { afterAll, vi } from "vitest";
+import { afterAll, beforeAll, vi } from "vitest";
 import { assertSafeDatabasePath, removeTempDir, tempDatabasePath } from "./temp-db";
 
 // "@/db" reads DATABASE_PATH when it is first imported, so it is set here, before any test import.
@@ -16,6 +16,13 @@ vi.mock("server-only", () => ({}));
 // run for real. Control the answers with `fakeAi` from "@/test/ai".
 vi.mock("@ai-sdk/google", async () => (await import("./ai")).googleModule());
 vi.mock("@ai-sdk/groq", async () => (await import("./ai")).groqModule());
+
+// Check the connection that was really opened (not just the variable): "@/db" is imported by the test
+// file, so by now it exists if the file uses the database.
+beforeAll(() => {
+  const opened = (globalThis as { __sqlite?: { name: string } }).__sqlite;
+  if (opened) assertSafeDatabasePath(opened.name);
+});
 
 afterAll(() => {
   // "@/db" keeps its connection in globalThis (for hot reload): close it so the next file in this

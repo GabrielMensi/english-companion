@@ -108,9 +108,12 @@ describe("POST /api/sessions/[id]/messages", () => {
     const pending = send(await newSession(), { text: "Hello" });
     // Let the first failed attempt happen, then the provider comes back.
     await vi.advanceTimersByTimeAsync(0);
+    expect(fakeAi.groq.calls).toBe(1);
     fakeAi.groq.fail = false;
     await vi.advanceTimersByTimeAsync(BACKOFF_MS);
     const [message] = (await (await pending).json()) as ChatMessage[];
+    // The second request, after the backoff, is the one that worked.
+    expect(fakeAi.groq.calls).toBe(2);
 
     expect(message).toMatchObject({ status: "done", provider: "groq" });
   });

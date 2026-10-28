@@ -8,9 +8,17 @@ import { assertSafeDatabasePath } from "./temp-db";
 
 export { db, schema };
 
+/** The file the app's connection really has open (better-sqlite3's `name`, kept in globalThis by "@/db"), not just the env variable. */
+function assertConnectionIsSafe() {
+  const opened = (globalThis as { __sqlite?: { name: string } }).__sqlite;
+  if (!opened) throw new Error("The app's database connection isn't open.");
+  assertSafeDatabasePath(opened.name);
+}
+assertConnectionIsSafe();
+
 /** Empties every app table (not the migrations table). Call it in `beforeEach` when tests share rows. */
 export function resetDb(): void {
-  assertSafeDatabasePath(process.env.DATABASE_PATH ?? "");
+  assertConnectionIsSafe();
   for (const value of Object.values(schema)) {
     // The schema module also exports relations; only tables are emptied.
     if (is(value, SQLiteTable)) db.run(sql.raw(`DELETE FROM "${getTableName(value)}"`));
