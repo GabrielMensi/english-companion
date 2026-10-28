@@ -18,3 +18,6 @@ overrides:
   # Only its Node image helpers use sharp (not Kokoro, which runs in the browser); transformers.js 4
   # moved to ^0.35.4 with the same code, so 0.35.5 is safe here. Next already brings 0.35.5.
   sharp: ^0.35.5
+  # @ai-sdk/provider-utils, dotenvx and shadcn bring undici 7.30.0, which has high advisories (DoS, TLS
+  # validation bypass, cache poisoning); 7.30.1 fixes them with no API change.
+  undici: ^7.30.1
