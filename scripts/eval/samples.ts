@@ -18,6 +18,16 @@ export interface Sample {
   expect: Expectation[];
   /** Spanish words written between [brackets] that must be translated. */
   spanish?: string[];
+  /** Fragments the learner discarded as wrong: no reported error may overlap them (see export-discards). */
+  forbidden?: string[];
+  /** Defaults to typed. */
+  inputMode?: "typed" | "spoken";
+}
+
+/** A sample from a topic or role-play chat: the learner answers the tutor's opening question. */
+export interface TopicSample extends Sample {
+  /** Id of a preset in `src/lib/topics.ts`; its rule and an opening question go with the message. */
+  topic: string;
 }
 
 export const SAMPLES: Sample[] = [
@@ -125,5 +135,67 @@ export const SAMPLES: Sample[] = [
   {
     text: "This is a perfectly fine sentence with no mistakes at all.",
     expect: [],
+  },
+];
+
+/**
+ * Messages from topic and role-play chats (conversation mode with the preset's reply rule), written
+ * the way a Spanish speaker answers an interviewer, a teammate or a stranger. Synthetic.
+ * `pnpm eval:models <spec> --topics` runs them; `--topics-plain` runs the same messages in a plain
+ * conversation chat, to compare.
+ */
+export const TOPIC_SAMPLES: TopicSample[] = [
+  {
+    topic: "swe-interview",
+    text: "I have five years of experience working like backend developer, and I am specialized in build APIs.",
+    expect: [
+      { fragment: "working like", fix: "working as" },
+      { fragment: "specialized in build", fix: "building" },
+    ],
+  },
+  {
+    topic: "swe-interview",
+    text: "In my last job I led a small team and we deployed the new billing service without downtime.",
+    expect: [],
+  },
+  {
+    topic: "technical-interview",
+    text: "I will use a cache for the most visited links, because the reads are much more than the writes.",
+    expect: [{ fragment: "much more than", fix: "far outnumber" }],
+  },
+  {
+    topic: "standup",
+    text: "Yesterday I finished the login page and today I am going to fix the bugs that the QA team found.",
+    expect: [],
+  },
+  {
+    topic: "standup",
+    text: "Yesterday I have worked in the migration, but I am blocked because the staging server is down since monday.",
+    expect: [
+      { fragment: "have worked", fix: "worked" },
+      { fragment: "worked in", fix: "worked on" },
+      { fragment: "since monday", fix: "since Monday" },
+    ],
+  },
+  {
+    topic: "travel-small-talk",
+    text: "I am here for holidays, I arrived two days ago and I am staying in a hostel near of the beach.",
+    expect: [
+      { fragment: "for holidays", fix: "on holiday" },
+      { fragment: "near of", fix: "near the" },
+    ],
+  },
+  {
+    topic: "travel-small-talk",
+    text: "No, it is my first time here! Do you know any good restaurant for try the local food?",
+    expect: [
+      { fragment: "any good restaurant", fix: "restaurants" },
+      { fragment: "for try", fix: "to try" },
+    ],
+  },
+  {
+    topic: "tech-news",
+    text: "I think AI tools are very useful, but sometimes they give you answers that sounds correct and are wrong.",
+    expect: [{ fragment: "answers that sounds", fix: "that sound" }],
   },
 ];
