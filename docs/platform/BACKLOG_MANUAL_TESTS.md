@@ -41,6 +41,10 @@ Nada para probar a mano. Opcional: la app arranca y abre un chat (cambió dónde
 - [ ] Descartar un error, marcar otro como typo a mano, cambiar el tipo de otro con "Wrong type?" y reintentar el mensaje: las marcas quedan en las correcciones que coinciden (el descarte solo si la nueva corrección es la misma).
 - [ ] Opcional (gasta un poco de cuota): `pnpm eval:models <spec> --limit=2 --check` muestra PASS/FAIL.
 
+### Seguridad (#142)
+
+- [ ] Después de `pnpm install`, la app arranca y funciona como antes (Next 16.4.3).
+
 ## Problemas encontrados
 
 -
