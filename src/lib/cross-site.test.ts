@@ -38,6 +38,26 @@ describe("isCrossSiteWrite", () => {
     expect(isCrossSiteWrite(request("POST", { ...proxied, origin: "https://companion.example.com" }))).toBe(true);
   });
 
+  it("matches an X-Forwarded-Host that carries the scheme's default port (Origin never does)", () => {
+    const forwarded = (host: string) => ({ host: "127.0.0.1:3737", "x-forwarded-host": host });
+    const post = (host: string, origin: string) =>
+      isCrossSiteWrite(request("POST", { ...forwarded(host), origin }), true);
+    expect(post("companion.example.com:443", "https://companion.example.com")).toBe(false);
+    expect(post("Companion.Example.com.:443", "https://companion.example.com")).toBe(false);
+    expect(post("companion.example.com:80", "http://companion.example.com")).toBe(false);
+    // A real port still has to match, and :443 doesn't excuse another scheme or host.
+    expect(post("companion.example.com:8443", "https://companion.example.com")).toBe(true);
+    expect(post("companion.example.com:443", "http://companion.example.com")).toBe(true);
+    expect(post("evil.example:443", "https://companion.example.com")).toBe(true);
+    expect(post("companion.example.com:8443", "https://companion.example.com:8443")).toBe(false);
+  });
+
+  it("matches IPv6 hosts", () => {
+    const post = (host: string, origin: string) => isCrossSiteWrite(request("POST", { host, origin }));
+    expect(post("[::1]:3737", "https://[::1]:3737")).toBe(false);
+    expect(post("[::1]:3737", "https://[::2]:3737")).toBe(true);
+  });
+
   it("lets non-browser clients through", () => {
     expect(isCrossSiteWrite(request("POST", {}))).toBe(false);
   });

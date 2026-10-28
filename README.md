@@ -87,6 +87,8 @@ Configuración recomendada: **Gemini Flash-Lite como principal y `qwen/qwen3.8-2
 | `pnpm eval:level`                         | Compara el nivel CEFR estimado con textos de alumnos calificados por Cambridge (Write & Improve, se descarga aparte; ver [docs/progress/LEVEL_CALIBRATION.md](docs/progress/LEVEL_CALIBRATION.md))                                           |
 | `pnpm auth:reset-password <email>`        | Cambia la contraseña de una cuenta (sin email de recuperación) y cierra sus sesiones                                                                                                                                                         |
 | `pnpm db:generate`                        | Genera una migración después de cambiar `src/db/schema.ts`                                                                                                                                                                                   |
+| `pnpm db:migrate`                         | Aplica las migraciones pendientes haciendo antes un backup (`data/backups/`); es el paso de migración del deploy ([docs/platform/DEPLOY.md](docs/platform/DEPLOY.md)). Con `pnpm dev` no hace falta: migra al arrancar                       |
+| `pnpm db:backup`                          | Copia consistente de la base en `data/backups/` (`--prefix`, `--keep`)                                                                                                                                                                       |
 
 ## Stack
 

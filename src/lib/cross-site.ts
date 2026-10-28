@@ -4,7 +4,7 @@
  * a plain-text POST needs no CORS preflight, and the routes parse the body whatever its type.
  */
 
-import { requestHost } from "./allowed-hosts";
+import { requestHost, withoutDefaultPort } from "./allowed-hosts";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -23,7 +23,10 @@ export function isCrossSiteWrite(request: Request, trustProxy = false): boolean 
   const origin = request.headers.get("origin");
   if (!origin) return false;
   try {
-    return new URL(origin).host !== requestHost(request, trustProxy);
+    const { host, protocol } = new URL(origin);
+    const expected = requestHost(request, trustProxy);
+    // URL#host already drops the scheme's default port; the header may still carry it (":443" from a proxy).
+    return !expected || host !== withoutDefaultPort(expected, protocol);
   } catch {
     return true; // "null" (sandboxed iframes, file://) or garbage
   }

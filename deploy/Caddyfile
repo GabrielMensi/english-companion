@@ -1,0 +1,25 @@
+# Replace companion.example.com with the real domain (the same value as ALLOWED_HOSTS).
+companion.example.com {
+	# Only these types are compressed: the corrections stream (application/x-ndjson) stays out, compression buffers it.
+	encode zstd gzip {
+		match {
+			header Content-Type text/*
+			header Content-Type application/json*
+			header Content-Type application/javascript*
+			header Content-Type image/svg+xml*
+			header Content-Type application/wasm*
+		}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	# Above the app's own cap (11 MB, proxyClientMaxBodySize).
+	request_body {
+		max_size 12MB
+	}
+	reverse_proxy app:3737 {
+		# Send each chunk right away (the correction stream).
+		flush_interval -1
+	}
+}
