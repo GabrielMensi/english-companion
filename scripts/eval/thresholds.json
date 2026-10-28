@@ -1,0 +1,48 @@
+{
+  "models": {
+    "default": {
+      "scorePct": {
+        "min": 85
+      },
+      "failures": {
+        "max": 1
+      },
+      "falsePositives": {
+        "max": 2
+      }
+    },
+    "overrides": {
+      "groq:openai/gpt-oss-120b": {
+        "scorePct": {
+          "min": 75
+        }
+      }
+    }
+  },
+  "classify": {
+    "default": {
+      "typePct": {
+        "min": 90
+      },
+      "tensePct": {
+        "min": 85
+      },
+      "tenseUsedPct": {
+        "min": 90
+      },
+      "missing": {
+        "max": 1
+      }
+    }
+  },
+  "asr": {
+    "default": {
+      "failures": {
+        "max": 1
+      },
+      "wer": {
+        "max": 0.15
+      }
+    }
+  }
+}
