@@ -20,12 +20,12 @@ Estado: ⏳ pendiente · 🔨 en curso · 👀 en revisión · ✅ mergeado en l
 
 ### Tanda 1: bases (sin cambios de esquema)
 
-| Equipo     | Ítems                                                                                                                                                                                                    | Rama              | PR  | Estado |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | --- | ------ |
-| test-infra | #111 integration tests de rutas, #112 tests de migraciones con fixture viejo, #113 test del migrator race-safe (+ pragma busy_timeout), #114 piso de cobertura `src/lib/**`                              | `team/test-infra` |     | ⏳     |
-| ai-fixes   | #115 fallback de Groq en mensajes largos, #116 conservar descartes al reintentar, #117 umbrales de regresión en `pnpm eval:*`, #118 sacar whisper.cpp del eval de ASR                                    | `team/ai-fixes`   |     | ⏳     |
-| cleanup    | #119 helper `parseBody`, #120 logger mínimo del servidor, #121 lint de handlers async en JSX + nits, #122 resumen de pronunciación sin usar en Today, #123 partir `review-session.tsx` y los lib grandes | `team/cleanup`    |     | ⏳     |
-| design     | Research con docs y decisión: #124 Authentication, #125 Multi-user, #126 keys por usuario, #127 Deploy; implementación de #128 release workflow                                                          | `team/design`     |     | ⏳     |
+| Equipo     | Ítems                                                                                                                                                                                                    | Rama              | PR   | Estado |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ---- | ------ |
+| test-infra | #111 integration tests de rutas, #112 tests de migraciones con fixture viejo, #113 test del migrator race-safe (+ pragma busy_timeout), #114 piso de cobertura `src/lib/**`                              | `team/test-infra` | #129 | ✅     |
+| ai-fixes   | #115 fallback de Groq en mensajes largos, #116 conservar descartes al reintentar, #117 umbrales de regresión en `pnpm eval:*`, #118 sacar whisper.cpp del eval de ASR                                    | `team/ai-fixes`   |      | 🔨     |
+| cleanup    | #119 helper `parseBody`, #120 logger mínimo del servidor, #121 lint de handlers async en JSX + nits, #122 resumen de pronunciación sin usar en Today, #123 partir `review-session.tsx` y los lib grandes | `team/cleanup`    |      | 🔨     |
+| design     | Research con docs y decisión: #124 Authentication, #125 Multi-user, #126 keys por usuario, #127 Deploy; implementación de #128 release workflow                                                          | `team/design`     |      | 🔨     |
 
 ### Tanda 2: login y plataforma (después de la tanda 1)
 
@@ -68,3 +68,6 @@ Estado: ⏳ pendiente · 🔨 en curso · 👀 en revisión · ✅ mergeado en l
 ## Bitácora
 
 - 2026-10-28: rama `integration/backlog` creada; branch protection en `develop`/`main`; CI y gitleaks corren en las PRs a `integration/**`; #8 cerrado; tanda 1 arrancada en el board (#111–#128).
+- 2026-10-28: tanda 1 en curso (implementadores lanzados en los 4 worktrees).
+- 2026-10-28: #129 (test-infra) mergeada. Se mergeó con CI en rojo (test del symlink sin `data/` en CI); arreglado en 2a23a20 y `integration/backlog` ahora exige `checks` y `scan` para mergear PRs (los admins pueden pushear directo, para este archivo).
+- Revisiones: los revisores escriben en `ec-worktrees/reviews/<team>-r<N>.md`.

@@ -39,8 +39,8 @@ jobs:
         run: pnpm typecheck
       - name: Lint
         run: pnpm lint
-      - name: Test
-        run: pnpm test
+      - name: Test (with the coverage floor for src/lib)
+        run: pnpm test:coverage
       - name: Knip
         run: pnpm knip
       - name: Format
