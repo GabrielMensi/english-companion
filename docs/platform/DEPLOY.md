@@ -157,7 +157,7 @@ Todas se validan en `src/lib/env.ts` al arrancar (hoy lo hacen las que existen; 
 ### Lo que el código ya hace para esto
 
 - **`MIGRATE_ON_START`** (default `true`, igual que antes en local): con `false`, `src/db/index.ts` no migra al importar y, si hay migraciones pendientes, falla con "Run the migrate step first". La imagen lo trae en `false`.
-- **`pnpm db:migrate`** (`scripts/db-migrate.mts`; en la imagen, `node scripts/db-migrate.mjs`): hace backup, aplica las pendientes en una transacción y sale con código distinto de 0 si algo falla. Usa `src/db/migrate.ts` (la misma función que la app) y `src/db/backup.ts`.
+- **`pnpm db:migrate`** (`scripts/db-migrate.mts`; en la imagen, `node scripts/db-migrate.mjs`): hace backup, aplica las pendientes en una transacción y sale con código distinto de 0 si algo falla. Si la base no existe falla (no crea una vacía por error); `--init` crea una nueva y `deploy.sh` lo pasa solo cuando no hay `data/companion.db`. Lee `.env.local` si `DATABASE_PATH` no está definida, igual que la app. Si la migración falla, `deploy.sh` vuelve a levantar la versión anterior. Usa `src/db/migrate.ts` (la misma función que la app) y `src/db/backup.ts`.
 - **`GET /api/health`**: `select 1` y `{ ok: true }` (503 `{ ok: false }` si la base no responde). Público a propósito y sin datos; el equipo de auth tiene que dejarlo fuera del login (el healthcheck del contenedor y el `curl` del deploy lo llaman sin sesión).
 - **`X-Forwarded-Host` con puerto e IPv6** (#140): `cross-site.ts` compara el `Origin` con el host sin el puerto por defecto del esquema (`example.com:443` con `https://example.com`), y `ALLOWED_HOSTS` acepta IPv6 entre corchetes (`[2001:db8::1]`, tal cual lo manda el navegador). Con tests.
 
@@ -231,8 +231,8 @@ Hoy **no** hay nada desplegado. Cuando se cumpla la checklist de arriba:
 1. Taggear el release (ver [RELEASES.md](RELEASES.md)), por ejemplo `v1.0.0`.
 2. Con GitHub: Actions, "Deploy", _Run workflow_ con el tag. Construye la imagen, la sube a GHCR y corre `deploy.sh` por SSH.
    Sin GitHub: construir y subir la imagen (`docker build -t ghcr.io/gabrielmensi/english-companion:v1.0.0 . && docker push …`) y en el VPS `cd /opt/english-companion/deploy && ./deploy.sh v1.0.0 https://tu-dominio`.
-3. `deploy.sh` baja la imagen, **para la app, hace el backup, migra**, levanta, espera el healthcheck y llama a `/api/health`.
-4. Primer deploy con una base existente: copiar la base a `data/companion.db` **con la app parada** (`chown 10001`, `chmod 600`) y correr `pnpm auth:claim-data` según AUTH_MULTIUSER.md.
+3. `deploy.sh` (valida el tag, `vX.Y.Z`) baja la imagen, **para la app, hace el backup, migra**, levanta, espera el healthcheck y llama a `/api/health`.
+4. Primer deploy: sin base, `deploy.sh` crea una nueva. Con una base existente: copiar la base a `data/companion.db` **con la app parada** (`chown 10001`, `chmod 600`) y correr `pnpm auth:claim-data` según AUTH_MULTIUSER.md.
 
 **Rollback**
 

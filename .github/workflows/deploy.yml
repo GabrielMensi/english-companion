@@ -27,6 +27,9 @@ jobs:
       IMAGE: ghcr.io/gabrielmensi/english-companion
       TAG: ${{ inputs.tag }}
     steps:
+      - name: Check the tag
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]] || { echo "Invalid tag" >&2; exit 1; }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag }}
@@ -51,4 +54,5 @@ jobs:
           install -m 700 -d ~/.ssh
           echo "$DEPLOY_SSH_KEY" >~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
           echo "$DEPLOY_KNOWN_HOSTS" >~/.ssh/known_hosts
-          ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" "cd $DEPLOY_PATH/deploy && ./deploy.sh $TAG $DEPLOY_URL"
+          remote="cd $(printf %q "$DEPLOY_PATH")/deploy && ./deploy.sh $(printf %q "$TAG") $(printf %q "$DEPLOY_URL")"
+          ssh -i ~/.ssh/id_deploy "$DEPLOY_USER@$DEPLOY_HOST" "$remote"

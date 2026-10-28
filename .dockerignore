@@ -12,3 +12,10 @@ deploy
 *.md
 Dockerfile
 .dockerignore
+certificates
+books
+*.db
+*.db-*
+tsconfig.tsbuildinfo
+.claude
+.dev.*

@@ -9,6 +9,10 @@ cd "$(dirname "$0")"
 
 TAG="${1:?usage: deploy.sh <tag> [public-url]}"
 URL="${2:-}"
+if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+  echo "Invalid tag '$TAG' (expected something like v1.0.0)" >&2
+  exit 1
+fi
 PREVIOUS="$(sed -n 's/^TAG=//p' .env 2>/dev/null || true)"
 compose() { docker compose -f compose.yml "$@"; }
 
@@ -17,9 +21,16 @@ TAG="$TAG" compose pull app
 
 echo "==> Stopping the app, backing up and migrating"
 TAG="$TAG" compose stop app
-if ! TAG="$TAG" compose run --rm --no-deps app node scripts/db-migrate.mjs --label="$TAG"; then
+INIT=()
+[ -e data/companion.db ] || INIT=(--init) # first deploy: a new database
+if ! TAG="$TAG" compose run --rm --no-deps app node scripts/db-migrate.mjs --label="$TAG" "${INIT[@]}"; then
   echo "Migration failed: nothing was applied (they run in one transaction). The backup is in data/backups/." >&2
-  echo "Start the previous version again: ./deploy.sh ${PREVIOUS:-<previous tag>}  (or see 'Rollback' in docs/platform/DEPLOY.md)" >&2
+  if [ -n "$PREVIOUS" ]; then
+    echo "Restarting the previous version ($PREVIOUS)" >&2
+    TAG="$PREVIOUS" compose up -d app caddy
+  else
+    echo "No previous version recorded: the app stays stopped." >&2
+  fi
   exit 1
 fi
 

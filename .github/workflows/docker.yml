@@ -8,6 +8,11 @@ on:
       - Dockerfile
       - .dockerignore
       - deploy/**
+      - drizzle/**
+      - src/db/**
+      - src/lib/env.ts
+      - src/app/api/health/**
+      - .github/workflows/docker.yml
       - scripts/db-migrate.mts
       - scripts/backup.mts
       - package.json
@@ -37,7 +42,7 @@ jobs:
           docker run --rm --detach --name companion -p 3737:3737 \
             -e ALLOWED_HOSTS=localhost english-companion:ci
           # MIGRATE_ON_START=false in the image: the migrate step comes first.
-          docker run --rm --volumes-from companion english-companion:ci node scripts/db-migrate.mjs
+          docker run --rm --volumes-from companion english-companion:ci node scripts/db-migrate.mjs --init
           docker restart companion
           for _ in $(seq 1 30); do
             curl -fsS http://127.0.0.1:3737/api/health && exit 0

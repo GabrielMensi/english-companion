@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Production image. See docs/platform/DEPLOY.md.
-FROM node:22-bookworm-slim AS deps
+FROM node:22.23.1-bookworm-slim AS deps
 WORKDIR /app
 # better-sqlite3 compiles with node-gyp when there is no prebuilt binary.
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ && rm -rf /var/lib/apt/lists/*
@@ -17,7 +17,7 @@ RUN pnpm build \
     && pnpm exec esbuild scripts/db-migrate.mts scripts/backup.mts --bundle --platform=node --format=esm --external:better-sqlite3 --outdir=scripts-dist --out-extension:.js=.mjs \
     && pnpm prune --prod
 
-FROM node:22-bookworm-slim AS run
+FROM node:22.23.1-bookworm-slim AS run
 WORKDIR /app
 # MIGRATE_ON_START=false: migrations are a deploy step with a backup first (deploy/deploy.sh).
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 DATABASE_PATH=/data/companion.db MIGRATE_ON_START=false
