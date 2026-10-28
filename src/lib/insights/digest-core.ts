@@ -13,10 +13,10 @@ import {
   type ErrorCategory,
   PRONUNCIATION_LABELS,
   type PronunciationCategory,
-  subtypeLabel,
   type Tense,
   tenseLabel,
 } from "@/lib/taxonomy";
+import { subtypeLabel } from "@/lib/subtypes";
 import type { TenseStats } from "@/lib/tense-stats";
 import type { VocabularyWord } from "@/lib/vocabulary-core";
 

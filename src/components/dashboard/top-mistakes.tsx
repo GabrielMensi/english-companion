@@ -1,7 +1,8 @@
 import { ArrowRight } from "lucide-react";
 import { DiscardButton } from "@/components/dashboard/discard-button";
 import type { Stats } from "@/lib/stats-core";
-import { categoryLabel, subtypeLabel } from "@/lib/taxonomy";
+import { categoryLabel } from "@/lib/taxonomy";
+import { subtypeLabel } from "@/lib/subtypes";
 
 export function TopMistakes({ mistakes }: { mistakes: Stats["topMistakes"] }) {
   if (mistakes.length === 0) {

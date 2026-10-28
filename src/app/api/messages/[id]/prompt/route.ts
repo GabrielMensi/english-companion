@@ -1,5 +1,6 @@
 import { errorToMessage } from "@/lib/ai/fallback";
 import { getMessage, improveMessagePrompt } from "@/lib/chat";
+import { logRouteError } from "@/lib/server-log";
 
 export async function POST(_request: Request, ctx: RouteContext<"/api/messages/[id]/prompt">) {
   const { id } = await ctx.params;
@@ -9,6 +10,7 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/messages/[
   try {
     return Response.json(await improveMessagePrompt(id));
   } catch (error) {
+    logRouteError("POST /api/messages/[id]/prompt", error, 502);
     return Response.json({ error: errorToMessage(error) }, { status: 502 });
   }
 }

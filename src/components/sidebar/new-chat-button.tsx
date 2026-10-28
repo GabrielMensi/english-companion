@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { Session, SessionMode } from "@/db/schema";
 import { api } from "@/lib/api";
+import { voided } from "@/lib/voided";
 
 export function NewChatButton({
   mode = "correction",
@@ -43,7 +44,7 @@ export function NewChatButton({
     <Button
       // Extra props (e.g. from a tooltip trigger) go to the underlying button.
       {...props}
-      onClick={create}
+      onClick={voided(create)}
       disabled={pending}
       variant={variant}
       size={iconOnly ? "icon-sm" : "default"}

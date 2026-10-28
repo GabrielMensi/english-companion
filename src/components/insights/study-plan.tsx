@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { digestToMarkdown, type StatsDigest } from "@/lib/insights/digest-core";
 import type { StoredPlan } from "@/lib/insights/insights";
+import { voided } from "@/lib/voided";
 
 /** The AI study plan for the period, generated on demand and kept until the next one. */
 export function StudyPlan({
@@ -42,7 +43,12 @@ export function StudyPlan({
   const actions = (
     <div className="flex flex-wrap gap-2">
       <NeedsKeyHint active={!hasModel}>
-        <Button variant={stored ? "outline" : "default"} size="sm" onClick={generate} disabled={loading || !hasModel}>
+        <Button
+          variant={stored ? "outline" : "default"}
+          size="sm"
+          onClick={voided(generate)}
+          disabled={loading || !hasModel}
+        >
           {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
           {loading ? "Writing the plan…" : stored ? "Write a new plan" : "Write my study plan"}
         </Button>

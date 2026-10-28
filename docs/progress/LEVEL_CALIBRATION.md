@@ -132,4 +132,6 @@ pnpm eval:level --analyze=gemini:gemini-flash-lite-latest --limit=30   # puente 
 pnpm eval:level --analyze=groq:qwen/qwen3.8-27b --limit=30 --delay=75000   # Groq: más pausa por su límite de tokens por minuto
 ```
 
+**Fallas de Groq en textos largos (#115).** Con 6 ensayos (uno por nivel, Groq forzado, 70 s de pausa), 3 fallaron: el modelo se quedaba sin tokens de salida ("max completion tokens reached", HTTP 400) porque Qwen3 gasta tokens razonando. Ahora `providers.ts` apaga el razonamiento en Qwen3 (`reasoningEffort: none`; `low` en gpt-oss, que no admite apagarlo) y fija `maxOutputTokens` en 4096 (`src/lib/ai/groq-options.ts`). Se repitió la corrida solo con los 3 que habían fallado (los otros 3 quedaron en caché): 2 de 3 salieron, así que fallan 1 de 6 en vez de 3 de 6. El que sigue fallando (`1-129891`) lo rechaza Groq por tamaño: la app lo reconoce como "request too large", no reintenta con el mismo modelo, pasa al siguiente de la cadena y, si no hay más, muestra "This message is too long for the provider's free tier limit". Un límite por minuto normal ("Rate limit reached… try again in 3s") no se confunde con eso.
+
 Los resultados se guardan en `.eval-results/level-*.json` (con las mediciones de cada alumno simulado, para recalcular anclajes). `--analyze` se corta en el primer error de cuota; los textos que Groq rechaza por largos se saltean.

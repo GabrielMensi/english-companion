@@ -1,5 +1,6 @@
 import { MAX_RECORDING_BYTES, readSampleRecording, saveSampleRecording } from "@/lib/eval/asr-store";
 import { readBody } from "@/lib/request-body";
+import { logRouteError } from "@/lib/server-log";
 
 /** The recording, for playback. */
 export async function GET(_request: Request, ctx: RouteContext<"/api/eval/asr-samples/[id]">) {
@@ -18,6 +19,7 @@ export async function PUT(request: Request, ctx: RouteContext<"/api/eval/asr-sam
     saveSampleRecording(id, Buffer.from(wav));
     return new Response(null, { status: 204 });
   } catch (error) {
+    logRouteError("PUT /api/eval/asr-samples/[id]", error, 400);
     return Response.json({ error: (error as Error).message }, { status: 400 });
   }
 }

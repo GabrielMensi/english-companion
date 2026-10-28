@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import type { SessionSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { voided } from "@/lib/voided";
 
 /** What kind of chat it is, at a glance: corrections only, a conversation (about a topic or not), or practice from the Practice page. */
 function SessionIcon({ session }: { session: SessionSummary }) {
@@ -105,7 +106,7 @@ export function SessionItem({ session, active }: { session: SessionSummary; acti
 
       <Dialog open={dialog === "rename"} onOpenChange={(open) => !open && setDialog(null)}>
         <DialogContent>
-          <form onSubmit={rename} className="flex flex-col gap-4">
+          <form onSubmit={voided(rename)} className="flex flex-col gap-4">
             <DialogHeader>
               <DialogTitle>Rename chat</DialogTitle>
             </DialogHeader>
@@ -131,7 +132,7 @@ export function SessionItem({ session, active }: { session: SessionSummary; acti
             <Button variant="outline" onClick={() => setDialog(null)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={remove}>
+            <Button variant="destructive" onClick={voided(remove)}>
               Delete
             </Button>
           </DialogFooter>

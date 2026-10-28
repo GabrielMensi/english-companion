@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createSession, listSessions } from "@/lib/chat";
-import { readJson } from "@/lib/request-body";
+import { parseBody } from "@/lib/request-body";
 
 export async function GET() {
   return Response.json(listSessions());
@@ -9,7 +9,7 @@ export async function GET() {
 const bodySchema = z.object({ mode: z.enum(["correction", "conversation"]).default("correction") });
 
 export async function POST(request: Request) {
-  const body = bodySchema.safeParse((await readJson(request)) ?? {});
-  if (!body.success) return Response.json({ error: "Invalid data" }, { status: 400 });
+  const body = await parseBody(request, bodySchema, "Invalid data", { emptyAs: {} });
+  if (!body.ok) return body.response;
   return Response.json(createSession(body.data.mode), { status: 201 });
 }

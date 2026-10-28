@@ -7,7 +7,9 @@ import { type Classification, type ClassificationItem, ruleClassification } from
 import { AllModelsFailedError, errorToMessage } from "@/lib/ai/fallback";
 import { getSettings } from "@/lib/settings";
 import { severityAfterManualType } from "@/lib/correction-review";
-import { type ErrorCategory, isValidSubtype, type Tense, TENSE_CATEGORIES } from "@/lib/taxonomy";
+import { type ErrorCategory, type Tense, TENSE_CATEGORIES } from "@/lib/taxonomy";
+import { isValidSubtype } from "@/lib/subtypes";
+import { logRouteError } from "@/lib/server-log";
 
 /**
  * Deferred fine classification of mistakes. The chat saves each mistake as
@@ -85,6 +87,7 @@ export function startClassification(): void {
   state.lastError = null;
   classifyPending()
     .catch((error) => {
+      logRouteError("background classification", error);
       state.lastError = errorToMessage(error);
     })
     .finally(() => {

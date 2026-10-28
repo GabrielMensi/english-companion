@@ -135,8 +135,8 @@ pronunciation_issues: id, attemptId, expected, heard, category, detail, createdA
 - `pnpm eval:asr [engine:model …]`: transcribe cada grabación e indica si el error quedó (`kept`), si el motor lo corrigió (`fixed`) o si no aparece ninguna de las dos formas (`lost`), más el WER contra lo leído. Motores:
   - `groq` y `groq-verbatim` (Whisper, con y sin prompt verbatim);
   - `gemini` y `gemini-smart` (Gemini Transcribe);
-  - `gemini-llm` (un modelo de chat al que se le pide transcribir literal);
-  - `whisper-cpp:<url>` (servidor local).
+  - `gemini-llm` (un modelo de chat al que se le pide transcribir literal).
+  - (El motor local `whisper-cpp:<url>` se sacó del script con #118: la app es solo API desde #72.)
 - Cada request tiene un timeout de 60 s, para que un proveedor que no responde no cuelgue la corrida.
 
 **Resultados con voz real (2026-09-30, 22 oraciones leídas, un solo hablante)**:
