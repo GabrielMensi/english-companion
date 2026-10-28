@@ -5,14 +5,37 @@ import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
 
-/** Resolves symlinks of the file's folder (the file may not exist yet) so the check can't be sidestepped. */
+/**
+ * Resolves symlinks and `..` along the whole path so the check can't be sidestepped. Parts that don't exist
+ * yet are kept as written, and a dangling symlink is followed to its target (it may point outside the temp
+ * directory, to a folder that doesn't exist yet).
+ */
 function realLocation(file: string): string {
-  const absolute = path.resolve(file);
-  try {
-    return path.join(fs.realpathSync(path.dirname(absolute)), path.basename(absolute));
-  } catch {
-    return absolute;
+  const rest: string[] = [];
+  let current = path.resolve(file);
+  for (let hops = 0; hops < 40; hops++) {
+    try {
+      return path.join(fs.realpathSync(current), ...rest);
+    } catch {
+      // Doesn't exist, or is a dangling link: look at it without following it.
+    }
+    let isLink = false;
+    try {
+      isLink = fs.lstatSync(current).isSymbolicLink();
+    } catch {
+      // Doesn't exist at all.
+    }
+    if (isLink) {
+      current = path.resolve(path.dirname(current), fs.readlinkSync(current));
+      continue;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    rest.unshift(path.basename(current));
+    current = parent;
   }
+  // A symlink loop: the filesystem root is never inside the temp directory, so the guard refuses it.
+  return path.parse(path.resolve(file)).root;
 }
 
 /** Whether `file` really lives inside the OS temp directory (after resolving symlinks and `..`). */
