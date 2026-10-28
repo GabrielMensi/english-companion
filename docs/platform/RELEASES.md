@@ -70,3 +70,5 @@ Reglas de ramas, versiones, tags y releases para cuando la app sea desplegable. 
 - Crear los labels del repo (`feature`, `bug`, `security`, `chore`, `research`, `eval`, `skip-changelog`).
 - Primer release: `v0.2.0` cuando se mergee la corrida del backlog a `develop` y de ahí a `main` (pone `main` al día), y `v1.0.0` con el primer deploy.
 - Workflow de deploy por tag (con DEPLOY.md).
+- Ruleset del repo sobre los tags `v*` (restringir update y delete), para que "no se mueven ni se borran tags publicados" lo haga cumplir GitHub y no solo esta regla.
+- La plantilla de PR pide labels de _Kind_ que todavía no existen (salvo `bug`): crearlos antes de la primera PR de release.

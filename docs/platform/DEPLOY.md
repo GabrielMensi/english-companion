@@ -49,7 +49,7 @@ FROM deps AS build
 COPY . .
 # `next build` abre la base (importa src/db): una descartable, nunca la real.
 ENV NEXT_TELEMETRY_DISABLED=1 DATABASE_PATH=/tmp/build/companion.db
-RUN pnpm build && pnpm prune --prod
+RUN pnpm build && pnpm exec esbuild scripts/db-migrate.mts scripts/backup.mts --bundle --platform=node --format=esm --external:better-sqlite3 --outdir=scripts-dist --out-extension:.js=.mjs && pnpm prune --prod
 
 FROM node:22-bookworm-slim AS run
 WORKDIR /app
@@ -60,6 +60,8 @@ COPY --from=build --chown=app /app/node_modules ./node_modules
 COPY --from=build --chown=app /app/.next ./.next
 COPY --from=build --chown=app /app/public ./public
 COPY --from=build --chown=app /app/drizzle ./drizzle
+# scripts/*.mts compiled to .mjs in the build stage (db-migrate, backup): the run stage has no pnpm or tsx.
+COPY --from=build --chown=app /app/scripts-dist ./scripts
 COPY --from=build --chown=app /app/next.config.ts ./
 USER app
 VOLUME /data
@@ -110,7 +112,9 @@ volumes:
 
 ```
 companion.example.com {
-	encode zstd gzip
+	# El stream de correcciones (application/x-ndjson) no se comprime: la compresión lo bufferea.
+	@compressible not header Content-Type application/x-ndjson*
+	encode @compressible zstd gzip
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		-Server
@@ -160,7 +164,7 @@ Todas se validan en `src/lib/env.ts` al arrancar (hoy lo hacen las que existen; 
 
 1. `docker compose pull app` con el tag nuevo.
 2. **Backup** de la base con el motor de SQLite, no con `cp` (con WAL, `cp` puede copiar un estado inconsistente): `sqlite3 /data/companion.db "VACUUM INTO '/data/backups/pre-<tag>-<fecha>.db'"` o, sin cliente `sqlite3` en el host, `docker compose run --rm app node scripts/backup.mjs` (usa `db.backup()` de better-sqlite3). Permisos `600`; carpeta `700`.
-3. **Migrar** con la imagen nueva y la app vieja apagada: `docker compose stop app && docker compose run --rm app pnpm db:migrate` (la imagen necesita `pnpm`/`tsx`, o el script compilado a `.mjs` durante el build; elegir lo segundo para no meter el toolchain).
+3. **Migrar** con la imagen nueva y la app vieja apagada: `docker compose stop app && docker compose run --rm app node scripts/db-migrate.mjs` (el build compila `scripts/*.mts` a `.mjs` con `esbuild`, que hoy es solo una dependencia transitoria: la PR de deploy lo agrega a `devDependencies` para que `pnpm exec esbuild` lo encuentre; la imagen final no lleva pnpm ni tsx). `pnpm db:migrate` queda para uso local.
 4. `docker compose up -d app`, esperar el healthcheck, probar `curl -fsS https://companion.example.com/api/health`.
 5. Si falla el paso 3 o 4: `docker compose stop app`, restaurar el backup `pre-<tag>` sobre `/data/companion.db` (borrar `-wal` y `-shm`), levantar la imagen **anterior**. Las migraciones son aditivas y van en una transacción: si falla una, no queda aplicada ninguna, pero una que se aplicó y la app nueva anda mal solo se deshace restaurando el backup (por eso el backup es parte del paso, no opcional).
 6. Dejar los últimos 14 backups `pre-*`.
@@ -190,6 +194,7 @@ Permisos: `src/db/index.ts` ya deja la carpeta `700` y la base y sus `-wal/-shm`
 - [ ] Puerto 3737 **no** publicado; firewall con 22/80/443.
 - [ ] Backup, restauración y rollback probados una vez.
 - [ ] Release `v1.0.0` taggeado según [RELEASES.md](RELEASES.md) y la imagen construida desde ese tag.
+- [ ] Una corrección se ve llegar en streaming a través de Caddy (no de golpe al final).
 - [ ] Kokoro probado en el sitio real (WASM y headers) en GPU y en CPU.
 - [ ] `/eval` y `/api/eval/*` dan 404.
 

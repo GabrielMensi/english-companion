@@ -27,6 +27,8 @@ jobs:
           if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
             echo "::error::Tag '$TAG' is not vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-prerelease"; exit 1
           fi
+          # actions/checkout can leave an annotated tag looking lightweight: refetch the tag object.
+          git fetch --force origin "+refs/tags/$TAG:refs/tags/$TAG"
           if [ "$(git cat-file -t "refs/tags/$TAG")" != "tag" ]; then
             echo "::error::Tag '$TAG' is lightweight. Create it with: git tag -a $TAG -m \"...\""; exit 1
           fi
