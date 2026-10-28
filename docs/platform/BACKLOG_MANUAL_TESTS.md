@@ -45,6 +45,17 @@ Nada para probar a mano. Opcional: la app arranca y abre un chat (cambió dónde
 
 - [ ] Después de `pnpm install`, la app arranca y funciona como antes (Next 16.4.3).
 
+## Tanda 2
+
+### Kokoro y Content-Security-Policy (#143: #45, #137)
+
+- [ ] En todas las páginas: sin errores "Content Security Policy" en la consola del navegador.
+- [ ] Dictado por micrófono, Read aloud y los gráficos de dashboard e insights funcionan.
+- [ ] Ventana flotante (PiP): mantiene los estilos y ▶ reproduce Kokoro.
+- [ ] Settings → Listening: Kokoro con Device = CPU y con Device = GPU baja el modelo de Hugging Face sin errores.
+- Si algo se rompe: `CSP_REPORT_ONLY=true` en `.env.local`, reiniciar, y pasame los mensajes de la consola.
+- [ ] En la RX 9070 XT (#45): copiar de `chrome://gpu` las líneas de WebGPU, GL_RENDERER, driver y backend; Device = GPU → Try it; "Copy diagnostics" y pegar el reporte en #45.
+
 ## Problemas encontrados
 
 -
