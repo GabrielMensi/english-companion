@@ -7,7 +7,7 @@ describe("scrub", () => {
   it("hides API keys and auth headers", () => {
     const text = [
       "Authorization: Bearer abc123def456",
-      "x-goog-api-key: AIzaSyA1234567890abcdefghijklmnop",
+      "x-goog-api-key: AIzaSyA1234567890abcdefghijklmnop", // gitleaks:allow (fake key)
       "url https://x.test/v1?key=SECRET123&alt=sse",
       "token gsk_abcdefghijklmnopqrstuv",
       "sk-proj-abcdefghijklmnopqrstuvwx",
