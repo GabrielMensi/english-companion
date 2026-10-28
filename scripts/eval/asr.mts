@@ -14,6 +14,7 @@
  *   gemini-llm:<model>      a Gemini chat model asked to transcribe literally
  *
  * Options: --delay=<ms> between remote requests (default 3000).
+ *          --check  print PASS/FAIL per engine against thresholds.json and exit 1 on a regression.
  * API keys come from the app's settings (DATABASE_PATH) or .env.local.
  */
 import fs from "node:fs";
@@ -26,6 +27,7 @@ import { ASR_SAMPLES } from "../../src/lib/eval/asr-samples";
 import { type MistakeOutcome, scoreTranscript } from "../../src/lib/eval/asr-score";
 import { ASR_SAMPLES_DIR } from "../../src/lib/eval/asr-store";
 import { resolveApiKey } from "../../src/lib/secrets";
+import { reportCheck, wantsCheck } from "./check";
 
 /** Whisper imitates the prompt's style: an ungrammatical, disfluent one discourages "cleaning up". */
 const VERBATIM_PROMPT =
@@ -130,6 +132,7 @@ function requireKey(provider: "groq" | "gemini") {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const summary: Record<string, string | number>[] = [];
 const details: unknown[] = [];
+let regressed = false;
 
 for (const spec of specs) {
   const [engine, ...rest] = spec.split(":");
@@ -169,6 +172,10 @@ for (const spec of specs) {
   }
 
   const done = samples.length - failures;
+  if (wantsCheck(args)) {
+    const metrics = { wer: wers.length ? wers.reduce((a, b) => a + b, 0) / wers.length : null, failures };
+    regressed = !reportCheck("asr", spec, metrics) || regressed;
+  }
   const pct = (n: number) => (done ? `${Math.round((n / done) * 100)}%` : "-");
   summary.push({
     engine: spec,
@@ -191,3 +198,4 @@ fs.mkdirSync(dir, { recursive: true });
 const file = path.join(dir, `asr-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
 fs.writeFileSync(file, JSON.stringify({ summary, details }, null, 1));
 console.log(`Details saved to ${path.relative(process.cwd(), file)}`);
+if (regressed) process.exitCode = 1;

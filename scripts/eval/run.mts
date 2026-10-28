@@ -7,6 +7,7 @@
  *   --delay=<ms>   pause between requests (default 4000,
  *                  to stay under free-tier per-minute limits)
  *   --limit=<n>    only run the first n samples
+ *   --check        print PASS/FAIL per model against thresholds.json and exit 1 on a regression
  *
  * API keys come from the app's settings (or .env.local).
  * Results are printed as a table and saved to .eval-results/.
@@ -18,6 +19,7 @@ import { errorToMessage } from "../../src/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "../../src/lib/ai/provider-info";
 import { getSettings } from "../../src/lib/settings";
 import { SAMPLES } from "./samples";
+import { reportCheck, wantsCheck } from "./check";
 import { scoreSample } from "./score";
 
 const args = process.argv.slice(2);
@@ -27,7 +29,7 @@ const samples = SAMPLES.slice(0, Number(option("limit") ?? SAMPLES.length));
 const specs = args.filter((a) => !a.startsWith("--"));
 
 if (specs.length === 0) {
-  console.error("Usage: pnpm eval:models <provider>:<model> [...] [--delay=ms] [--limit=n]");
+  console.error("Usage: pnpm eval:models <provider>:<model> [...] [--delay=ms] [--limit=n] [--check]");
   process.exit(1);
 }
 
@@ -35,6 +37,7 @@ const base = getSettings();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const summary: Record<string, string | number>[] = [];
 const details: unknown[] = [];
+let regressed = false;
 
 for (const spec of specs) {
   const [provider, ...rest] = spec.split(":");
@@ -88,6 +91,10 @@ for (const spec of specs) {
   }
 
   times.sort((a, b) => a - b);
+  if (wantsCheck(args)) {
+    const metrics = { scorePct: possible ? (points / possible) * 100 : null, failures, falsePositives };
+    regressed = !reportCheck("models", spec, metrics) || regressed;
+  }
   summary.push({
     model: spec,
     score: possible ? `${Math.round((points / possible) * 100)}%` : "-",
@@ -107,3 +114,4 @@ fs.mkdirSync(dir, { recursive: true });
 const file = path.join(dir, `${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
 fs.writeFileSync(file, JSON.stringify({ summary, details }, null, 1));
 console.log(`Details saved to ${path.relative(process.cwd(), file)}`);
+if (regressed) process.exitCode = 1;
