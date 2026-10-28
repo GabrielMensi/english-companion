@@ -19,6 +19,8 @@ Una carpeta por **Area** del tablero ([GitHub Project](https://github.com/users/
 | Platform           | `platform/` | [CODE_QUALITY.md](platform/CODE_QUALITY.md): revisión de calidad de código y las reglas (lint, formato, knip)                 | Chore    | Done        |
 | Platform           | `platform/` | [SECURITY_REVIEW.md](platform/SECURITY_REVIEW.md): revisión de seguridad antes de desplegar, arreglos y checklist             | Chore    | Done        |
 | Platform           | `platform/` | [TESTING.md](platform/TESTING.md): estrategia de tests antes del deploy (capas, CI, plan)                                     | Research | Decided     |
+| Platform           | `platform/` | [BACKLOG_RUN.md](platform/BACKLOG_RUN.md): plan y estado de la corrida que cierra el backlog                                  | Chore    | In progress |
+| Platform           | `platform/` | [BACKLOG_MANUAL_TESTS.md](platform/BACKLOG_MANUAL_TESTS.md): qué probar a mano antes de mergear la corrida                    | Eval     | In progress |
 
 [ROADMAP.md](ROADMAP.md) queda en la raíz: lo hecho y lo próximo, de todas las áreas.
 
