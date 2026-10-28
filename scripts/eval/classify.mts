@@ -6,6 +6,7 @@
  * Options:
  *   --batch=<n>    mistakes per request, as in the app (default 8)
  *   --delay=<ms>   pause between requests (default 4000)
+ *   --check        print PASS/FAIL per model against thresholds.json and exit 1 on a regression
  *
  * Also scores the labels you fixed by hand with "Wrong type?" in the app
  * (--with-user-labels), read from the database in DATABASE_PATH.
@@ -18,6 +19,7 @@ import { errorToMessage } from "../../src/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "../../src/lib/ai/provider-info";
 import { getSettings } from "../../src/lib/settings";
 import { TENSE_CATEGORIES } from "../../src/lib/taxonomy";
+import { reportCheck, wantsCheck } from "./check";
 import { CLASSIFY_SAMPLES, type ClassifySample } from "./classify-samples";
 
 const args = process.argv.slice(2);
@@ -27,7 +29,9 @@ const delayMs = Number(option("delay") ?? 4000);
 const specs = args.filter((a) => !a.startsWith("--"));
 
 if (specs.length === 0) {
-  console.error("Usage: pnpm eval:classify <provider>:<model> [...] [--batch=n] [--delay=ms] [--with-user-labels]");
+  console.error(
+    "Usage: pnpm eval:classify <provider>:<model> [...] [--batch=n] [--delay=ms] [--with-user-labels] [--check]",
+  );
   process.exit(1);
 }
 
@@ -59,6 +63,7 @@ const base = getSettings();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const summary: Record<string, string | number>[] = [];
 const details: unknown[] = [];
+let regressed = false;
 
 const items: ClassificationItem[] = samples.map((s, i) => ({
   id: String(i),
@@ -129,6 +134,16 @@ for (const spec of specs) {
     }
   }
 
+  if (wantsCheck(args)) {
+    const rate = (n: number, d: number) => (d ? (n / d) * 100 : null);
+    const metrics = {
+      typePct: rate(subtypeOk, samples.length),
+      tensePct: rate(tenseOk, tenseTotal),
+      tenseUsedPct: rate(tenseUsedOk, tenseTotal),
+      missing,
+    };
+    regressed = !reportCheck("classify", spec, metrics) || regressed;
+  }
   const pct = (n: number, d: number) => (d ? `${Math.round((n / d) * 100)}%` : "-");
   summary.push({
     model: spec,
@@ -148,3 +163,4 @@ fs.mkdirSync(dir, { recursive: true });
 const file = path.join(dir, `classify-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
 fs.writeFileSync(file, JSON.stringify({ summary, details }, null, 1));
 console.log(`Details saved to ${path.relative(process.cwd(), file)}`);
+if (regressed) process.exitCode = 1;
