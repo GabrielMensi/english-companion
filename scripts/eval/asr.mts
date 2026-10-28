@@ -5,7 +5,6 @@
  *
  *   pnpm eval:asr                       # every remote engine with a key
  *   pnpm eval:asr groq:whisper-large-v3-turbo gemini:gemini-3.5-transcribe
- *   pnpm eval:asr whisper-cpp:http://localhost:8080
  *
  * Engines:
  *   groq:<model>            Groq Whisper, temperature 0
@@ -13,7 +12,6 @@
  *   gemini:<model>          Gemini Transcribe, VERBATIM mode
  *   gemini-smart:<model>    Gemini Transcribe, SMART mode (for comparison)
  *   gemini-llm:<model>      a Gemini chat model asked to transcribe literally
- *   whisper-cpp:<url>       a local whisper.cpp server (whisper-server)
  *
  * Options: --delay=<ms> between remote requests (default 3000).
  * API keys come from the app's settings (DATABASE_PATH) or .env.local.
@@ -51,7 +49,7 @@ if (samples.length === 0) {
   process.exit(1);
 }
 if (specs.length === 0) {
-  console.error("No engines: add a Groq or Gemini API key in Settings, or pass whisper-cpp:<url>.");
+  console.error("No engines: add a Groq or Gemini API key in Settings.");
   process.exit(1);
 }
 console.log(`${samples.length} of ${ASR_SAMPLES.length} sentences recorded.`);
@@ -118,22 +116,6 @@ function transcriber(engine: string, model: string): Transcriber {
           })
         ).text;
     }
-    case "whisper-cpp": {
-      return async (audio, abortSignal) => {
-        const form = new FormData();
-        form.append("file", new Blob([new Uint8Array(audio)], { type: "audio/wav" }), "audio.wav");
-        form.append("temperature", "0");
-        form.append("language", "en");
-        form.append("response_format", "json");
-        const res = await fetch(`${model.replace(/\/$/, "")}/inference`, {
-          method: "POST",
-          body: form,
-          signal: abortSignal,
-        });
-        if (!res.ok) throw new Error(`whisper.cpp responded ${res.status}`);
-        return ((await res.json()) as { text: string }).text;
-      };
-    }
     default:
       throw new Error(`Unknown engine "${engine}"`);
   }
@@ -167,7 +149,7 @@ for (const spec of specs) {
   let failures = 0;
 
   for (const [i, sample] of samples.entries()) {
-    if (engine !== "whisper-cpp" && i > 0) await sleep(delayMs);
+    if (i > 0) await sleep(delayMs);
     const audio = fs.readFileSync(path.join(ASR_SAMPLES_DIR, `${sample.id}.wav`));
     const started = Date.now();
     try {
