@@ -15,7 +15,14 @@ function correction(
 function rendered(from: string, to: string, corrections: MarkableCorrection[]) {
   return markDiff(from, to, corrections)
     .segments.map((s) => {
-      const text = s.kind === "added" ? `+[${s.value}]` : s.kind === "removed" ? `-[${s.value}]` : s.value;
+      const text =
+        s.kind === "added"
+          ? `+[${s.value}]`
+          : s.kind === "removed"
+            ? `-[${s.value}]`
+            : s.kind === "flagged"
+              ? `?[${s.value}]`
+              : s.value;
       return s.notes.length ? `${text}^${s.notes.join(",")}` : text;
     })
     .join("");
@@ -77,6 +84,25 @@ describe("markDiff", () => {
       correction("a", "", "goes", "moderate", "verb_forms"),
     ]);
     expect(result.numbers).toEqual(new Map([["a", 1]]));
+  });
+
+  it("flags mistakes the corrected text forgot to fix, in text order", () => {
+    const from = "Work on develop. I agree with your propousal, and the button used on the section neither.";
+    const to = "Work on develop. I agree with your proposal, and the button used on the section neither.";
+    const corrections = [
+      correction("a", "develop", "development"),
+      correction("b", "propousal", "proposal"),
+      correction("c", "on the section", "in the section"),
+      correction("d", "neither", "either"),
+    ];
+    expect(rendered(from, to, corrections)).toBe(
+      "Work on ?[develop]^1. I agree with your -[propousal]+[proposal]^2, and the button used ?[on the section]^3 ?[neither]^4.",
+    );
+    expect(markDiff(from, to, corrections).numbers.get("d")).toBe(4);
+  });
+
+  it("only flags whole words", () => {
+    expect(rendered("It is inside.", "It is inside.", [correction("a", "in", "on")])).toBe("It is inside.");
   });
 
   it("returns the plain text when nothing changed", () => {

@@ -11,7 +11,11 @@ export interface MarkableCorrection {
 }
 
 export interface DiffSegment {
-  kind: "same" | "added" | "removed";
+  /**
+   * "flagged": unchanged text that a correction points at, when the model
+   * listed the mistake but forgot to fix it in the corrected text.
+   */
+  kind: "same" | "added" | "removed" | "flagged";
   value: string;
   /** Reference numbers shown after this segment: the mistakes this change belongs to. */
   notes: number[];
@@ -32,15 +36,25 @@ interface Chunk {
   toStart: number;
 }
 
+interface Flag {
+  /** Index of the "same" segment that holds it, and its range in the original text. */
+  segment: number;
+  start: number;
+  end: number;
+}
+
 /**
  * Word diff between the learner's text and the correction, with each change
  * linked to the correction it comes from, so the text can carry reference
  * numbers that point at the explanation. A correction is anchored where its
  * `original` appears in the learner's text (or its `correction` in the
- * corrected text); one that can't be found just gets no number.
+ * corrected text). When the model listed a mistake but didn't apply it to the
+ * corrected text, its `original` is flagged in the unchanged text instead; one
+ * that can't be found at all just gets no number.
  */
 export function markDiff(from: string, to: string, corrections: MarkableCorrection[]): MarkedDiff {
   const segments: DiffSegment[] = [];
+  const segmentStarts: number[] = [];
   const chunks: Chunk[] = [];
   let fromPos = 0;
   let toPos = 0;
@@ -50,6 +64,7 @@ export function markDiff(from: string, to: string, corrections: MarkableCorrecti
     const kind = part.added ? "added" : part.removed ? "removed" : "same";
     const index = segments.length;
     segments.push({ kind, value: part.value, notes: [] });
+    segmentStarts.push(fromPos);
     if (kind === "same") {
       open = null;
     } else if (open) {
@@ -65,24 +80,81 @@ export function markDiff(from: string, to: string, corrections: MarkableCorrecti
   const lowerFrom = from.toLowerCase();
   const lowerTo = to.toLowerCase();
   const used = new Set<Chunk>();
-  const anchors: { id: string; chunk: Chunk }[] = [];
+  const flags: Flag[] = [];
+  const anchors: { id: string; at: number; chunk?: Chunk; flag?: Flag }[] = [];
 
   for (const c of corrections) {
     const chunk =
       findChunk(lowerFrom, c.original, chunks, used, "fromStart") ??
       findChunk(lowerTo, c.correction, chunks, used, "toStart");
-    if (!chunk) continue;
-    used.add(chunk);
-    anchors.push({ id: c.id, chunk });
+    if (chunk) {
+      used.add(chunk);
+      anchors.push({ id: c.id, at: chunk.fromStart, chunk });
+      continue;
+    }
+    const flag = findFlag(lowerFrom, c.original, segments, segmentStarts, flags);
+    if (flag) {
+      flags.push(flag);
+      anchors.push({ id: c.id, at: flag.start, flag });
+    }
   }
 
-  anchors.sort((a, b) => a.chunk.fromStart - b.chunk.fromStart);
+  anchors.sort((a, b) => a.at - b.at);
   const numbers = new Map<string, number>();
-  anchors.forEach(({ id, chunk }, i) => {
+  const flagNotes = new Map<Flag, number>();
+  anchors.forEach(({ id, chunk, flag }, i) => {
     numbers.set(id, i + 1);
-    segments[chunk.last].notes.push(i + 1);
+    if (chunk) segments[chunk.last].notes.push(i + 1);
+    if (flag) flagNotes.set(flag, i + 1);
   });
-  return { segments, numbers };
+  if (flags.length === 0) return { segments, numbers };
+
+  // Split the unchanged segments around the flagged fragments.
+  const split: DiffSegment[] = [];
+  segments.forEach((segment, index) => {
+    const inside = flags.filter((f) => f.segment === index).sort((a, b) => a.start - b.start);
+    if (inside.length === 0) {
+      split.push(segment);
+      return;
+    }
+    let cursor = 0;
+    for (const flag of inside) {
+      const start = flag.start - segmentStarts[index];
+      const end = flag.end - segmentStarts[index];
+      if (start > cursor) split.push({ kind: "same", value: segment.value.slice(cursor, start), notes: [] });
+      split.push({ kind: "flagged", value: segment.value.slice(start, end), notes: [flagNotes.get(flag)!] });
+      cursor = end;
+    }
+    if (cursor < segment.value.length) split.push({ kind: "same", value: segment.value.slice(cursor), notes: [] });
+  });
+  return { segments: split, numbers };
+}
+
+/** A whole-word occurrence of `needle` inside one unchanged segment, not overlapping another flag. */
+function findFlag(
+  text: string,
+  needle: string,
+  segments: DiffSegment[],
+  segmentStarts: number[],
+  flags: Flag[],
+): Flag | null {
+  const target = needle.trim().toLowerCase();
+  if (!target) return null;
+  for (let at = text.indexOf(target); at !== -1; at = text.indexOf(target, at + 1)) {
+    const end = at + target.length;
+    if (isWordChar(text[at - 1]) && isWordChar(target[0])) continue;
+    if (isWordChar(text[end]) && isWordChar(target[target.length - 1])) continue;
+    if (flags.some((f) => at < f.end && end > f.start)) continue;
+    const segment = segments.findIndex(
+      (s, i) => s.kind === "same" && segmentStarts[i] <= at && end <= segmentStarts[i] + s.value.length,
+    );
+    if (segment !== -1) return { segment, start: at, end };
+  }
+  return null;
+}
+
+function isWordChar(char: string | undefined): boolean {
+  return char !== undefined && /[\p{L}\p{N}']/u.test(char);
 }
 
 /** The first unused change inside an occurrence of `needle` in `text`. */

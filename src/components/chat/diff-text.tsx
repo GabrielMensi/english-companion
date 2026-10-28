@@ -30,6 +30,16 @@ export function DiffText({ from, to, segments }: { from: string; to: string; seg
             </span>
           );
         }
+        if (part.kind === "flagged") {
+          return (
+            <span key={i}>
+              <mark className="bg-transparent text-inherit underline decoration-mark-wrong/70 decoration-wavy underline-offset-4">
+                {part.value}
+              </mark>
+              {notes}
+            </span>
+          );
+        }
         return <span key={i}>{part.value}</span>;
       })}
     </p>
