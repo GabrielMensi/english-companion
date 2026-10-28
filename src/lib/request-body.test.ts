@@ -93,4 +93,9 @@ describe("parseBody", () => {
     const result = await parseBody(post(), z.object({ a: z.string().default("d") }), "Bad", { emptyAs: {} });
     expect(result).toEqual({ ok: true, data: { a: "d" } });
   });
+
+  it("gives the schema null when the body is missing and emptyAs isn't set", async () => {
+    const result = await parseBody(post(), z.object({ reason: z.string() }).nullable(), "Bad");
+    expect(result).toEqual({ ok: true, data: null });
+  });
 });

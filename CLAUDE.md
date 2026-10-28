@@ -6,9 +6,10 @@ Free-first AI English tutor that runs on your machine with API models (Gemini, G
 
 - UI text is in English. Error explanations follow the "explanation language" setting (Spanish or English); prompts sent to the model are in English.
 - The error taxonomy in `src/lib/taxonomy.ts` is fixed on purpose so stats group consistently: add categories there, never let the model invent them.
-- Fine error types (`SUBTYPES`, `TENSES`) are assigned later by the deferred classifier (`src/lib/classification.ts`), never in the chat prompt. Chat AI calls go through `withChatPriority` so classification batches wait for them.
+- Fine error types (`SUBTYPES` in `src/lib/subtypes.ts`, `TENSES` in `src/lib/taxonomy.ts`) are assigned later by the deferred classifier (`src/lib/classification.ts`), never in the chat prompt. Chat AI calls go through `withChatPriority` so classification batches wait for them.
 - Tense uses are counted without AI in `src/lib/tenses-core.ts` and stored in `messages.tense_counts`; bump `TENSE_COUNTER_VERSION` when the rules change so stored counts get recomputed.
 - Dictated messages (`input_mode = "spoken"`): speech-to-text decides spelling, punctuation and capitalization, so those are never reported, and categories it fills in (`NOT_MEASURABLE_WHEN_SPOKEN`) never count in the stats. Use `countsInStats` in any new statistic.
+- Route errors are logged with `logRouteError` (`src/lib/server-log.ts`): only the message of the app's own errors, never a provider or AI SDK error message (it can repeat learner text). API routes read JSON bodies with `parseBody` (`src/lib/request-body.ts`).
 - Keep AI calls behind `src/lib/ai/providers.ts` (`resolveModel`); prefer simple, flat output schemas: they're cheap, every provider fills them reliably and they work with Groq's structured output. Without any API key, AI calls fail with `NO_PROVIDER_MESSAGE`.
 - The correction streams to the chat (`analyzeMessage` with `onPreview`, NDJSON from the send/retry routes) only for display: what gets saved always comes from the complete, validated object through `normalizeAnalysis`, and a failed stream falls back to `generateText`.
 - Pure logic (analysis normalization, stats) lives in files without `server-only` and has vitest tests: `pnpm test`.

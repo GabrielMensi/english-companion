@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     return Response.json({ models: await listModels(provider) });
   } catch (error) {
-    logRouteError("GET /api/models", error, 200);
+    logRouteError("GET /api/models (listing models)", error);
     return Response.json({ models: [], error: errorToMessage(error) });
   }
 }

@@ -4,7 +4,6 @@
  */
 import { APICallError, LoadAPIKeyError, NoObjectGeneratedError, RetryError } from "ai";
 import { PROVIDER_IDS, type ProviderId } from "./provider-info";
-import { scrub } from "@/lib/server-log";
 
 export interface FallbackAttempt {
   provider: ProviderId;
@@ -139,14 +138,14 @@ export class UserFacingError extends Error {}
  * Anything else (provider responses, library and runtime errors) may carry raw details, like the
  * provider's own wording, request ids or internal paths, so it's never shown verbatim.
  */
-function isOwnError(error: unknown): error is Error {
+export function isOwnError(error: unknown): error is Error {
   return (
     error instanceof UserFacingError || (error instanceof Error && Object.getPrototypeOf(error) === Error.prototype)
   );
 }
 
 /** The HTTP status a provider answered with, when the error came from its API (also after the SDK's retries). */
-function statusOf(error: unknown): number | undefined {
+export function statusOf(error: unknown): number | undefined {
   if (RetryError.isInstance(error)) return statusOf(error.lastError);
   return APICallError.isInstance(error) ? error.statusCode : undefined;
 }
@@ -230,8 +229,7 @@ export function errorToMessage(error: unknown): string {
     return "The model didn't return a response in the expected format. Try again or use a bigger model.";
   }
   if (isOwnError(error)) return message;
-  // The raw details stay in the server log only.
-  console.warn("AI provider error:", scrub(message));
+  // The route logs the details that are safe to log (see server-log.ts).
   const status = statusOf(error);
   return `The AI provider returned an error${status ? ` (HTTP ${status})` : ""}. Try again or switch providers.`;
 }

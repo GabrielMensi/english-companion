@@ -56,7 +56,7 @@ export type ParsedBody<T> = { ok: true; data: T } | { ok: false; response: Respo
 /**
  * Reads a JSON body (size-limited, see `readJson`) and validates it with a zod-like schema. A missing,
  * invalid or too big body gives a 400 with `errorMessage`. With `emptyAs`, a missing body counts as
- * that value instead (for routes whose body is optional).
+ * that value instead (for routes whose body is optional); without it the schema sees `null`.
  */
 export async function parseBody<T>(
   request: Request,
@@ -65,7 +65,7 @@ export async function parseBody<T>(
   options: { emptyAs?: unknown } = {},
 ): Promise<ParsedBody<T>> {
   const raw = await readJson(request);
-  const parsed = schema.safeParse(raw ?? options.emptyAs);
+  const parsed = schema.safeParse("emptyAs" in options ? (raw ?? options.emptyAs) : raw);
   if (!parsed.success) return { ok: false, response: Response.json({ error: errorMessage }, { status: 400 }) };
   return { ok: true, data: parsed.data };
 }
