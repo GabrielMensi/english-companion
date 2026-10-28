@@ -29,6 +29,8 @@ COPY --from=build --chown=app /app/public ./public
 COPY --from=build --chown=app /app/drizzle ./drizzle
 COPY --from=build --chown=app /app/scripts-dist ./scripts
 COPY --from=build --chown=app /app/next.config.ts ./
+# next.config.ts is loaded at runtime too: every local file it imports must be copied here.
+COPY --from=build --chown=app /app/src/lib/csp.ts ./src/lib/csp.ts
 USER app
 VOLUME /data
 EXPOSE 3737
