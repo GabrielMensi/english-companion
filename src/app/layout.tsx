@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk, Newsreader } from "next/font/google";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { connection } from "next/server";
 import { ThemeProvider } from "next-themes";
 import { SpeechPreloader } from "@/components/audio/speech-preloader";
@@ -34,6 +34,8 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   await connection();
+  // Set by proxy.ts: the nonce that lets next-themes' inline script run under the CSP.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
   const labels = chatLabels();
   const sessions = listSessions().map(({ id, title, mode }) => ({
@@ -51,7 +53,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${uiFont.variable} ${readingFont.variable} h-full antialiased`}
     >
       <body className="flex h-full overflow-hidden">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange nonce={nonce}>
           <TooltipProvider>
             <AppSidebar sessions={sessions} cardsToStudy={countCardsToStudy()} initialCollapsed={sidebarCollapsed} />
             <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
