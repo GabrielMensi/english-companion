@@ -35,4 +35,20 @@ describe("getAuthSecret", () => {
     expect(() => getAuthSecret(env)).toThrow(/BETTER_AUTH_SECRET is required/);
     expect(fs.existsSync(path.join(dir, "auth.secret"))).toBe(false);
   });
+
+  it("never returns, or replaces, a saved secret that is empty or short", () => {
+    for (const content of ["", "\n", "short-secret"]) {
+      const { dir, env } = envIn();
+      const file = path.join(dir, "auth.secret");
+      fs.writeFileSync(file, content);
+      expect(() => getAuthSecret(env), JSON.stringify(content)).toThrow(/empty or too short/);
+      expect(fs.readFileSync(file, "utf8")).toBe(content);
+    }
+  });
+
+  it("leaves no temp files behind", () => {
+    const { dir, env } = envIn();
+    getAuthSecret(env);
+    expect(fs.readdirSync(dir).filter((name) => name.endsWith(".tmp"))).toEqual([]);
+  });
 });

@@ -1,4 +1,4 @@
-// Sets a new password for an account and signs it out everywhere (there is no reset by email).
+// Sets a new password for an account and deletes its sessions (a copied cookie can live up to 5 minutes more) (there is no reset by email).
 // Usage: pnpm auth:reset-password <email>     (the password is asked on stdin, hidden when it's a terminal)
 // Uses DATABASE_PATH like the app does, so run it where the app's .env.local is.
 import { createInterface } from "node:readline/promises";

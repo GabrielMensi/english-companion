@@ -1,6 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 import { isAllowedHost, requestHost } from "@/lib/allowed-hosts";
+import { authCookiePrefix } from "@/lib/auth/auth-core";
 import { isPublicPath } from "@/lib/auth/public-routes";
 import { isCrossSiteWrite } from "@/lib/cross-site";
 import { withCsp } from "@/lib/csp-response";
@@ -25,7 +26,7 @@ function loginUrl(request: NextRequest, trustProxy: boolean, next: string): URL 
  * Sets the Content-Security-Policy with `withCsp` (lib/csp-response.ts): use it for every pass-through response.
  */
 export function proxy(request: NextRequest) {
-  const { ALLOWED_HOSTS, TRUST_PROXY, CSP_REPORT_ONLY } = serverEnv();
+  const { ALLOWED_HOSTS, DATABASE_PATH, TRUST_PROXY, CSP_REPORT_ONLY } = serverEnv();
   const isApi = request.nextUrl.pathname.startsWith("/api/");
 
   if (!isAllowedHost(requestHost(request, TRUST_PROXY), ALLOWED_HOSTS)) {
@@ -38,7 +39,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.json({ error: "Cross-site requests aren't allowed" }, { status: 403 });
   }
   const { pathname, search } = request.nextUrl;
-  if (!isPublicPath(pathname) && !getSessionCookie(request)) {
+  if (
+    !isPublicPath(pathname) &&
+    !getSessionCookie(request, {
+      cookiePrefix: authCookiePrefix({ databasePath: DATABASE_PATH, deployed: ALLOWED_HOSTS.length > 0 }),
+    })
+  ) {
     if (isApi) return NextResponse.json({ error: "Sign in to continue" }, { status: 401 });
     return NextResponse.redirect(loginUrl(request, TRUST_PROXY, pathname + search));
   }

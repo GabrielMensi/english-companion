@@ -13,10 +13,12 @@ const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] as 
 const APP_DIR = path.resolve("src/app");
 
 type Handler = (request: Request, ctx: unknown) => Promise<Response> | Response;
-const routeModules = import.meta.glob<Partial<Record<(typeof METHODS)[number], Handler>>>("./**/route.ts");
+const routeModules = import.meta.glob<Partial<Record<(typeof METHODS)[number], Handler>>>(
+  "./**/route.{ts,tsx,js,jsx,mjs}",
+);
 
 /** `./api/sessions/[id]/route.ts` -> `api/sessions/[id]` */
-const folderOf = (key: string) => key.replace(/^\.\//, "").replace(/\/route\.ts$/, "");
+const folderOf = (key: string) => key.replace(/^\.\//, "").replace(/\/route\.\w+$/, "");
 const protectedRoutes = Object.entries(routeModules).filter(([key]) => !PUBLIC_ROUTE_FILES.includes(folderOf(key)));
 
 /** Whatever dynamic segments a route has: `[id]`, `[file]`, `[...all]`. */
@@ -81,23 +83,40 @@ describe("public routes", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
   });
-
-  it("/api/auth/signup-status only says whether sign-up is open", async () => {
-    const { GET } = await routeModules["./api/auth/signup-status/route.ts"]();
-    const res = await GET!(new Request("http://test/api/auth/signup-status"), undefined);
-    expect(await res.json()).toEqual({ open: true });
-  });
 });
 
+/** Source without comments (a `// requirePageUser()` must not count) and without string contents. */
+function codeOnly(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/(^|[^:"'`\\])\/\/.*$/gm, "$1")
+    .replace(/(["'`])(?:\\.|(?!\1).)*\1/g, '""');
+}
+
+/**
+ * Whether a page checks the session first: after the `export default` line, the first `await` that isn't
+ * `connection()`, `params` or `searchParams` must be `requirePageUser(...)` (so no data is read before it).
+ */
+function checksSessionFirst(source: string): boolean {
+  const code = codeOnly(source);
+  const start = code.search(/export default (async )?function/);
+  if (start < 0) return false;
+  const awaited = [...code.slice(start).matchAll(/\bawait\s+([A-Za-z_$][\w$]*)/g)].map((m) => m[1]);
+  const first = awaited.find((name) => !["connection", "params", "searchParams"].includes(name));
+  return first === "requirePageUser";
+}
+
 describe("every page checks the session", () => {
-  function pageFiles(dir: string): string[] {
+  const PAGE = /^page\.(tsx|ts|jsx|js|mdx|md)$/;
+  const OTHER = /^(layout|template|default)\.(tsx|ts|jsx|js|mdx|md)$/;
+  function walk(dir: string): string[] {
     return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
       const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) return pageFiles(full);
-      return entry.name === "page.tsx" ? [full] : [];
+      return entry.isDirectory() ? walk(full) : [full];
     });
   }
-  const pages = pageFiles(APP_DIR).map((file) => path.relative(APP_DIR, file));
+  const files = walk(APP_DIR).map((file) => path.relative(APP_DIR, file));
+  const pages = files.filter((file) => PAGE.test(path.basename(file)));
   // The login pages are the way in; they send a signed-in user onward instead.
   const gated = pages.filter((page) => !["login/page.tsx", "signup/page.tsx"].includes(page));
 
@@ -105,9 +124,45 @@ describe("every page checks the session", () => {
     expect(gated.length).toBeGreaterThanOrEqual(8);
   });
 
-  it.each(gated)("%s calls requirePageUser", (page) => {
-    const source = fs.readFileSync(path.join(APP_DIR, page), "utf8");
-    expect(source).toMatch(/await requirePageUser\(/);
+  it.each(gated)("%s checks the session before reading anything", (page) => {
+    expect(checksSessionFirst(fs.readFileSync(path.join(APP_DIR, page), "utf8"))).toBe(true);
+  });
+
+  it("no page exports generateMetadata (it would run before the check)", () => {
+    for (const page of pages) {
+      const code = codeOnly(fs.readFileSync(path.join(APP_DIR, page), "utf8"));
+      expect(code, page).not.toMatch(/generateMetadata/);
+    }
+  });
+
+  it("the only layout is the root one, which reads nothing without a user", () => {
+    const others = files.filter((file) => OTHER.test(path.basename(file)));
+    expect(others).toEqual(["layout.tsx"]);
+    const layout = codeOnly(fs.readFileSync(path.join(APP_DIR, "layout.tsx"), "utf8"));
+    expect(layout).toMatch(/await getUser\(\)/);
+  });
+
+  describe("the check itself", () => {
+    it("accepts the session check first, after connection and params", () => {
+      const ok =
+        "export default async function P({ params }) {\n await connection();\n const { id } = await params;\n await requirePageUser(`/x/${id}`);\n await load(); }";
+      expect(checksSessionFirst(ok)).toBe(true);
+    });
+    it("refuses a call that is only in a comment or a string", () => {
+      expect(
+        checksSessionFirst("export default async function P() {\n // await requirePageUser('/')\n await load(); }"),
+      ).toBe(false);
+      expect(
+        checksSessionFirst(
+          'export default async function P() {\n const s = "await requirePageUser()"; await load(); }',
+        ),
+      ).toBe(false);
+    });
+    it("refuses data read before the check", () => {
+      expect(
+        checksSessionFirst("export default async function P() {\n await load();\n await requirePageUser('/'); }"),
+      ).toBe(false);
+    });
   });
 });
 

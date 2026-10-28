@@ -25,4 +25,4 @@ export function isPublicPath(pathname: string): boolean {
  * The `route.ts` files that skip `withUser`, as the folder under `src/app` (the regression test
  * checks that every other route answers 401 without a session).
  */
-export const PUBLIC_ROUTE_FILES = ["api/auth/[...all]", "api/auth/signup-status", "api/health"];
+export const PUBLIC_ROUTE_FILES = ["api/auth/[...all]", "api/health"];

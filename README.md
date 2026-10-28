@@ -37,7 +37,7 @@ pnpm install
 pnpm dev
 ```
 
-Abrí https://localhost:3737: la app **pide login siempre**, también en local. La primera vez, entrá a `/signup` y creá tu cuenta (email y contraseña de al menos 10 caracteres): la primera cuenta se crea sin más y después el registro se cierra. Para dar de alta a otras personas, poné sus emails en `SIGNUP_ALLOWED_EMAILS` (separados por coma, en `.env.local`) y reiniciá. Después armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key, el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
+Abrí https://localhost:3737: la app **pide login siempre**, también en local. La primera vez, entrá a `/signup` y creá tu cuenta (email y contraseña de al menos 10 caracteres): la primera cuenta se crea sin más y después el registro se cierra. **No agregues otras cuentas todavía** (`SIGNUP_ALLOWED_EMAILS`): hasta que llegue el multiusuario (la PR que sigue) los datos no tienen dueño y cualquier cuenta ve y borra todos los chats y puede leer y reemplazar las API keys de Configuración. Sin email de verificación, quien se registre primero con un email permitido se queda con él. Después armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key, el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
 
 Si preferís configurarlo por entorno, copiá `.env.example` a `.env.local`: esas variables se usan cuando no hay nada guardado en la app.
 
@@ -54,7 +54,9 @@ Después reiniciá Chrome. Solo se importa el certificado público; la clave que
 
 La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migra solo al arrancar. La clave que firma las cookies de sesión se genera sola la primera vez en `data/auth.secret` (permisos `600`, junto a la base); en un deploy hay que definir `BETTER_AUTH_SECRET` y `BETTER_AUTH_URL` (ver [docs/platform/AUTH_MULTIUSER.md](docs/platform/AUTH_MULTIUSER.md)).
 
-**Olvidé la contraseña**: no hay email para recuperarla. En la carpeta de la app corré `pnpm auth:reset-password <email>`: pide la nueva contraseña, la cambia y cierra todas las sesiones de esa cuenta.
+**Olvidé la contraseña**: no hay email para recuperarla. En la carpeta de la app corré `pnpm auth:reset-password <email>`: pide la nueva contraseña, la cambia y borra las sesiones de esa cuenta (una copia de la cookie puede seguir valiendo hasta 5 minutos).
+
+**Varias copias de la app en la misma máquina**: las cookies se comparten entre puertos de un mismo host, así que el nombre de la cookie de sesión lleva un prefijo que sale de la ruta de la base (`ec-<hash>.session_token`). Cada carpeta (la app en uso y los worktrees) tiene su propia base, su propio `data/auth.secret` y su propia sesión: iniciar sesión en un worktree no cierra la de la app en el puerto 3737. Si `data/auth.secret` queda vacío o corto, la app no arranca y avisa; borrá el archivo para generar uno nuevo.
 
 ### Modelos recomendados
 

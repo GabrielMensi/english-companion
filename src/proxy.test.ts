@@ -1,9 +1,12 @@
 // proxy.ts: host, cross-site and the optimistic login check (a cookie must exist; the handlers check it for real).
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
+import { authCookiePrefix } from "@/lib/auth/auth-core";
 import { proxy } from "./proxy";
 
-const COOKIE = "better-auth.session_token=anything.signature";
+// Locally the cookie name carries a prefix from the database path (see authCookiePrefix).
+const PREFIX = authCookiePrefix({ databasePath: process.env.DATABASE_PATH ?? "", deployed: false });
+const COOKIE = `${PREFIX}.session_token=anything.signature`;
 
 function request(path: string, init: { method?: string; headers?: Record<string, string> } = {}) {
   return new NextRequest(`http://127.0.0.1:3737${path}`, {
@@ -39,6 +42,12 @@ describe("proxy: login", () => {
     // The __Secure- name used over https.
     const secure = { cookie: `__Secure-${COOKIE}` };
     expect(passes(proxy(request("/api/sessions", { headers: secure })))).toBe(true);
+  });
+
+  it("ignores a login cookie of another app on the same host (another port, another database)", () => {
+    const other = { cookie: "ec-00000000.session_token=anything.signature" };
+    expect(proxy(request("/api/sessions", { headers: other })).status).toBe(401);
+    expect(proxy(request("/api/sessions", { headers: { cookie: "better-auth.session_token=a.b" } })).status).toBe(401);
   });
 
   it("ignores an unrelated cookie", () => {

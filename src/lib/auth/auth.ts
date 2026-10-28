@@ -1,14 +1,16 @@
 import "server-only";
 
 import { betterAuth } from "better-auth";
-import { APIError } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { count } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { serverEnv } from "@/lib/env";
 import {
+  authCookiePrefix,
   canSignUp,
+  ipAddressOptions,
   MAX_PASSWORD_LENGTH,
   MIN_PASSWORD_LENGTH,
   normalizeEmail,
@@ -20,6 +22,10 @@ import { getAuthSecret } from "./secret";
 const SESSION_DAYS = 30;
 /** Sign-in and sign-up allow this many tries per window (seconds): slows down guessing a password. */
 const SIGN_IN_LIMIT = { window: 10, max: 3 };
+
+function countUsers(): number {
+  return db.select({ n: count() }).from(schema.authUser).get()?.n ?? 0;
+}
 
 function createAuth() {
   const env = serverEnv();
@@ -59,6 +65,8 @@ function createAuth() {
     advanced: {
       // Over http://127.0.0.1 (pnpm start) the "__Secure-" prefix can't be used; https in a deploy still sets Secure.
       useSecureCookies: deployed ? true : false,
+      cookiePrefix: authCookiePrefix({ databasePath: env.DATABASE_PATH, deployed }),
+      ipAddress: ipAddressOptions(env.TRUST_PROXY),
       ...(env.TRUST_PROXY && { trustedProxyHeaders: true }),
     },
     rateLimit: {
@@ -66,13 +74,23 @@ function createAuth() {
       storage: "database",
       customRules: { "/sign-in/email": SIGN_IN_LIMIT, "/sign-up/email": SIGN_IN_LIMIT },
     },
+    hooks: {
+      // Before anything else looks at the email: an existing account must not answer differently from
+      // a new one when sign-up is closed (the database hook below runs after the "already exists" check).
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/sign-up/email") return;
+        const email = typeof ctx.body?.email === "string" ? ctx.body.email : "";
+        if (!canSignUp(email, { allowlist: env.SIGNUP_ALLOWED_EMAILS, userCount: countUsers() })) {
+          throw new APIError("FORBIDDEN", { message: SIGNUP_CLOSED_MESSAGE });
+        }
+      }),
+    },
     databaseHooks: {
       user: {
         create: {
           // Every way of creating a user passes here, not only the sign-up endpoint.
           before: async (user) => {
-            const userCount = db.select({ n: count() }).from(schema.authUser).get()?.n ?? 0;
-            if (!canSignUp(normalizeEmail(user.email), { allowlist: env.SIGNUP_ALLOWED_EMAILS, userCount })) {
+            if (!canSignUp(user.email, { allowlist: env.SIGNUP_ALLOWED_EMAILS, userCount: countUsers() })) {
               throw new APIError("FORBIDDEN", { message: SIGNUP_CLOSED_MESSAGE });
             }
             return { data: { ...user, email: normalizeEmail(user.email) } };

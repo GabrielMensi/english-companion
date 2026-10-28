@@ -7,7 +7,7 @@ import { getAuth } from "./auth";
 
 /**
  * The administrator's way to give someone a new password (there is no email to send a link by): hashes
- * it like sign-up does, replaces the credential and closes every session of that account. Used by
+ * it like sign-up does, replaces the credential and deletes every session of that account. Used by
  * `pnpm auth:reset-password`. It goes through the core's hasher, not `auth.api.setUserPassword`, which
  * belongs to the admin plugin and needs an admin session.
  */

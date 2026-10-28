@@ -2,6 +2,7 @@
 
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/client";
 
@@ -10,7 +11,15 @@ export function SignOutButton(props: React.ComponentProps<typeof Button>) {
   const router = useRouter();
 
   async function signOut() {
-    await authClient.signOut().catch(() => undefined);
+    // Stay on the page when it fails: the session and the cookie are still alive.
+    const failed = await authClient
+      .signOut()
+      .then(({ error }) => Boolean(error))
+      .catch(() => true);
+    if (failed) {
+      toast.error("Couldn't sign out. Try again.");
+      return;
+    }
     router.replace("/login");
     router.refresh();
   }

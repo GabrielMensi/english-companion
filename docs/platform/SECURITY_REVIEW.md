@@ -110,6 +110,8 @@ Fuera de _Authentication_:
 ## Checklist antes de desplegar
 
 - [x] _Authentication_ hecho: ninguna ruta ni página responde sin sesión (#124, con `src/app/security.test.ts`).
+- [ ] El reverse proxy pone la dirección del cliente en `X-Forwarded-For` (Caddy lo hace) y la app corre con `TRUST_PROXY=true`: el rate limit de login toma la IP de ahí, de derecha a izquierda; sin eso todos comparten un solo contador.
+- [ ] No hay cuentas de otras personas hasta que el multiusuario (PR b) esté mergeado.
 - [ ] `SIGNUP_ALLOWED_EMAILS` definida desde el primer arranque (si no, el primero que llegue a `/signup` se queda con la instancia).
 - [ ] Rate limiting en las rutas de IA y transcripción.
 - [x] CSP completa (#137). [ ] HSTS (en el host o el reverse proxy).

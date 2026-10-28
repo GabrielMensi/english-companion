@@ -54,10 +54,10 @@ Las tablas de Better Auth usan ids `text`, fechas `integer timestamp` y nombres 
 ### Sesiones y cookies
 
 - Sesión en base (tabla `session`), cookie `httpOnly`, `SameSite=Lax`, `Secure` automático cuando `BETTER_AUTH_URL` es `https` (prefijo `__Secure-`). Duración 30 días, se renueva cada día (`session.expiresIn` / `updateAge`). `cookieCache` activado 5 minutos para no ir a SQLite en cada request (revocar una sesión tarda hasta 5 min en notarse; aceptable).
-- Cerrar sesión borra la fila. _Implementación_: una copia de la cookie sigue valiendo hasta 5 minutos por el `cookieCache` (se probó con la app real); el navegador sí pierde las cookies. Cambiar la contraseña revoca las demás sesiones (`revokeOtherSessions: true`).
+- Cerrar sesión borra la fila. _Implementación_: una copia de la cookie sigue valiendo hasta 5 minutos por el `cookieCache` (se probó con la app real); el navegador sí pierde las cookies. El reseteo por comando borra las sesiones de la cuenta (no hay pantalla de cambio de contraseña todavía; cuando exista, usar `revokeOtherSessions: true`).
 - Sin verificación de email (no hay proveedor de correo) y sin "olvidé mi contraseña" por email: el reseteo es un comando de administrador, `pnpm auth:reset-password <email>` (script en `scripts/`, pide la nueva contraseña por stdin, hace el cambio por el camino del core, **no** con `auth.api.setUserPassword` (eso es del plugin `admin` y pide una sesión de admin): hash con `(await auth.$context).password.hash(nueva)`, `UPDATE account SET password = <hash> WHERE user_id = ? AND provider_id = 'credential'` y `DELETE FROM session WHERE user_id = ?`; verificado en los tipos, `ctx.password.hash` existe). Se documenta en el README.
 - Contraseña: mínimo 10 caracteres, máximo 128 (`emailAndPassword.minPasswordLength/maxPasswordLength`). Sin reglas de composición.
-- **Rate limit de Better Auth** (`rateLimit: { enabled: true, storage: "database" }`; por defecto solo se activa en producción): 3 intentos por 10 s en `/sign-in/email` y `/sign-up/email` como mínimo (regla `customRules`). El de las rutas de IA es aparte (sección 4).
+- **Rate limit de Better Auth** (la IP: ver _Implementación_ más abajo) (`rateLimit: { enabled: true, storage: "database" }`; por defecto solo se activa en producción): 3 intentos por 10 s en `/sign-in/email` y `/sign-up/email` como mínimo (regla `customRules`). El de las rutas de IA es aparte (sección 4).
 
 ### CSRF
 
@@ -100,7 +100,11 @@ _Implementación_: `src/app/security.test.ts`. Un test de integración que **rec
 - `ENABLE_EVAL` y el primer usuario como admin: `evalEnabled()` en `env.ts` e `isAdmin`/`canUseEval` en `src/lib/auth/admin.ts`; las páginas y rutas de `eval` dan 404 si no.
 - Tablas de auth: `user`, `session`, `account`, `verification`, `rate_limit` (en `schema.ts` como `authUser`, `authSession`, ...), migración `0014_auth_tables` (solo `CREATE TABLE` e índices).
 - Tests: `createTestUser()` en `src/test/auth.ts` crea la cuenta por Better Auth y devuelve `request()`/`headers()` con la cookie; el setup fija `BETTER_AUTH_SECRET` y `SIGNUP_ALLOWED_EMAILS`. Con `vi.useFakeTimers()` la comprobación de sesión (cripto asíncrona real) no avanza con `advanceTimersByTimeAsync(0)`: crear primero lo que haga falta y esperar con `vi.waitFor` (ver el test de reintentos en `sessions/[id]/messages`).
-- `GET /api/auth/signup-status` existe y es público; `/signup` lee el mismo dato directo de la base.
+- No hay `GET /api/auth/signup-status` (se quitó: nada lo usaba y revelaba si la instancia estaba libre); `/signup` lee el dato directo de la base.
+- Cookies: localmente el nombre lleva `ec-<hash de DATABASE_PATH>` (`advanced.cookiePrefix`, `authCookiePrefix`), porque las cookies se comparten entre puertos del mismo host y un worktree cerraba la sesión de la app en uso. Un deploy usa el nombre por defecto.
+- IP del rate limit: sin `TRUST_PROXY` no se lee ningún header (nada que mande el cliente cambia su bucket); con `TRUST_PROXY` se lee `X-Forwarded-For` de derecha a izquierda saltando rangos privados (`ipAddressOptions`). **El proxy tiene que poner la dirección del cliente en `X-Forwarded-For`** (Caddy lo hace por defecto y descarta el que manda el cliente); un proxy que solo pasa el header del cliente sin agregar el suyo deja el límite en manos del cliente.
+- Secreto local: un `auth.secret` vacío o corto es un error de arranque (Better Auth usaría un secreto por defecto público), nunca se reemplaza solo.
+- El rechazo del registro cerrado se hace en un hook `before` de `/sign-up/email` (antes de que Better Auth compruebe si el email existe, para que un email registrado no conteste distinto) y de nuevo en `databaseHooks` como respaldo.
 
 ## 2. Política de registro
 
@@ -110,7 +114,7 @@ Opciones: (A) registro abierto, (B) invitación con token, (C) allowlist de emai
 
 - Si la variable tiene emails: solo esos se pueden registrar (comparación en minúsculas). El registro es el mismo formulario; se rechaza con "Sign-up is closed" (mensaje igual para email no permitido y para registro cerrado: no revela quién está en la lista).
 - Si está vacía: solo se puede crear la **primera** cuenta (cuando `user` está vacía); después se cierra. Es el caso local: el usuario actual crea su cuenta y nadie más puede.
-- Se aplica en `databaseHooks.user.create.before` (cubre cualquier camino de alta, no solo el endpoint) y se ve en `/signup` (`GET /api/auth/signup-status` devuelve `{ open: boolean }` para mostrar el formulario o un aviso).
+- Se aplica en `databaseHooks.user.create.before` (cubre cualquier camino de alta, no solo el endpoint) y se ve en `/signup` (la página lee si hay lugar directo de la base y muestra el formulario o un aviso).
 - Para dar de alta a alguien: se agrega su email a la variable y se reinicia (para cuatro o cinco personas alcanza; es el mismo mecanismo que `ALLOWED_HOSTS`). Si algún día hace falta más, B (tabla `invites`) es un cambio chico y compatible.
 - En un deploy, la lista **debe** estar definida desde el primer arranque (si no, el primero que llegue a `/signup` se queda con la instancia). Lo exige el checklist de DEPLOY.md.
 
