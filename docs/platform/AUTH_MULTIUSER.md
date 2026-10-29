@@ -1,8 +1,8 @@
 # Login, multiusuario y API keys por usuario
 
-> Area: Platform · Kind: Research · Status: In progress · Board: #124, #125, #126
+> Area: Platform · Kind: Research · Status: Done · Board: #124, #125, #126, #156, #157
 
-> **Estado**: la PR a (auth, #124 y #138) y la b (multiusuario, #125) están implementadas; la c (keys, #126) sigue pendiente. Lo que cambió al implementar cada una está en _Implementación de la PR a_ e _Implementación de la PR b_ más abajo.
+> **Estado**: la PR a (auth, #124 y #138) y la b (multiusuario, #125) están implementadas; la c (keys, #126, #156 y #157) también. Lo que cambió al implementar cada una está en _Implementación de la PR a_, _b_ y _c_ más abajo.
 
 Diseño para implementar sin volver a investigar. Cubre _Authentication_ (#124), _Multi-user support_ (#125) y _Per-user API keys_ (#126), más el cifrado de las keys guardadas. Parte de [SECURITY_REVIEW.md](SECURITY_REVIEW.md) (hallazgos 1, 6 y 8) y de [TESTING.md](TESTING.md) (capa de integración). El deploy está en [DEPLOY.md](DEPLOY.md).
 
@@ -261,6 +261,17 @@ El dictado usa Groq Whisper. Sin key de Groq (propia o compartida): el botón de
 ### Tests
 
 Cifrado (arriba), "las keys de A no se resuelven para B" (aislamiento), "el cliente nunca recibe la key" (el JSON de `GET /api/settings` no contiene el valor guardado), y el claim cifra las keys viejas.
+
+### Implementación de la PR c: lo que se decidió al hacerla
+
+- **Cifrado**: `secrets-crypto.ts` (puro) y `encryption-key.ts` (clave desde `APP_ENCRYPTION_KEY` o `data/encryption.key`, `600`, escritura atómica como `auth.secret`; cacheada por configuración). `keyId` son 4 bytes (8 hex) de SHA-256. El archivo de clave inválido es un error explícito y nunca se reemplaza; una key que no descifra (clave perdida o distinta) cuenta como "sin key" con una advertencia de una línea sin la key ni el cifrado, y la fila queda intacta. En un deploy (`ALLOWED_HOSTS`) falta `APP_ENCRYPTION_KEY` = no arranca (`deployProblems`).
+- **Las keys de las cuentas viven en `user_settings.api-keys`**. `resolveApiKey(userId, provider)`, `resolveModel(userId, …)`, `withFallback(userId, …)`, `analyzeMessage`, `improvePrompt`, `classifyBatch`, `generateStudyPlan`, `explainLevel`, `generateExercises`, `generateCategoryExercises`, `transcribeSpeech`, `listModels`, `providerStatus`, `hasConfiguredProvider`, `availableModels` y `resolveTranscriptionModel` reciben el `userId` como primer argumento. Las keys en texto plano o cifradas con una clave vieja se re-cifran al leerlas.
+- **Migración de las keys globales: perezosa, no solo en el claim.** La base real ya hizo el claim en la PR b (que dejó `api-keys` en `settings`), así que el claim solo no alcanza. `adoptLegacyKeys` (en `secrets.ts`) mueve la fila `settings.api-keys` a la **primera cuenta** (`isAdmin`) la primera vez que se lee o escribe una key: cifra, escribe en `user_settings` y borra la fila vieja en una transacción; lo que la cuenta ya guardó gana; si la clave de cifrado no se puede leer, la fila vieja se queda (nunca se pierde una key). Es idempotente. El claim ahora **mueve también** `api-keys` (en claro, el claim no depende de la clave de cifrado) y la lectura la cifra. `settings` queda vacía y sin uso (el test de `scoping` solo permite que `secrets.ts` la lea).
+- **`SHARED_KEYS`** (default `true`): sin key propia, la cuenta usa `GOOGLE_GENERATIVE_AI_API_KEY` / `GROQ_API_KEY`; con `false` no. El tope diario por usuario sigue pendiente con los límites de la sección 4.
+- **Clasificador**: ya no hay un lote a la vez por keys compartidas: `MAX_CONCURRENT_JOBS = 2` y un chat frena solo el lote de su usuario. Con `SHARED_KEYS=true` las cuentas sin key propia comparten la cuota de la key del servidor; el tope de 2 lo mantiene moderado.
+- **`pnpm keys:reencrypt`** (`src/db/reencrypt.ts`, con tests): backup `pre-reencrypt-<fecha>.db`, una transacción, deja intactas y reporta las que no descifran.
+- **Export / import (#157): JSON por cuenta**, no una copia de SQLite: una copia traería a las demás cuentas y las tablas de login, y no se puede filtrar sin reabrir la base. El archivo (`english-companion-export`, versión 1; `data-transfer-core.ts`) tiene las 9 tablas de datos y los settings `app`, `practice:*` e `insights-*`; nunca keys, login, email ni ids de usuario (lista blanca de settings). Import (`POST /api/data/import`, hasta 50 MB, una transacción): **aditivo** y repetible (una fila con el mismo id ya de la cuenta se salta; las únicas por tarjeta o ejercicio se saltan); si el id pertenece a **otra cuenta** (ids únicos en toda la base) se le deriva uno estable (`sha256(userId, tabla, id)`) y los hijos lo siguen, así que importar el mismo archivo dos veces no duplica; cada fila se valida contra el esquema (tipos, enums de la taxonomía) y las inválidas o sin padre se cuentan y se descartan. UI: Configuración > _Your data_.
+- **Pendiente**: tope diario por usuario con `SHARED_KEYS=true`; el dictado sin key responde 409 (ya existía) en vez del 400 del diseño.
 
 ## 6. Plan de implementación en orden
 
