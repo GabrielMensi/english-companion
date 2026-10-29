@@ -24,6 +24,7 @@ const bodySchema = z.union([
     kind: z.literal("topic"),
     preset: z.string().max(100).nullable().default(null),
     topic: z.string().max(500).default(""),
+    tense: z.enum(TENSES).nullable().default(null),
   }),
 ]);
 
@@ -35,7 +36,7 @@ export const POST = withUser(async (request: Request, _ctx, { userId }) => {
     if (body.data.kind === "topic") {
       const choice = resolveTopic(body.data);
       if (!choice) return Response.json({ error: "Choose a topic or type one" }, { status: 400 });
-      return Response.json(startTopicChat(userId, choice), { status: 201 });
+      return Response.json(startTopicChat(userId, choice, body.data.tense), { status: 201 });
     }
     const session =
       body.data.kind === "category"

@@ -16,6 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import type { Session } from "@/db/schema";
 import { api } from "@/lib/api";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TENSE_LABELS, TENSES } from "@/lib/taxonomy";
 import { TOPIC_MAX_LENGTH, TOPIC_PRESETS } from "@/lib/topics";
 
 /** Starts a conversation about a topic: one from the list, or one the learner types. */
@@ -35,13 +37,17 @@ export function TalkAboutButton({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [custom, setCustom] = useState("");
+  /** A tense to practice in the conversation, or "none". */
+  const [tense, setTense] = useState("none");
   /** The preset being started, or "custom". */
   const [pending, setPending] = useState<string | null>(null);
 
   async function start(preset: string | null) {
     setPending(preset ?? "custom");
     try {
-      const session = await api<Session>("/api/practice", { body: { kind: "topic", preset, topic: custom } });
+      const session = await api<Session>("/api/practice", {
+        body: { kind: "topic", preset, topic: custom, tense: tense === "none" ? null : tense },
+      });
       setOpen(false);
       setCustom("");
       router.push(`/chat/${session.id}`);
@@ -75,6 +81,22 @@ export function TalkAboutButton({
             Pick a topic or type your own. The tutor keeps the conversation on it and corrects you as usual.
           </DialogDescription>
         </DialogHeader>
+        <div className="flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Also practice</span>
+          <Select value={tense} onValueChange={setTense}>
+            <SelectTrigger size="sm" aria-label="Tense to practice">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No tense in particular</SelectItem>
+              {TENSES.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {TENSE_LABELS[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <ul className="grid gap-2" aria-busy={pending !== null}>
           {TOPIC_PRESETS.map((preset) => (
             <li key={preset.id}>

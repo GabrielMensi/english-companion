@@ -10,6 +10,7 @@ import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AssistantMessage } from "@/components/chat/assistant-message";
 import { ChatMenu, type ModelOption, ModeSwitch } from "@/components/chat/chat-controls";
 import { Composer, type Notify, useComposer } from "@/components/chat/composer";
+import { TopicTools } from "@/components/chat/topic-tools";
 import { MiniChat, type Notice } from "@/components/chat/mini-chat";
 import { NoProviderNotice } from "@/components/no-provider-notice";
 import { UserMessage } from "@/components/chat/user-message";
@@ -22,7 +23,10 @@ import type { AnalysisPreview } from "@/lib/ai/analysis";
 import type { ProviderId } from "@/lib/ai/provider-info";
 import { api, streamTurn } from "@/lib/api";
 import { reviewFeedback } from "@/lib/analysis-card-core";
+import type { StoredFeedback } from "@/lib/topic-review";
+import type { Tense } from "@/lib/taxonomy";
 import type { ChatMessage, CorrectionUpdate, SessionSummary, VoiceInput } from "@/lib/types";
+import { MIN_REVIEW_TURNS } from "@/lib/topic-review-core";
 import { voided } from "@/lib/voided";
 
 export function ChatView({
@@ -33,6 +37,7 @@ export function ChatView({
   hasModel,
   canDictate,
   answerTemplate = null,
+  topicTools = null,
 }: {
   session: Omit<SessionSummary, "practice">;
   initialMessages: ChatMessage[];
@@ -43,6 +48,8 @@ export function ChatView({
   canDictate: boolean;
   /** In an exercise chat waiting for the answers to its set: numbered lines to fill in. */
   answerTemplate?: string | null;
+  /** In a topic chat: its tense focus and saved feedback. */
+  topicTools?: { tense: Tense | null; feedback: StoredFeedback | null } | null;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
@@ -282,6 +289,14 @@ export function ChatView({
               <Headphones />
               Voice
             </Button>
+          )}
+          {topicTools && (
+            <TopicTools
+              sessionId={session.id}
+              tense={topicTools.tense}
+              feedback={topicTools.feedback}
+              canReview={messages.filter((m) => m.role === "user" && m.status === "done").length >= MIN_REVIEW_TURNS}
+            />
           )}
           <ModeSwitch value={mode} onChange={voided(changeMode)} />
           <ChatMenu

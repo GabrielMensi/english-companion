@@ -4,6 +4,7 @@
  * analysis prompt); corrections work as in any other chat. Pure, no AI: the
  * opening message is fixed, so starting a chat is instant.
  */
+import { type Tense, TENSE_HINTS, TENSE_LABELS } from "@/lib/taxonomy";
 
 export interface TopicPreset {
   id: string;
@@ -125,4 +126,14 @@ export function topicOpening(choice: TopicChoice, random = Math.random): string 
 
 export function topicTitle(choice: TopicChoice): string {
   return findPreset(choice.preset)?.label ?? cleanTopic(choice.topic);
+}
+
+/**
+ * Extra reply rule when the learner also wants to practice a tense in a topic conversation: the
+ * question that ends the reply is phrased so that answering it needs the tense. The topic stays the
+ * same and the tense is never named, so the conversation doesn't turn into a grammar lesson.
+ */
+export function topicTenseRule(tense: Tense): string {
+  const label = TENSE_LABELS[tense].toLowerCase();
+  return `The learner also wants to practice the ${label} (${TENSE_HINTS[tense]}) in this conversation: whenever it fits the topic, phrase your question so that a natural answer needs the ${label}. Never mention grammar or tenses.`;
 }

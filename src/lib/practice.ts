@@ -10,7 +10,7 @@ import { gradeCategorySet, gradeTenseSet, setSummary } from "@/lib/exercise-set"
 import { getSettings } from "@/lib/settings";
 import { countsInStats, ERROR_CATEGORIES, type ErrorCategory, type Severity, type Tense, TENSES } from "@/lib/taxonomy";
 import { conversationPracticeRule, EXERCISE_KINDS, exerciseReply, practiceTopic } from "@/lib/tense-practice";
-import { topicRule } from "@/lib/topics";
+import { topicRule, topicTenseRule } from "@/lib/topics";
 import { deleteUserSetting, getUserSetting, listUserSettings, setUserSetting } from "@/lib/user-settings";
 
 /**
@@ -22,7 +22,13 @@ const tense = z.enum(TENSES);
 const practiceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("conversation"), tense }),
   // A conversation about a topic the learner chose (src/lib/topics.ts). Normal writing, not practice.
-  z.object({ kind: z.literal("topic"), preset: z.string().nullable(), topic: z.string() }),
+  z.object({
+    kind: z.literal("topic"),
+    preset: z.string().nullable(),
+    topic: z.string(),
+    // A tense to practice in the conversation too; chats from before this have none.
+    tense: tense.nullable().optional(),
+  }),
   z.object({
     kind: z.enum(EXERCISE_KINDS),
     tense,
@@ -74,6 +80,14 @@ export function savePractice(userId: string, sessionId: string, practice: Practi
   setUserSetting(userId, keyOf(sessionId), practice);
 }
 
+/** Changes (or clears) the tense of a topic chat. False when the chat isn't a topic chat. */
+export function setTopicTense(userId: string, sessionId: string, tense: Tense | null): boolean {
+  const practice = getPractice(userId, sessionId);
+  if (practice?.kind !== "topic") return false;
+  savePractice(userId, sessionId, { ...practice, tense });
+  return true;
+}
+
 export function deletePractice(userId: string, sessionId: string) {
   deleteUserSetting(userId, keyOf(sessionId));
 }
@@ -81,7 +95,9 @@ export function deletePractice(userId: string, sessionId: string) {
 /** Extra instruction for the conversation reply: follow-up questions that need the practiced tense, or stay on the topic. */
 export function practiceReplyRule(practice: Practice | null): string | undefined {
   if (practice?.kind === "conversation") return conversationPracticeRule(practice.tense);
-  if (practice?.kind === "topic") return topicRule(practice);
+  if (practice?.kind === "topic") {
+    return [topicRule(practice), practice.tense ? topicTenseRule(practice.tense) : null].filter(Boolean).join(" ");
+  }
   return undefined;
 }
 
