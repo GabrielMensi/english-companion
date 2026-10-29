@@ -133,6 +133,15 @@ Necesita Chrome o Edge (la ventana flotante no se pudo probar a mano).
 - [ ] Undo: la fila desaparece; en el dashboard el error vuelve a contar y el link se va.
 - [ ] Una segunda cuenta ve solo sus propios descartes.
 
+### Chats de tema (#167: #161–#163)
+
+Usa algunas llamadas reales a la IA.
+
+- [ ] "Talk about…" → "Also practice": Present perfect → entrevista: las preguntas del tutor tiran al present perfect sin nombrarlo. Cambiar o sacar el tiempo desde el header: la respuesta siguiente lo sigue y queda guardado al recargar.
+- [ ] Responder 3–4 preguntas con errores → Feedback: cada frase citada y cada error son cosas que escribiste; nada inventado (empresas, números, detalles); las frases en español con ¡…! y los nombres de tiempos verbales quedan. Al recargar sigue ahí; "Write it again" lo regenera. Con menos de 2 respuestas, Feedback está deshabilitado.
+- [ ] Phrases: aparecen sugerencias tildadas; destildar una y guardar; /vocabulary las muestra con link al chat; dos con el mismo significado se ven las dos; volver a Phrases no repite las guardadas.
+- [ ] En un chat normal estos botones no aparecen. A ~400px de ancho el header se acomoda sin desbordarse.
+
 ## Problemas encontrados
 
 -
