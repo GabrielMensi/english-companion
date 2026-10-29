@@ -95,6 +95,18 @@ Desde acá la app pide login siempre, también en local.
 - [ ] `pnpm eval:models <spec> --topics-only --check` se niega a correr.
 - Resultado del eval de temas (n=8, orientativo): Gemini 100% con la regla de tema vs 90% sin, Groq 90% vs 90%, 0 falsos positivos: los chats de tema no empeoran la corrección (`docs/ai/TOPIC_EVAL.md`).
 
+## Tanda 4
+
+### Ventana flotante y dashboard (#154: #151, #152)
+
+Necesita Chrome o Edge (la ventana flotante no se pudo probar a mano).
+
+- [ ] Chat → mensaje con errores → ventana flotante: al pasar por un error aparecen "Wrong type?" y "Discard".
+- [ ] "Wrong type?" abre el diálogo dentro de la ventana flotante; Tab / Shift+Tab no salen del diálogo; los desplegables de categoría y tiempo verbal quedan dentro de la ventana; con una categoría de tiempo verbal (4 campos) Save sigue alcanzable; al guardar se actualizan la lista y la pestaña. También en modo oscuro.
+- [ ] Sin red → Save: el error aparece dentro del diálogo.
+- [ ] "Discard": el error desaparece y una nota dice que se deshace desde la pestaña; Undo funciona desde la pestaña.
+- [ ] Sin API key → /dashboard muestra el aviso arriba; con key, no.
+
 ## Problemas encontrados
 
 -
