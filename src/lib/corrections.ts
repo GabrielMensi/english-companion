@@ -1,11 +1,12 @@
 import "server-only";
 
-import { eq, isNull } from "drizzle-orm";
+import { count, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
 import { toChatCorrection } from "@/lib/correction-review";
 import { getSettings } from "@/lib/settings";
 import { countsInStats } from "@/lib/taxonomy";
+import type { ErrorCategory } from "@/lib/taxonomy";
 import type { CorrectionUpdate } from "@/lib/types";
 
 /**
@@ -51,4 +52,49 @@ export function restoreCorrection(userId: string, id: string): CorrectionUpdate 
     .where(owned(schema.corrections, userId, eq(schema.corrections.id, id)))
     .run();
   return getCorrectionUpdate(userId, id);
+}
+
+export const DISCARDED_LIMIT = 100;
+
+export type DiscardedMistake = {
+  id: string;
+  original: string;
+  correction: string;
+  category: ErrorCategory;
+  reason: string | null;
+  discardedAt: Date;
+  sessionId: string;
+};
+
+/** The learner's discarded mistakes, newest discard first (at most `limit`), and how many there are in all. */
+export function getDiscardedMistakes(
+  userId: string,
+  limit = DISCARDED_LIMIT,
+): { items: DiscardedMistake[]; total: number } {
+  const rows = db
+    .select({
+      id: schema.corrections.id,
+      original: schema.corrections.original,
+      correction: schema.corrections.correction,
+      category: schema.corrections.category,
+      reason: schema.corrections.discardReason,
+      discardedAt: schema.corrections.discardedAt,
+      sessionId: schema.messages.sessionId,
+    })
+    .from(schema.corrections)
+    .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
+    .where(owned(schema.corrections, userId, isNotNull(schema.corrections.discardedAt)))
+    .orderBy(desc(schema.corrections.discardedAt))
+    .limit(limit)
+    .all();
+  const total =
+    db
+      .select({ n: count() })
+      .from(schema.corrections)
+      .where(owned(schema.corrections, userId, isNotNull(schema.corrections.discardedAt)))
+      .get()?.n ?? 0;
+  return {
+    items: rows.flatMap((r) => (r.discardedAt ? [{ ...r, discardedAt: r.discardedAt }] : [])),
+    total,
+  };
 }
