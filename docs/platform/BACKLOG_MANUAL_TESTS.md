@@ -142,6 +142,14 @@ Usa algunas llamadas reales a la IA.
 - [ ] Phrases: aparecen sugerencias tildadas; destildar una y guardar; /vocabulary las muestra con link al chat; dos con el mismo significado se ven las dos; volver a Phrases no repite las guardadas.
 - [ ] En un chat normal estos botones no aparecen. A ~400px de ancho el header se acomoda sin desbordarse.
 
+### API keys por usuario y exportar/importar (#168: #156, #126, #157)
+
+- [ ] Reiniciar `pnpm dev` del worktree de integración; Settings: tus cards de Gemini y Groq siguen diciendo "API key set" con los mismos 4 últimos caracteres y Test funciona. Existe `data/encryption.key` (permisos 600).
+- [ ] Cambiar o borrar una key y recargar: queda guardada y enmascarada.
+- [ ] Con `SHARED_KEYS=false` en `.env.local` (y sin keys en el env), una segunda cuenta (en la allowlist) ve el aviso de "sin key", no puede chatear ni dictar y no ve ninguna de tus keys.
+- [ ] Exportar desde tu cuenta: el archivo no tiene `AIza`/`gsk` ni `api-keys`. Importarlo en la segunda cuenta: aparecen sus chats, errores y flashcards (los chats de tema conservan tema y tiempo verbal); importarlo de nuevo no agrega nada.
+- Importante al mergear a `develop`: tu key actual pasa cifrada a tu cuenta la primera vez que se lee; hacé backup de `data/companion.db` antes (como siempre) y guardá `data/encryption.key` junto con la base.
+
 ## Problemas encontrados
 
 -
