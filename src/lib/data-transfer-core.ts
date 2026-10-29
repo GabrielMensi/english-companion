@@ -10,8 +10,8 @@ import { getTableColumns } from "drizzle-orm";
 
 import * as schema from "@/db/schema";
 import { CARD_KINDS } from "@/lib/flashcards-core";
-import { CEFR_LEVELS } from "@/lib/insights/level-core";
 import { FLUENCY_VERSION } from "@/lib/fluency";
+import { CEFR_LEVELS } from "@/lib/insights/level-core";
 import { upgradeSettings } from "@/lib/settings-core";
 import { GRADES } from "@/lib/srs";
 import { ERROR_CATEGORIES, PRONUNCIATION_CATEGORIES, SEVERITIES } from "@/lib/taxonomy";

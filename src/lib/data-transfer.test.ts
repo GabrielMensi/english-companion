@@ -3,9 +3,9 @@ import { eq, is } from "drizzle-orm";
 import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { classChatIds, createClassSession, getClassSession, getClassView, saveClassItems } from "@/lib/class";
 import { exportUserData, importUserData } from "@/lib/data-transfer";
 import { parseExportFile, TABLE_NAMES, TABLE_SPECS } from "@/lib/data-transfer-core";
-import { classChatIds, createClassSession, getClassSession, getClassView, saveClassItems } from "@/lib/class";
 import { setApiKey } from "@/lib/secrets";
 import { setUserSetting } from "@/lib/user-settings";
 import { createTestUser, type TestUser } from "@/test/auth";
