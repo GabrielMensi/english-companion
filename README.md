@@ -153,3 +153,7 @@ Design docs, research and decisions are in [docs/](docs/README.md) (in Spanish);
 ## Deploying
 
 The app is ready for a small VPS with Docker Compose and Caddy (Dockerfile, migrations with a backup, deploy script), but it isn't published yet. See [docs/platform/DEPLOY.md](docs/platform/DEPLOY.md) and [docs/platform/RELEASES.md](docs/platform/RELEASES.md).
+
+## License
+
+[MIT](LICENSE)

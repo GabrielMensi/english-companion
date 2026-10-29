@@ -153,3 +153,7 @@ Los docs de diseño, investigaciones y decisiones están en [docs/](docs/README.
 ## Deploy
 
 La app está lista para un VPS chico con Docker Compose y Caddy (Dockerfile, migraciones con backup, script de deploy), pero todavía no está publicada. Ver [docs/platform/DEPLOY.md](docs/platform/DEPLOY.md) y [docs/platform/RELEASES.md](docs/platform/RELEASES.md).
+
+## Licencia
+
+[MIT](LICENSE)
