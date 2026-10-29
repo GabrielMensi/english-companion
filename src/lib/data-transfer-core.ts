@@ -68,10 +68,22 @@ export const TABLE_SPECS: Record<TableName, TableSpec> = {
 
 export const TABLE_NAMES = Object.keys(TABLE_SPECS) as TableName[];
 
+/**
+ * Settings keys of the form `<prefix><chat id>`: they travel with the chat, so an import that gives the
+ * chat a new id renames them too. A new per-chat setting only needs its prefix here.
+ */
+export const PER_SESSION_PREFIXES = ["practice:", "feedback:"] as const;
+
+/** The prefix and chat id of a per-chat settings key, or null for any other key. */
+export function perSessionKey(key: string): { prefix: string; sessionId: string } | null {
+  const prefix = PER_SESSION_PREFIXES.find((p) => key.startsWith(p));
+  return prefix ? { prefix, sessionId: key.slice(prefix.length) } : null;
+}
+
 /** Settings that travel with the account. Anything else (the API keys above all) never leaves or enters. */
 export function isExportableSetting(key: string): boolean {
   return (
-    key === "app" || key === "insights-plan" || key === "insights-level-explanation" || key.startsWith("practice:")
+    key === "app" || key === "insights-plan" || key === "insights-level-explanation" || perSessionKey(key) !== null
   );
 }
 

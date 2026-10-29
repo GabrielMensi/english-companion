@@ -114,6 +114,21 @@ describe("import", () => {
     expect(count(schema.messages, a.id)).toBe(2);
   });
 
+  it("per-chat settings (practice:, feedback:) follow their chat to its new id", () => {
+    const { session } = seedAccount(a, "A");
+    setUserSetting(a.id, `feedback:${session.id}`, { note: 1 });
+    setUserSetting(a.id, "feedback:no-such-chat", { note: 2 });
+    importUserData(b.id, parse(exportUserData(a.id)));
+    const mine = db.select().from(schema.sessions).where(eq(schema.sessions.userId, b.id)).get()!;
+    const keys = db
+      .select()
+      .from(schema.userSettings)
+      .where(eq(schema.userSettings.userId, b.id))
+      .all()
+      .map((s) => s.key);
+    expect(keys.sort()).toEqual(["app", `feedback:${mine.id}`, `practice:${mine.id}`].sort());
+  });
+
   it("is repeatable: importing the same file again adds nothing", () => {
     seedAccount(a, "A");
     const file = parse(exportUserData(a.id));

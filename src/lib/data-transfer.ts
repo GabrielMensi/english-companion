@@ -10,6 +10,7 @@ import {
   EXPORT_VERSION,
   type ExportFile,
   isExportableSetting,
+  perSessionKey,
   type ParsedFile,
   type Row,
   serializeRow,
@@ -127,10 +128,11 @@ export function importUserData(userId: string, file: ParsedFile): ImportSummary 
 
     for (const [key, value] of Object.entries(file.settings)) {
       let target = key;
-      if (key.startsWith("practice:")) {
-        const session = ids.sessions.get(key.slice("practice:".length));
+      const perSession = perSessionKey(key);
+      if (perSession) {
+        const session = ids.sessions.get(perSession.sessionId);
         if (!session) continue;
-        target = `practice:${session}`;
+        target = `${perSession.prefix}${session}`;
       }
       const result = tx.insert(schema.userSettings).values({ userId, key: target, value }).onConflictDoNothing().run();
       summary.settingsAdded += result.changes;
