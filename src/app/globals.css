@@ -230,3 +230,14 @@
   --primary: var(--train);
   --primary-foreground: var(--train-foreground);
 }
+
+/* Printing a page (the report for class): no sidebar, and the page flows instead of scrolling inside the window. */
+@media print {
+  body,
+  main,
+  main > div {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+}

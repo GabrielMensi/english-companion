@@ -10,8 +10,8 @@ import { describe, expect, it } from "vitest";
 import { GLOBAL_SETTINGS, OWNED_TABLES } from "./claim";
 
 const camel = (name: string) => name.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-/** `missed_exercises` -> `missedExercises`; `user_settings` is checked too. */
-const TABLES = [...OWNED_TABLES, "user_settings"].map(camel);
+/** `missed_exercises` -> `missedExercises`; `user_settings` and `class_sessions` (owned for good, never NULL) are checked too. */
+const TABLES = [...OWNED_TABLES, "user_settings", "class_sessions"].map(camel);
 
 function sourceFiles(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

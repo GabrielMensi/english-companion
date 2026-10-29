@@ -119,6 +119,20 @@ Necesita Chrome o Edge (la ventana flotante no se pudo probar a mano).
 - [ ] "Discard": el error desaparece y una nota dice que se deshace desde la pestaña; Undo funciona desde la pestaña.
 - [ ] Sin API key → /dashboard muestra el aviso arriba; con key, no.
 
+### Clases (#158, #159, #160)
+
+Con la base copiada y la cuenta con tus datos (`pnpm auth:claim-data <email>`). Para el paso de la IA hace falta una API key.
+
+- [ ] Barra lateral → Review → **Class** abre `/class`. Agregá una clase de hace 3 días con nivel B1 y una nota: aparece en la lista; cambiar el nivel en el selector se guarda al recargar.
+- [ ] **Report for the next class** (o "Report since this class"): muestra "Since the class on …", los errores más repetidos con ejemplos, las áreas que empeoraron y las palabras con [corchetes] de esos días; "Level" muestra la estimación de la app y el B1 del profesor.
+- [ ] En el reporte, "Use these dates" con otras fechas y "Since a class" cambian el período. **Print / save as PDF**: la vista previa no tiene la barra lateral y todo el texto entra; **Copy as Markdown** y **Download .md** traen el mismo contenido.
+- [ ] **What should I ask?** escribe 3 a 5 preguntas con su porqué; al recargar siguen ahí.
+- [ ] En la clase → **Load the teacher's corrections**: pegá `I have went → I went` y `I'm agree → I agree`, más `New word: bucket list`. **Structure with AI** muestra los errores con su categoría y la palabra con su traducción; quitá uno con la X y guardá con "Save as From class" (sin API key el botón está deshabilitado y explica por qué).
+- [ ] La clase lista lo cargado con el badge **From class**. En el Dashboard (categoría → lista de errores) y en Vocabulary aparece el badge; en Flashcards → errores están las tarjetas nuevas (sin ícono de chat). Los números del dashboard subieron en esos errores.
+- [ ] Esos errores NO aparecen en el reporte para llevar a clase. Borrar la clase borra también lo cargado.
+- [ ] Insights → Estimated level: debajo de la estimación dice "Your teacher's level on …: B1" y cuántos niveles de diferencia hay.
+- [ ] El chat oculto de la clase no aparece en la barra lateral.
+
 ## Problemas encontrados
 
 -

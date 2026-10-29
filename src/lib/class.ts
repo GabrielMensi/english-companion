@@ -234,3 +234,13 @@ export function getTeacherLevel(userId: string): { level: CefrLevel; heldAt: num
   }
   return null;
 }
+
+/** The hidden chats that hold what the teacher corrected in class. */
+export function classChatIds(userId: string): string[] {
+  return db
+    .select({ id: schema.sessions.id })
+    .from(schema.sessions)
+    .where(owned(schema.sessions, userId, eq(schema.sessions.mode, "class")))
+    .all()
+    .map((s) => s.id);
+}

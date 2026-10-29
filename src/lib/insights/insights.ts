@@ -1,9 +1,9 @@
 import "server-only";
 
-import { eq, gt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
-import { getTeacherLevel } from "@/lib/class";
+import { classChatIds, getTeacherLevel } from "@/lib/class";
 import { compareWithTeacher, type TeacherComparison } from "@/lib/class-core";
 import { getUserSetting, setUserSetting } from "@/lib/user-settings";
 import { explainLevel, generateStudyPlan } from "@/lib/ai/insights";
@@ -125,9 +125,11 @@ export async function createLevelExplanation(userId: string): Promise<StoredLeve
 }
 
 function loadLevelInput(userId: string) {
+  const classChats = new Set(classChatIds(userId));
   const messages: LevelMessage[] = db
     .select({
       id: schema.messages.id,
+      sessionId: schema.messages.sessionId,
       createdAt: schema.messages.createdAt,
       wordCount: schema.messages.wordCount,
       content: schema.messages.content,
@@ -136,16 +138,10 @@ function loadLevelInput(userId: string) {
       tenseCounts: schema.messages.tenseCounts,
     })
     .from(schema.messages)
-    .where(
-      owned(
-        schema.messages,
-        userId,
-        eq(schema.messages.role, "user"),
-        eq(schema.messages.status, "done"),
-        gt(schema.messages.wordCount, 0),
-      ),
-    )
+    .where(owned(schema.messages, userId, eq(schema.messages.role, "user"), eq(schema.messages.status, "done")))
     .all()
+    // A class load with only words has no words of the learner's.
+    .filter((m) => m.wordCount > 0 || !classChats.has(m.sessionId))
     .map((m) => ({
       id: m.id,
       createdAt: m.createdAt.getTime(),

@@ -1,9 +1,10 @@
 import "server-only";
 
-import { eq, gt, gte, isNotNull, lt, ne, notInArray } from "drizzle-orm";
+import { eq, gte, isNotNull, lt, ne } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
+import { classChatIds } from "@/lib/class";
 import { computeFluencyStats } from "@/lib/fluency";
 import { getSettings } from "@/lib/settings";
 import { computeStats, type StatCorrection, type StatMessage } from "@/lib/stats-core";
@@ -39,9 +40,9 @@ export function getPeriodData(
   { withoutClass = false } = {},
 ) {
   const settings = getSettings(userId);
-  const classChats = withoutClass ? classChatIds(userId) : [];
+  const classChats = new Set(classChatIds(userId));
   const period = (start: number | null, end: number | null) => ({
-    messages: loadMessages(userId, start, end, input, classChats),
+    messages: loadMessages(userId, start, end, input, classChats, withoutClass),
     corrections: loadCorrections(userId, start, end, input, withoutClass),
   });
 
@@ -90,16 +91,6 @@ export function getPeriodData(
   };
 }
 
-/** The hidden chats that hold what the teacher corrected in class. */
-function classChatIds(userId: string): string[] {
-  return db
-    .select({ id: schema.sessions.id })
-    .from(schema.sessions)
-    .where(owned(schema.sessions, userId, eq(schema.sessions.mode, "class")))
-    .all()
-    .map((s) => s.id);
-}
-
 function hasSpokenMessages(userId: string): boolean {
   return (
     db
@@ -137,33 +128,37 @@ function loadMessages(
   from: number | null,
   to: number | null,
   input: InputFilter,
-  classChats: string[] = [],
+  classChats: Set<string>,
+  withoutClass: boolean,
 ): (StatMessage & { tenseCounts: TenseCounts })[] {
-  return db
-    .select({
-      id: schema.messages.id,
-      createdAt: schema.messages.createdAt,
-      wordCount: schema.messages.wordCount,
-      content: schema.messages.content,
-      correctedText: schema.messages.correctedText,
-      tenseCounts: schema.messages.tenseCounts,
-    })
-    .from(schema.messages)
-    .where(
-      owned(
-        schema.messages,
-        userId,
-        eq(schema.messages.role, "user"),
-        eq(schema.messages.status, "done"),
-        // A load with only words from class has no words of the learner's: not a message.
-        gt(schema.messages.wordCount, 0),
-        classChats.length > 0 ? notInArray(schema.messages.sessionId, classChats) : undefined,
-        inputFilter(input),
-        ...rangeFilter(schema.messages.createdAt, from, to),
-      ),
-    )
-    .all()
-    .map((m) => ({ createdAt: m.createdAt.getTime(), wordCount: m.wordCount, tenseCounts: tenseCountsOf(userId, m) }));
+  return (
+    db
+      .select({
+        id: schema.messages.id,
+        sessionId: schema.messages.sessionId,
+        createdAt: schema.messages.createdAt,
+        wordCount: schema.messages.wordCount,
+        content: schema.messages.content,
+        correctedText: schema.messages.correctedText,
+        tenseCounts: schema.messages.tenseCounts,
+      })
+      .from(schema.messages)
+      .where(
+        owned(
+          schema.messages,
+          userId,
+          eq(schema.messages.role, "user"),
+          eq(schema.messages.status, "done"),
+          inputFilter(input),
+          ...rangeFilter(schema.messages.createdAt, from, to),
+        ),
+      )
+      .all()
+      // What the teacher corrected in class is left out of reports for class; a load with only words has no
+      // words of the learner's, so it isn't a message.
+      .filter((m) => !classChats.has(m.sessionId) || (!withoutClass && m.wordCount > 0))
+      .map((m) => ({ createdAt: m.createdAt.getTime(), wordCount: m.wordCount, tenseCounts: tenseCountsOf(userId, m) }))
+  );
 }
 
 /**
