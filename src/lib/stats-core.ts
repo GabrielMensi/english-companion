@@ -35,6 +35,11 @@ export interface StatCorrection {
   discardedAt: number | null;
   /** Optional so older callers keep working: absent means the AI. */
   source?: CorrectionSource;
+  /**
+   * A mistake from class whose word count the learner didn't give: it shows in the counts, the weak areas and the
+   * top mistakes, but is left out of every per-100-words rate (there is no denominator for it).
+   */
+  unrated?: boolean;
 }
 
 export interface StatsInput {
@@ -116,7 +121,9 @@ export function computeStats(input: StatsInput): Stats {
   const bySeverity = emptySeverityRecord();
   for (const c of input.corrections) if (!isDiscarded(c)) bySeverity[c.severity]++;
 
-  const messagesWithErrors = new Set(counted.map((c) => c.messageId)).size;
+  const rated = counted.filter((c) => !c.unrated);
+  const previousRated = previousCounted.filter((c) => !c.unrated);
+  const messagesWithErrors = new Set(rated.map((c) => c.messageId)).size;
 
   return {
     totals: {
@@ -124,16 +131,16 @@ export function computeStats(input: StatsInput): Stats {
       words,
       errors: counted.length,
       typos: bySeverity.typo,
-      per100Words: rate(counted.length, words),
+      per100Words: rate(rated.length, words),
       cleanMessagesPct:
         input.messages.length === 0
           ? 0
           : round(((input.messages.length - messagesWithErrors) / input.messages.length) * 100),
-      previousPer100Words: previousWords > 0 ? rate(previousCounted.length, previousWords) : null,
+      previousPer100Words: previousWords > 0 ? rate(previousRated.length, previousWords) : null,
     },
     bySeverity,
     categories: categoryStats(counted, previousCounted, words, previousWords),
-    timeline: timeline(input, counted),
+    timeline: timeline(input, rated),
     topMistakes: topMistakes(counted),
   };
 }
@@ -146,7 +153,9 @@ function categoryStats(
 ): CategoryStat[] {
   const map = new Map<ErrorCategory, CategoryStat>();
   const subtypeCounts = new Map<ErrorCategory, Map<string, number>>();
+  const ratedCounts = new Map<ErrorCategory, number>();
   for (const c of counted) {
+    if (!c.unrated) ratedCounts.set(c.category, (ratedCounts.get(c.category) ?? 0) + 1);
     let stat = map.get(c.category);
     if (!stat) {
       stat = emptyCategoryStat(c.category);
@@ -170,7 +179,8 @@ function categoryStats(
   }
 
   const previousCounts = new Map<ErrorCategory, number>();
-  for (const c of previousCounted) previousCounts.set(c.category, (previousCounts.get(c.category) ?? 0) + 1);
+  for (const c of previousCounted.filter((c) => !c.unrated))
+    previousCounts.set(c.category, (previousCounts.get(c.category) ?? 0) + 1);
 
   // Categories that had errors before but none now are improvements worth showing.
   for (const category of previousCounts.keys()) {
@@ -181,7 +191,7 @@ function categoryStats(
 
   for (const stat of map.values()) {
     stat.recent = stat.recent.sort((a, b) => b.createdAt - a.createdAt).slice(0, RECENT_PER_CATEGORY);
-    stat.per100Words = rate(stat.count, words);
+    stat.per100Words = rate(ratedCounts.get(stat.category) ?? 0, words);
     if (previousWords > 0 && words > 0) {
       stat.trend = round(stat.per100Words - rate(previousCounts.get(stat.category) ?? 0, previousWords));
     }

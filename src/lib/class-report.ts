@@ -74,7 +74,7 @@ export async function createClassQuestions(userId: string, request: PeriodReques
   if (digest.totals.errors === 0 && digest.vocabulary.length === 0) {
     throw new Error("There are no mistakes or words in this period yet");
   }
-  const { questions, provider, modelId } = await generateClassQuestions(digest, getSettings(userId));
+  const { questions, provider, modelId } = await generateClassQuestions(userId, digest, getSettings(userId));
   const stored: StoredQuestions = {
     questions,
     key: periodKey(period, digest.totals.errors),

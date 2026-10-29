@@ -18,7 +18,7 @@ Una página **Class** (`/class`, en el grupo Review de la barra lateral) con:
 - Período por defecto: **desde la última clase que ya pasó** (`resolveReportPeriod`, en `src/lib/class-core.ts`). Se puede elegir otra clase de la que partir o dos fechas (`?since=<id>` o `?from=YYYY-MM-DD&to=YYYY-MM-DD`). Sin clases, los últimos 7 días.
 - Usa el mismo digest que Insights (`buildDigest`, `getPeriodData` en `src/lib/stats.ts`, que es lo que ya usa `getDashboardData`), con el período anterior de igual largo para las tendencias: errores más repetidos con ejemplos reales, áreas que empeoraron o mejoraron, tiempos verbales, palabras buscadas con `[corchetes]`.
 - **No incluye lo que cargó el profesor** (`withoutClass`): el profesor ya lo sabe; el reporte es sobre lo que escribiste vos. Tampoco incluye pronunciación (es de escritura).
-- Párrafo opcional de la IA, "qué preguntarle al profesor" (3 a 5 preguntas en inglés para decir en voz alta, con el porqué en el idioma de explicación). Va detrás de `providers.ts` (`generateObject`, schema plano, temperatura 0.4), no es de chat, así que no usa `withChatPriority`. Se guarda en `user_settings` (clave `class-report-questions`) con una clave del período y la cantidad de errores: si cambian, se consideran viejas y no se muestran.
+- Párrafo opcional de la IA, "qué preguntarle al profesor" (3 a 5 preguntas en inglés para decir en voz alta, con el porqué en el idioma de explicación). Va detrás de `providers.ts` (`generateObject`, schema plano, temperatura 0.4), y como las demás llamadas de IA que dispara el usuario (plan de estudio, explicación del nivel) va dentro de `withChatPriority`, para que el clasificador diferido no le compita por el límite gratis. Se guarda en `user_settings` (clave `class-report-questions`) con una clave del período y la cantidad de errores: si cambian, se consideran viejas y no se muestran.
 - Imprimible: botón "Print / save as PDF" y CSS `@media print` (sin barra lateral, la página fluye). Exporta Markdown: botón copiar y `GET /api/class/report?since=…` (descarga `.md`) con el nivel de la app y del profesor y las preguntas.
 
 ## Correcciones del profesor (#159)
@@ -31,15 +31,20 @@ Columna `source` (aditiva, con default): `corrections.source` = `"ai"` | `"class
 
 `corrections.message_id` y `vocabulary.message_id` son obligatorios, y las estadísticas salen de mensajes + correcciones. En lugar de tablas paralelas (que obligarían a tocar cada estadística, el clasificador y las flashcards), **cada carga es un mensaje del usuario en un chat oculto** (`sessions.mode = "class"`, uno por clase, `class_sessions.chat_session_id`):
 
-- El chat oculto no aparece en la barra lateral ni se puede abrir ni escribir (`listSessions` y `getSession` lo excluyen). Borrar la clase borra el chat y todo lo cargado.
+- El chat oculto no aparece en la barra lateral ni se puede abrir ni escribir (`listSessions` y `getSession` lo excluyen). Borrar la clase borra el chat y todo lo cargado, y también las flashcards huérfanas (`cleanOrphanReviews`); lo demás queda intacto (hay un test).
 - `created_at` del mensaje, las correcciones y las palabras es la **fecha de la clase**, así caen en el período correcto del dashboard (y se mueven si se cambia la fecha de la clase).
 - Las correcciones entran con `classification = "pending"`: el clasificador diferido les asigna el tipo fino y el tiempo verbal como a las de la IA. Cuentan en las estadísticas, el diagnóstico de tiempos y las flashcards de errores; las palabras, en Vocabulary y en las flashcards de vocabulario.
 - El mensaje es "lo que dijiste": `content` son los fragmentos originales y `corrected_text` los corregidos (una línea cada uno), así el conteo de tiempos y la oración de la tarjeta funcionan sin código especial. No tiene enlace a un chat: las tarjetas y Vocabulary no muestran el ícono "Open chat" para lo que viene de clase.
-- `input_mode` es `typed`: el profesor puede corregir ortografía o puntuación y no es dictado por reconocimiento de voz, así que `countsInStats` no filtra esas categorías.
+- `input_mode` es `spoken`: lo dijiste en la clase, así que valen las reglas del dictado: ortografía, puntuación y mayúsculas no se miden (el prompt y `normalizeClassImport` las descartan, y `countsInStats` las ignoraría igual) y no cuentan en el filtro "Written" del dashboard.
+- **Nunca entran en la estimación de nivel CEFR de la app** (`loadLevelInput` deja afuera el chat oculto, sus correcciones y sus palabras): esa estimación se compara con el nivel del profesor y tiene que ser independiente. Las correcciones del profesor tampoco se pueden reintentar (`getMessage` no devuelve los mensajes del chat oculto) ni borrar como chat.
 
 ### Palabras (denominador de "cada 100 palabras")
 
-El profesor corrige oraciones que dijiste, pero no se sabe cuántas palabras hablaste. Sumar errores sin palabras inflaría la tasa del dashboard y el nivel CEFR. Decisión: `message.word_count` = lo que el usuario indique en "About how many words did you speak?" (opcional) o, si lo deja vacío, **12 palabras por corrección** (`WORDS_PER_CLASS_CORRECTION`, una oración corta por corrección). Es una aproximación: la tasa de los errores de clase es alta por construcción (solo se cargan las oraciones corregidas). Una carga con solo palabras tiene `word_count = 0` y no cuenta como mensaje (ni como "mensaje sin errores").
+El profesor corrige oraciones que dijiste, pero no se sabe cuántas palabras hablaste, y sumar errores sin palabras inflaría las tasas. Decisión: `message.word_count` es lo que indiques en "About how many words did you speak?" (opcional).
+
+- **Con el número**: los errores de clase cuentan normal, también en las tasas por 100 palabras.
+- **Sin el número** (`word_count = 0`): los errores aparecen en los conteos, las áreas flojas, los errores frecuentes y las flashcards, pero quedan **fuera de todas las tasas por 100 palabras** (total, por categoría, tendencias, línea de tiempo, "mensajes sin errores") y del diagnóstico de tiempos verbales (`unrated` en `StatCorrection`, calculado en `loadCorrections`). El diálogo de carga lo explica en una línea.
+- Una carga sin número y una carga con solo palabras no cuentan como mensaje.
 
 ## Nivel del profesor (#160)
 

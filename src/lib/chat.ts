@@ -61,7 +61,8 @@ export function updateSession(userId: string, id: string, data: { title?: string
 export function deleteSession(userId: string, id: string) {
   const deleted = db
     .delete(schema.sessions)
-    .where(owned(schema.sessions, userId, eq(schema.sessions.id, id)))
+    // A class's hidden chat goes with its class (src/lib/class.ts), never on its own.
+    .where(owned(schema.sessions, userId, eq(schema.sessions.id, id), ne(schema.sessions.mode, "class")))
     .run().changes;
   if (deleted > 0) deletePractice(userId, id);
 }
@@ -84,7 +85,8 @@ export function getMessage(userId: string, id: string): ChatMessage | undefined 
       with: { corrections: true, vocabulary: true },
     })
     .sync();
-  return row ? toChatMessage(row) : undefined;
+  // The messages of a class's hidden chat can't be retried, prompted or opened.
+  return row && getSession(userId, row.sessionId) ? toChatMessage(row) : undefined;
 }
 
 function toChatMessage({

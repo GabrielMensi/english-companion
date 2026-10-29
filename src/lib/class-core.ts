@@ -6,13 +6,11 @@
 import { z } from "@/lib/zod";
 import { CEFR_LEVELS, type CefrLevel, type LevelEstimate } from "@/lib/insights/level-core";
 import { digestToMarkdown, type StatsDigest } from "@/lib/insights/digest-core";
-import { CATEGORY_HINTS, ERROR_CATEGORIES, SEVERITIES } from "@/lib/taxonomy";
+import { CATEGORY_HINTS, ERROR_CATEGORIES, SEVERITIES, TRANSCRIBER_CATEGORIES } from "@/lib/taxonomy";
 import { wordKey } from "@/lib/vocabulary-core";
 
 const DAY = 86_400_000;
 
-/** Words assumed for each correction the teacher gave when the learner doesn't say how much they spoke. */
-export const WORDS_PER_CLASS_CORRECTION = 12;
 /** Longest teacher text the structuring call takes. */
 export const MAX_CLASS_TEXT = 8000;
 export const MAX_CLASS_ITEMS = 60;
@@ -138,7 +136,7 @@ Rules:
 2. category: exactly one of:
 ${categories}
    subcategory: a specific snake_case name for the rule (e.g. past_simple_with_finished_time), never equal to the category.
-3. severity: suggestion, minor, moderate or major (never typo: these are not keyboard slips). Use moderate when unsure.
+3. severity: suggestion, minor, moderate or major (never typo: these are not keyboard slips). Use moderate when unsure. The learner SPOKE in class: skip corrections of spelling, punctuation and capitalization.
 4. explanation: in ${explain}, one short sentence: the teacher's reason if the notes give one, otherwise the rule.
 5. words: new words or phrases the teacher taught (vocabulary, expressions, phrasal verbs), not corrections. "english" holds the English word as taught; "spanish" its Spanish meaning (translate it if the notes don't). Skip anything that is already a correction entry.
 6. Empty arrays when there is nothing of that kind.`;
@@ -163,6 +161,8 @@ export function normalizeClassImport(raw: ClassImport): ClassImport {
     }))
     .filter((e) => {
       if (!e.original || !e.correction || e.original === e.correction) return false;
+      // Said in class: spelling, punctuation and capitalization aren't measurable, like in dictated messages.
+      if (TRANSCRIBER_CATEGORIES.includes(e.category)) return false;
       const key = `${e.original.toLowerCase()}→${e.correction.toLowerCase()}`;
       if (seen.has(key)) return false;
       seen.add(key);
@@ -192,10 +192,12 @@ function toSnakeCase(text: string): string {
     .replace(/^_+|_+$/g, "");
 }
 
-/** The words the learner is assumed to have spoken for the stats' denominator (see docs/class/CLASS_REPORT.md). */
-export function classWordCount(correctionCount: number, spokenWords: number | null | undefined): number {
-  if (spokenWords && spokenWords > 0) return spokenWords;
-  return correctionCount * WORDS_PER_CLASS_CORRECTION;
+/**
+ * The words the learner says they spoke, for the stats' denominator; 0 when they don't say, and then the
+ * class mistakes stay out of the per-100-words rates (see docs/class/CLASS_REPORT.md).
+ */
+export function classWordCount(spokenWords: number | null | undefined): number {
+  return spokenWords && spokenWords > 0 ? spokenWords : 0;
 }
 
 // ---------- What to ask the teacher ----------

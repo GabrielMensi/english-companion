@@ -325,9 +325,13 @@ function LoadPanel({ classId, hasModel, onClose }: { classId: string; hasModel: 
               value={spokenWords}
               onChange={(e) => setSpokenWords(e.target.value)}
               className="w-24"
-              placeholder="auto"
+              placeholder="none"
             />
           </label>
+          <p className="text-xs text-muted-foreground">
+            With a number, these mistakes count in your errors per 100 words. Without it they still show in your counts,
+            weak areas and flashcards, but stay out of the per-100-words rates.
+          </p>
           <div className="flex flex-wrap gap-2">
             <Button onClick={voided(save)} disabled={busy !== null || empty}>
               {busy === "save" && <Loader2 className="animate-spin" />}

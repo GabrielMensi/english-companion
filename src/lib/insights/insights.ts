@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { eq, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
 import { classChatIds, getTeacherLevel } from "@/lib/class";
@@ -140,8 +140,8 @@ function loadLevelInput(userId: string) {
     .from(schema.messages)
     .where(owned(schema.messages, userId, eq(schema.messages.role, "user"), eq(schema.messages.status, "done")))
     .all()
-    // A class load with only words has no words of the learner's.
-    .filter((m) => m.wordCount > 0 || !classChats.has(m.sessionId))
+    // What the teacher corrected in class never feeds the estimate: it is compared with the teacher's level.
+    .filter((m) => !classChats.has(m.sessionId))
     .map((m) => ({
       id: m.id,
       createdAt: m.createdAt.getTime(),
@@ -165,14 +165,14 @@ function loadLevelInput(userId: string) {
     })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
-    .where(owned(schema.corrections, userId))
+    .where(owned(schema.corrections, userId, ne(schema.corrections.source, "class")))
     .all();
 
   const lookupsByMessage = new Map<string, number>();
   for (const row of db
     .select({ messageId: schema.vocabulary.messageId })
     .from(schema.vocabulary)
-    .where(owned(schema.vocabulary, userId))
+    .where(owned(schema.vocabulary, userId, ne(schema.vocabulary.source, "class")))
     .all()) {
     lookupsByMessage.set(row.messageId, (lookupsByMessage.get(row.messageId) ?? 0) + 1);
   }

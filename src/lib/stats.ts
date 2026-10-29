@@ -45,6 +45,8 @@ export function getPeriodData(
     messages: loadMessages(userId, start, end, input, classChats, withoutClass),
     corrections: loadCorrections(userId, start, end, input, withoutClass),
   });
+  // Mistakes from class without a word count have no denominator: they're out of the tense diagnosis too.
+  const measured = <T extends { unrated?: boolean }>(rows: T[]) => rows.filter((c) => !c.unrated);
 
   const current = period(from, to);
   const previous = from !== null ? period(previousFrom, from) : { messages: [], corrections: [] };
@@ -62,9 +64,9 @@ export function getPeriodData(
   const tenses = computeTenseStats({
     countTypos: settings.countTyposInStats,
     messages: current.messages,
-    corrections: current.corrections,
+    corrections: measured(current.corrections),
     previousMessages: previous.messages,
-    previousCorrections: previous.corrections,
+    previousCorrections: measured(previous.corrections),
   });
 
   // Fluency only exists for dictated messages, so the written/spoken filter doesn't change it.
@@ -192,7 +194,11 @@ function loadCorrections(
   withoutClass = false,
 ): (StatCorrection & TenseStatCorrection)[] {
   return db
-    .select({ correction: schema.corrections, inputMode: schema.messages.inputMode })
+    .select({
+      correction: schema.corrections,
+      inputMode: schema.messages.inputMode,
+      messageWords: schema.messages.wordCount,
+    })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
     .where(
@@ -205,9 +211,10 @@ function loadCorrections(
       ),
     )
     .all()
-    .map(({ correction, inputMode }) => ({
+    .map(({ correction, inputMode, messageWords }) => ({
       ...correction,
       inputMode,
+      unrated: correction.source === "class" && messageWords === 0,
       createdAt: correction.createdAt.getTime(),
       discardedAt: correction.discardedAt?.getTime() ?? null,
     }));

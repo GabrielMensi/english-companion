@@ -9,7 +9,6 @@ import {
   parseDay,
   periodKey,
   resolveReportPeriod,
-  WORDS_PER_CLASS_CORRECTION,
 } from "./class-core";
 import { buildDigest } from "./insights/digest-core";
 import { computeStats } from "./stats-core";
@@ -102,6 +101,19 @@ describe("normalizeClassImport", () => {
     expect(result.corrections[1]).toMatchObject({ severity: "minor", subcategory: "verb_tense" });
   });
 
+  it("drops spelling, punctuation and capitalization: said in class, they aren't measurable", () => {
+    const result = normalizeClassImport({
+      corrections: [
+        error("freinds", "friends", { category: "spelling" }),
+        error("hello,", "hello", { category: "punctuation" }),
+        error("i", "I", { category: "capitalization" }),
+        error("I have went", "I went"),
+      ],
+      words: [],
+    });
+    expect(result.corrections.map((c) => c.original)).toEqual(["I have went"]);
+  });
+
   it("keeps one entry per word (by its Spanish) with up to 3 English options", () => {
     const result = normalizeClassImport({
       corrections: [],
@@ -123,10 +135,10 @@ describe("normalizeClassImport", () => {
 });
 
 describe("classWordCount", () => {
-  it("uses what the learner said they spoke, or a sentence per correction", () => {
-    expect(classWordCount(5, 300)).toBe(300);
-    expect(classWordCount(5, null)).toBe(5 * WORDS_PER_CLASS_CORRECTION);
-    expect(classWordCount(5, 0)).toBe(5 * WORDS_PER_CLASS_CORRECTION);
+  it("is what the learner said they spoke, or 0 (then the mistakes stay out of the rates)", () => {
+    expect(classWordCount(300)).toBe(300);
+    expect(classWordCount(null)).toBe(0);
+    expect(classWordCount(0)).toBe(0);
   });
 });
 

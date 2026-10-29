@@ -17,7 +17,7 @@ export const POST = withUser(async (request: Request, ctx: RouteContext<"/api/cl
   const body = await parseBody(request, bodySchema, `Paste the notes (up to ${MAX_CLASS_TEXT} characters)`);
   if (!body.ok) return body.response;
   try {
-    const { items } = await structureClassNotes(body.data.text, getSettings(userId));
+    const { items } = await structureClassNotes(userId, body.data.text, getSettings(userId));
     return Response.json(items);
   } catch (error) {
     logRouteError("POST /api/class/[id]/parse", error, 502);

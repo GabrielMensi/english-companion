@@ -1,5 +1,6 @@
 import { z } from "@/lib/zod";
 import { CEFR_LEVELS } from "@/lib/insights/level-core";
+import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
 import { deleteClassSession, updateClassSession } from "@/lib/class";
 import { parseBody } from "@/lib/request-body";
 import { withUser } from "@/lib/auth/with-user";
@@ -25,5 +26,7 @@ export const PATCH = withUser(async (request: Request, ctx: RouteContext<"/api/c
 export const DELETE = withUser(async (_request: Request, ctx: RouteContext<"/api/class/[id]">, { userId }) => {
   const { id } = await ctx.params;
   deleteClassSession(userId, id);
+  // Its mistakes and words are gone: so are their flashcards.
+  cleanOrphanReviews(userId);
   return new Response(null, { status: 204 });
 });

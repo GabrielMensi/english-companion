@@ -3,6 +3,7 @@
 // isolation between two accounts.
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { mistakeKey } from "@/lib/flashcards-core";
 import { fakeAi, resetFakeAi } from "@/test/ai";
 import { createTestUser, type TestUser } from "@/test/auth";
 import { db, resetDb, schema, seedCorrection, seedSession, seedUserMessage } from "@/test/db";
@@ -12,12 +13,15 @@ const classIdRoute = await import("@/app/api/class/[id]/route");
 const parseRoute = await import("@/app/api/class/[id]/parse/route");
 const itemsRoute = await import("@/app/api/class/[id]/items/route");
 const reportRoute = await import("@/app/api/class/report/route");
+const retryRoute = await import("@/app/api/messages/[id]/retry/route");
+const sessionRoute = await import("@/app/api/sessions/[id]/route");
 const questionsRoute = await import("@/app/api/class/report/questions/route");
 
 const { getDashboardData } = await import("@/lib/stats");
 const { getVocabulary } = await import("@/lib/vocabulary");
 const { getMistakeDeck } = await import("@/lib/flashcards");
 const { listSessions, getSession } = await import("@/lib/chat");
+
 const { getClassView, getTeacherLevel } = await import("@/lib/class");
 const { getClassReport } = await import("@/lib/class-report");
 const { getLevelData } = await import("@/lib/insights/insights");
@@ -100,28 +104,72 @@ describe("classes and what the teacher corrected", () => {
     expect(view[0].words).toHaveLength(1);
   });
 
-  it("they count in the stats with the words spoken, and are not a chat", async () => {
+  it("count in the stats; the per-100 rates only use them when the words spoken are given", async () => {
     const { id } = await createClass(a, { heldAt: Date.now() - DAY });
     await itemsRoute.POST(
       a.request(`http://t/api/class/${id}/items`, { method: "POST", body: json({ ...IMPORT, spokenWords: 100 }) }),
       ctx(id),
     );
     const { stats } = getDashboardData(a.id, "30");
-    expect(stats.totals).toMatchObject({ errors: 2, words: 100, messages: 1 });
+    expect(stats.totals).toMatchObject({ errors: 2, words: 100, messages: 1, per100Words: 2 });
     expect(stats.categories.find((c) => c.category === "verb_tense")?.recent[0].source).toBe("class");
 
-    // Without the number, a sentence per correction.
+    // Without the number they are counted but have no denominator: no words, no rate.
     const second = await createClass(a, { heldAt: Date.now() - DAY });
     await itemsRoute.POST(
       a.request(`http://t/api/class/${second.id}/items`, { method: "POST", body: json(IMPORT) }),
       ctx(second.id),
     );
-    expect(getDashboardData(a.id, "30").stats.totals.words).toBe(100 + 2 * 12);
+    const after = getDashboardData(a.id, "30").stats;
+    expect(after.totals).toMatchObject({ errors: 4, words: 100, messages: 1, per100Words: 2 });
+    expect(after.categories.find((c) => c.category === "verb_tense")).toMatchObject({ count: 2, per100Words: 1 });
+    expect(after.topMistakes.map((m) => m.count)).toEqual([2, 2]);
 
-    // Hidden chat: not in the sidebar list, and can't be opened or written to.
+    // Spoken, not written; and a hidden chat: not in the sidebar list, can't be opened.
+    expect(getDashboardData(a.id, "30", "typed").stats.totals.errors).toBe(0);
+    expect(getDashboardData(a.id, "30", "spoken").stats.totals.errors).toBe(4);
+    expect(
+      db
+        .select()
+        .from(schema.messages)
+        .all()
+        .every((m) => m.inputMode === "spoken"),
+    ).toBe(true);
     expect(listSessions(a.id)).toEqual([]);
     const chatId = db.select().from(schema.classSessions).where(eq(schema.classSessions.id, id)).get()!.chatSessionId!;
     expect(getSession(a.id, chatId)).toBeUndefined();
+  });
+
+  it("never reach the app's level estimate, and can't be retried or deleted as a chat", async () => {
+    const chat = seedSession({ userId: a.id });
+    const written = seedUserMessage(chat.id, {
+      status: "done",
+      wordCount: 400,
+      content: "I think that the weather is nice today and I would like to go outside with my friends.",
+    });
+    seedCorrection(written.id);
+    const before = JSON.stringify(getLevelData(a.id).estimate);
+    const { id } = await createClass(a, { heldAt: Date.now() - DAY });
+    await itemsRoute.POST(
+      a.request(`http://t/api/class/${id}/items`, { method: "POST", body: json({ ...IMPORT, spokenWords: 500 }) }),
+      ctx(id),
+    );
+    expect(JSON.stringify(getLevelData(a.id).estimate)).toBe(before);
+
+    const message = db.select().from(schema.messages).where(eq(schema.messages.inputMode, "spoken")).get()!;
+    const retry = await retryRoute.POST(
+      a.request(`http://t/api/messages/${message.id}/retry`, { method: "POST" }),
+      ctx(message.id),
+    );
+    expect(retry.status).toBe(404);
+    expect(fakeAi.gemini.calls + fakeAi.groq.calls).toBe(0);
+    expect(db.select().from(schema.corrections).where(eq(schema.corrections.source, "class")).all()).toHaveLength(2);
+
+    await sessionRoute.DELETE(
+      a.request(`http://t/api/sessions/${message.sessionId}`, { method: "DELETE" }),
+      ctx(message.sessionId),
+    );
+    expect(db.select().from(schema.corrections).where(eq(schema.corrections.source, "class")).all()).toHaveLength(2);
   });
 
   it("words only (no corrections) add no message to the stats", async () => {
@@ -176,16 +224,65 @@ describe("classes and what the teacher corrected", () => {
     ).toBe(true);
     expect(getTeacherLevel(a.id)).toMatchObject({ level: "B2", heldAt: earlier });
 
-    await classIdRoute.DELETE(a.request(`http://t/api/class/${id}`, { method: "DELETE" }), ctx(id));
-    for (const table of [
-      schema.corrections,
-      schema.vocabulary,
-      schema.messages,
-      schema.sessions,
-      schema.classSessions,
-    ]) {
-      expect(db.select().from(table).all()).toEqual([]);
+    // Another class with items, and a normal chat with a mistake, a word and a flashcard.
+    const other = await createClass(a, { heldAt: Date.now() - 2 * DAY });
+    await itemsRoute.POST(
+      a.request(`http://t/api/class/${other.id}/items`, {
+        method: "POST",
+        body: json({
+          ...IMPORT,
+          corrections: [{ ...IMPORT.corrections[0], original: "She don't like", correction: "She doesn't like" }],
+        }),
+      }),
+      ctx(other.id),
+    );
+    const chat = seedSession({ userId: a.id });
+    const message = seedUserMessage(chat.id, { status: "done", content: "I go there [palabra]" });
+    const mistake = seedCorrection(message.id);
+    db.insert(schema.vocabulary)
+      .values({ id: "chat-word", userId: a.id, messageId: message.id, spanish: "palabra", english: ["word"] })
+      .run();
+    getMistakeDeck(a.id);
+    const classCard = getMistakeDeck(a.id).find((c) => c.card.original === "I have went")!.card;
+    for (const [kind, cardKey] of [
+      ["mistake", classCard.key],
+      ["mistake", mistakeKey(mistake.original, mistake.correction)],
+    ] as const) {
+      db.insert(schema.reviews)
+        .values({ id: `r-${cardKey}`, userId: a.id, kind, cardKey, ease: 2.5, dueAt: new Date() })
+        .run();
     }
+    const beforeDelete = db.select().from(schema.reviews).all().length;
+    expect(beforeDelete).toBe(2);
+
+    await classIdRoute.DELETE(a.request(`http://t/api/class/${id}`, { method: "DELETE" }), ctx(id));
+    // The deleted class is gone, with its chat; the other class and the normal chat are untouched.
+    expect(
+      db
+        .select()
+        .from(schema.classSessions)
+        .all()
+        .map((c) => c.id),
+    ).toEqual([other.id]);
+    expect(
+      db
+        .select()
+        .from(schema.sessions)
+        .all()
+        .map((s) => s.mode)
+        .sort(),
+    ).toEqual(["class", "correction"]);
+    expect(db.select().from(schema.corrections).all()).toHaveLength(2);
+    expect(db.select().from(schema.vocabulary).all()).toHaveLength(2);
+    expect(getClassView(a.id).find((c) => c.id === other.id)?.corrections).toHaveLength(1);
+    // The deleted class's flashcard went with it; the other class's one stays (its mistake still exists).
+    expect(
+      db
+        .select()
+        .from(schema.reviews)
+        .all()
+        .map((r) => r.cardKey),
+    ).toEqual([mistakeKey(mistake.original, mistake.correction)]);
   });
 });
 

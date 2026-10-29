@@ -191,7 +191,8 @@ export function saveClassItems(userId: string, classId: string, items: ClassImpo
         status: "done",
         content,
         correctedText: corrected || null,
-        wordCount: items.corrections.length > 0 ? classWordCount(items.corrections.length, items.spokenWords) : 0,
+        inputMode: "spoken",
+        wordCount: items.corrections.length > 0 ? classWordCount(items.spokenWords) : 0,
         createdAt: heldAt,
       })
       .run();
