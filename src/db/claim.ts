@@ -16,7 +16,7 @@ export const OWNED_TABLES = [
 ] as const;
 
 /** Legacy `settings` rows that stay global: the API keys, until each user has their own (#126). */
-const GLOBAL_SETTINGS = ["api-keys"];
+export const GLOBAL_SETTINGS = ["api-keys"];
 
 const placeholders = GLOBAL_SETTINGS.map(() => "?").join(", ");
 
@@ -26,6 +26,8 @@ export interface ClaimResult {
   claimed: Record<string, number>;
   /** Review states dropped because the user already had one for the same card (theirs wins). */
   duplicateReviews: number;
+  /** Old settings rows dropped because the account had saved the same key since signing up (theirs wins). */
+  skippedSettings: string[];
 }
 
 /** Rows without an owner, per table, and the legacy settings rows that move to a user. */
@@ -91,10 +93,20 @@ export function claimData(sqlite: Database.Database, email: string): ClaimResult
     const rows = sqlite
       .prepare(`SELECT key, value FROM settings WHERE key NOT IN (${placeholders})`)
       .all(...GLOBAL_SETTINGS) as { key: string; value: string }[];
-    const put = sqlite.prepare("INSERT OR REPLACE INTO user_settings (user_id, key, value) VALUES (?, ?, ?)");
-    for (const row of rows) put.run(user.id, row.key, row.value);
+    // What the account saved after signing up is newer than the old rows: it stays, the old row is dropped.
+    const exists = sqlite.prepare("SELECT 1 FROM user_settings WHERE user_id = ? AND key = ?");
+    const put = sqlite.prepare("INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)");
+    const skippedSettings: string[] = [];
+    let moved = 0;
+    for (const row of rows) {
+      if (exists.get(user.id, row.key)) skippedSettings.push(row.key);
+      else {
+        put.run(user.id, row.key, row.value);
+        moved++;
+      }
+    }
     sqlite.prepare(`DELETE FROM settings WHERE key NOT IN (${placeholders})`).run(...GLOBAL_SETTINGS);
-    claimed.settings = rows.length;
+    claimed.settings = moved;
 
     // Nothing may be left without an owner, and no row may have appeared or disappeared (except the duplicates).
     const after = totals(sqlite);
@@ -107,7 +119,9 @@ export function claimData(sqlite: Database.Database, email: string): ClaimResult
     if (left.length > 0)
       throw new Error(`Rows without an owner remain: ${left.map(([t, n]) => `${t} ${n}`).join(", ")}`);
 
-    return { userId: user.id, claimed, duplicateReviews };
+    return { userId: user.id, claimed, duplicateReviews, skippedSettings };
   });
-  return run();
+  // IMMEDIATE: take the write lock first (waiting for the running app, see BUSY_TIMEOUT_MS) so a commit from
+  // the app between our first read and first write can't fail the claim with SQLITE_BUSY.
+  return run.immediate();
 }

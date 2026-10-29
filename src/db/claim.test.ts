@@ -69,6 +69,33 @@ describe("claimData", () => {
     expect(result.claimed.settings).toBe(3);
   });
 
+  it("keeps settings the account saved after signing up, and says which old ones it skipped", () => {
+    const sqlite = oldDatabase();
+    sqlite.exec(
+      `INSERT INTO user_settings (user_id, key, value) VALUES ('ana', 'app', '{"explanationLanguage":"en"}')`,
+    );
+    const result = claimData(sqlite, "ana@x.com");
+    expect(result.skippedSettings).toEqual(["app"]);
+    expect(result.claimed.settings).toBe(2);
+    expect(sqlite.prepare("SELECT value FROM user_settings WHERE key = 'app'").pluck().get()).toBe(
+      '{"explanationLanguage":"en"}',
+    );
+    expect(sqlite.prepare("SELECT key FROM settings").pluck().all()).toEqual(["api-keys"]);
+  });
+
+  it("waits for the write lock instead of failing halfway, and changes nothing while it is held", () => {
+    const sqlite = oldDatabase();
+    const other = openDatabase(sqlite.name, { timeout: 50 });
+    cleanups.push(() => other.close());
+    sqlite.pragma("busy_timeout = 50");
+    other.exec("BEGIN IMMEDIATE");
+    expect(() => claimData(sqlite, "ana@x.com")).toThrow(/locked/);
+    expect(hasUnclaimedData(sqlite)).toBe(true);
+    other.exec("ROLLBACK");
+    claimData(sqlite, "ana@x.com");
+    expect(hasUnclaimedData(sqlite)).toBe(false);
+  });
+
   it("is idempotent: the second run finds nothing and changes nothing", () => {
     const sqlite = oldDatabase();
     claimData(sqlite, "ana@x.com");

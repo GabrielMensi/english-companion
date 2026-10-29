@@ -11,6 +11,7 @@
  * Also scores the labels you fixed by hand with "Wrong type?" in the app
  * (--with-user-labels), read from the database in DATABASE_PATH.
  */
+import "./load-env";
 import fs from "node:fs";
 import path from "node:path";
 import { classifyBatch } from "../../src/lib/ai/classify";
@@ -19,7 +20,7 @@ import { errorToMessage } from "../../src/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "../../src/lib/ai/provider-info";
 import { TENSE_CATEGORIES } from "../../src/lib/taxonomy";
 import { reportCheck, wantsCheck } from "./check";
-import { evalSettings } from "./settings";
+import { evalSettings, evalUserId } from "./settings";
 import { CLASSIFY_SAMPLES, type ClassifySample } from "./classify-samples";
 
 const args = process.argv.slice(2);
@@ -38,7 +39,9 @@ if (specs.length === 0) {
 async function loadSamples(): Promise<ClassifySample[]> {
   if (!args.includes("--with-user-labels")) return CLASSIFY_SAMPLES;
   const { db, schema } = await import("../../src/db");
-  const { eq } = await import("drizzle-orm");
+  const { and, eq } = await import("drizzle-orm");
+  // Operator-only: only the administrator's (first account's) hand-fixed labels, never other accounts' text.
+  const userId = (await evalUserId()) ?? "";
   const labeled = db
     .select({
       message: schema.messages.content,
@@ -51,7 +54,7 @@ async function loadSamples(): Promise<ClassifySample[]> {
     })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
-    .where(eq(schema.corrections.classifiedBy, "user"))
+    .where(and(eq(schema.corrections.userId, userId), eq(schema.corrections.classifiedBy, "user")))
     .all()
     .map((row) => ({ ...row, subtype: row.subtype ?? "other" }));
   console.log(`Using ${CLASSIFY_SAMPLES.length} samples + ${labeled.length} labels fixed in the app`);

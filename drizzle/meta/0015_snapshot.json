@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e4bda375-8ee6-4fc6-a0c9-2451ed702bf0",
+  "id": "1dfc5ebd-6621-4b9f-aba5-53a45128f26d",
   "prevId": "f8aebf4d-ab15-43ec-b874-adc62c425db3",
   "tables": {
     "account": {
@@ -975,6 +975,14 @@
             "item_index"
           ],
           "isUnique": true
+        },
+        "missed_exercises_user_idx": {
+          "name": "missed_exercises_user_idx",
+          "columns": [
+            "user_id",
+            "created_at"
+          ],
+          "isUnique": false
         }
       },
       "foreignKeys": {

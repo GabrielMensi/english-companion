@@ -232,7 +232,10 @@ export const missedExercises = sqliteTable(
     learnerAnswer: text("learner_answer").notNull(),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("missed_exercises_item_idx").on(t.sessionId, t.itemIndex)],
+  (t) => [
+    uniqueIndex("missed_exercises_item_idx").on(t.sessionId, t.itemIndex),
+    index("missed_exercises_user_idx").on(t.userId, t.createdAt),
+  ],
 );
 
 /**

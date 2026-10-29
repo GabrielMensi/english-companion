@@ -2,10 +2,12 @@
 // table of user data in the app's code names the owner (`owned(...)` or a `userId` value). A new
 // query that forgets it fails here. Routes and pages go through the lib functions, which all take
 // the user; the isolation tests (src/app/api/isolation.test.ts) check the behavior.
+// Blind spots (see docs/platform/TESTING.md): a table held in a variable, a join onto a base table that is not
+// owned, and anything under scripts/ (the evals are operator-only and scope by hand).
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { OWNED_TABLES } from "./claim";
+import { GLOBAL_SETTINGS, OWNED_TABLES } from "./claim";
 
 const camel = (name: string) => name.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 /** `missed_exercises` -> `missedExercises`; `user_settings` is checked too. */
@@ -39,6 +41,17 @@ const queries = files.flatMap((file) => {
     kind: m[1],
     text: statementAt(source, m.index),
   }));
+});
+
+describe("the legacy global settings table", () => {
+  it("only the API keys use it, and the claim leaves exactly those keys in place", () => {
+    const users = files.filter((file) => /schema\.settings\b/.test(fs.readFileSync(file, "utf8")));
+    // A new global key means a new file here (or a new key in secrets.ts): declare it in GLOBAL_SETTINGS
+    // (src/db/claim.ts) on purpose, or the claim moves it to one user. Per-user data goes to user_settings.
+    expect(users).toEqual([path.join("src", "lib", "secrets.ts")]);
+    expect(fs.readFileSync(users[0], "utf8")).toContain(`"${GLOBAL_SETTINGS[0]}"`);
+    expect(GLOBAL_SETTINGS).toEqual(["api-keys"]);
+  });
 });
 
 describe("queries on user data name their owner", () => {

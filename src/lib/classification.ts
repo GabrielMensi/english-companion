@@ -26,8 +26,12 @@ import { logRouteError } from "@/lib/server-log";
 const BATCH_SIZE = 8;
 const MAX_ATTEMPTS = 3;
 const IDLE_MS = 5 * 60_000;
-/** Users whose batches run at the same time; the rest wait their turn. */
-const MAX_CONCURRENT_JOBS = 2;
+/**
+ * Users whose batches run at the same time; the rest wait their turn. One while the API keys are global
+ * (#126): every account shares their quota, so batches go one at a time and wait for any chat. Revisit
+ * (and make chats hold back only their own user's batch) when keys are per user.
+ */
+const MAX_CONCURRENT_JOBS = 1;
 
 interface JobState {
   running: boolean;
@@ -178,9 +182,10 @@ async function classifyPending(userId: string) {
   }
 }
 
-async function waitForChatIdle(userId: string) {
-  const state = stateOf(userId);
-  while (state.activeChats > 0) await new Promise((resolve) => setTimeout(resolve, 500));
+async function waitForChatIdle(_userId: string) {
+  // Any user's chat counts, because the keys (and their free-tier quota) are shared by every account.
+  while ([...jobs.byUser.values()].some((s) => s.activeChats > 0))
+    await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
 function loadPending(userId: string): ClassificationItem[] {

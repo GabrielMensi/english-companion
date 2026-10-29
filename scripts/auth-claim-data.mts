@@ -38,6 +38,11 @@ async function main() {
     const result = claimData(sqlite, email);
     console.log(`Done. Rows now owned by ${email}:`);
     for (const table of [...OWNED_TABLES, "settings"]) console.log(`  ${table}: ${result.claimed[table]}`);
+    if (result.skippedSettings.length > 0) {
+      console.log(
+        `  (old settings not copied because the account already saved them: ${result.skippedSettings.join(", ")})`,
+      );
+    }
     if (result.duplicateReviews > 0) {
       console.log(
         `  (${result.duplicateReviews} old flashcard state(s) dropped: the account already had one for that card)`,

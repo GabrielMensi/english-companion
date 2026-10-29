@@ -15,6 +15,7 @@ CREATE INDEX `corrections_user_classification_idx` ON `corrections` (`user_id`,`
 ALTER TABLE `messages` ADD `user_id` text REFERENCES `user`(`id`) ON DELETE cascade;--> statement-breakpoint
 CREATE INDEX `messages_user_idx` ON `messages` (`user_id`,`created_at`);--> statement-breakpoint
 ALTER TABLE `missed_exercises` ADD `user_id` text REFERENCES `user`(`id`) ON DELETE cascade;--> statement-breakpoint
+CREATE INDEX `missed_exercises_user_idx` ON `missed_exercises` (`user_id`,`created_at`);--> statement-breakpoint
 ALTER TABLE `pronunciation_issues` ADD `user_id` text REFERENCES `user`(`id`) ON DELETE cascade;--> statement-breakpoint
 CREATE INDEX `pronunciation_issues_user_idx` ON `pronunciation_issues` (`user_id`,`created_at`);--> statement-breakpoint
 ALTER TABLE `read_aloud_attempts` ADD `user_id` text REFERENCES `user`(`id`) ON DELETE cascade;--> statement-breakpoint
