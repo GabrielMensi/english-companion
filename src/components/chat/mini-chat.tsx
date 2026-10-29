@@ -29,7 +29,7 @@ import type { AnalysisPreview } from "@/lib/ai/analysis";
 import { cardSections } from "@/lib/analysis-card-core";
 import { markDiff } from "@/lib/correction-marks";
 import { SEVERITIES } from "@/lib/taxonomy";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, CorrectionUpdate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { voided } from "@/lib/voided";
 
@@ -41,7 +41,8 @@ export interface Notice {
 /**
  * The floating window's content: the last correction and the composer, so you can write or dictate
  * while working in another app. Radix popups and toasts portal into the main document (the hidden
- * tab), so this view avoids them: messages show inline as a `Notice`.
+ * tab) unless told otherwise: `FloatingWindowProvider` points dialogs and selects at this window's body
+ * and turns messages into an inline `Notice`. Don't add a popup that ignores it (or use `usePortalContainer`).
  */
 export function MiniChat({
   title,
@@ -55,6 +56,7 @@ export function MiniChat({
   onDismissNotice,
   notify,
   onRetry,
+  onUpdateCorrection,
   onClose,
   voice,
 }: {
@@ -72,6 +74,8 @@ export function MiniChat({
   onDismissNotice: () => void;
   notify: Notify;
   onRetry: (id: string) => void;
+  /** A mistake was reclassified or discarded by hand. */
+  onUpdateCorrection: (update: CorrectionUpdate) => void;
   onClose: () => void;
   /** Voice mode, shared with the tab; null when it isn't available (correction mode, no speech). */
   voice: { on: boolean; canTurnOn: boolean; toggle: () => void } | null;
@@ -112,6 +116,7 @@ export function MiniChat({
             reply={reply}
             notify={notify}
             onRetry={onRetry}
+            onUpdateCorrection={onUpdateCorrection}
             onClose={onClose}
           />
         ) : (
@@ -154,6 +159,7 @@ function LastCorrection({
   reply,
   notify,
   onRetry,
+  onUpdateCorrection,
   onClose,
 }: {
   message: ChatMessage;
@@ -161,6 +167,7 @@ function LastCorrection({
   reply: ChatMessage | undefined;
   notify: Notify;
   onRetry: (id: string) => void;
+  onUpdateCorrection: (update: CorrectionUpdate) => void;
   onClose: () => void;
 }) {
   const [showNative, setShowNative] = useShowNative();
@@ -246,7 +253,9 @@ function LastCorrection({
         </div>
       )}
 
-      {errors.length > 0 && <MistakeGroups mistakes={errors} numbers={marked.numbers} compact />}
+      {errors.length > 0 && (
+        <MistakeGroups mistakes={errors} numbers={marked.numbers} compact onUpdate={onUpdateCorrection} />
+      )}
 
       {message.naturalText && showNative && (
         <div className="flex flex-col gap-1 rounded-lg bg-muted/50 px-3 py-2">
