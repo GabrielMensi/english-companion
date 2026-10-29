@@ -17,6 +17,7 @@
  *          --check  print PASS/FAIL per engine against thresholds.json and exit 1 on a regression.
  * API keys come from the app's settings (DATABASE_PATH) or .env.local.
  */
+import "./load-env";
 import fs from "node:fs";
 import path from "node:path";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";

@@ -86,6 +86,15 @@ Desde acá la app pide login siempre, también en local.
 - [ ] `pnpm auth:reset-password <tu email>` pone una contraseña nueva y cierra las sesiones.
 - No agregues otras cuentas hasta que entre multiusuario (los datos todavía no están separados por usuario).
 
+## Tanda 3
+
+### Evals (#150: #146, #147)
+
+- [ ] `pnpm eval:export-discards`: con tus datos dice "9 discarded corrections, 9 kept in 6 messages, 0 dropped" (o los números que tengas) y `.eval-results/discards.json` no aparece en `git status`.
+- [ ] Opcional (pocas llamadas): `pnpm eval:models gemini:gemini-flash-lite-latest --with-discards`: aparece la columna `repeatedDiscards` y la terminal muestra `discard #n`, no tu texto.
+- [ ] `pnpm eval:models <spec> --topics-only --check` se niega a correr.
+- Resultado del eval de temas (n=8, orientativo): Gemini 100% con la regla de tema vs 90% sin, Groq 90% vs 90%, 0 falsos positivos: los chats de tema no empeoran la corrección (`docs/ai/TOPIC_EVAL.md`).
+
 ## Problemas encontrados
 
 -
