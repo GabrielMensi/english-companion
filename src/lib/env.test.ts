@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deployProblems, evalEnabled, parseEnv } from "./env";
+import { deployProblems, evalEnabled, fakeAiProblems, parseEnv } from "./env";
 
 describe("parseEnv", () => {
   it("starts with nothing set: paths get their defaults and API keys stay unset", () => {
@@ -148,5 +148,28 @@ describe("evalEnabled", () => {
     expect(evalEnabled(parseEnv({}), "production")).toBe(false);
     expect(evalEnabled(parseEnv({ ENABLE_EVAL: "true" }), "production")).toBe(true);
     expect(evalEnabled(parseEnv({ ENABLE_EVAL: "false" }), "development")).toBe(false);
+  });
+});
+
+describe("fakeAiProblems", () => {
+  it("has nothing to say when AI_FAKE is off", () => {
+    expect(fakeAiProblems(parseEnv({}), "production")).toEqual([]);
+    expect(fakeAiProblems(parseEnv({ ALLOWED_HOSTS: "app.example.com" }), "production")).toEqual([]);
+  });
+
+  it("allows AI_FAKE in development and tests", () => {
+    expect(fakeAiProblems(parseEnv({ AI_FAKE: "1" }), "development")).toEqual([]);
+    expect(fakeAiProblems(parseEnv({ AI_FAKE: "true" }), "test")).toEqual([]);
+  });
+
+  it("refuses AI_FAKE in production unless it is the E2E server", () => {
+    expect(fakeAiProblems(parseEnv({ AI_FAKE: "1" }), "production")).toHaveLength(1);
+    expect(fakeAiProblems(parseEnv({ AI_FAKE: "1", E2E_TEST_SERVER: "1" }), "production")).toEqual([]);
+  });
+
+  it("refuses AI_FAKE in a deploy, whatever the other flags say", () => {
+    const deploy = { AI_FAKE: "1", E2E_TEST_SERVER: "1", ALLOWED_HOSTS: "app.example.com" };
+    expect(fakeAiProblems(parseEnv(deploy), "production")).toHaveLength(1);
+    expect(fakeAiProblems(parseEnv(deploy), "development")).toHaveLength(1);
   });
 });

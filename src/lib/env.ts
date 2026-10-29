@@ -80,6 +80,10 @@ const envSchema = z.object({
   MIGRATE_ON_START: optional(flag.default(true)),
   /** Send the Content-Security-Policy as report-only (the browser logs violations instead of blocking): a way back if it breaks something. */
   CSP_REPORT_ONLY: optional(flag.default(false)),
+  /** End-to-end tests only: every AI call is answered by a fake model (lib/ai/fake-model.ts). See `fakeAiProblems`. */
+  AI_FAKE: optional(flag.default(false)),
+  /** The E2E server runs `next start` (NODE_ENV=production): this is what lets AI_FAKE through there. */
+  E2E_TEST_SERVER: optional(flag.default(false)),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -109,6 +113,19 @@ export function deployProblems(env: Env): string[] {
   const problems: string[] = [];
   if (!env.BETTER_AUTH_SECRET) problems.push("BETTER_AUTH_SECRET is required when ALLOWED_HOSTS is set");
   if (!env.BETTER_AUTH_URL) problems.push("BETTER_AUTH_URL is required when ALLOWED_HOSTS is set");
+  return problems;
+}
+
+/**
+ * Why `AI_FAKE` must not be on, if it's set: never in a deploy (`ALLOWED_HOSTS`), and in production
+ * (`next start`) only for the E2E server, which says so with `E2E_TEST_SERVER`.
+ */
+export function fakeAiProblems(env: Env, nodeEnv: string | undefined): string[] {
+  if (!env.AI_FAKE) return [];
+  const problems: string[] = [];
+  if (env.ALLOWED_HOSTS.length > 0) problems.push("AI_FAKE can't be used together with ALLOWED_HOSTS (a deploy)");
+  if (nodeEnv === "production" && !env.E2E_TEST_SERVER)
+    problems.push("AI_FAKE in production needs E2E_TEST_SERVER=1 (only the end-to-end tests use it)");
   return problems;
 }
 

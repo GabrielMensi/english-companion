@@ -20,6 +20,7 @@ Qué hay que testear y cómo, para poder desplegar una instancia pública (_Depl
 - **Unit**: 33 archivos y ~380 tests de vitest, todos sobre lógica pura (normalización del análisis, stats, flashcards, SRS, fallback, tiempos verbales, fluidez, nivel CEFR, preferencias de voz...). Corren en ~1 s. Están bien y se quedan.
 - **Integración (#111)**: tests de rutas con base temporal e IA mockeada para mensajes (envío, reintento y errores reintentables con fake timers), reintento, práctica, flashcards (reviews y cards) y settings/keys. Setup compartido en `src/test/`.
 - **Migraciones (#112, #113)**: `src/db/migrations.test.ts` (base vacía contra `schema.ts`, fixture de datos viejos, chequeo de migraciones aditivas) y `src/db/migrate.test.ts` (migrador con varias conexiones y procesos).
+- **E2E (#149)**: Playwright (solo Chromium) contra `next build && next start`, con base temporal e IA falsa (`AI_FAKE=1`). `pnpm test:e2e`; en CI, `.github/workflows/e2e.yml` (nightly, a pedido y antes de cada release).
 - **Cobertura (#114)**: `pnpm test:coverage`, con piso para `src/lib/**` (ver abajo).
 - **Sin tests**: las rutas que faltan (`corrections`, `vocabulary`, `classification`, `insights`, `read-aloud`, `transcribe`, `tts`, `eval/*`, `sessions/[id]`), los módulos `server-only` que no pasan por esas rutas y la UI.
 - **IA**: la calidad se mide aparte con los evals, que llaman a los proveedores reales y gastan free tier. No tienen umbrales: muestran números y una persona decide.
@@ -75,18 +76,30 @@ Las migraciones se aplican solas al arrancar sobre la base real del usuario, as�
 
 ### E2E: Playwright
 
-Pocos tests, solo de los flujos que el usuario no puede perder:
+Pocos tests, solo de los flujos que el usuario no puede perder, en `e2e/` (configuración en `playwright.config.ts`). Hechos (#149), todos a nivel de UI (roles y textos visibles, sin tocar la base ni las queries, para que sobrevivan a cambios internos como el multiusuario):
 
-1. Crear un chat, mandar un mensaje y ver la corrección (modo corrección y modo conversación).
-2. Un mensaje que falla y se reintenta.
-3. Empezar una práctica desde el dashboard.
-4. Repasar flashcards.
-5. Guardar settings y una API key (que se vea enmascarada).
-6. Que el dashboard e Insights carguen con datos.
+1. Registro de la primera cuenta (proyecto `setup`: la base es nueva, así que `/signup` está abierto) y reuso de la sesión en el resto (`storageState`).
+2. Chat de corrección: mandar un mensaje, ver la tarjeta con los errores y descartar uno.
+3. Un mensaje que falla (la IA falsa falla una vez si el texto lleva `fail-once`) y se reintenta con _Retry_.
+4. Conversación: llega la respuesta.
+5. Dashboard con datos, repaso de una flashcard de errores, práctica (genera un set y abre el chat), settings.
+6. Cerrar sesión (proyecto `signed-out`, el último), que las páginas redirijan a `/login` y volver a entrar.
 
-**Cómo**: `@playwright/test` con solo Chromium, contra `next build && next start` (lo que recomienda la guía de Next) en otro puerto, con `DATABASE_PATH` temporal. La IA no se puede mockear con `vi.mock` porque corre en otro proceso: la opción más simple es un modo falso en `src/lib/ai/providers.ts` (por ejemplo `AI_FAKE=1`) donde `resolveModel` devuelve un `MockLanguageModelV4` con respuestas fijas. Queda detrás de `resolveModel`, como pide `CLAUDE.md`, y no se activa sin la variable. La voz (micrófono, Kokoro, Whisper) queda fuera: se prueba a mano.
+Cada test falla si el navegador loguea una violación de la Content-Security-Policy (fixture automático en `e2e/fixtures.ts`): la app manda un CSP con nonce y el build de producción es donde se ve.
 
-Cuesta: una dependencia de desarrollo, los navegadores (~150 MB en CI, cacheables) y un build por corrida. Por eso no va en cada PR.
+**Cómo corre**:
+
+- `pnpm test:e2e` levanta, con el `webServer` de Playwright, `rm -rf` de un directorio dentro del temporal del sistema (`/tmp/english-companion-e2e`, nunca `data/`), `pnpm build` y `next start` en `127.0.0.1:3750` (`E2E_PORT` lo cambia). Es HTTP plano: la cookie de login no usa `__Secure-` fuera de un deploy, así que anda en `localhost`. Sin servidor reusado: cada corrida empieza con una base vacía. Para iterar, `E2E_REUSE_SERVER=1` reusa uno ya levantado (con base nueva, porque el registro es de una sola vez).
+- Un worker y en orden: los archivos comparten la cuenta y los datos (el dashboard y las flashcards dependen de los errores que dejó `chat.spec.ts`).
+- **IA falsa**: `AI_FAKE=1` hace que `resolveModel` (`src/lib/ai/providers.ts`) devuelva un `MockLanguageModelV4` (`src/lib/ai/fake-model.ts`) en vez del proveedor. Mira el schema de salida de la llamada y responde un JSON fijo que lo cumple (corrección, plan, nivel, ejercicios por categoría y por tiempo verbal, texto libre), también en streaming, así que `analyzeMessage`, `normalizeAnalysis` y el guardado corren de verdad. El tutor falso corrige tres errores conocidos (`goed`, `childs`, `more better`); un mensaje correcto vuelve sin errores. `src/lib/ai/fake-model.test.ts` comprueba las respuestas contra los normalizadores reales. La app necesita una key configurada (`GOOGLE_GENERATIVE_AI_API_KEY=e2e-fake-key` en el `webServer`), que nunca se manda a ningún proveedor: con `AI_FAKE` el listado de modelos devuelve vacío.
+- **No se puede activar en producción** (`fakeAiProblems` en `src/lib/env.ts`, con tests): con `ALLOWED_HOSTS` (un deploy) `AI_FAKE` nunca vale, y con `NODE_ENV=production` hace falta además `E2E_TEST_SERVER=1`, que solo pone el `webServer`. El servidor se niega a arrancar (`instrumentation.ts`) y `resolveModel` tira el mismo error.
+- La voz (micrófono, Kokoro, Whisper) queda fuera: se prueba a mano.
+
+**CI**: `.github/workflows/e2e.yml` corre nightly (`schedule`), a pedido (`workflow_dispatch`) y antes de un release (`release.yml` lo llama con `workflow_call` y el job `release` depende de él). No corre en cada PR. Cachea el navegador de Playwright (`~/.cache/ms-playwright`, con la versión de Playwright en la clave); las librerías del sistema se instalan en cada corrida. Si falla, sube `playwright-report/` y `test-results/` (con traces) como artefacto.
+
+Cuesta: una dependencia de desarrollo, el navegador (~150 MB en CI, cacheado) y un build por corrida (~3-5 min en total).
+
+**Agregar un flujo**: un archivo `e2e/*.spec.ts` que importe `test` y `expect` de `./fixtures` (para tener el chequeo de CSP), apoyado en lo que ya dejaron los anteriores o creando lo suyo desde la UI. Si necesita que la IA diga algo distinto, se amplía `fake-model.ts` (y su test), no se mockea desde el navegador.
 
 ### IA real: evals
 
@@ -113,10 +126,10 @@ Cuando _Security review_ (#76) agregue auth:
 | Cuándo                                   | Qué                                                                                                                         | Tiempo aprox.            |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
 | Cada PR y push a `develop`               | `pnpm typecheck`, `pnpm lint`, `pnpm test:coverage` (unit + integración + migraciones, con piso de cobertura), `pnpm build` | ~2-3 min                 |
-| Nightly y antes de un release            | Lo anterior + E2E con Playwright                                                                                            | ~5-8 min                 |
+| Nightly, a pedido y antes de un release  | E2E con Playwright (`e2e.yml`; el release corre además los mismos chequeos que CI)                                          | ~5-8 min                 |
 | Manual, antes de cambiar modelo o prompt | `pnpm eval:*` con proveedores reales                                                                                        | minutos, gasta free tier |
 
-Esto se engancha con el draft _Release workflow_: el release solo sale con el E2E en verde.
+El release solo sale con el E2E en verde (`release.yml` llama a `e2e.yml`).
 
 ## Plan
 
@@ -127,5 +140,5 @@ En este orden (la prioridad se puede revisar con el tablero):
 3. **Test de migraciones** con fixture de datos viejos y el check de migraciones aditivas. Hecho en #112 y #113.
 4. **Cobertura** con piso para `src/lib/**`. Hecho en #114.
 5. **Tests de seguridad** (auth en todas las rutas, límites de entrada), junto con #76.
-6. **E2E con Playwright** y el modo de IA falsa, nightly y antes de cada release.
+6. **E2E con Playwright** y el modo de IA falsa, nightly y antes de cada release. Hecho en #149.
 7. **Umbrales en los evals**.
