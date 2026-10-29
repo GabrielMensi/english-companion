@@ -2,6 +2,7 @@
 
 import { createContext, useContext } from "react";
 import { toast } from "sonner";
+
 import type { Notify } from "@/components/chat/composer";
 
 interface FloatingWindow {

@@ -1,7 +1,7 @@
-import { z } from "@/lib/zod";
+import { withUser } from "@/lib/auth/with-user";
 import { getClassificationStatus, retryFailedClassifications, startClassification } from "@/lib/classification";
 import { parseBody } from "@/lib/request-body";
-import { withUser } from "@/lib/auth/with-user";
+import { z } from "@/lib/zod";
 
 export const GET = withUser(async (_request, _ctx, { userId }) => {
   return Response.json(getClassificationStatus(userId));

@@ -1,12 +1,13 @@
 import { generateText } from "ai";
-import { z } from "@/lib/zod";
+
 import { errorToMessage } from "@/lib/ai/fallback";
 import { PROVIDER_IDS } from "@/lib/ai/provider-info";
 import { resolveModel } from "@/lib/ai/providers";
-import { getSettings } from "@/lib/settings";
+import { withUser } from "@/lib/auth/with-user";
 import { parseBody } from "@/lib/request-body";
 import { logRouteError } from "@/lib/server-log";
-import { withUser } from "@/lib/auth/with-user";
+import { getSettings } from "@/lib/settings";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({ provider: z.enum(PROVIDER_IDS) });
 

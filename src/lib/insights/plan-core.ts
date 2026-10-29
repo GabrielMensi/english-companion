@@ -5,7 +5,9 @@
  * Schemas are small and flat: every provider fills them reliably, Groq's structured output included.
  */
 import { z } from "@/lib/zod";
+
 import { type StatsDigest, digestToPromptText } from "./digest-core";
+
 import type { LevelEstimate, LevelWindow } from "./level-core";
 
 export type ExplanationLanguage = "es" | "en";

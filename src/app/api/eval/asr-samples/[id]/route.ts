@@ -1,8 +1,8 @@
 import { canUseEval } from "@/lib/auth/admin";
+import { notFound, withUser } from "@/lib/auth/with-user";
 import { MAX_RECORDING_BYTES, readSampleRecording, saveSampleRecording } from "@/lib/eval/asr-store";
 import { readBody } from "@/lib/request-body";
 import { logRouteError } from "@/lib/server-log";
-import { notFound, withUser } from "@/lib/auth/with-user";
 
 /** The recording, for playback. */
 export const GET = withUser(async (_request: Request, ctx: RouteContext<"/api/eval/asr-samples/[id]">, { userId }) => {

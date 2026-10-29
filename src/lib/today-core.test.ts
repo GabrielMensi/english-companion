@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { greeting, todaySummary, weekSummary } from "@/lib/today-core";
 
 describe("greeting", () => {

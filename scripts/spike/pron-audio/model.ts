@@ -4,7 +4,9 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+
 import { AutoModelForCTC, AutoProcessor, env, type Tensor } from "@huggingface/transformers";
+
 import {
   decodeCtc,
   type HeardPhone,

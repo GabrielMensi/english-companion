@@ -3,6 +3,7 @@
 import { BookOpen, CheckCircle2, ChevronRight, Loader2, MessageCircleHeart, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
 import { SpeakButton } from "@/components/audio/speak-button";
 import { DiffText } from "@/components/chat/diff-text";
 import { MistakeGroups, MistakeItem } from "@/components/chat/mistake-list";

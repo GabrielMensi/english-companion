@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CategoryExerciseItem, CategoryPractice } from "./category-practice";
+
 import {
   answerTemplate,
   completeSentence,
@@ -11,6 +11,8 @@ import {
   setOpening,
   setSummary,
 } from "./exercise-set";
+
+import type { CategoryExerciseItem, CategoryPractice } from "./category-practice";
 import type { ExercisePractice } from "./tense-practice";
 
 const texts = (text: string, count: number) => parseAnswers(text, count).map((a) => a?.text ?? null);

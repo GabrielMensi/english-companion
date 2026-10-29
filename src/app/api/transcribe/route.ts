@@ -1,8 +1,8 @@
 import { errorToMessage } from "@/lib/ai/fallback";
 import { TranscriptionUnavailableError, transcribeSpeech } from "@/lib/ai/transcribe";
+import { withUser } from "@/lib/auth/with-user";
 import { readBody } from "@/lib/request-body";
 import { logRouteError } from "@/lib/server-log";
-import { withUser } from "@/lib/auth/with-user";
 const MAX_BYTES = 10 * 1024 * 1024; // ~5 minutes of 16 kHz mono WAV
 
 /** Transcribes a dictated message recorded in the browser (16 kHz mono WAV). */

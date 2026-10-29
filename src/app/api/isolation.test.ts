@@ -3,11 +3,12 @@
 // every statistic that loads data.
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+
 import type { Analysis } from "@/lib/ai/analysis";
+import { mistakeKey } from "@/lib/flashcards-core";
 import { chatLabels, getPractice, savePractice } from "@/lib/practice";
 import { getSettings, saveSettings } from "@/lib/settings";
 import { DEFAULT_SETTINGS } from "@/lib/settings-core";
-import { mistakeKey } from "@/lib/flashcards-core";
 import { fakeAi, resetFakeAi } from "@/test/ai";
 import { createTestUser, type TestUser } from "@/test/auth";
 import { db, resetDb, schema, seedCorrection, seedSession, seedUserMessage } from "@/test/db";

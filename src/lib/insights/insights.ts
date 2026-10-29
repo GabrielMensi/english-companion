@@ -1,17 +1,19 @@
 import "server-only";
 
 import { eq, ne } from "drizzle-orm";
+
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
+import { explainLevel, generateStudyPlan } from "@/lib/ai/insights";
 import { classChatIds, getTeacherLevel } from "@/lib/class";
 import { compareWithTeacher, type TeacherComparison } from "@/lib/class-core";
-import { getUserSetting, setUserSetting } from "@/lib/user-settings";
-import { explainLevel, generateStudyPlan } from "@/lib/ai/insights";
 import { withChatPriority } from "@/lib/classification";
-import { getSettings } from "@/lib/settings";
 import { getPronunciationProgress } from "@/lib/read-aloud";
+import { getSettings } from "@/lib/settings";
 import { getPeriodData } from "@/lib/stats";
 import { countTenses, TENSE_COUNTER_VERSION } from "@/lib/tenses-core";
+import { getUserSetting, setUserSetting } from "@/lib/user-settings";
+
 import { buildDigest, type StatsDigest } from "./digest-core";
 import {
   type CefrLevel,

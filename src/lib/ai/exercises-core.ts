@@ -2,7 +2,6 @@
  * Pure parts of the exercise generation (tense exercises and exercises for an
  * error category): output schema, prompt building and normalization. Kept free of server-only imports so it can be unit tested.
  */
-import { z } from "@/lib/zod";
 import {
   type CategoryExerciseItem,
   categoryDescription,
@@ -12,10 +11,11 @@ import {
   parseGaps,
   rewriteSource,
 } from "@/lib/category-practice";
-import { type ErrorCategory, type Tense, TENSE_HINTS, TENSE_LABELS } from "@/lib/taxonomy";
 import { SUBTYPES } from "@/lib/subtypes";
-import { countTenses } from "@/lib/tenses-core";
+import { type ErrorCategory, type Tense, TENSE_HINTS, TENSE_LABELS } from "@/lib/taxonomy";
 import { comparable, type ExerciseItem, type ExerciseKind, focusTenses, tensesAmong } from "@/lib/tense-practice";
+import { countTenses } from "@/lib/tenses-core";
+import { z } from "@/lib/zod";
 
 export const EXERCISE_COUNT = 6;
 /** Fewer usable items than this and the set is rejected (and the next model in the chain tried). */

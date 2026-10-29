@@ -1,12 +1,12 @@
-import { z } from "@/lib/zod";
 import { errorToMessage } from "@/lib/ai/fallback";
+import { withUser } from "@/lib/auth/with-user";
 import { startCategoryPractice, startPractice, startTopicChat } from "@/lib/practice-start";
+import { parseBody } from "@/lib/request-body";
+import { logRouteError } from "@/lib/server-log";
 import { ERROR_CATEGORIES, TENSES } from "@/lib/taxonomy";
 import { EXERCISE_KINDS } from "@/lib/tense-practice";
-import { parseBody } from "@/lib/request-body";
 import { resolveTopic } from "@/lib/topics";
-import { logRouteError } from "@/lib/server-log";
-import { withUser } from "@/lib/auth/with-user";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.union([
   z.object({

@@ -2,6 +2,7 @@
 // `cp` of a WAL database can copy an inconsistent state, so this uses SQLite's own backup API.
 import fs from "node:fs";
 import path from "node:path";
+
 import type Database from "better-sqlite3";
 
 /** Backups live next to the database, in a folder only the owner can open. */

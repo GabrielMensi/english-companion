@@ -1,12 +1,13 @@
 // Export / import of one account: only its data, never the API keys, and repeatable.
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createTestUser, type TestUser } from "@/test/auth";
-import { db, resetDb, schema, seedSession, seedUserMessage } from "@/test/db";
-import { setApiKey } from "@/lib/secrets";
+
 import { exportUserData, importUserData } from "@/lib/data-transfer";
 import { parseExportFile } from "@/lib/data-transfer-core";
+import { setApiKey } from "@/lib/secrets";
 import { setUserSetting } from "@/lib/user-settings";
+import { createTestUser, type TestUser } from "@/test/auth";
+import { db, resetDb, schema, seedSession, seedUserMessage } from "@/test/db";
 
 const exportRoute = await import("@/app/api/data/export/route");
 const importRoute = await import("@/app/api/data/import/route");

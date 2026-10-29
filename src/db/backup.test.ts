@@ -1,12 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
-import type Database from "better-sqlite3";
+
 import { afterEach, describe, expect, it } from "vitest";
+
 import { makeTempDir, openDatabase, removeTempDir } from "@/test/temp-db";
+
 import { backupDatabase, backupsDir, pruneBackups, timestamp } from "./backup";
 import { restrictToOwner } from "./connection";
 import { countPendingMigrations, migrate } from "./migrate";
 import { MIGRATIONS_TABLE } from "./migrations-core";
+
+import type Database from "better-sqlite3";
 
 const MIGRATIONS = path.resolve("drizzle");
 const mode = (file: string) => fs.statSync(file).mode & 0o777;

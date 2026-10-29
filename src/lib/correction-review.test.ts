@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { isTypoType, severityAfterManualType } from "@/lib/correction-review";
 
 const TYPO = { category: "spelling", subtype: "keyboard_typo" } as const;

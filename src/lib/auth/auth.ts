@@ -1,12 +1,14 @@
 import "server-only";
 
 import { betterAuth } from "better-auth";
-import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { count } from "drizzle-orm";
+
 import { db, schema } from "@/db";
 import { serverEnv } from "@/lib/env";
+
 import {
   canSignUp,
   MAX_PASSWORD_LENGTH,

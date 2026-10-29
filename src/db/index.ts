@@ -1,12 +1,16 @@
 import "server-only";
 
 import path from "node:path";
-import type Database from "better-sqlite3";
+
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+
 import { serverEnv } from "@/lib/env";
+
 import { openSqlite } from "./connection";
 import { BUSY_TIMEOUT_MS, countPendingMigrations, migrate } from "./migrate";
 import * as schema from "./schema";
+
+import type Database from "better-sqlite3";
 
 type DB = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
 

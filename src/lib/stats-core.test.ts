@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { bucketKey, computeStats, type StatCorrection, type StatsInput } from "./stats-core";
 
 const DAY = 86_400_000;

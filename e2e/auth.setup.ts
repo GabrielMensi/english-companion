@@ -1,5 +1,6 @@
-import { expect, test as setup } from "./fixtures";
 import { STORAGE_STATE } from "../playwright.config";
+
+import { expect, test as setup } from "./fixtures";
 
 /** The database is new, so the first account can be created: its session is reused by every other flow. */
 setup("sign up the first account", async ({ page }) => {

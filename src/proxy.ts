@@ -1,5 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
+
 import { isAllowedHost, requestHost } from "@/lib/allowed-hosts";
 import { authCookiePrefix } from "@/lib/auth/auth-node";
 import { isPublicPath } from "@/lib/auth/public-routes";

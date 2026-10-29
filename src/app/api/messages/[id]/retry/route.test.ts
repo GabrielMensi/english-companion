@@ -1,5 +1,6 @@
 // Integration test (docs/platform/TESTING.md): retrying a message replaces its previous result.
 import { beforeEach, describe, expect, it } from "vitest";
+
 import type { Analysis } from "@/lib/ai/analysis";
 import type { ChatMessage } from "@/lib/types";
 import { fakeAi, resetFakeAi } from "@/test/ai";

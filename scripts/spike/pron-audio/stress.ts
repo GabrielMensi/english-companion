@@ -4,8 +4,8 @@
  * their sums, vote for the vowel that stands out; the scripts count how often that is the vowel
  * the speaker stressed.
  */
-import type { HeardPhone } from "../../../src/lib/phonemes-core";
 import type { prosody } from "./audio";
+import type { HeardPhone } from "../../../src/lib/phonemes-core";
 
 export interface VowelFeatures {
   db: number;

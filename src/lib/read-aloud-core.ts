@@ -1,9 +1,11 @@
 /** Read-aloud practice: picking sentences and summing up pronunciation issues. Pure, no AI. */
 import type { ReadAloudSource } from "@/db/schema";
-import type { PronunciationCard } from "./flashcards-core";
+
 import { SOUND_SENTENCES } from "./read-aloud-sentences";
 import { bucketKey } from "./stats-core";
 import { isBetaPronunciation, STABLE_PRONUNCIATION_CATEGORIES, type PronunciationCategory } from "./taxonomy";
+
+import type { PronunciationCard } from "./flashcards-core";
 
 export interface ReadAloudItem {
   /** Stable within a list, for React keys. */

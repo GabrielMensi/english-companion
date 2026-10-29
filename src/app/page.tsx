@@ -1,26 +1,27 @@
 import { AudioLines, Dumbbell, Layers, MessageSquareText, MessagesSquare, PencilLine } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
+
 import { Page, Section, SectionLink } from "@/components/layout/page";
+import { NoProviderNotice } from "@/components/no-provider-notice";
 import { CATEGORY_STATUS, EXERCISE_LABELS, STATUS } from "@/components/practice/labels";
 import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { TalkAboutButton } from "@/components/sidebar/talk-about-button";
-import { NoProviderNotice } from "@/components/no-provider-notice";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { hasConfiguredProvider } from "@/lib/ai/providers";
+import { requirePageUser } from "@/lib/auth/session";
 import { categoryTopic } from "@/lib/category-practice";
 import { listSessions } from "@/lib/chat";
 import { countCardsToStudy } from "@/lib/flashcards";
 import { getReportDigest } from "@/lib/insights/insights";
 import { chatLabels } from "@/lib/practice";
-import { getPronunciationSummary } from "@/lib/read-aloud";
 import { getPracticeSuggestions } from "@/lib/practice-start";
+import { getPronunciationSummary } from "@/lib/read-aloud";
 import { PRONUNCIATION_LABELS, TENSE_LABELS } from "@/lib/taxonomy";
 import type { PracticeTarget } from "@/lib/tense-practice";
 import { greeting, todaySummary, weekSummary } from "@/lib/today-core";
-import { requirePageUser } from "@/lib/auth/session";
 
 export default async function Today() {
   await connection();

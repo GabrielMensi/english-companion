@@ -1,5 +1,6 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
+
 import { Trend } from "@/components/dashboard/category-table";
 import type { DigestPronunciation, DigestTense, StatsDigest } from "@/lib/insights/digest-core";
 

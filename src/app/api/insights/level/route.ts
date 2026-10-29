@@ -1,7 +1,7 @@
 import { errorToMessage } from "@/lib/ai/fallback";
+import { withUser } from "@/lib/auth/with-user";
 import { createLevelExplanation, getLevelData } from "@/lib/insights/insights";
 import { logRouteError } from "@/lib/server-log";
-import { withUser } from "@/lib/auth/with-user";
 
 export const GET = withUser(async (_request, _ctx, { userId }) => {
   return Response.json(getLevelData(userId));

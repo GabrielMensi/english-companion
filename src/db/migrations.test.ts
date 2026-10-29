@@ -2,14 +2,18 @@
 // startup, so they must work on an empty database, keep the data of an older one and only add things.
 import fs from "node:fs";
 import path from "node:path";
-import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
+
 import { is } from "drizzle-orm";
-import type Database from "better-sqlite3";
+import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { afterEach, describe, expect, it } from "vitest";
+
 import { makeTempDir, openDatabase, removeTempDir } from "@/test/temp-db";
+
 import { migrate } from "./migrate";
 import { MIGRATIONS_TABLE } from "./migrations-core";
 import * as schema from "./schema";
+
+import type Database from "better-sqlite3";
 
 const MIGRATIONS = path.resolve("drizzle");
 

@@ -9,10 +9,13 @@
 import "./load-env";
 import fs from "node:fs";
 import path from "node:path";
+
 import { and, desc, eq, isNotNull, lt } from "drizzle-orm";
+
 import { db, schema } from "../../src/db";
 import { DISCARDS_FILE, type DiscardContext, groupDiscards } from "../../src/lib/eval/discards";
 import { getPractice, practiceReplyRule } from "../../src/lib/practice";
+
 import { evalUserId } from "./settings";
 
 // Operator-only: exports the administrator's (first account's) discards, never other accounts'.

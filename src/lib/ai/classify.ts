@@ -1,7 +1,9 @@
 import "server-only";
 
 import { generateText, NoObjectGeneratedError, Output } from "ai";
+
 import type { Settings } from "@/lib/settings";
+
 import {
   buildClassificationInstructions,
   buildClassificationPrompt,

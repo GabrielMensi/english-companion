@@ -33,6 +33,13 @@ Revisión del código entero (creció feature por feature) antes de _Deploy the 
 - Todas las reglas que eran warning pasaron a **error**: `no-floating-promises`, `no-misused-promises`, `no-unnecessary-type-assertion`, `switch-exhaustiveness-check`, `consistent-type-imports`, `import/no-duplicates` y `no-console` (con la misma lista de permitidos y los scripts de eval afuera). `pnpm lint` da 0 errores y 0 warnings.
 - `no-misused-promises` sigue sin mirar los atributos de JSX (`checksVoidReturn: { attributes: false }`): un `onClick={async () => …}` no se marca, así que esos handlers tienen que atrapar sus errores por su cuenta.
 
+## Orden de imports (#170)
+
+- Regla `import/order` de ESLint (el plugin ya viene con `eslint-config-next`, sin dependencias nuevas). Se eligió ESLint y no un plugin de Prettier para no sumar una dependencia, y porque `eslint --fix` ya es parte del flujo de lint.
+- Grupos, separados por una línea en blanco: `node:*` (builtin), paquetes externos, `@/…` (internal), relativos (`../` y luego `./`). Alfabético dentro de cada grupo, sin distinguir mayúsculas.
+- Los imports de efecto (`import "server-only"`, `import "@/lib/zod"`) los ignora la regla: no se mueven y siguen primeros en su archivo. Si agregás uno, ponelo arriba a mano.
+- Se corrigió todo el repo en un commit aparte (`eslint --fix`), registrado en `.git-blame-ignore-revs`. Un `import` debajo de código ejecutable (como pasaba en `scripts/eval/asr.mts`) hay que subirlo a mano.
+
 ## Hallazgos que quedan
 
 ### Producción

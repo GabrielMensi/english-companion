@@ -32,6 +32,17 @@ const eslintConfig = defineConfig([
       // Server logs must never carry API keys or the learner's text; the console stays for diagnostics.
       "no-console": ["error", { allow: ["debug", "warn", "error"] }],
       "import/no-duplicates": "error",
+      // Import order (#170). Side-effect imports ("server-only", "@/lib/zod") are not touched by this rule and stay first.
+      "import/order": [
+        "error",
+        {
+          groups: ["builtin", "external", "internal", "parent", "sibling", "index", "object", "type"],
+          pathGroups: [{ pattern: "@/**", group: "internal" }],
+          pathGroupsExcludedImportTypes: ["builtin", "object"],
+          alphabetize: { order: "asc", caseInsensitive: true },
+          "newlines-between": "always",
+        },
+      ],
     },
   },
   // The eval scripts are CLIs: printing is their output.

@@ -1,6 +1,6 @@
+import { withUser } from "@/lib/auth/with-user";
 import { analyzeStoredMessage, getMessage } from "@/lib/chat";
 import { turnStreamResponse, wantsTurnStream } from "@/lib/turn-stream";
-import { withUser } from "@/lib/auth/with-user";
 
 /** Analyzes the message again; streamed like a new message with `Accept: application/x-ndjson`. */
 export const POST = withUser(async (request: Request, ctx: RouteContext<"/api/messages/[id]/retry">, { userId }) => {

@@ -1,5 +1,6 @@
 // Integration test (docs/platform/TESTING.md): the topic chat tools (feedback, phrases) on the real database.
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { savePractice } from "@/lib/practice";
 import { getVocabulary } from "@/lib/vocabulary";
 import { fakeAi, resetFakeAi } from "@/test/ai";

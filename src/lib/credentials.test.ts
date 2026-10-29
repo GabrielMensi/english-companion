@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { maskKey, pickApiKey } from "./credentials";
 
 describe("maskKey", () => {

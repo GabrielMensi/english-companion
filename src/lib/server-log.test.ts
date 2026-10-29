@@ -1,6 +1,8 @@
 import { APICallError, JSONParseError, NoObjectGeneratedError, RetryError, TypeValidationError } from "ai";
 import { describe, expect, it } from "vitest";
+
 import { AllModelsFailedError } from "@/lib/ai/fallback";
+
 import { formatRouteError, scrub } from "./server-log";
 
 describe("scrub", () => {

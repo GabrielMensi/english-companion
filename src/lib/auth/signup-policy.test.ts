@@ -2,8 +2,9 @@
 // so only the first account can be created. (Its own file: the instance reads the variable once.)
 import { count } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { db, resetDb, schema } from "@/test/db";
+
 import { TEST_PASSWORD } from "@/test/auth";
+import { db, resetDb, schema } from "@/test/db";
 
 process.env.SIGNUP_ALLOWED_EMAILS = "";
 const { getAuth } = await import("@/lib/auth/auth");

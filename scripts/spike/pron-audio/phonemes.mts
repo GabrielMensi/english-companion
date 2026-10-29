@@ -12,6 +12,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+
 import { align, isVowel, per, prosody, readWav, REDUCED, tokenizeIpa } from "./audio";
 import { CLIPS, SPIKE_DIR, VOICES } from "./clips";
 import { loadRecognizer } from "./model";

@@ -3,11 +3,11 @@
  * class, the AI schemas and prompts to structure the teacher's corrections and to suggest what to ask,
  * and the comparison of the teacher's level with the app's estimate. Schemas are small and flat.
  */
-import { z } from "@/lib/zod";
-import { CEFR_LEVELS, type CefrLevel, type LevelEstimate } from "@/lib/insights/level-core";
 import { digestToMarkdown, type StatsDigest } from "@/lib/insights/digest-core";
+import { CEFR_LEVELS, type CefrLevel, type LevelEstimate } from "@/lib/insights/level-core";
 import { CATEGORY_HINTS, ERROR_CATEGORIES, SEVERITIES, TRANSCRIBER_CATEGORIES } from "@/lib/taxonomy";
 import { wordKey } from "@/lib/vocabulary-core";
+import { z } from "@/lib/zod";
 
 const DAY = 86_400_000;
 

@@ -20,18 +20,21 @@
 import "./load-env";
 import fs from "node:fs";
 import path from "node:path";
+
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { generateText, transcribe } from "ai";
+
 import { shortReason } from "../../src/lib/ai/fallback";
 import { ASR_SAMPLES } from "../../src/lib/eval/asr-samples";
 import { type MistakeOutcome, scoreTranscript } from "../../src/lib/eval/asr-score";
 import { ASR_SAMPLES_DIR } from "../../src/lib/eval/asr-store";
 import { resolveApiKey } from "../../src/lib/secrets";
+
+import { reportCheck, wantsCheck } from "./check";
 import { evalUserId } from "./settings";
 
 const userId = (await evalUserId()) ?? "";
-import { reportCheck, wantsCheck } from "./check";
 
 /** Whisper imitates the prompt's style: an ungrammatical, disfluent one discourages "cleaning up". */
 const VERBATIM_PROMPT =

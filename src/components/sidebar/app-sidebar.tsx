@@ -17,11 +17,12 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+
 import type { Area } from "@/components/layout/page";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
-import { TalkAboutButton } from "@/components/sidebar/talk-about-button";
 import { SessionItem } from "@/components/sidebar/session-item";
 import { SignOutButton } from "@/components/sidebar/sign-out-button";
+import { TalkAboutButton } from "@/components/sidebar/talk-about-button";
 import { ThemeToggle } from "@/components/sidebar/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";

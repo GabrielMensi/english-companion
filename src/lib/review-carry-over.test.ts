@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { carryOverReviews, normalizeOriginal, type ReviewedCorrection } from "./review-carry-over";
 
 function old(overrides: Partial<ReviewedCorrection> = {}): ReviewedCorrection {

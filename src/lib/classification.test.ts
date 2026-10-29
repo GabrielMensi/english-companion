@@ -2,11 +2,13 @@
 // takes only their mistakes, with their settings, and a chat only holds back its own user's batch.
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS } from "@/lib/settings-core";
+
 import { saveSettings } from "@/lib/settings";
+import { DEFAULT_SETTINGS } from "@/lib/settings-core";
 import { fakeAi, resetFakeAi } from "@/test/ai";
 import { createTestUser, type TestUser } from "@/test/auth";
 import { db, resetDb, schema, seedCorrection, seedSession, seedUserMessage } from "@/test/db";
+
 import { getClassificationStatus, startClassification, withChatPriority } from "./classification";
 
 let a: TestUser;

@@ -7,8 +7,9 @@
  * Pure (no model, no `server-only`): the model runs in `phonemes.ts`. Everything here is beta:
  * nothing is saved or counted in stats until the real-recordings eval (#136).
  */
-import type { Lookup } from "./pronunciation-core";
 import { speechWords } from "./pronunciation-core";
+
+import type { Lookup } from "./pronunciation-core";
 import type { PronunciationCategory } from "./taxonomy";
 
 export const PHONEME_MODEL_ID = "onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX";

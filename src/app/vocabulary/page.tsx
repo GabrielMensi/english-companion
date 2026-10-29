@@ -1,11 +1,12 @@
 import { Layers } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
+
 import { Page, PageHeader } from "@/components/layout/page";
 import { Button } from "@/components/ui/button";
 import { VocabularyList } from "@/components/vocabulary/vocabulary-list";
-import { getVocabulary } from "@/lib/vocabulary";
 import { requirePageUser } from "@/lib/auth/session";
+import { getVocabulary } from "@/lib/vocabulary";
 
 export default async function VocabularyPage() {
   await connection();

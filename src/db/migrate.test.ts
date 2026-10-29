@@ -4,11 +4,15 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
-import type Database from "better-sqlite3";
+
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { makeTempDir, openDatabase, removeTempDir } from "@/test/temp-db";
+
 import { BUSY_TIMEOUT_MS, migrate } from "./migrate";
 import { MIGRATIONS_TABLE } from "./migrations-core";
+
+import type Database from "better-sqlite3";
 
 const MIGRATIONS = path.resolve("drizzle");
 const WORKER = path.resolve("src/test/migrate-worker.ts");

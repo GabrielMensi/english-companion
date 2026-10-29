@@ -1,12 +1,12 @@
-import { z } from "@/lib/zod";
 import { structureClassNotes } from "@/lib/ai/class";
 import { errorToMessage } from "@/lib/ai/fallback";
+import { withUser } from "@/lib/auth/with-user";
 import { getClassSession } from "@/lib/class";
 import { MAX_CLASS_TEXT } from "@/lib/class-core";
 import { parseBody } from "@/lib/request-body";
 import { logRouteError } from "@/lib/server-log";
 import { getSettings } from "@/lib/settings";
-import { withUser } from "@/lib/auth/with-user";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({ text: z.string().trim().min(1).max(MAX_CLASS_TEXT) });
 

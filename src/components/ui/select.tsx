@@ -1,9 +1,10 @@
 "use client";
 
-import * as React from "react";
 import { cn } from "cn";
-import { Select as SelectPrimitive } from "radix-ui";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
+import { Select as SelectPrimitive } from "radix-ui";
+import * as React from "react";
+
 import { usePortalContainer } from "@/components/pip/floating-window-context";
 
 function Select({ ...props }: React.ComponentProps<typeof SelectPrimitive.Root>) {

@@ -1,8 +1,8 @@
-import { z } from "@/lib/zod";
-import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
-import { deleteVocabulary } from "@/lib/vocabulary";
-import { parseBody } from "@/lib/request-body";
 import { withUser } from "@/lib/auth/with-user";
+import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
+import { parseBody } from "@/lib/request-body";
+import { deleteVocabulary } from "@/lib/vocabulary";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({ ids: z.array(z.string()).min(1).max(1000) });
 

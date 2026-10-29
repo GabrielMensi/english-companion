@@ -1,8 +1,8 @@
 import { setPrimary } from "@/lib/ai/fallback";
 import { providerStatus } from "@/lib/ai/providers";
-import { getSettings, saveSettings, settingsSchema } from "@/lib/settings";
-import { parseBody } from "@/lib/request-body";
 import { withUser } from "@/lib/auth/with-user";
+import { parseBody } from "@/lib/request-body";
+import { getSettings, saveSettings, settingsSchema } from "@/lib/settings";
 
 export const GET = withUser(async (_request, _ctx, { userId }) => {
   const settings = getSettings(userId);

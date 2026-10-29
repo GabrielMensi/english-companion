@@ -1,9 +1,12 @@
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
+
 import { parseEnv } from "@/lib/env";
 import { makeTempDir, removeTempDir } from "@/test/temp-db";
+
 import { getEncryptionKeys } from "./encryption-key";
 
 const dirs: string[] = [];

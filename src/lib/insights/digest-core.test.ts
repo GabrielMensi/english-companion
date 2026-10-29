@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
+
+import { pronunciationProgress, summarizePronunciation } from "@/lib/read-aloud-core";
 import { computeStats, type StatCorrection } from "@/lib/stats-core";
 import { computeTenseStats, type TenseStatCorrection } from "@/lib/tense-stats";
 import type { VocabularyWord } from "@/lib/vocabulary-core";
-import { pronunciationProgress, summarizePronunciation } from "@/lib/read-aloud-core";
+
 import { buildDigest, digestToMarkdown, digestToPromptText } from "./digest-core";
 
 const DAY = 86_400_000;

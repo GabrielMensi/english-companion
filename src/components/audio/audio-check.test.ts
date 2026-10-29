@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { audioMetrics, checkSpeechAudio } from "./audio-check";
 
 const RATE = 24000;

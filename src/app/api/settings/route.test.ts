@@ -1,5 +1,6 @@
 // Integration test (docs/platform/TESTING.md): settings and API keys. The key must never come back whole.
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { createTestUser, type TestUser } from "@/test/auth";
 import { db, resetDb, schema } from "@/test/db";
 

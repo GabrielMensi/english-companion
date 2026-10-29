@@ -2,6 +2,7 @@
 
 import { Lightbulb, MessageSquare } from "lucide-react";
 import Link from "next/link";
+
 import { SpeakButton } from "@/components/audio/speak-button";
 import { type Language, ResultDetails, ScoredSentence, TargetSentence } from "@/components/read-aloud/reading-result";
 import { type ReadingOutcome } from "@/components/read-aloud/use-read-aloud";
@@ -12,8 +13,8 @@ import {
   type PronunciationCard,
   type VocabularyCard,
 } from "@/lib/flashcards-core";
-import { categoryLabel, PRONUNCIATION_LABELS, tenseLabel } from "@/lib/taxonomy";
 import { subtypeLabel } from "@/lib/subtypes";
+import { categoryLabel, PRONUNCIATION_LABELS, tenseLabel } from "@/lib/taxonomy";
 import { cn } from "@/lib/utils";
 
 export function PronunciationFront({

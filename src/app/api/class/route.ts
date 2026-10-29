@@ -1,8 +1,8 @@
-import { z } from "@/lib/zod";
-import { CEFR_LEVELS } from "@/lib/insights/level-core";
-import { createClassSession, getClassView } from "@/lib/class";
-import { parseBody } from "@/lib/request-body";
 import { withUser } from "@/lib/auth/with-user";
+import { createClassSession, getClassView } from "@/lib/class";
+import { CEFR_LEVELS } from "@/lib/insights/level-core";
+import { parseBody } from "@/lib/request-body";
+import { z } from "@/lib/zod";
 
 /** The classes with the teacher and what was loaded from each. */
 export const GET = withUser(async (_request, _ctx, { userId }) => Response.json(getClassView(userId)));

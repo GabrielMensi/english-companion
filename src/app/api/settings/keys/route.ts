@@ -1,9 +1,9 @@
-import { z } from "@/lib/zod";
 import { providerStatus } from "@/lib/ai/providers";
-import { KEY_PROVIDERS } from "@/lib/credentials";
-import { setApiKey } from "@/lib/secrets";
-import { parseBody } from "@/lib/request-body";
 import { withUser } from "@/lib/auth/with-user";
+import { KEY_PROVIDERS } from "@/lib/credentials";
+import { parseBody } from "@/lib/request-body";
+import { setApiKey } from "@/lib/secrets";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({
   provider: z.enum(KEY_PROVIDERS),

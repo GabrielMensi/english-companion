@@ -1,8 +1,9 @@
 // Re-encrypts every saved API key with the current server key (`pnpm keys:reencrypt`). No server-only
 // import and no "@/db": it works on any better-sqlite3 handle, so the script and the tests share it.
-import type Database from "better-sqlite3";
 import { KEY_PROVIDERS } from "@/lib/credentials";
 import { decryptSecret, encryptSecret } from "@/lib/secrets-crypto";
+
+import type Database from "better-sqlite3";
 
 export interface ReencryptResult {
   /** Keys now encrypted with `keys[0]`. */

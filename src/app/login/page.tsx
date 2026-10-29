@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+
 import { AuthForm } from "@/components/auth/auth-form";
 import { safeNextPath } from "@/lib/auth/auth-core";
 import { getUser } from "@/lib/auth/session";

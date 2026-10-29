@@ -1,7 +1,7 @@
+import { withUser } from "@/lib/auth/with-user";
 import { getClassSession, saveClassItems } from "@/lib/class";
 import { classItemsSchema, normalizeClassImport } from "@/lib/class-core";
 import { parseBody } from "@/lib/request-body";
-import { withUser } from "@/lib/auth/with-user";
 
 /** Saves the reviewed corrections and words as "From class" (they count in the stats and feed the flashcards). */
 export const POST = withUser(async (request: Request, ctx: RouteContext<"/api/class/[id]/items">, { userId }) => {

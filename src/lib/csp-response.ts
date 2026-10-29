@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+
 import { API_CSP, cspHeaderName, makeNonce, pageCsp, policyKind, SCRIPT_CSP } from "@/lib/csp";
 
 /**

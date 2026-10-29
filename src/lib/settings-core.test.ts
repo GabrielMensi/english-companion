@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DEFAULT_SETTINGS, needsRewrite, upgradeSettings } from "./settings-core";
 
 /** A row saved before v3, shaped like the real ones: Ollama still in the models and the chain. */

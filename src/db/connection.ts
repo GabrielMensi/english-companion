@@ -1,7 +1,9 @@
 // Opening the SQLite file (no server-only import, so the deploy scripts in scripts/ share it with the app).
 import fs from "node:fs";
 import path from "node:path";
+
 import Database from "better-sqlite3";
+
 import { BUSY_TIMEOUT_MS } from "./migrate";
 
 /** Opens `file` (creating its folder with mode 700) with the app's pragmas, and keeps it owner-only. */

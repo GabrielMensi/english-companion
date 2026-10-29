@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { type DiscardedRow, discardsToSamples, groupDiscards, repeatsDiscard } from "./discards";
 
 const row = (partial: Partial<DiscardedRow>): DiscardedRow => ({

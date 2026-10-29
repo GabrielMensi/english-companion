@@ -1,4 +1,5 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+
 import type { FluencyStats } from "@/lib/fluency";
 
 export function FluencyPanel({ stats }: { stats: FluencyStats }) {

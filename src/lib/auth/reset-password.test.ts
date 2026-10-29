@@ -1,8 +1,10 @@
 import { count } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { getAuth } from "@/lib/auth/auth";
 import { createTestUser, TEST_PASSWORD } from "@/test/auth";
 import { db, resetDb, schema } from "@/test/db";
+
 import { resetPassword } from "./reset-password";
 
 beforeEach(() => resetDb());

@@ -1,16 +1,17 @@
 import "server-only";
 
 import { asc, count, eq, isNull } from "drizzle-orm";
+
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
 import { classifyBatch } from "@/lib/ai/classify";
 import { type Classification, type ClassificationItem, ruleClassification } from "@/lib/ai/classify-core";
 import { AllModelsFailedError, errorToMessage } from "@/lib/ai/fallback";
-import { getSettings } from "@/lib/settings";
 import { severityAfterManualType } from "@/lib/correction-review";
-import { type ErrorCategory, type Tense, TENSE_CATEGORIES } from "@/lib/taxonomy";
-import { isValidSubtype } from "@/lib/subtypes";
 import { logRouteError } from "@/lib/server-log";
+import { getSettings } from "@/lib/settings";
+import { isValidSubtype } from "@/lib/subtypes";
+import { type ErrorCategory, type Tense, TENSE_CATEGORIES } from "@/lib/taxonomy";
 
 /**
  * Deferred fine classification of mistakes. The chat saves each mistake as

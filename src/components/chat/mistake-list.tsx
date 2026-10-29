@@ -2,14 +2,15 @@
 
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
+
 import { ClassificationDialog } from "@/components/chat/classification-dialog";
 import { useNotify } from "@/components/pip/floating-window-context";
 import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
 import { discardCorrection, restoreCorrection } from "@/lib/api";
 import { groupMistakes } from "@/lib/correction-marks";
-import { categoryLabel, SEVERITY_LABELS, tenseLabel } from "@/lib/taxonomy";
 import { subtypeLabel } from "@/lib/subtypes";
+import { categoryLabel, SEVERITY_LABELS, tenseLabel } from "@/lib/taxonomy";
 import type { ChatCorrection, CorrectionUpdate } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { voided } from "@/lib/voided";

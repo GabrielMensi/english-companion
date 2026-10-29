@@ -1,9 +1,10 @@
-import type { NextRequest } from "next/server";
 import { errorToMessage } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "@/lib/ai/provider-info";
 import { listModels } from "@/lib/ai/providers";
-import { logRouteError } from "@/lib/server-log";
 import { withUser } from "@/lib/auth/with-user";
+import { logRouteError } from "@/lib/server-log";
+
+import type { NextRequest } from "next/server";
 
 export const GET = withUser(async (request: NextRequest, _ctx, { userId }) => {
   const params = request.nextUrl.searchParams;

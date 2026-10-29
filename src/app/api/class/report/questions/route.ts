@@ -1,9 +1,9 @@
-import { z } from "@/lib/zod";
 import { errorToMessage } from "@/lib/ai/fallback";
+import { withUser } from "@/lib/auth/with-user";
 import { createClassQuestions } from "@/lib/class-report";
 import { parseBody } from "@/lib/request-body";
 import { logRouteError } from "@/lib/server-log";
-import { withUser } from "@/lib/auth/with-user";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({
   sinceId: z.string().max(100).nullish(),

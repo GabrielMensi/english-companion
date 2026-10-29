@@ -1,5 +1,8 @@
 import { generateText, Output, streamText } from "ai";
 import { describe, expect, it } from "vitest";
+
+import { levelExplanationSchema, studyPlanSchema } from "@/lib/insights/plan-core";
+
 import { analysisSchema, normalizeAnalysis } from "./analysis";
 import { classificationSchema } from "./classify-core";
 import {
@@ -10,7 +13,6 @@ import {
   normalizeExercises,
 } from "./exercises-core";
 import { createFakeModel } from "./fake-model";
-import { levelExplanationSchema, studyPlanSchema } from "@/lib/insights/plan-core";
 
 const model = createFakeModel("fake");
 

@@ -18,12 +18,16 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText, Output } from "ai";
+
 import { z } from "@/lib/zod";
+
 import { shortReason } from "../../../src/lib/ai/fallback";
 import { resolveApiKey } from "../../../src/lib/secrets";
 import { evalUserId } from "../../eval/settings";
+
 import { type Clip, CLIPS, SPIKE_CATEGORIES, SPIKE_DIR } from "./clips";
 
 const args = process.argv.slice(2);

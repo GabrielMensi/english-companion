@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,6 +14,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
+import { SUBTYPES } from "@/lib/subtypes";
 import {
   CATEGORY_LABELS,
   ERROR_CATEGORIES,
@@ -22,7 +24,6 @@ import {
   TENSE_LABELS,
   TENSES,
 } from "@/lib/taxonomy";
-import { SUBTYPES } from "@/lib/subtypes";
 import type { ChatCorrection, CorrectionUpdate } from "@/lib/types";
 import { voided } from "@/lib/voided";
 

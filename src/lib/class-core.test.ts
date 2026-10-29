@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   classReportToMarkdown,
   classWordCount,
@@ -11,9 +12,9 @@ import {
   periodKey,
   resolveReportPeriod,
 } from "./class-core";
-import { countsInStats } from "./taxonomy";
 import { buildDigest } from "./insights/digest-core";
 import { computeStats } from "./stats-core";
+import { countsInStats } from "./taxonomy";
 import { computeTenseStats } from "./tense-stats";
 
 const DAY = 86_400_000;

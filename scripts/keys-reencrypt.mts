@@ -3,6 +3,7 @@
 // run `pnpm keys:reencrypt`, and only then drop the old key. Backs up the database first. Safe to run again.
 import fs from "node:fs";
 import path from "node:path";
+
 import { backupDatabase, backupsDir, timestamp } from "@/db/backup";
 import { openSqlite, restrictToOwner } from "@/db/connection";
 import { reencryptKeys } from "@/db/reencrypt";

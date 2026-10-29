@@ -10,8 +10,8 @@ import {
   type ReportPeriod,
   withPeriod,
 } from "@/lib/class-core";
-import { getLevelData } from "@/lib/insights/insights";
 import { buildDigest, type StatsDigest } from "@/lib/insights/digest-core";
+import { getLevelData } from "@/lib/insights/insights";
 import { getSettings } from "@/lib/settings";
 import { getPeriodData } from "@/lib/stats";
 import { getUserSetting, setUserSetting } from "@/lib/user-settings";

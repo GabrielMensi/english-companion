@@ -1,6 +1,7 @@
 import "server-only";
 
 import { desc, eq } from "drizzle-orm";
+
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
 import { generateCategoryExercises, generateExercises } from "@/lib/ai/exercises";

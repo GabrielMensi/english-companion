@@ -1,7 +1,7 @@
-import { z } from "@/lib/zod";
+import { withUser } from "@/lib/auth/with-user";
 import { createSession, listSessions } from "@/lib/chat";
 import { parseBody } from "@/lib/request-body";
-import { withUser } from "@/lib/auth/with-user";
+import { z } from "@/lib/zod";
 
 export const GET = withUser(async (_request, _ctx, { userId }) => {
   return Response.json(listSessions(userId));

@@ -1,6 +1,7 @@
 import { count } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
+
 import { AuthForm } from "@/components/auth/auth-form";
 import { db, schema } from "@/db";
 import { signUpOpen } from "@/lib/auth/auth-core";

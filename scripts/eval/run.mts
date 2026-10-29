@@ -22,15 +22,17 @@
 import "./load-env";
 import fs from "node:fs";
 import path from "node:path";
+
 import { analyzeMessage } from "../../src/lib/ai/analyze";
 import { errorToMessage } from "../../src/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "../../src/lib/ai/provider-info";
 import { DISCARDS_FILE } from "../../src/lib/eval/discards";
 import { findPreset } from "../../src/lib/topics";
-import { SAMPLES, TOPIC_SAMPLES, type Sample, type TopicSample } from "./samples";
+
 import { reportCheck, wantsCheck } from "./check";
-import { evalSettings, evalUserId } from "./settings";
+import { SAMPLES, TOPIC_SAMPLES, type Sample, type TopicSample } from "./samples";
 import { scoreSample } from "./score";
+import { evalSettings, evalUserId } from "./settings";
 
 const args = process.argv.slice(2);
 const option = (name: string) => args.find((a) => a.startsWith(`--${name}=`))?.split("=")[1];

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { eq, gte, isNotNull, lt, ne } from "drizzle-orm";
-import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
 import { classChatIds } from "@/lib/class";
@@ -11,6 +11,8 @@ import { computeStats, type StatCorrection, type StatMessage } from "@/lib/stats
 import { computeTenseStats, type TenseStatCorrection } from "@/lib/tense-stats";
 import { countTenses, TENSE_COUNTER_VERSION, type TenseCounts } from "@/lib/tenses-core";
 import { getVocabulary } from "@/lib/vocabulary";
+
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 export const RANGES = { "7": 7, "30": 30, "90": 90, all: null } as const;
 export type RangeKey = keyof typeof RANGES;

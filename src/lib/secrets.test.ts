@@ -1,13 +1,14 @@
 // The saved API keys: encrypted at rest, per user, and never mixed up between accounts.
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestUser, type TestUser } from "@/test/auth";
-import { db, resetDb, schema } from "@/test/db";
+
 import { getEncryptionKeys } from "@/lib/encryption-key";
 import { serverEnv } from "@/lib/env";
-import { decryptSecret, encryptSecret } from "@/lib/secrets-crypto";
 import { resolveApiKey, setApiKey } from "@/lib/secrets";
+import { decryptSecret, encryptSecret } from "@/lib/secrets-crypto";
 import { getUserSetting, setUserSetting } from "@/lib/user-settings";
+import { createTestUser, type TestUser } from "@/test/auth";
+import { db, resetDb, schema } from "@/test/db";
 
 const settingsRoute = await import("@/app/api/settings/route");
 const keysRoute = await import("@/app/api/settings/keys/route");

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { API_CSP, makeNonce, pageCsp, policyKind, SCRIPT_CSP } from "./csp";
 
 const directive = (csp: string, name: string) =>

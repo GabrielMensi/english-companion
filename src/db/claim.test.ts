@@ -1,10 +1,14 @@
 // `pnpm auth:claim-data`: the data from before accounts becomes one user's, once, without losing a row.
 import path from "node:path";
-import type Database from "better-sqlite3";
+
 import { afterEach, describe, expect, it } from "vitest";
+
 import { makeTempDir, openDatabase, removeTempDir } from "@/test/temp-db";
+
 import { claimData, hasUnclaimedData, OWNED_TABLES, unclaimedCounts } from "./claim";
 import { migrate } from "./migrate";
+
+import type Database from "better-sqlite3";
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {

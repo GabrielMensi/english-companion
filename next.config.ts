@@ -1,7 +1,8 @@
 // `next start` loads this file in the production image too: any local file imported here must also be
 // copied in the Dockerfile (run stage), and must not import anything else from src/.
-import type { NextConfig } from "next";
 import { cspHeaderName, SCRIPT_CSP } from "./src/lib/csp";
+
+import type { NextConfig } from "next";
 
 // Same values as env.ts's flag; read when the server starts.
 const cspReportOnly = ["true", "1"].includes(process.env.CSP_REPORT_ONLY ?? "");

@@ -5,14 +5,17 @@
  * API keys, passwords, sessions, e-mail or user ids.
  */
 import { createHash } from "node:crypto";
+
 import { getTableColumns } from "drizzle-orm";
-import type { SQLiteTable } from "drizzle-orm/sqlite-core";
+
 import * as schema from "@/db/schema";
 import { CARD_KINDS } from "@/lib/flashcards-core";
 import { FLUENCY_VERSION } from "@/lib/fluency";
-import { GRADES } from "@/lib/srs";
 import { upgradeSettings } from "@/lib/settings-core";
+import { GRADES } from "@/lib/srs";
 import { ERROR_CATEGORIES, PRONUNCIATION_CATEGORIES, SEVERITIES } from "@/lib/taxonomy";
+
+import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 
 export const EXPORT_FORMAT = "english-companion-export";
 export const EXPORT_VERSION = 1;

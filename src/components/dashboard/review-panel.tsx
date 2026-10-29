@@ -1,8 +1,9 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { ReviewTimelinePoint } from "@/lib/review-stats-core";
+
 import type { ReviewDashboard } from "@/lib/review-stats";
+import type { ReviewTimelinePoint } from "@/lib/review-stats-core";
 
 /** Flashcard reviews: what's due, retention, reviews per day and streak. */
 export function ReviewPanel({ data }: { data: ReviewDashboard }) {
