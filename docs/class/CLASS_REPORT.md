@@ -1,6 +1,6 @@
 # Clases: reporte para llevar, correcciones del profesor y su nivel
 
-> Area: Class & textbook · Kind: Feature · Status: In progress · Board: #158, #159, #160
+> Area: Class & textbook · Kind: Feature · Status: Done · Board: #158, #159, #160
 
 Estado (2026-10-29): implementado en la rama `team/class`, pendiente de la prueba manual. Cubre las secciones 1 y 3 de [ROADMAP.md](../ROADMAP.md#integración-con-las-clases) y el nivel del profesor de [LEVEL_CALIBRATION.md](../progress/LEVEL_CALIBRATION.md).
 
