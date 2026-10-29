@@ -18,6 +18,7 @@
     "db:migrate": "tsx --tsconfig tsconfig.json scripts/db-migrate.mts",
     "db:backup": "tsx --tsconfig tsconfig.json scripts/backup.mts",
     "eval:models": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/run.mts",
+    "eval:export-discards": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/export-discards.mts",
     "eval:classify": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/classify.mts",
     "eval:asr": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/asr.mts",
     "eval:level": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/level.mts"
