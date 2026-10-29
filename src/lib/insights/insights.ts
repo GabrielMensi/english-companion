@@ -10,7 +10,7 @@ import { explainLevel, generateStudyPlan } from "@/lib/ai/insights";
 import { withChatPriority } from "@/lib/classification";
 import { getSettings } from "@/lib/settings";
 import { getPronunciationProgress } from "@/lib/read-aloud";
-import { getDashboardData } from "@/lib/stats";
+import { getPeriodData } from "@/lib/stats";
 import { countTenses, TENSE_COUNTER_VERSION } from "@/lib/tenses-core";
 import { buildDigest, type StatsDigest } from "./digest-core";
 import {
@@ -24,6 +24,8 @@ import {
   recentWindow,
 } from "./level-core";
 import { isExplanationCurrent, type LevelExplanation, type StudyPlan } from "./plan-core";
+
+const DAY = 86_400_000;
 
 /** Periods the report can cover, in days (keys of the dashboard's ranges). */
 export const REPORT_RANGES = ["7", "30"] as const;
@@ -51,13 +53,23 @@ export interface StoredLevelExplanation {
   modelId: string;
 }
 
-/** `withPronunciation: false` skips the read-aloud queries, for callers that only use the totals. */
-export function getReportDigest(userId: string, range: ReportRange, { withPronunciation = true } = {}): StatsDigest {
-  const { stats, tenses, vocabulary } = getDashboardData(userId, range);
+/** `withPronunciation: false` skips the read-aloud queries, for callers that only use the totals; `withoutClass` leaves out what the teacher corrected in class. */
+export function getReportDigest(
+  userId: string,
+  range: ReportRange,
+  { withPronunciation = true, withoutClass = false } = {},
+): StatsDigest {
   const days = Number(range);
+  const now = Date.now();
+  const { stats, tenses, vocabulary } = getPeriodData(
+    userId,
+    { from: now - days * DAY, to: null, previousFrom: now - 2 * days * DAY, now },
+    "all",
+    { withoutClass },
+  );
   // Read-aloud readings aren't messages: the written/spoken filter and countsInStats don't apply.
   const pronunciation = withPronunciation ? getPronunciationProgress(userId, days) : null;
-  return buildDigest({ days, now: Date.now(), stats, tenses, vocabulary, pronunciation });
+  return buildDigest({ days, now, stats, tenses, vocabulary, pronunciation });
 }
 
 export function getStoredPlan(userId: string): StoredPlan | null {

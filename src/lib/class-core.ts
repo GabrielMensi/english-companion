@@ -282,3 +282,10 @@ export function classReportToMarkdown(
   }
   return `${parts.join("\n\n")}\n`;
 }
+
+/** Where "Open chat" leads for a mistake: its chat, or the Class page when the teacher gave it (that chat is hidden). */
+export function mistakeOrigin(m: { source: "ai" | "class"; sessionId: string }): { href: string; label: string } {
+  return m.source === "class"
+    ? { href: "/class", label: "Open class" }
+    : { href: `/chat/${m.sessionId}`, label: "Open chat" };
+}

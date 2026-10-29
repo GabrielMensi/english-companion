@@ -139,6 +139,15 @@ Con la base copiada y la cuenta con tus datos (`pnpm auth:claim-data <email>`). 
 - [ ] Esos errores NO aparecen en el reporte para llevar a clase. Borrar la clase borra también lo cargado.
 - [ ] Insights → Estimated level: debajo de la estimación dice "Your teacher's level on …: B1" y cuántos niveles de diferencia hay.
 - [ ] El chat oculto de la clase no aparece en la barra lateral.
+- [ ] Descartá un error "From class" (Dashboard) y abrí Discarded: su link dice "Open class" y va a /class.
+- [ ] Today: "wrote this week" no cuenta lo cargado de una clase (con una semana sin escribir y una clase cargada, Today sigue pidiendo escribir).
+
+### Errores descartados (#166: #165)
+
+- [ ] /dashboard → "Most frequent mistakes" → "Discard this example" en uno: aparece el link "Discarded (1)".
+- [ ] Abrirlo: el fragmento tachado, la corrección, la categoría y la fecha; "Open chat" abre el chat correcto.
+- [ ] Undo: la fila desaparece; en el dashboard el error vuelve a contar y el link se va.
+- [ ] Una segunda cuenta ve solo sus propios descartes.
 
 ## Problemas encontrados
 

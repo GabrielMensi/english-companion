@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classReportToMarkdown,
   classWordCount,
+  mistakeOrigin,
   compareWithTeacher,
   MAX_CLASS_ITEMS,
   normalizeClassImport,
@@ -186,5 +187,12 @@ describe("classReportToMarkdown", () => {
     expect(markdown).toContain("- App's estimate (from my writing): B2");
     expect(markdown).toContain("- Teacher's level on 2026-10-22: B1");
     expect(markdown).toContain("## What to ask the teacher\n\n- Can we practice the present perfect? _(6 mistakes)_");
+  });
+});
+
+describe("mistakeOrigin", () => {
+  it("links to the chat, or to Class when the teacher gave the mistake (its chat is hidden)", () => {
+    expect(mistakeOrigin({ source: "ai", sessionId: "s1" })).toEqual({ href: "/chat/s1", label: "Open chat" });
+    expect(mistakeOrigin({ source: "class", sessionId: "hidden" })).toEqual({ href: "/class", label: "Open class" });
   });
 });

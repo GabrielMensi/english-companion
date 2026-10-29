@@ -22,9 +22,11 @@ const { getVocabulary } = await import("@/lib/vocabulary");
 const { getMistakeDeck } = await import("@/lib/flashcards");
 const { listSessions, getSession } = await import("@/lib/chat");
 
+const { getDiscardedMistakes } = await import("@/lib/corrections");
 const { getClassView, getTeacherLevel } = await import("@/lib/class");
+const { mistakeOrigin } = await import("@/lib/class-core");
 const { getClassReport } = await import("@/lib/class-report");
-const { getLevelData } = await import("@/lib/insights/insights");
+const { getLevelData, getReportDigest } = await import("@/lib/insights/insights");
 
 const DAY = 86_400_000;
 const IMPORT = {
@@ -283,6 +285,38 @@ describe("classes and what the teacher corrected", () => {
         .all()
         .map((r) => r.cardKey),
     ).toEqual([mistakeKey(mistake.original, mistake.correction)]);
+  });
+});
+
+describe("discarded class mistakes", () => {
+  it("are listed with the class as their source, so the page links to Class and not to the hidden chat", async () => {
+    const { id } = await createClass(a, { heldAt: Date.now() - DAY });
+    await itemsRoute.POST(a.request(`http://t/api/class/${id}/items`, { method: "POST", body: json(IMPORT) }), ctx(id));
+    const chat = seedSession({ userId: a.id });
+    const message = seedUserMessage(chat.id, { status: "done" });
+    const own = seedCorrection(message.id);
+    const classRow = db.select().from(schema.corrections).where(eq(schema.corrections.source, "class")).get()!;
+    for (const correction of [own, classRow]) {
+      db.update(schema.corrections)
+        .set({ discardedAt: new Date() })
+        .where(eq(schema.corrections.id, correction.id))
+        .run();
+    }
+    const items = getDiscardedMistakes(a.id).items;
+    expect(mistakeOrigin(items.find((m) => m.id === own.id)!)).toMatchObject({ href: `/chat/${chat.id}` });
+    expect(mistakeOrigin(items.find((m) => m.id === classRow.id)!)).toEqual({ href: "/class", label: "Open class" });
+  });
+});
+
+describe("Today's count", () => {
+  it("leaves out what was loaded from a class, even with a word count", async () => {
+    const { id } = await createClass(a, { heldAt: Date.now() - DAY });
+    await itemsRoute.POST(
+      a.request(`http://t/api/class/${id}/items`, { method: "POST", body: json({ ...IMPORT, spokenWords: 100 }) }),
+      ctx(id),
+    );
+    expect(getReportDigest(a.id, "7").totals.messages).toBe(1);
+    expect(getReportDigest(a.id, "7", { withoutClass: true }).totals.messages).toBe(0);
   });
 });
 
