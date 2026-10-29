@@ -10,6 +10,7 @@ import { getTableColumns } from "drizzle-orm";
 
 import * as schema from "@/db/schema";
 import { CARD_KINDS } from "@/lib/flashcards-core";
+import { CEFR_LEVELS } from "@/lib/insights/level-core";
 import { FLUENCY_VERSION } from "@/lib/fluency";
 import { upgradeSettings } from "@/lib/settings-core";
 import { GRADES } from "@/lib/srs";
@@ -27,6 +28,7 @@ export const MAX_TOTAL_ROWS = 30_000;
 
 export type TableName =
   | "sessions"
+  | "classSessions"
   | "messages"
   | "corrections"
   | "vocabulary"
@@ -51,6 +53,10 @@ interface TableSpec {
 /** Parents come before their children. */
 export const TABLE_SPECS: Record<TableName, TableSpec> = {
   sessions: { table: schema.sessions, parents: [] },
+  classSessions: {
+    table: schema.classSessions,
+    parents: [{ column: "chatSessionId", parent: "sessions", required: false }],
+  },
   messages: {
     table: schema.messages,
     parents: [
@@ -94,16 +100,19 @@ export function isExportableSetting(key: string): boolean {
 }
 
 const ENUMS: Partial<Record<TableName, Record<string, readonly string[]>>> = {
-  sessions: { mode: ["correction", "conversation"] },
+  sessions: { mode: ["correction", "conversation", "class"] },
+  classSessions: { teacherLevel: CEFR_LEVELS },
   messages: { role: ["user", "assistant"], status: ["pending", "done", "error"], inputMode: ["typed", "spoken"] },
   corrections: {
     category: ERROR_CATEGORIES,
     severity: SEVERITIES,
     severityBeforeTypo: SEVERITIES,
     classification: ["pending", "done", "failed", "skipped"],
+    source: ["ai", "class"],
   },
   reviews: { kind: CARD_KINDS, lastGrade: GRADES },
   reviewLog: { kind: CARD_KINDS, grade: GRADES },
+  vocabulary: { source: ["app", "class"] },
   readAloudAttempts: { source: ["sounds", "correction", "vocabulary", "review"] },
   pronunciationIssues: { category: PRONUNCIATION_CATEGORIES },
   missedExercises: { category: ERROR_CATEGORIES },

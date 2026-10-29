@@ -1,9 +1,11 @@
 // Export / import of one account: only its data, never the API keys, and repeatable.
-import { eq } from "drizzle-orm";
+import { eq, is } from "drizzle-orm";
+import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { exportUserData, importUserData } from "@/lib/data-transfer";
-import { parseExportFile } from "@/lib/data-transfer-core";
+import { parseExportFile, TABLE_NAMES, TABLE_SPECS } from "@/lib/data-transfer-core";
+import { classChatIds, createClassSession, getClassSession, getClassView, saveClassItems } from "@/lib/class";
 import { setApiKey } from "@/lib/secrets";
 import { setUserSetting } from "@/lib/user-settings";
 import { createTestUser, type TestUser } from "@/test/auth";
@@ -172,6 +174,84 @@ describe("import", () => {
     expect(summary.added.corrections).toBe(0);
     expect(summary.dropped).toBe(2);
     expect(summary.added.sessions).toBe(1);
+  });
+});
+
+const CLASS_CORRECTION = {
+  original: "I am agree",
+  correction: "I agree",
+  explanation: "No 'am'.",
+  category: "verb_form" as const,
+  subcategory: "stative_verbs",
+  severity: "moderate" as const,
+};
+
+describe("class data", () => {
+  it("a class with its teacher corrections and words survives the move to another account", () => {
+    const cls = createClassSession(a.id, { heldAt: 1_790_000_000_000, teacherLevel: "B1", notes: "Went well" });
+    saveClassItems(a.id, cls.id, {
+      corrections: [CLASS_CORRECTION],
+      words: [{ spanish: "plazo", english: ["deadline"], note: null }],
+    });
+    const summary = importUserData(b.id, parse(exportUserData(a.id)));
+    expect(summary.dropped).toBe(0);
+    expect(summary.added.classSessions).toBe(1);
+
+    const viewA = getClassView(a.id);
+    const viewB = getClassView(b.id);
+    expect(viewB).toHaveLength(1);
+    expect(viewB[0]).toMatchObject({ teacherLevel: "B1", notes: "Went well", heldAt: viewA[0].heldAt });
+    expect(viewB[0].corrections.map((c) => c.original)).toEqual(["I am agree"]);
+    expect(viewB[0].words.map((w) => w.spanish)).toEqual(["plazo"]);
+    expect(viewB[0].id).not.toBe(viewA[0].id);
+    // The class still points at its (new) hidden chat, which only B can see.
+    const row = getClassSession(b.id, viewB[0].id)!;
+    expect(classChatIds(b.id)).toContain(row.chatSessionId);
+    expect(classChatIds(b.id)).not.toContain(getClassSession(a.id, viewA[0].id)!.chatSessionId);
+    expect(db.select().from(schema.corrections).where(eq(schema.corrections.userId, b.id)).get()?.source).toBe("class");
+  });
+
+  it("refuses unknown source values and CEFR levels", () => {
+    const cls = createClassSession(a.id, { heldAt: 1, teacherLevel: "B1", notes: null });
+    saveClassItems(a.id, cls.id, {
+      corrections: [CLASS_CORRECTION],
+      words: [],
+    });
+    const file = JSON.parse(JSON.stringify(exportUserData(a.id)));
+    file.data.corrections[0].source = "teacher";
+    file.data.classSessions[0].teacherLevel = "Z9";
+    const parsed = parseExportFile(file);
+    if (!parsed.ok) throw new Error(parsed.error);
+    expect(parsed.file.invalid).toMatchObject({ corrections: 1, classSessions: 1 });
+  });
+});
+
+describe("every table is accounted for", () => {
+  // Tables with a user_id that are on purpose not in the export: login tables, and the key-value store (carried as `settings`).
+  const NOT_EXPORTED = new Set(["session", "account", "user_settings"]);
+
+  it("a table with user_id is either exported or on the explicit list, so a new table can't be left out silently", () => {
+    const withOwner = Object.values(schema)
+      .filter((value) => is(value, SQLiteTable))
+      .map((table) => getTableConfig(table as SQLiteTable))
+      .filter((t) => t.columns.some((c) => c.name === "user_id"))
+      .map((t) => t.name);
+    const exported = TABLE_NAMES.map((n) => getTableConfig(TABLE_SPECS[n].table).name);
+    const missing = withOwner.filter((name) => !exported.includes(name) && !NOT_EXPORTED.has(name));
+    expect(missing).toEqual([]);
+    expect(exported.filter((name) => !withOwner.includes(name))).toEqual([]);
+  });
+
+  it("the enum checks cover the schema's source and mode unions", () => {
+    const file = JSON.parse(
+      JSON.stringify({
+        format: "english-companion-export",
+        version: 1,
+        data: { sessions: [{ id: "s", mode: "class", title: "t" }] },
+      }),
+    );
+    const parsed = parseExportFile(file);
+    expect(parsed.ok && parsed.file.data.sessions).toHaveLength(1);
   });
 });
 
