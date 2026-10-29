@@ -22,6 +22,12 @@ export interface Sample {
   forbidden?: string[];
   /** Defaults to typed. */
   inputMode?: "typed" | "spoken";
+  /** Discarded samples: the chat the message came from (mode, reply rule, previous turns). */
+  context?: {
+    mode: "correction" | "conversation";
+    practiceRule?: string;
+    history: { learner: string | null; assistant: string | null }[];
+  };
 }
 
 /** A sample from a topic or role-play chat: the learner answers the tutor's opening question. */
@@ -160,8 +166,11 @@ export const TOPIC_SAMPLES: TopicSample[] = [
   },
   {
     topic: "technical-interview",
-    text: "I will use a cache for the most visited links, because the reads are much more than the writes.",
-    expect: [{ fragment: "much more than", fix: "far outnumber" }],
+    text: "I would explain me the trade-offs first, because the cache depends of how much data we have.",
+    expect: [
+      { fragment: "explain me", fix: "explain" },
+      { fragment: "depends of", fix: "depends on" },
+    ],
   },
   {
     topic: "standup",
@@ -174,23 +183,25 @@ export const TOPIC_SAMPLES: TopicSample[] = [
     expect: [
       { fragment: "have worked", fix: "worked" },
       { fragment: "worked in", fix: "worked on" },
+      { fragment: "is down since", fix: "has been down" },
       { fragment: "since monday", fix: "since Monday" },
     ],
   },
   {
     topic: "travel-small-talk",
-    text: "I am here for holidays, I arrived two days ago and I am staying in a hostel near of the beach.",
+    text: "I am here since Tuesday, I arrived two days ago and I am staying in a hostel near of the beach.",
     expect: [
-      { fragment: "for holidays", fix: "on holiday" },
+      { fragment: "am here since", fix: "have been here" },
       { fragment: "near of", fix: "near the" },
     ],
   },
   {
     topic: "travel-small-talk",
-    text: "No, it is my first time here! Do you know any good restaurant for try the local food?",
+    text: "No, it is my first time here! Do you know a good restaurant for try the local food? I want make a question about the menu too.",
     expect: [
-      { fragment: "any good restaurant", fix: "restaurants" },
       { fragment: "for try", fix: "to try" },
+      { fragment: "make a question", fix: "ask a question" },
+      { fragment: "want make", fix: "want to" },
     ],
   },
   {

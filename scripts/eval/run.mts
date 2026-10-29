@@ -12,7 +12,9 @@
  *   --topics-plain with --topics/--topics-only: the same samples as a plain conversation, without the topic (control)
  *   --with-discards  also run the corrections you discarded (pnpm eval:export-discards first); scores
  *                  "false positive avoided" and prints repeatedDiscards
+ *                  (discarded messages are shown as numbers: it's your own text, kept out of the terminal)
  *   --check        print PASS/FAIL per model against thresholds.json and exit 1 on a regression
+ *                  (only for the plain set: not with --topics*, --with-discards or --limit)
  *
  * API keys come from the app's settings (or .env.local).
  * Results are printed as a table and saved to .eval-results/.
@@ -36,6 +38,18 @@ const delayMs = Number(option("delay") ?? 4000);
 const topicsOnly = args.includes("--topics-only");
 const plainTopics = args.includes("--topics-plain");
 
+if (
+  wantsCheck(args) &&
+  ["--topics", "--topics-only", "--topics-plain", "--with-discards", "--limit"].some((f) =>
+    args.some((a) => a === f || a.startsWith(`${f}=`)),
+  )
+) {
+  console.error(
+    "--check compares against thresholds set on the plain sample set: don't combine it with --topics*, --with-discards or --limit.",
+  );
+  process.exit(1);
+}
+
 function loadDiscards(): Sample[] {
   if (!args.includes("--with-discards")) return [];
   if (!fs.existsSync(DISCARDS_FILE)) {
@@ -55,23 +69,37 @@ const allSamples: Sample[] = [
 ];
 const samples = allSamples.slice(0, Number(option("limit") ?? allSamples.length));
 
-/** Topic samples go as conversation-mode messages after the tutor's opening question; the rest as before. */
+/**
+ * Topic samples go as conversation-mode messages after the tutor's opening question; discarded
+ * messages with the chat they came from; the rest as plain corrections.
+ */
 function requestFor(sample: Sample) {
-  const preset = isTopic(sample) ? findPreset(sample.topic) : null;
-  if (!isTopic(sample) || !preset) {
-    return { text: sample.text, mode: "correction" as const, history: [], inputMode: sample.inputMode };
+  if (isTopic(sample)) {
+    const preset = findPreset(sample.topic);
+    if (!preset) throw new Error(`Unknown topic "${sample.topic}" in TOPIC_SAMPLES: not a preset in src/lib/topics.ts`);
+    return {
+      text: sample.text,
+      mode: "conversation" as const,
+      history: [{ learner: null, assistant: preset.openings[0] }],
+      practiceRule: plainTopics ? undefined : preset.rule,
+    };
   }
-  return {
-    text: sample.text,
-    mode: "conversation" as const,
-    history: [{ learner: null, assistant: preset.openings[0] }],
-    practiceRule: plainTopics ? undefined : preset.rule,
-  };
+  if (sample.context) return { text: sample.text, inputMode: sample.inputMode, ...sample.context };
+  return { text: sample.text, mode: "correction" as const, history: [], inputMode: sample.inputMode };
 }
+
+/** What to show for a sample: discarded ones are the learner's own text, so only a number. */
+const labelOf = (sample: Sample, i: number) => (sample.forbidden ? `discard #${i + 1}` : sample.text.slice(0, 60));
+
+// Fail before the first API call if a topic sample points to a missing preset.
+for (const sample of samples) requestFor(sample);
+
 const specs = args.filter((a) => !a.startsWith("--"));
 
 if (specs.length === 0) {
-  console.error("Usage: pnpm eval:models <provider>:<model> [...] [--delay=ms] [--limit=n] [--check]");
+  console.error(
+    "Usage: pnpm eval:models <provider>:<model> [...] [--delay=ms] [--limit=n] [--topics|--topics-only] [--topics-plain] [--with-discards] [--check]",
+  );
   process.exit(1);
 }
 
@@ -116,8 +144,9 @@ for (const spec of specs) {
       possible += score.possible;
       falsePositives += score.falsePositives;
       repeatedDiscards += score.repeatedDiscards;
-      console.log(`  ${score.points}/${score.possible}  ${(ms / 1000).toFixed(1)}s  ${sample.text.slice(0, 60)}`);
-      for (const m of score.missed) console.log(`        · ${m}`);
+      console.log(`  ${score.points}/${score.possible}  ${(ms / 1000).toFixed(1)}s  ${labelOf(sample, i)}`);
+      for (const m of score.missed)
+        console.log(`        · ${sample.forbidden ? "reported a discarded correction" : m}`);
       details.push({ spec, text: sample.text, ms, score, analysis });
     } catch (error) {
       failures++;
@@ -129,7 +158,7 @@ for (const spec of specs) {
         spanishPhrases: [],
         reply: null,
       }).possible;
-      console.log(`  FAIL  ${sample.text.slice(0, 60)}\n        · ${errorToMessage(error)}`);
+      console.log(`  FAIL  ${labelOf(sample, i)}\n        · ${errorToMessage(error)}`);
       details.push({ spec, text: sample.text, error: errorToMessage(error) });
     }
   }

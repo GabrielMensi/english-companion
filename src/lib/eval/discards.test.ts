@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type DiscardedRow, discardsToSamples } from "./discards";
+import { type DiscardedRow, discardsToSamples, groupDiscards, repeatsDiscard } from "./discards";
 
 const row = (partial: Partial<DiscardedRow>): DiscardedRow => ({
   messageId: "m1",
@@ -47,5 +47,40 @@ describe("discardsToSamples", () => {
 
   it("keeps the input mode of the message", () => {
     expect(discardsToSamples([row({ inputMode: "spoken" })])[0].inputMode).toBe("spoken");
+  });
+});
+
+describe("groupDiscards", () => {
+  it("counts the rows it left out and keeps the chat context", () => {
+    const context = { mode: "conversation" as const, history: [{ learner: null, assistant: "Hi!" }] };
+    const { samples, dropped } = groupDiscards([row({ context }), row({ original: "nowhere" })]);
+    expect(dropped).toBe(1);
+    expect(samples[0].context).toEqual(context);
+  });
+});
+
+describe("repeatsDiscard", () => {
+  it("does not match letters inside other words", () => {
+    expect(repeatsDiscard("going", "go")).toBe(false);
+    expect(repeatsDiscard("thinking", "in")).toBe(false);
+  });
+
+  it("matches a re-report that shares a content word, even if neither contains the other", () => {
+    expect(repeatsDiscard("we go", "go there")).toBe(true);
+    expect(repeatsDiscard("Go", "go")).toBe(true);
+  });
+
+  it("ignores shared function words", () => {
+    expect(repeatsDiscard("the meeting", "the plan")).toBe(false);
+  });
+
+  it("compares phrases when the discarded fragment is only function words", () => {
+    expect(repeatsDiscard("is a", "a")).toBe(true);
+    expect(repeatsDiscard("going", "a")).toBe(false);
+  });
+
+  it("ignores punctuation and case, and empty fragments", () => {
+    expect(repeatsDiscard("Depend of,", "depend of")).toBe(true);
+    expect(repeatsDiscard("", "go")).toBe(false);
   });
 });

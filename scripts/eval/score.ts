@@ -1,3 +1,4 @@
+import { repeatsDiscard } from "../../src/lib/eval/discards";
 import type { Analysis } from "../../src/lib/ai/analysis";
 import type { Sample } from "./samples";
 
@@ -54,7 +55,7 @@ export function scoreSample(sample: Sample, analysis: Analysis): SampleScore {
   let repeatedDiscards = 0;
   for (const fragment of sample.forbidden ?? []) {
     possible++;
-    if (analysis.errors.some((err) => overlaps(err.original, fragment))) {
+    if (analysis.errors.some((err) => repeatsDiscard(err.original, fragment))) {
       repeatedDiscards++;
       missed.push(`reported a discarded correction: "${fragment}"`);
     } else points++;
