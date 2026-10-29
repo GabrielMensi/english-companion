@@ -107,6 +107,13 @@ Probalo con la copia de la base del worktree de integración (`data/dev.db`), nu
 - [ ] `pnpm eval:models <spec> --topics-only --check` se niega a correr.
 - Resultado del eval de temas (n=8, orientativo): Gemini 100% con la regla de tema vs 90% sin, Groq 90% vs 90%, 0 falsos positivos: los chats de tema no empeoran la corrección (`docs/ai/TOPIC_EVAL.md`).
 
+### E2E y CSP (#164: #149, #153)
+
+- [ ] `pnpm test:e2e`: construye la app y pasa 10/10 sin tocar `data/`.
+- [ ] `AI_FAKE=1 pnpm dev` (sin `E2E_TEST_SERVER`, o con la base real) se niega a arrancar.
+- [ ] GitHub → Actions → "E2E" → Run workflow: verde.
+- [ ] En /settings (y en general): sin errores "Content Security Policy" en la consola. Zod ahora se importa siempre desde `@/lib/zod` (el lint lo exige).
+
 ## Tanda 4
 
 ### Ventana flotante y dashboard (#154: #151, #152)
