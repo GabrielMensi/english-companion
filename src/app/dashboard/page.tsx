@@ -27,16 +27,19 @@ const INPUT_LABELS: Record<InputFilter, string> = { all: "All", typed: "Written"
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   await connection();
-  await requirePageUser("/dashboard");
+  const { userId } = await requirePageUser("/dashboard");
   const hasModel = hasConfiguredProvider();
   const { range: rawRange, input: rawInput } = await searchParams;
   const range: RangeKey = typeof rawRange === "string" && rawRange in RANGES ? (rawRange as RangeKey) : "30";
   const input: InputFilter = INPUT_FILTERS.includes(rawInput as InputFilter) ? (rawInput as InputFilter) : "all";
-  const { stats, tenses, vocabulary, fluency, countTypos, hasSpoken } = getDashboardData(range, input);
-  const reviews = getReviewDashboard(range);
+  const { stats, tenses, vocabulary, fluency, countTypos, hasSpoken } = getDashboardData(userId, range, input);
+  const reviews = getReviewDashboard(userId, range);
   // Read-aloud practice isn't messages, so the written/spoken filter doesn't change it.
-  const pronunciation = hasReadings()
-    ? { progress: getPronunciationProgress(RANGES[range]), timeline: getAccuracyTimeline(RANGES[range]) }
+  const pronunciation = hasReadings(userId)
+    ? {
+        progress: getPronunciationProgress(userId, RANGES[range]),
+        timeline: getAccuracyTimeline(userId, RANGES[range]),
+      }
     : null;
   // The weakest categories in this period that make good exercises; none when there isn't enough data.
   const practiceTargets = selectCategoryTargets(stats).filter((t) => t.status === "weak");
@@ -102,7 +105,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </p>
       )}
 
-      <ClassificationStatus initial={getClassificationStatus()} />
+      <ClassificationStatus initial={getClassificationStatus(userId)} />
 
       {stats.totals.messages === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed py-16 text-center">

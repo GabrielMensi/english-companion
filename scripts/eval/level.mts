@@ -52,6 +52,7 @@ import { countsInStats } from "../../src/lib/taxonomy";
 import { countTenses, TENSE_COUNTER_VERSION, type TenseCounts } from "../../src/lib/tenses-core";
 import { countWords } from "../../src/lib/text";
 import { type Bundle, bundleEssays, DEFAULT_CORPUS_DIR, type Edit, type Essay, loadEssays } from "./level-data";
+import { evalSettings } from "./settings";
 
 const args = process.argv.slice(2);
 const option = (name: string) =>
@@ -263,7 +264,6 @@ async function compareWithApp(spec: string) {
   const { analyzeMessage } = await import("../../src/lib/ai/analyze");
   const { AllModelsFailedError, errorToMessage, shortReason } = await import("../../src/lib/ai/fallback");
   const { PROVIDER_IDS } = await import("../../src/lib/ai/provider-info");
-  const { getSettings } = await import("../../src/lib/settings");
   type ProviderId = (typeof PROVIDER_IDS)[number];
 
   const limit = Number(option("limit") ?? 24);
@@ -274,7 +274,7 @@ async function compareWithApp(spec: string) {
     console.error(`Invalid spec "${spec}". Use <provider>:<model>, e.g. gemini:gemini-flash-lite-latest`);
     process.exit(1);
   }
-  const base = getSettings();
+  const base = await evalSettings();
   const settings = {
     ...base,
     provider: provider as ProviderId,

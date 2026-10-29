@@ -24,19 +24,19 @@ import { requirePageUser } from "@/lib/auth/session";
 
 export default async function Today() {
   await connection();
-  await requirePageUser("/");
-  const sessions = listSessions();
+  const { userId } = await requirePageUser("/");
+  const sessions = listSessions(userId);
   const hasModel = hasConfiguredProvider();
   if (sessions.length === 0) return <FirstRun hasModel={hasModel} />;
 
   const last = sessions[0];
-  const lastLabel = chatLabels().get(last.id);
-  const cardsToStudy = countCardsToStudy();
-  const { tenses, categories } = getPracticeSuggestions();
+  const lastLabel = chatLabels(userId).get(last.id);
+  const cardsToStudy = countCardsToStudy(userId);
+  const { tenses, categories } = getPracticeSuggestions(userId);
   const tense = tenses[0];
   const category = categories[0];
-  const week = getReportDigest("7", { withPronunciation: false }).totals;
-  const pronunciation = getPronunciationSummary();
+  const week = getReportDigest(userId, "7", { withPronunciation: false }).totals;
+  const pronunciation = getPronunciationSummary(userId);
   // The sound with the most issues (categories come sorted that way). "Other" has no sentences to practice,
   // and without any issue there is no weakest sound to name, so the row stays hidden.
   const soundStats = pronunciation.categories.find((c) => c.category !== "other");

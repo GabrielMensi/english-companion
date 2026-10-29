@@ -41,7 +41,7 @@ function post(id: string, headers: Record<string, string> = {}) {
 
 describe("POST /api/messages/[id]/retry", () => {
   it("re-analyzes a failed message and replaces what was stored", async () => {
-    const session = seedSession({ mode: "conversation" });
+    const session = seedSession({ userId: user.id, mode: "conversation" });
     const failed = seedUserMessage(session.id, { status: "error", errorMessage: "All models failed" });
     // A leftover from an earlier attempt must not survive the retry.
     seedCorrection(failed.id, { original: "old", correction: "older" });
@@ -58,7 +58,7 @@ describe("POST /api/messages/[id]/retry", () => {
   it("keeps the message as an error when every provider fails again", async () => {
     fakeAi.gemini.fail = "quota";
     fakeAi.groq.fail = "unavailable";
-    const failed = seedUserMessage(seedSession().id, { status: "error" });
+    const failed = seedUserMessage(seedSession({ userId: user.id }).id, { status: "error" });
 
     const [message] = (await (await post(failed.id)).json()) as ChatMessage[];
     expect(message.status).toBe("error");
@@ -66,7 +66,7 @@ describe("POST /api/messages/[id]/retry", () => {
   });
 
   it("streams the retry as NDJSON", async () => {
-    const message = seedUserMessage(seedSession().id, { status: "error" });
+    const message = seedUserMessage(seedSession({ userId: user.id }).id, { status: "error" });
     const res = await post(message.id, { Accept: "application/x-ndjson" });
     const events = (await res.text()).trim().split("\n");
     expect(events.length).toBeGreaterThan(1);
@@ -75,7 +75,7 @@ describe("POST /api/messages/[id]/retry", () => {
 
   it("answers 404 for a missing message and for an assistant message", async () => {
     expect((await post("missing")).status).toBe(404);
-    const session = seedSession();
+    const session = seedSession({ userId: user.id });
     const reply = seedUserMessage(session.id, { role: "assistant", content: "Hi" });
     expect((await post(reply.id)).status).toBe(404);
   });

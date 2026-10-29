@@ -17,9 +17,9 @@ import { classifyBatch } from "../../src/lib/ai/classify";
 import type { ClassificationItem } from "../../src/lib/ai/classify-core";
 import { errorToMessage } from "../../src/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "../../src/lib/ai/provider-info";
-import { getSettings } from "../../src/lib/settings";
 import { TENSE_CATEGORIES } from "../../src/lib/taxonomy";
 import { reportCheck, wantsCheck } from "./check";
+import { evalSettings } from "./settings";
 import { CLASSIFY_SAMPLES, type ClassifySample } from "./classify-samples";
 
 const args = process.argv.slice(2);
@@ -59,7 +59,7 @@ async function loadSamples(): Promise<ClassifySample[]> {
 }
 
 const samples = await loadSamples();
-const base = getSettings();
+const base = await evalSettings();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const summary: Record<string, string | number>[] = [];
 const details: unknown[] = [];

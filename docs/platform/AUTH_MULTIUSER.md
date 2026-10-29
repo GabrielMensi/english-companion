@@ -2,7 +2,7 @@
 
 > Area: Platform · Kind: Research · Status: In progress · Board: #124, #125, #126
 
-> **Estado**: la PR a (auth, #124 y #138) está implementada en `team/auth`; la b (multiusuario) y la c (keys) siguen pendientes. Lo que cambió al implementar la a está marcado como _Implementación_ más abajo.
+> **Estado**: la PR a (auth, #124 y #138) y la b (multiusuario, #125) están implementadas; la c (keys, #126) sigue pendiente. Lo que cambió al implementar cada una está en _Implementación de la PR a_ e _Implementación de la PR b_ más abajo.
 
 Diseño para implementar sin volver a investigar. Cubre _Authentication_ (#124), _Multi-user support_ (#125) y _Per-user API keys_ (#126), más el cifrado de las keys guardadas. Parte de [SECURITY_REVIEW.md](SECURITY_REVIEW.md) (hallazgos 1, 6 y 8) y de [TESTING.md](TESTING.md) (capa de integración). El deploy está en [DEPLOY.md](DEPLOY.md).
 
@@ -199,6 +199,18 @@ Fixture: usuarios A y B, cada uno con chat, mensajes, correcciones, vocabulario,
 4. `tenseCounts` / dashboard / insights de B ignoran los datos de A.
 5. Guardia de esquema: toda tabla de datos tiene `user_id` (arriba).
 6. Una consulta "sin filtro" de la API (`db.select().from(schema.x)` sin `userId`) falla un lint: regla `no-restricted-syntax` o un test que greppea `src/lib` por `.from(schema.<tabla>)` sin `owned(`/`userId` cercano (empezar con el test, es más barato que una regla propia).
+
+### Implementación de la PR b: lo que se decidió al hacerla
+
+- **Migración `0015_multi_user`**: la generó `drizzle-kit` y es solo `CREATE TABLE user_settings`, `ALTER TABLE ... ADD user_id`, `CREATE INDEX` y el cambio del único de `reviews` (`DROP INDEX reviews_card_idx` + `CREATE UNIQUE INDEX reviews_user_card_idx (user_id, kind, card_key)`), sin reconstrucción de tablas. Una corrección a mano: drizzle-kit emitió `REFERENCES user(id)` **sin** `ON DELETE cascade` en los `ADD COLUMN` (aunque el esquema lo pide); se agregó a mano para que borrar un usuario borre sus datos. `src/db/migrations.test.ts` aplica la migración sobre una base de la versión anterior con filas en las 10 tablas y comprueba que el conteo no cambia, que todo queda sin dueño, que las cascadas siguen funcionando y que el único es por usuario.
+- **`settings` vieja**: ya no se copia entera. Los pares `app`, `practice:*`, `insights-plan` e `insights-level-explanation` pasan a `user_settings`; **`api-keys` se queda en `settings`, global**, porque las keys por usuario son la PR c y `resolveApiKey` (llamada desde `providers.ts`, sin usuario) no cambia acá. Consecuencia mientras tanto: todas las cuentas comparten las keys guardadas del dueño de la app (y las de `.env`). La tabla `settings` es la única de datos sin `user_id` (lo declara `schema.test.ts`).
+- **`claim-data` mueve en vez de copiar**: las filas de `settings` (salvo `api-keys`) se copian a `user_settings` (`INSERT OR REPLACE`: lo del claim gana si la cuenta ya había guardado algo) y se **borran** de `settings` en la misma transacción. Es lo que hace idempotente al comando (si no, una segunda corrida resucitaría un chat de práctica borrado). El respaldo `data/backups/pre-claim-<fecha>.db` cubre volver atrás. No rechaza si hay otras cuentas con datos: solo toca filas con `user_id IS NULL`, nunca las ajenas. Si la cuenta ya tenía estado para una misma tarjeta (`reviews`), gana el de la cuenta y el viejo se descarta (se informa cuántos).
+- **El aviso de datos sin reclamar** es una banda en el layout (`UnclaimedDataNotice`), solo para el primer usuario (`isAdmin`) y mientras haya filas sin dueño (`hasUnclaimedData`, `EXISTS ... LIMIT 1` por tabla). No hay `console.warn` al arrancar (`instrumentation.ts` corre antes de que exista la base lista para consultar).
+- **`owned(table, userId, ...more)`** (`src/db/owned.ts`) arma todos los filtros. Cada función de `src/lib/` recibe `userId` como primer argumento; los hijos (`messages`, `corrections`, `vocabulary`, `missed_exercises`, `read_aloud_attempts`, `pronunciation_issues`, `reviews`, `review_log`) copian el dueño al insertarse. `src/db/scoping.test.ts` lee el código fuente y falla si una consulta sobre estas tablas no nombra al dueño (`owned(` o un `userId` en el insert).
+- **`userId` no sale del servidor**: `ChatMessage`, `ChatCorrection` y `ChatVocabulary` lo omiten.
+- **Clasificador**: `Map<userId, JobState>` en `globalThis`, `withChatPriority(userId, run)` (un chat solo frena el lote de su usuario) y un tope de 2 lotes simultáneos con cola en memoria (`acquireSlot`/`releaseSlot`). Los lotes usan `getSettings(userId)`.
+- **Evals** (`scripts/eval/*`, herramienta del administrador): corren con los settings de la primera cuenta (`scripts/eval/settings.ts`) y `eval:classify` lee las correcciones fijadas a mano de **todas** las cuentas. Es a propósito: es una herramienta local, no una ruta.
+- **Fuera de esta PR**: los límites por usuario de la sección 4 (rate limit de rutas de IA y de audio) no se hicieron; quedan como pendiente (ver el tablero).
 
 ## 4. Límites por usuario (parte del PR b)
 

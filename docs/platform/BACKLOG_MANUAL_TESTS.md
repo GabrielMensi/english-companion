@@ -77,14 +77,26 @@ Nada para probar a mano. Opcional: la app arranca y abre un chat (cambió dónde
 Desde acá la app pide login siempre, también en local.
 
 - [ ] Reiniciar `pnpm dev` en el worktree de integración: cualquier página (p. ej. /dashboard) manda a `/login?next=/dashboard`.
-- [ ] `/signup`: crear tu cuenta (la primera; contraseña de 10+ caracteres). Entrás a la app, la barra lateral muestra tu email y "Sign out", y están todos tus chats y estadísticas.
+- [ ] `/signup`: crear tu cuenta (la primera; contraseña de 10+ caracteres). Entrás a la app, la barra lateral muestra tu email y "Sign out". Desde multiusuario tus chats viejos no aparecen hasta correr `pnpm auth:claim-data` (ver la sección siguiente).
 - [ ] Con sesión, `/login` y `/signup` te llevan al inicio. "Sign out" vuelve a `/login`.
 - [ ] `/signup` con otro email: rechazado (403), el mismo mensaje exista o no ese email.
 - [ ] Contraseña mal varias veces seguidas: "too many attempts" (429) a partir del 4º intento.
 - [ ] Sin cookie, `curl -sk https://localhost:3738/api/sessions` da 401; `curl -sk https://localhost:3738/api/health` da `{"ok":true}`.
 - [ ] La app de 3737 y la del worktree tienen sesiones separadas (entrar en una no te saca de la otra).
 - [ ] `pnpm auth:reset-password <tu email>` pone una contraseña nueva y cierra las sesiones.
-- No agregues otras cuentas hasta que entre multiusuario (los datos todavía no están separados por usuario).
+- Con multiusuario ya podés agregar otras cuentas (ver la sección de multiusuario más abajo).
+
+### Multiusuario (#125)
+
+Probalo con la copia de la base del worktree de integración (`data/dev.db`), nunca con `data/companion.db`. Cada cuenta ve solo lo suyo.
+
+- [ ] Reiniciá `pnpm dev` en el worktree de integración (migra a `0015_multi_user`: el backup lo hace `pnpm db:migrate`, o copiá `data/dev.db` antes). Entrá con tu cuenta (o creala en `/signup`: la primera no necesita allowlist): los chats, las estadísticas y las tarjetas aparecen **vacíos**, y arriba hay una banda amarilla "Your earlier chats, mistakes and flashcards aren't assigned to an account yet..." con el comando.
+- [ ] Con el servidor andando (o apagado), en la carpeta del worktree: `pnpm auth:claim-data <tu email>`. Muestra las filas sin dueño, escribe `data/backups/pre-claim-<fecha>.db` y lista cuántas filas pasaron por tabla (sesiones, mensajes, correcciones...). Recargá: aparecen todos tus chats, el dashboard con tus estadísticas, el vocabulario, las tarjetas (con su avance), la pronunciación, los ajustes (modelo, idioma) y el plan de estudio de Insights. La banda desaparece.
+- [ ] Corré el mismo comando otra vez: "Nothing to claim". Con un email que no existe: error "No account with the email", y no cambia nada.
+- [ ] Segunda cuenta: agregá su email a `SIGNUP_ALLOWED_EMAILS` en `.env.local` del worktree (p. ej. `SIGNUP_ALLOWED_EMAILS=otra@x.com`), reiniciá, cerrá sesión y registrate en `/signup`. La cuenta nueva ve todo vacío (sin chats, sin tarjetas, dashboard en cero, vocabulario vacío), sin banda amarilla, y los ajustes por defecto. Escribí un mensaje de prueba (necesita una key; las guardadas de la app se comparten por ahora): aparece solo en esa cuenta.
+- [ ] Volvé a entrar con la primera cuenta: no aparece nada de la segunda, y sus datos están igual que antes. Cambiá un ajuste en una cuenta y comprobá que la otra no cambia.
+- [ ] Con las dos cuentas abiertas en navegadores distintos, pedí a mano `/chat/<id de un chat de la otra>` o `/api/sessions/<id>/messages`: 404.
+- [ ] Sacá la segunda cuenta de la lista (`SIGNUP_ALLOWED_EMAILS`) cuando termines.
 
 ## Problemas encontrados
 

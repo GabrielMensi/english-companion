@@ -14,8 +14,8 @@ import { requirePageUser } from "@/lib/auth/session";
 
 export default async function PracticePage() {
   await connection();
-  await requirePageUser("/practice");
-  const { tenses: targets, categories } = getPracticeSuggestions();
+  const { userId } = await requirePageUser("/practice");
+  const { tenses: targets, categories } = getPracticeSuggestions(userId);
   const suggestedCategories = categories.every((c) => c.status === "suggested");
   const suggested = targets.every((t) => t.status === "suggested");
   const hasModel = hasConfiguredProvider();

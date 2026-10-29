@@ -3,6 +3,7 @@ import "server-only";
 import { and, desc, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { db, schema } from "@/db";
+import { owned } from "@/db/owned";
 import type { ReadAloudSource } from "@/db/schema";
 import { cmuLookup } from "@/lib/cmu-lookup";
 import type { PronunciationCard } from "@/lib/flashcards-core";
@@ -29,23 +30,23 @@ export const SUMMARY_DAYS = 30;
 const RECENTLY_READ_DAYS = 14;
 const MAX_ITEMS = 30;
 
-export function getPronunciationSummary(days = SUMMARY_DAYS): PronunciationSummary {
-  return summarizeBetween(new Date(Date.now() - days * DAY_MS), null);
+export function getPronunciationSummary(userId: string, days = SUMMARY_DAYS): PronunciationSummary {
+  return summarizeBetween(userId, new Date(Date.now() - days * DAY_MS), null);
 }
 
 /**
  * The dashboard's pronunciation panel: the last `days` days (all time with null)
  * against the period of the same length before.
  */
-export function getPronunciationProgress(days: number | null): PronunciationProgress {
-  if (days === null) return pronunciationProgress(summarizeBetween(null, null), null);
+export function getPronunciationProgress(userId: string, days: number | null): PronunciationProgress {
+  if (days === null) return pronunciationProgress(summarizeBetween(userId, null, null), null);
   const from = new Date(Date.now() - days * DAY_MS);
   const previousFrom = new Date(from.getTime() - days * DAY_MS);
-  return pronunciationProgress(summarizeBetween(from, null), summarizeBetween(previousFrom, from));
+  return pronunciationProgress(summarizeBetween(userId, from, null), summarizeBetween(userId, previousFrom, from));
 }
 
 /** Read-aloud accuracy per day (or week) over the last `days` days (all time with null), for the dashboard chart. */
-export function getAccuracyTimeline(days: number | null): AccuracyPoint[] {
+export function getAccuracyTimeline(userId: string, days: number | null): AccuracyPoint[] {
   const now = Date.now();
   const from = days === null ? null : now - days * DAY_MS;
   const attempts = db
@@ -55,7 +56,13 @@ export function getAccuracyTimeline(days: number | null): AccuracyPoint[] {
       totalWords: schema.readAloudAttempts.totalWords,
     })
     .from(schema.readAloudAttempts)
-    .where(from === null ? undefined : gte(schema.readAloudAttempts.createdAt, new Date(from)))
+    .where(
+      owned(
+        schema.readAloudAttempts,
+        userId,
+        from === null ? undefined : gte(schema.readAloudAttempts.createdAt, new Date(from)),
+      ),
+    )
     .all();
   return accuracyTimeline(
     attempts.map((a) => ({ ...a, createdAt: a.createdAt.getTime() })),
@@ -65,13 +72,13 @@ export function getAccuracyTimeline(days: number | null): AccuracyPoint[] {
 }
 
 /** Readings made in [from, to); null leaves that end open. */
-function summarizeBetween(from: Date | null, to: Date | null): PronunciationSummary {
+function summarizeBetween(userId: string, from: Date | null, to: Date | null): PronunciationSummary {
   const window = (column: AnySQLiteColumn) =>
     and(from ? gte(column, from) : undefined, to ? lt(column, to) : undefined);
   const attempts = db
     .select({ correctWords: schema.readAloudAttempts.correctWords, totalWords: schema.readAloudAttempts.totalWords })
     .from(schema.readAloudAttempts)
-    .where(window(schema.readAloudAttempts.createdAt))
+    .where(owned(schema.readAloudAttempts, userId, window(schema.readAloudAttempts.createdAt)))
     .all();
   const issues = db
     .select({
@@ -80,35 +87,44 @@ function summarizeBetween(from: Date | null, to: Date | null): PronunciationSumm
       heard: schema.pronunciationIssues.heard,
     })
     .from(schema.pronunciationIssues)
-    .where(window(schema.pronunciationIssues.createdAt))
+    .where(owned(schema.pronunciationIssues, userId, window(schema.pronunciationIssues.createdAt)))
     .all();
   return summarizePronunciation(attempts, issues);
 }
 
 /** Whether there's any reading at all, to decide if the dashboard shows the panel. */
-export function hasReadings(): boolean {
-  return db.select({ id: schema.readAloudAttempts.id }).from(schema.readAloudAttempts).limit(1).all().length > 0;
+export function hasReadings(userId: string): boolean {
+  return (
+    db
+      .select({ id: schema.readAloudAttempts.id })
+      .from(schema.readAloudAttempts)
+      .where(owned(schema.readAloudAttempts, userId))
+      .limit(1)
+      .all().length > 0
+  );
 }
 
-function recentlyRead(): Set<string> {
+function recentlyRead(userId: string): Set<string> {
   const since = new Date(Date.now() - RECENTLY_READ_DAYS * DAY_MS);
   return new Set(
     db
       .select({ text: schema.readAloudAttempts.text })
       .from(schema.readAloudAttempts)
-      .where(gte(schema.readAloudAttempts.createdAt, since))
+      .where(owned(schema.readAloudAttempts, userId, gte(schema.readAloudAttempts.createdAt, since)))
       .all()
       .map((r) => r.text),
   );
 }
 
 /** Sentences from your corrected messages, newest first. */
-function correctionItems(skip: Set<string>): ReadAloudItem[] {
+function correctionItems(userId: string, skip: Set<string>): ReadAloudItem[] {
   const rows = db
     .select({ id: schema.messages.id, corrected: schema.messages.correctedText, natural: schema.messages.naturalText })
     .from(schema.messages)
     .where(
-      and(
+      owned(
+        schema.messages,
+        userId,
         eq(schema.messages.role, "user"),
         eq(schema.messages.status, "done"),
         isNotNull(schema.messages.correctedText),
@@ -140,11 +156,12 @@ function correctionItems(skip: Set<string>): ReadAloudItem[] {
 }
 
 /** For each word you looked up, the sentence of your corrected message that uses it. */
-function vocabularyItems(skip: Set<string>): ReadAloudItem[] {
+function vocabularyItems(userId: string, skip: Set<string>): ReadAloudItem[] {
   const rows = db
     .select({ id: schema.vocabulary.id, english: schema.vocabulary.english, corrected: schema.messages.correctedText })
     .from(schema.vocabulary)
     .innerJoin(schema.messages, eq(schema.messages.id, schema.vocabulary.messageId))
+    .where(owned(schema.vocabulary, userId))
     .orderBy(desc(schema.vocabulary.createdAt))
     .all();
 
@@ -180,13 +197,13 @@ export interface ReadAloudData {
   summary: PronunciationSummary;
 }
 
-export function getReadAloudData(): ReadAloudData {
-  const summary = getPronunciationSummary();
-  const skip = recentlyRead();
+export function getReadAloudData(userId: string): ReadAloudData {
+  const summary = getPronunciationSummary(userId);
+  const skip = recentlyRead(userId);
   return {
     sounds: soundItems(soundOrder(summary)),
-    corrections: correctionItems(skip),
-    vocabulary: vocabularyItems(skip),
+    corrections: correctionItems(userId, skip),
+    vocabulary: vocabularyItems(userId, skip),
     summary,
   };
 }
@@ -203,17 +220,26 @@ export interface AttemptInput {
 }
 
 /** Scores a reading, saves it with its issues, and returns the result. */
-export function saveAttempt(input: AttemptInput): ReadAloudResult {
+export function saveAttempt(userId: string, input: AttemptInput): ReadAloudResult {
   const result = scoreReading(input.text, input.transcript, cmuLookup);
   const id = crypto.randomUUID();
   const now = new Date();
   db.transaction((tx) => {
     tx.insert(schema.readAloudAttempts)
-      .values({ id, ...input, correctWords: result.correctWords, totalWords: result.totalWords, createdAt: now })
+      .values({
+        id,
+        userId,
+        ...input,
+        correctWords: result.correctWords,
+        totalWords: result.totalWords,
+        createdAt: now,
+      })
       .run();
     if (result.issues.length > 0) {
       tx.insert(schema.pronunciationIssues)
-        .values(result.issues.map((issue) => ({ id: crypto.randomUUID(), attemptId: id, createdAt: now, ...issue })))
+        .values(
+          result.issues.map((issue) => ({ id: crypto.randomUUID(), userId, attemptId: id, createdAt: now, ...issue })),
+        )
         .run();
     }
   });
@@ -221,7 +247,7 @@ export function saveAttempt(input: AttemptInput): ReadAloudResult {
 }
 
 /** Sentences read with words heard differently, as "Hard to say" flashcards (newest first). */
-export function loadPronunciationCards(): PronunciationCard[] {
+export function loadPronunciationCards(userId: string): PronunciationCard[] {
   const rows = db
     .select({
       text: schema.readAloudAttempts.text,
@@ -234,6 +260,7 @@ export function loadPronunciationCards(): PronunciationCard[] {
     })
     .from(schema.pronunciationIssues)
     .innerJoin(schema.readAloudAttempts, eq(schema.readAloudAttempts.id, schema.pronunciationIssues.attemptId))
+    .where(owned(schema.pronunciationIssues, userId))
     .all();
   return pronunciationCards(rows.map((r) => ({ ...r, createdAt: r.createdAt.getTime() })));
 }
@@ -242,13 +269,17 @@ export function loadPronunciationCards(): PronunciationCard[] {
  * Deletes every reading of a sentence (with its issues, so it also leaves the
  * pronunciation stats). Returns how many readings went.
  */
-export function deleteReadings(text: string): number {
+export function deleteReadings(userId: string, text: string): number {
   const ids = db
     .select({ id: schema.readAloudAttempts.id, text: schema.readAloudAttempts.text })
     .from(schema.readAloudAttempts)
+    .where(owned(schema.readAloudAttempts, userId))
     .all()
     .filter((r) => r.text.replace(/\s+/g, " ").trim() === text)
     .map((r) => r.id);
-  if (ids.length > 0) db.delete(schema.readAloudAttempts).where(inArray(schema.readAloudAttempts.id, ids)).run();
+  if (ids.length > 0)
+    db.delete(schema.readAloudAttempts)
+      .where(owned(schema.readAloudAttempts, userId, inArray(schema.readAloudAttempts.id, ids)))
+      .run();
   return ids.length;
 }

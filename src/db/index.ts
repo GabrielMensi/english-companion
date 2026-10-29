@@ -8,7 +8,7 @@ import { openSqlite } from "./connection";
 import { BUSY_TIMEOUT_MS, countPendingMigrations, migrate } from "./migrate";
 import * as schema from "./schema";
 
-type DB = BetterSQLite3Database<typeof schema>;
+type DB = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
 
 // Reuse the SQLite connection across hot reloads in development. The Drizzle
 // wrapper is recreated so it always uses the current schema.

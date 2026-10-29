@@ -27,7 +27,7 @@ let user: TestUser;
 beforeEach(async () => {
   resetDb();
   user = await createTestUser();
-  seedCorrection(seedUserMessage(seedSession().id).id);
+  seedCorrection(seedUserMessage(seedSession({ userId: user.id }).id).id);
 });
 
 describe("POST /api/flashcards/reviews", () => {

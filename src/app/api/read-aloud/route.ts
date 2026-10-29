@@ -19,9 +19,9 @@ const bodySchema = z.object({
 });
 
 /** Scores and saves a read-aloud attempt (already transcribed with /api/transcribe). */
-export const POST = withUser(async (request: Request) => {
+export const POST = withUser(async (request: Request, _ctx, { userId }) => {
   const body = await parseBody(request, bodySchema, "Invalid data");
   if (!body.ok) return body.response;
-  const result = saveAttempt(body.data);
-  return Response.json({ result, summary: getPronunciationSummary() });
+  const result = saveAttempt(userId, body.data);
+  return Response.json({ result, summary: getPronunciationSummary(userId) });
 });

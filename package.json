@@ -14,6 +14,7 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "next typegen && tsc --noEmit",
     "db:generate": "drizzle-kit generate",
+    "auth:claim-data": "tsx --tsconfig tsconfig.json scripts/auth-claim-data.mts",
     "auth:reset-password": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/auth-reset-password.mts",
     "db:migrate": "tsx --tsconfig tsconfig.json scripts/db-migrate.mts",
     "db:backup": "tsx --tsconfig tsconfig.json scripts/backup.mts",

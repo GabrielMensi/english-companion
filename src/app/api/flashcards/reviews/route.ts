@@ -12,9 +12,9 @@ const bodySchema = z.object({
 });
 
 /** The learner graded a flashcard: schedule its next review. */
-export const POST = withUser(async (request: Request) => {
+export const POST = withUser(async (request: Request, _ctx, { userId }) => {
   const body = await parseBody(request, bodySchema, "Invalid review");
   if (!body.ok) return body.response;
-  const state = recordReview(body.data.kind, body.data.key, body.data.grade);
+  const state = recordReview(userId, body.data.kind, body.data.key, body.data.grade);
   return Response.json(state);
 });
