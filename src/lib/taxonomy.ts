@@ -213,8 +213,19 @@ export const NOT_MEASURABLE_WHEN_SPOKEN: readonly ErrorCategory[] = [
 /** Categories that are the transcriber's decision, not the learner's: never reported for spoken messages. */
 export const TRANSCRIBER_CATEGORIES: readonly ErrorCategory[] = ["spelling", "punctuation", "capitalization"];
 
-export function isMeasurable(category: ErrorCategory, inputMode: "typed" | "spoken"): boolean {
-  return inputMode === "typed" || !NOT_MEASURABLE_WHEN_SPOKEN.includes(category);
+/**
+ * Whether a category can be counted for a message. A teacher HEARD what the learner said in class, so a
+ * correction from class (`source` "class") counts in the short-word categories speech-to-text fills in;
+ * only the transcriber's own (spelling, punctuation, capitalization) stay out.
+ */
+export function isMeasurable(
+  category: ErrorCategory,
+  inputMode: "typed" | "spoken",
+  source: "ai" | "class" = "ai",
+): boolean {
+  if (inputMode === "typed") return true;
+  const excluded = source === "class" ? TRANSCRIBER_CATEGORIES : NOT_MEASURABLE_WHEN_SPOKEN;
+  return !excluded.includes(category);
 }
 
 /** Whether the learner discarded a correction as wrong: it's kept, but never counted anywhere. */
@@ -228,10 +239,17 @@ export function isDiscarded(c: { discardedAt: Date | number | null }): boolean {
  * so every query that feeds a statistic has to select it.
  */
 export function countsInStats(
-  c: { severity: Severity; category: ErrorCategory; inputMode: "typed" | "spoken"; discardedAt: Date | number | null },
+  c: {
+    severity: Severity;
+    category: ErrorCategory;
+    inputMode: "typed" | "spoken";
+    discardedAt: Date | number | null;
+    /** Where the correction came from; absent means the AI. */
+    source?: "ai" | "class";
+  },
   countTypos: boolean,
 ): boolean {
-  return !isDiscarded(c) && countsAsMistake(c.severity, countTypos) && isMeasurable(c.category, c.inputMode);
+  return !isDiscarded(c) && countsAsMistake(c.severity, countTypos) && isMeasurable(c.category, c.inputMode, c.source);
 }
 
 /**

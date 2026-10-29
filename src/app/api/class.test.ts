@@ -288,6 +288,32 @@ describe("classes and what the teacher corrected", () => {
   });
 });
 
+describe("class mistakes in articles, prepositions and similar", () => {
+  it("count in the stats and the flashcards (the teacher heard them) but not as written mistakes", async () => {
+    const { id } = await createClass(a, { heldAt: Date.now() - DAY });
+    const preposition = {
+      original: "depend of",
+      correction: "depend on",
+      category: "prepositions",
+      subcategory: "depend_on",
+      severity: "moderate",
+      explanation: "Depend on.",
+    };
+    await itemsRoute.POST(
+      a.request(`http://t/api/class/${id}/items`, {
+        method: "POST",
+        body: json({ corrections: [preposition], words: [], spokenWords: 100 }),
+      }),
+      ctx(id),
+    );
+    const stats = getDashboardData(a.id, "30").stats;
+    expect(stats.categories.find((c) => c.category === "prepositions")?.count).toBe(1);
+    expect(getMistakeDeck(a.id).map((c) => c.card.original)).toEqual(["depend of"]);
+    // Said in class: not "Written".
+    expect(getDashboardData(a.id, "30", "typed").stats.totals.errors).toBe(0);
+  });
+});
+
 describe("discarded class mistakes", () => {
   it("are listed with the class as their source, so the page links to Class and not to the hidden chat", async () => {
     const { id } = await createClass(a, { heldAt: Date.now() - DAY });

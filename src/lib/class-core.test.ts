@@ -11,6 +11,7 @@ import {
   periodKey,
   resolveReportPeriod,
 } from "./class-core";
+import { countsInStats } from "./taxonomy";
 import { buildDigest } from "./insights/digest-core";
 import { computeStats } from "./stats-core";
 import { computeTenseStats } from "./tense-stats";
@@ -194,5 +195,21 @@ describe("mistakeOrigin", () => {
   it("links to the chat, or to Class when the teacher gave the mistake (its chat is hidden)", () => {
     expect(mistakeOrigin({ source: "ai", sessionId: "s1" })).toEqual({ href: "/chat/s1", label: "Open chat" });
     expect(mistakeOrigin({ source: "class", sessionId: "hidden" })).toEqual({ href: "/class", label: "Open class" });
+  });
+});
+
+describe("class mistakes in the categories dictation can't measure", () => {
+  const base = { severity: "moderate" as const, inputMode: "spoken" as const, discardedAt: null };
+
+  it("count when the teacher gave them (they heard it), except spelling, punctuation and capitalization", () => {
+    expect(countsInStats({ ...base, category: "prepositions", source: "class" }, false)).toBe(true);
+    expect(countsInStats({ ...base, category: "articles", source: "class" }, false)).toBe(true);
+    expect(countsInStats({ ...base, category: "spelling", source: "class" }, false)).toBe(false);
+    expect(countsInStats({ ...base, category: "punctuation", source: "class" }, false)).toBe(false);
+  });
+
+  it("still don't count in dictated messages analyzed by the AI", () => {
+    expect(countsInStats({ ...base, category: "prepositions", source: "ai" }, false)).toBe(false);
+    expect(countsInStats({ ...base, category: "prepositions" }, false)).toBe(false);
   });
 });
