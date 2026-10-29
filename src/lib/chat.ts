@@ -14,6 +14,7 @@ import { deletePractice, exerciseReplyFor, getPractice, practiceReplyRule } from
 import { recordExerciseResult } from "@/lib/missed-exercises";
 import { carryOverReviews } from "@/lib/review-carry-over";
 import { getSettings } from "@/lib/settings";
+import { deleteUserSetting } from "@/lib/user-settings";
 import { countWords, makeTitle } from "@/lib/text";
 import type { ChatMessage, VoiceInput } from "@/lib/types";
 import { logRouteError } from "@/lib/server-log";
@@ -60,7 +61,10 @@ export function deleteSession(userId: string, id: string) {
     .delete(schema.sessions)
     .where(owned(schema.sessions, userId, eq(schema.sessions.id, id)))
     .run().changes;
-  if (deleted > 0) deletePractice(userId, id);
+  if (deleted > 0) {
+    deletePractice(userId, id);
+    deleteUserSetting(userId, `feedback:${id}`);
+  }
 }
 
 export function getMessages(userId: string, sessionId: string): ChatMessage[] {

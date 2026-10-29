@@ -15,6 +15,8 @@ import { db, resetDb, schema, seedCorrection, seedSession, seedUserMessage } fro
 const sessionsRoute = await import("@/app/api/sessions/route");
 const sessionRoute = await import("@/app/api/sessions/[id]/route");
 const messagesRoute = await import("@/app/api/sessions/[id]/messages/route");
+const feedbackRoute = await import("@/app/api/sessions/[id]/feedback/route");
+const phrasesRoute = await import("@/app/api/sessions/[id]/phrases/route");
 const retryRoute = await import("@/app/api/messages/[id]/retry/route");
 const promptRoute = await import("@/app/api/messages/[id]/prompt/route");
 const correctionRoute = await import("@/app/api/corrections/[id]/route");
@@ -34,6 +36,7 @@ const { getFlashcardsOverview, countCardsToStudy, getStudyQueue } = await import
 const { getSuspendedCards } = await import("@/lib/flashcards-upkeep");
 const { getReviewDashboard } = await import("@/lib/review-stats");
 const { getVocabulary } = await import("@/lib/vocabulary");
+const { countDiscardedMistakes, getDiscardedMistakes } = await import("@/lib/corrections");
 const { getReadAloudData, getPronunciationSummary, hasReadings, getAccuracyTimeline } =
   await import("@/lib/read-aloud");
 const { getLevelData, getReportDigest, getStoredPlan } = await import("@/lib/insights/insights");
@@ -199,6 +202,32 @@ describe("routes with an id: another user's id is a 404 and changes nothing", ()
       ctx(id),
     );
     expect(post.status).toBe(404);
+    // Topic reviews, phrases and tense changes of A's chat are A's alone.
+    expect(
+      (await feedbackRoute.POST(b.request(`http://t/api/sessions/${id}/feedback`, { method: "POST" }), ctx(id))).status,
+    ).toBe(404);
+    expect(
+      (await phrasesRoute.POST(b.request(`http://t/api/sessions/${id}/phrases`, { method: "POST" }), ctx(id))).status,
+    ).toBe(404);
+    expect(
+      (
+        await phrasesRoute.PUT(
+          b.request(`http://t/api/sessions/${id}/phrases`, {
+            method: "PUT",
+            body: json({ phrases: [{ phrase: "walk me through", spanish: "x", messageId: ids.message.id }] }),
+          }),
+          ctx(id),
+        )
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await sessionRoute.PATCH(
+          b.request(`http://t/api/sessions/${id}`, { method: "PATCH", body: json({ tense: "past_simple" }) }),
+          ctx(id),
+        )
+      ).status,
+    ).toBe(404);
     expect(snapshotOfA()).toBe(before);
     expect(fakeAi.gemini.calls + fakeAi.groq.calls).toBe(0);
   });
@@ -322,6 +351,23 @@ describe("listings and statistics: B sees nothing of A", () => {
     expect(theirs.hasSpoken).toBe(false);
     expect(getVocabulary(b.id)).toEqual([]);
     expect(getVocabulary(a.id)).toHaveLength(1);
+  });
+
+  it("discarded mistakes: listed per owner, gone after undo", async () => {
+    const id = ids.correction.id;
+    const url = `http://t/api/corrections/${id}/discard`;
+    expect(
+      (await discardRoute.POST(a.request(url, { method: "POST", body: json({ reason: "fine" }) }), ctx(id))).status,
+    ).toBe(200);
+    expect(getDiscardedMistakes(b.id)).toEqual({ items: [], total: 0 });
+    const mine = getDiscardedMistakes(a.id);
+    expect(mine.total).toBe(1);
+    expect(mine.items[0]).toMatchObject({ id, reason: "fine", sessionId: ids.session.id });
+    expect(getDiscardedMistakes(a.id, 0)).toMatchObject({ items: [], total: 1 });
+    expect(countDiscardedMistakes(a.id)).toBe(1);
+    expect(countDiscardedMistakes(b.id)).toBe(0);
+    await discardRoute.DELETE(a.request(url, { method: "DELETE" }), ctx(id));
+    expect(getDiscardedMistakes(a.id)).toEqual({ items: [], total: 0 });
   });
 
   it("flashcards: decks, queue, counts, suspended cards, review stats", () => {
