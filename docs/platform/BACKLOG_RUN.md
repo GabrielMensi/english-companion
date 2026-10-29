@@ -85,3 +85,4 @@ Estado: ⏳ pendiente · 🔨 en curso · 👀 en revisión · ✅ mergeado en l
 - 2026-10-29: retomado tras el límite (keys, class y topics no habían escrito nada y arrancaron de nuevo). #164 (e2e + #153) mergeada: la violación era el probe `new Function` de zod v4; ahora `@/lib/zod` con `jitless`, cargado desde `instrumentation-client.ts`. Tanda 3 completa.
 - 2026-10-29: #166 (descartados) mergeada. Tanda 4: keys, class y topics en revisión/arreglos.
 - 2026-10-29: #167 (topics) mergeada. Faltan keys (revisión 2) y class (últimos ajustes).
+- 2026-10-29: #168 (keys) mergeada (el orquestador adaptó las llamadas de IA de topics al usuario, bajó el tope de import a 30k filas y pasó APP_ENCRYPTION_KEY/SHARED_KEYS al CI de Docker; E2E 10/10). Falta class (revisión 2).
