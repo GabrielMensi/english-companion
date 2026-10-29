@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { providerStatus } from "@/lib/ai/providers";
 import { KEY_PROVIDERS } from "@/lib/credentials";
 import { setApiKey } from "@/lib/secrets";

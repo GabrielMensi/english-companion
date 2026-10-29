@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { discardCorrection, restoreCorrection } from "@/lib/corrections";
 import { parseBody } from "@/lib/request-body";
 import { withUser } from "@/lib/auth/with-user";

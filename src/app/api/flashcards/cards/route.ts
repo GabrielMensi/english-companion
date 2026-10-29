@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { CARD_KINDS } from "@/lib/flashcards-core";
 import { deleteCard, suspendCard, unsuspendCard } from "@/lib/flashcards-upkeep";
 import { parseBody } from "@/lib/request-body";

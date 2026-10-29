@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { addUserMessage, analyzeStoredMessage, getMessage, getMessages, getSession } from "@/lib/chat";
 import { FLUENCY_VERSION } from "@/lib/fluency";
 import { turnStreamResponse, wantsTurnStream } from "@/lib/turn-stream";
