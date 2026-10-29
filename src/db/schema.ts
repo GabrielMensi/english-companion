@@ -9,12 +9,13 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+
 import type { FallbackAttempt } from "@/lib/ai/fallback";
 import type { CardKind } from "@/lib/flashcards-core";
-import type { Grade } from "@/lib/srs";
 import type { FluencyMetrics } from "@/lib/fluency";
-import type { TenseCounts } from "@/lib/tenses-core";
+import type { Grade } from "@/lib/srs";
 import type { ErrorCategory, PronunciationCategory, Severity, Tense } from "@/lib/taxonomy";
+import type { TenseCounts } from "@/lib/tenses-core";
 
 /** "class" chats are hidden holders of what the teacher corrected in a class (see src/lib/class.ts). */
 export type SessionMode = "correction" | "conversation" | "class";

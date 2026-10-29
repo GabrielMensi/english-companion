@@ -1,6 +1,7 @@
 import type { LevelData, StoredLevelExplanation } from "@/lib/insights/insights";
 import { CEFR_LEVELS, type LevelEstimate, type LevelWindow } from "@/lib/insights/level-core";
 import { cn } from "@/lib/utils";
+
 import { LevelExplanationPanel } from "./level-explanation";
 
 const CONFIDENCE_LABELS = { low: "Low confidence", medium: "Medium confidence", high: "Good confidence" } as const;

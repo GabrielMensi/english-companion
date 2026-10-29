@@ -20,8 +20,8 @@ import {
   type ReviewTurn,
   type TopicFeedback,
 } from "@/lib/topic-review-core";
-import { mergeEnglish, wordKey } from "@/lib/vocabulary-core";
 import { getUserSetting, setUserSetting } from "@/lib/user-settings";
+import { mergeEnglish, wordKey } from "@/lib/vocabulary-core";
 
 /** The feedback of each topic chat lives in the user's key-value `user_settings` table, like the practice state. */
 const feedbackKey = (sessionId: string) => `feedback:${sessionId}`;

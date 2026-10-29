@@ -1,8 +1,8 @@
-import { z } from "@/lib/zod";
+import { withUser } from "@/lib/auth/with-user";
 import { CARD_KINDS } from "@/lib/flashcards-core";
 import { deleteCard, suspendCard, unsuspendCard } from "@/lib/flashcards-upkeep";
 import { parseBody } from "@/lib/request-body";
-import { withUser } from "@/lib/auth/with-user";
+import { z } from "@/lib/zod";
 
 const cardSchema = z.object({
   kind: z.enum(CARD_KINDS),

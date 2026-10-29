@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { groupVocabulary, mergeEnglish, type VocabularyRow, wordKey } from "./vocabulary-core";
 
 function row(partial: Partial<VocabularyRow>): VocabularyRow {

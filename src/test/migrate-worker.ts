@@ -2,6 +2,7 @@
 // app does and applies the migrations once `startAt` is reached, so several workers collide on purpose.
 // Usage: tsx migrate-worker.ts <database file> <migrations folder> <start at (epoch ms)>
 import Database from "better-sqlite3";
+
 import { BUSY_TIMEOUT_MS, migrate } from "../db/migrate";
 
 const [file, folder, startAt] = process.argv.slice(2);

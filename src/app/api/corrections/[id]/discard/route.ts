@@ -1,7 +1,7 @@
-import { z } from "@/lib/zod";
+import { withUser } from "@/lib/auth/with-user";
 import { discardCorrection, restoreCorrection } from "@/lib/corrections";
 import { parseBody } from "@/lib/request-body";
-import { withUser } from "@/lib/auth/with-user";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({ reason: z.string().trim().max(500).nullish() }).nullable();
 

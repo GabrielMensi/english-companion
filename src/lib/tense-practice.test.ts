@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+
+import { TENSES } from "./taxonomy";
 import {
   checkAnswer,
   conversationPracticeRule,
@@ -15,8 +17,8 @@ import {
   SUGGESTED_TARGETS,
   TENSE_QUESTIONS,
 } from "./tense-practice";
+
 import type { TenseStat } from "./tense-stats";
-import { TENSES } from "./taxonomy";
 
 function stat(partial: Partial<TenseStat> & Pick<TenseStat, "tense">): TenseStat {
   return {

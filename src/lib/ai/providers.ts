@@ -2,16 +2,19 @@ import "server-only";
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
-import type { generateText } from "ai";
+
+import { isAdmin } from "@/lib/auth/admin";
 import { type KeyProvider, maskKey } from "@/lib/credentials";
 import { fakeAiProblems, serverEnv } from "@/lib/env";
-import { isAdmin } from "@/lib/auth/admin";
 import { resolveApiKey } from "@/lib/secrets";
 import type { Settings } from "@/lib/settings";
+
 import { createFakeModel } from "./fake-model";
 import { fallbackOrder, runWithFallback } from "./fallback";
 import { groqReasoningEffort, MAX_OUTPUT_TOKENS } from "./groq-options";
 import { NO_PROVIDER_MESSAGE, PROVIDER_IDS, type ProviderId, PROVIDERS } from "./provider-info";
+
+import type { generateText } from "ai";
 
 export interface ProviderStatus {
   configured: boolean;

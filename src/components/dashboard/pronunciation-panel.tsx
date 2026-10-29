@@ -1,5 +1,6 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
+
 import { AccuracyChart } from "@/components/dashboard/accuracy-chart";
 import { Trend } from "@/components/dashboard/category-table";
 import type { AccuracyPoint, PronunciationProgress } from "@/lib/read-aloud-core";

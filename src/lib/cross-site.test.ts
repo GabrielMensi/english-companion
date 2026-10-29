@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { isCrossSiteWrite } from "./cross-site";
 
 function request(method: string, headers: Record<string, string>) {

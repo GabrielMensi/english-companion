@@ -1,7 +1,8 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Minus } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
-import { MIN_USES, type TenseStat, type TenseStats, type TenseStatus } from "@/lib/tense-stats";
 import { type Tense, TENSE_LABELS } from "@/lib/taxonomy";
+import { MIN_USES, type TenseStat, type TenseStats, type TenseStatus } from "@/lib/tense-stats";
 import { cn } from "@/lib/utils";
 
 const FAMILIES: { title: string; tenses: Tense[] }[] = [

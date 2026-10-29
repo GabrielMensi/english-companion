@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { DEFAULT_SETTINGS } from "@/lib/settings-core";
+
 import { resolveModel } from "./providers";
 
 afterEach(() => vi.unstubAllEnvs());

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+
 import type { FullResult, Reporter } from "@playwright/test/reporter";
 
 /** Removes the run's temporary data (database, session) when it passed; a failed run keeps it to be inspected. */

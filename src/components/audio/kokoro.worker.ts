@@ -6,10 +6,12 @@
  */
 import { env as transformersEnv } from "@huggingface/transformers";
 import { env, KokoroTTS, TextSplitterStream } from "kokoro-js";
+
 import { checkSpeechAudio } from "./audio-check";
 import { speechChunks } from "./speech-chunks";
-import type { GpuAdapterDetails, KokoroDiagnostics, TestResult } from "./kokoro-diagnostics";
+
 import type { KokoroConfig, KokoroDevice, KokoroDtype, KokoroRequest, KokoroResponse } from "./kokoro";
+import type { GpuAdapterDetails, KokoroDiagnostics, TestResult } from "./kokoro-diagnostics";
 
 const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 /** Synthesized once after loading, and its audio checked, to prove the device really works. */

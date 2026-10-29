@@ -1,9 +1,11 @@
 import "server-only";
 
 import { and, eq } from "drizzle-orm";
+
 import { db, schema } from "@/db";
-import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, normalizeEmail } from "./auth-core";
+
 import { getAuth } from "./auth";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, normalizeEmail } from "./auth-core";
 
 /**
  * The administrator's way to give someone a new password (there is no email to send a link by): hashes

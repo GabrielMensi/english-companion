@@ -4,8 +4,9 @@
  * API keys, auth headers or learner text (messages, corrections), which provider errors can echo back.
  */
 
-import { AllModelsFailedError, isOwnError, statusOf } from "@/lib/ai/fallback";
 import { RetryError } from "ai";
+
+import { AllModelsFailedError, isOwnError, statusOf } from "@/lib/ai/fallback";
 
 const MAX_MESSAGE_LENGTH = 300;
 

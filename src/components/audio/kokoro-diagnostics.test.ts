@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { formatKokoroDiagnostics, type DiagnosticsReportInput } from "./kokoro-diagnostics";
 
 const metrics = {

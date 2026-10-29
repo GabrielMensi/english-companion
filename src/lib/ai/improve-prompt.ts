@@ -1,7 +1,9 @@
 import "server-only";
 
 import { generateText } from "ai";
+
 import type { Settings } from "@/lib/settings";
+
 import { withFallback } from "./providers";
 
 const INSTRUCTIONS = `You turn a message into a clear, well-structured prompt for an AI assistant (such as Claude or ChatGPT, often a coding agent).

@@ -1,5 +1,7 @@
 import { randomBytes } from "node:crypto";
+
 import { describe, expect, it } from "vitest";
+
 import { decryptSecret, encryptSecret, isEncrypted, keyId, parseEncryptionKey } from "./secrets-crypto";
 
 const key = randomBytes(32);

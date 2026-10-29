@@ -1,6 +1,7 @@
 "use client";
 
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
 import type { Stats } from "@/lib/stats-core";
 
 type Point = Stats["timeline"][number] & { rate: number | null };

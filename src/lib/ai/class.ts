@@ -1,8 +1,5 @@
 import "server-only";
 
-import { withChatPriority } from "@/lib/classification";
-import type { StatsDigest } from "@/lib/insights/digest-core";
-import { digestToPromptText } from "@/lib/insights/digest-core";
 import {
   buildClassImportInstructions,
   buildClassImportPrompt,
@@ -12,7 +9,11 @@ import {
   normalizeClassImport,
   normalizeClassQuestions,
 } from "@/lib/class-core";
+import { withChatPriority } from "@/lib/classification";
+import type { StatsDigest } from "@/lib/insights/digest-core";
+import { digestToPromptText } from "@/lib/insights/digest-core";
 import type { Settings } from "@/lib/settings";
+
 import { generateObject } from "./insights";
 
 /** Structures the learner's notes of the teacher's corrections with the fixed taxonomy. Nothing is saved here. */

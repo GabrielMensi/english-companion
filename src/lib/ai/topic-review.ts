@@ -1,7 +1,7 @@
 import "server-only";
 
 import { generateText, NoObjectGeneratedError, Output } from "ai";
-import type { z } from "@/lib/zod";
+
 import type { Settings } from "@/lib/settings";
 import {
   buildFeedbackInstructions,
@@ -15,6 +15,8 @@ import {
   phrasesSchema,
   type ReviewTurn,
 } from "@/lib/topic-review-core";
+import type { z } from "@/lib/zod";
+
 import { withFallback } from "./providers";
 
 async function generateObject<S extends z.ZodType>(

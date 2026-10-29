@@ -1,8 +1,8 @@
-import { z } from "@/lib/zod";
+import { withUser } from "@/lib/auth/with-user";
 import { getPronunciationSummary, saveAttempt } from "@/lib/read-aloud";
 import { parseBody } from "@/lib/request-body";
 import { isBetaPronunciation, PRONUNCIATION_CATEGORIES } from "@/lib/taxonomy";
-import { withUser } from "@/lib/auth/with-user";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({
   text: z.string().trim().min(1).max(500),

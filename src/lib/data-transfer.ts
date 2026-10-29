@@ -1,10 +1,9 @@
 import "server-only";
 
 import { eq } from "drizzle-orm";
-import type { AnySQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
+
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
-import { isPractice } from "@/lib/practice";
 import {
   derivedId,
   EXPORT_FORMAT,
@@ -19,6 +18,9 @@ import {
   TABLE_SPECS,
   type TableName,
 } from "@/lib/data-transfer-core";
+import { isPractice } from "@/lib/practice";
+
+import type { AnySQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
 type OwnedTable = SQLiteTable & { id: AnySQLiteColumn; userId: AnySQLiteColumn };
 const tableOf = (name: TableName) => TABLE_SPECS[name].table as unknown as OwnedTable;

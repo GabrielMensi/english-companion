@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { DEFAULT_SPEECH_PREFS, parseGpuRejection, parseSpeechPrefs } from "./speech-prefs";
 
 describe("parseSpeechPrefs", () => {

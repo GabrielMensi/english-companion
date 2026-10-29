@@ -1,19 +1,21 @@
-import type { Metadata } from "next";
 import { Hanken_Grotesk, Newsreader } from "next/font/google";
 import { cookies, headers } from "next/headers";
 import { connection } from "next/server";
 import { ThemeProvider } from "next-themes";
+
 import { SpeechPreloader } from "@/components/audio/speech-preloader";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { getUser } from "@/lib/auth/session";
-import { listSessions } from "@/lib/chat";
 import { UnclaimedDataNotice } from "@/components/unclaimed-data-notice";
+import { getUser } from "@/lib/auth/session";
 import { showUnclaimedNotice } from "@/lib/auth/unclaimed";
+import { listSessions } from "@/lib/chat";
 import { countCardsToStudy } from "@/lib/flashcards";
 import { chatLabels } from "@/lib/practice";
 import { SIDEBAR_COOKIE } from "@/lib/sidebar";
+
+import type { Metadata } from "next";
 import "./globals.css";
 
 /** The app's own voice: navigation, labels, buttons, numbers. */

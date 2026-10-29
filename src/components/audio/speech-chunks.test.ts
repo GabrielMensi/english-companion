@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { speechChunks, splitFirstClause } from "./speech-chunks";
 
 describe("splitFirstClause", () => {

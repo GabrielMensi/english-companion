@@ -1,8 +1,11 @@
 import { randomBytes } from "node:crypto";
 import path from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
+
 import { decryptSecret, encryptSecret } from "@/lib/secrets-crypto";
 import { makeTempDir, openDatabase, removeTempDir } from "@/test/temp-db";
+
 import { migrate } from "./migrate";
 import { reencryptKeys } from "./reencrypt";
 

@@ -1,9 +1,9 @@
-import { z } from "@/lib/zod";
+import { withUser } from "@/lib/auth/with-user";
 import { addUserMessage, analyzeStoredMessage, getMessage, getMessages, getSession } from "@/lib/chat";
 import { FLUENCY_VERSION } from "@/lib/fluency";
-import { turnStreamResponse, wantsTurnStream } from "@/lib/turn-stream";
 import { parseBody } from "@/lib/request-body";
-import { withUser } from "@/lib/auth/with-user";
+import { turnStreamResponse, wantsTurnStream } from "@/lib/turn-stream";
+import { z } from "@/lib/zod";
 
 export const GET = withUser(async (_request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">, { userId }) => {
   const { id } = await ctx.params;

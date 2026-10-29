@@ -3,6 +3,7 @@
  * non-zero exit code on any regression. Without the flag the evals only report, as before.
  */
 import { checkThresholds, formatChecks, type ThresholdsFile } from "../../src/lib/eval/thresholds";
+
 import thresholds from "./thresholds.json";
 
 export function wantsCheck(args: readonly string[]): boolean {

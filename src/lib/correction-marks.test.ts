@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { groupMistakes, type MarkableCorrection, markDiff } from "@/lib/correction-marks";
 import type { Severity } from "@/lib/taxonomy";
 

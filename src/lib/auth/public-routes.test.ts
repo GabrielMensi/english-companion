@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { isPublicPath } from "./public-routes";
 
 describe("isPublicPath", () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { checkThresholds, formatChecks } from "./thresholds";
 
 const config = {

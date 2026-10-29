@@ -1,7 +1,7 @@
 import { errorToMessage } from "@/lib/ai/fallback";
+import { withUser } from "@/lib/auth/with-user";
 import { getMessage, improveMessagePrompt } from "@/lib/chat";
 import { logRouteError } from "@/lib/server-log";
-import { withUser } from "@/lib/auth/with-user";
 
 export const POST = withUser(async (_request: Request, ctx: RouteContext<"/api/messages/[id]/prompt">, { userId }) => {
   const { id } = await ctx.params;

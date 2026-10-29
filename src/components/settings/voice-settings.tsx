@@ -3,6 +3,7 @@
 import { Loader2, Volume2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import {
   getGpuRejection,
   type KokoroDevice,
@@ -12,6 +13,7 @@ import {
   retryKokoroGpu,
   useKokoroStatus,
 } from "@/components/audio/kokoro";
+import { formatKokoroDiagnostics } from "@/components/audio/kokoro-diagnostics";
 import {
   getSpeechPrefs,
   preloadSpeech,
@@ -23,7 +25,6 @@ import {
   useSpeechPreparing,
   useSpeechSupported,
 } from "@/components/audio/speech";
-import { formatKokoroDiagnostics } from "@/components/audio/kokoro-diagnostics";
 import { KOKORO_VOICES, type KokoroDevicePref, type SpeechEngine } from "@/components/audio/speech-prefs";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";

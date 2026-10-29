@@ -15,10 +15,12 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { cmuLookup } from "../../../src/lib/cmu-lookup";
+
 import { resample, SPEECH_SAMPLE_RATE, toMono } from "../../../src/lib/audio/wav";
+import { cmuLookup } from "../../../src/lib/cmu-lookup";
 import { alignSentence, analyzePhonemes, isVowel } from "../../../src/lib/phonemes-core";
 import { scoreReading } from "../../../src/lib/pronunciation-core";
+
 import { prosody } from "./audio";
 import { SPIKE_DIR, VOICES } from "./clips";
 import { loadRecognizer } from "./model";

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { eq } from "drizzle-orm";
+
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
 import {
@@ -24,8 +25,8 @@ import { loadExerciseCards } from "@/lib/missed-exercises";
 import { loadPronunciationCards } from "@/lib/read-aloud";
 import { getSettings } from "@/lib/settings";
 import { type Grade, newReviewState, type ReviewState, schedule } from "@/lib/srs";
-import { categoryLabel, countsInStats, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
 import { subtypeLabel } from "@/lib/subtypes";
+import { categoryLabel, countsInStats, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
 import { getVocabulary } from "@/lib/vocabulary";
 
 /**

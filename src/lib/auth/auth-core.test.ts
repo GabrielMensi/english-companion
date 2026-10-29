@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { canSignUp, isLoopbackOrigin, normalizeEmail, safeNextPath, signUpOpen, trustedOriginsFor } from "./auth-core";
 
 describe("canSignUp", () => {

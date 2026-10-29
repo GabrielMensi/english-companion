@@ -1,6 +1,7 @@
 import "server-only";
 
 import { desc, eq, inArray } from "drizzle-orm";
+
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
 import type { ClassSession } from "@/db/schema";

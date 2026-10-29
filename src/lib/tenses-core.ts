@@ -9,6 +9,7 @@
  * infinitives aren't tenses, so they aren't counted.
  */
 import nlp from "compromise";
+
 import type { Tense } from "@/lib/taxonomy";
 
 /** Bump when the rules change, so stored counts get recomputed. */

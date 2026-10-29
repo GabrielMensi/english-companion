@@ -1,10 +1,10 @@
-import { z } from "@/lib/zod";
-import { TENSES } from "@/lib/taxonomy";
-import { setTopicTense } from "@/lib/practice";
+import { withUser } from "@/lib/auth/with-user";
 import { deleteSession, getSession, updateSession } from "@/lib/chat";
 import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
+import { setTopicTense } from "@/lib/practice";
 import { parseBody } from "@/lib/request-body";
-import { withUser } from "@/lib/auth/with-user";
+import { TENSES } from "@/lib/taxonomy";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),

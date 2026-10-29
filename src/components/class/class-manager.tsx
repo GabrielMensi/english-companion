@@ -5,15 +5,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { ClassBadge } from "@/components/class-badge";
 import { NeedsKeyHint } from "@/components/no-provider-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
+import type { ClassSessionView } from "@/lib/class";
 import type { ClassImport } from "@/lib/class-core";
 import { MAX_CLASS_TEXT } from "@/lib/class-core";
-import type { ClassSessionView } from "@/lib/class";
 import { CEFR_LEVELS, type CefrLevel } from "@/lib/insights/level-core";
 import { categoryLabel, type ErrorCategory } from "@/lib/taxonomy";
 import { voided } from "@/lib/voided";

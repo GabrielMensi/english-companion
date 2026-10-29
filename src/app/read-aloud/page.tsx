@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { connection } from "next/server";
+
 import { Page, PageHeader } from "@/components/layout/page";
 import { ReadAloudPractice } from "@/components/read-aloud/read-aloud-practice";
 import { resolveTranscriptionModel } from "@/lib/ai/providers";
+import { requirePageUser } from "@/lib/auth/session";
 import { getReadAloudData } from "@/lib/read-aloud";
 import { parseFocus } from "@/lib/read-aloud-core";
 import { getSettings } from "@/lib/settings";
-import { requirePageUser } from "@/lib/auth/session";
 
 export default async function ReadAloudPage({ searchParams }: PageProps<"/read-aloud">) {
   await connection();

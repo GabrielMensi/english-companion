@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+
 import { ChatView } from "@/components/chat/chat-view";
 import { availableModels, hasConfiguredProvider, resolveTranscriptionModel } from "@/lib/ai/providers";
+import { requirePageUser } from "@/lib/auth/session";
 import { getMessages, getSession } from "@/lib/chat";
 import { answerTemplate } from "@/lib/exercise-set";
 import { getPractice, pendingSetSize } from "@/lib/practice";
-import { getStoredFeedback } from "@/lib/topic-review";
 import { getSettings } from "@/lib/settings";
-import { requirePageUser } from "@/lib/auth/session";
+import { getStoredFeedback } from "@/lib/topic-review";
 
 export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
   await connection();

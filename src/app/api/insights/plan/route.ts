@@ -1,9 +1,9 @@
-import { z } from "@/lib/zod";
 import { errorToMessage } from "@/lib/ai/fallback";
+import { withUser } from "@/lib/auth/with-user";
 import { createStudyPlan, REPORT_RANGES } from "@/lib/insights/insights";
 import { parseBody } from "@/lib/request-body";
 import { logRouteError } from "@/lib/server-log";
-import { withUser } from "@/lib/auth/with-user";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({ range: z.enum(REPORT_RANGES).default("7") });
 

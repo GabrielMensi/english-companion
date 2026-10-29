@@ -1,6 +1,7 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
 import type { CategoryStat } from "@/lib/stats-core";
 import { categoryLabel, type Severity, SEVERITY_LABELS } from "@/lib/taxonomy";
 

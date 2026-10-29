@@ -1,10 +1,11 @@
 import { ArrowLeft, ArrowRight, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
+
 import { UndoDiscardButton } from "@/components/dashboard/undo-discard-button";
 import { Page, PageHeader } from "@/components/layout/page";
-import { mistakeOrigin } from "@/lib/class-core";
 import { requirePageUser } from "@/lib/auth/session";
+import { mistakeOrigin } from "@/lib/class-core";
 import { DISCARDED_LIMIT, getDiscardedMistakes } from "@/lib/corrections";
 import { categoryLabel } from "@/lib/taxonomy";
 

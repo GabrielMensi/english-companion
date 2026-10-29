@@ -1,9 +1,9 @@
 import { errorToMessage } from "@/lib/ai/fallback";
+import { withUser } from "@/lib/auth/with-user";
 import { getSession } from "@/lib/chat";
 import { logRouteError } from "@/lib/server-log";
 import { createFeedback } from "@/lib/topic-review";
 import { TopicToolError } from "@/lib/topic-review-core";
-import { withUser } from "@/lib/auth/with-user";
 
 /** Writes (and saves) the end-of-conversation review of a topic chat, from its real messages and corrections. */
 export const POST = withUser(

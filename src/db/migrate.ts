@@ -1,6 +1,8 @@
-import type Database from "better-sqlite3";
 import { readMigrationFiles } from "drizzle-orm/migrator";
+
 import { MIGRATIONS_TABLE, pendingMigrations } from "./migrations-core";
+
+import type Database from "better-sqlite3";
 
 /** How long a connection waits for another process's lock before failing with SQLITE_BUSY. */
 export const BUSY_TIMEOUT_MS = 30_000;

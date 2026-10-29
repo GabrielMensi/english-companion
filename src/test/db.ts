@@ -2,8 +2,10 @@
 // setup) plus small seed functions. See docs/platform/TESTING.md.
 import { eq, getTableName, is, sql } from "drizzle-orm";
 import { SQLiteTable } from "drizzle-orm/sqlite-core";
+
 import { db, schema } from "@/db";
 import type { ErrorCategory, Severity } from "@/lib/taxonomy";
+
 import { assertSafeDatabasePath } from "./temp-db";
 
 export { db, schema };

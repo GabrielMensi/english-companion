@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
+
 import { CategoryChart } from "@/components/dashboard/category-chart";
 import { CategoryTable } from "@/components/dashboard/category-table";
 import { ClassificationStatus } from "@/components/dashboard/classification-status";
@@ -10,19 +11,19 @@ import { TensePanel } from "@/components/dashboard/tense-panel";
 import { TimelineChart } from "@/components/dashboard/timeline-chart";
 import { TopMistakes } from "@/components/dashboard/top-mistakes";
 import { Page, PageHeader, Section, SectionLink } from "@/components/layout/page";
-import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { NoProviderNotice } from "@/components/no-provider-notice";
+import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { hasConfiguredProvider } from "@/lib/ai/providers";
+import { requirePageUser } from "@/lib/auth/session";
 import { categoryTopic, selectCategoryTargets } from "@/lib/category-practice";
-import { countDiscardedMistakes } from "@/lib/corrections";
 import { getClassificationStatus } from "@/lib/classification";
+import { countDiscardedMistakes } from "@/lib/corrections";
 import { dashboardDetail, dashboardHeadline } from "@/lib/dashboard-summary";
 import { getAccuracyTimeline, getPronunciationProgress, hasReadings } from "@/lib/read-aloud";
 import { getReviewDashboard } from "@/lib/review-stats";
 import { getDashboardData, INPUT_FILTERS, type InputFilter, RANGES, type RangeKey } from "@/lib/stats";
 import { cn } from "@/lib/utils";
-import { requirePageUser } from "@/lib/auth/session";
 
 const RANGE_LABELS: Record<RangeKey, string> = { "7": "7 days", "30": "30 days", "90": "90 days", all: "All" };
 const INPUT_LABELS: Record<InputFilter, string> = { all: "All", typed: "Written", spoken: "Spoken" };

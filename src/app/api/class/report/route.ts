@@ -1,6 +1,6 @@
-import { getClassReport } from "@/lib/class-report";
-import { classReportToMarkdown } from "@/lib/class-core";
 import { withUser } from "@/lib/auth/with-user";
+import { classReportToMarkdown } from "@/lib/class-core";
+import { getClassReport } from "@/lib/class-report";
 
 /** The report to take to class as Markdown (`?since=<class id>` or `?from=YYYY-MM-DD&to=YYYY-MM-DD`). */
 export const GET = withUser(async (request: Request, _ctx, { userId }) => {

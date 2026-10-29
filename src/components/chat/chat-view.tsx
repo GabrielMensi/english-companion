@@ -5,15 +5,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
+
 import { preloadSpeech, speak, stopSpeaking, useSpeechSupported, useVoiceMode } from "@/components/audio/speech";
 import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AssistantMessage } from "@/components/chat/assistant-message";
 import { ChatMenu, type ModelOption, ModeSwitch } from "@/components/chat/chat-controls";
 import { Composer, type Notify, useComposer } from "@/components/chat/composer";
-import { TopicTools } from "@/components/chat/topic-tools";
 import { MiniChat, type Notice } from "@/components/chat/mini-chat";
-import { NoProviderNotice } from "@/components/no-provider-notice";
+import { TopicTools } from "@/components/chat/topic-tools";
 import { UserMessage } from "@/components/chat/user-message";
+import { NoProviderNotice } from "@/components/no-provider-notice";
 import { FloatingWindowProvider } from "@/components/pip/floating-window-context";
 import { usePipWindow } from "@/components/pip/use-pip-window";
 import { StatusBadge } from "@/components/status-badge";
@@ -21,12 +22,12 @@ import { Button } from "@/components/ui/button";
 import type { SessionMode } from "@/db/schema";
 import type { AnalysisPreview } from "@/lib/ai/analysis";
 import type { ProviderId } from "@/lib/ai/provider-info";
-import { api, streamTurn } from "@/lib/api";
 import { reviewFeedback } from "@/lib/analysis-card-core";
-import type { StoredFeedback } from "@/lib/topic-review";
+import { api, streamTurn } from "@/lib/api";
 import type { Tense } from "@/lib/taxonomy";
-import type { ChatMessage, CorrectionUpdate, SessionSummary, VoiceInput } from "@/lib/types";
+import type { StoredFeedback } from "@/lib/topic-review";
 import { MIN_REVIEW_TURNS } from "@/lib/topic-review-core";
+import type { ChatMessage, CorrectionUpdate, SessionSummary, VoiceInput } from "@/lib/types";
 import { voided } from "@/lib/voided";
 
 export function ChatView({

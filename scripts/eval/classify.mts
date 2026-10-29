@@ -14,14 +14,17 @@
 import "./load-env";
 import fs from "node:fs";
 import path from "node:path";
+
 import { classifyBatch } from "../../src/lib/ai/classify";
-import type { ClassificationItem } from "../../src/lib/ai/classify-core";
 import { errorToMessage } from "../../src/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "../../src/lib/ai/provider-info";
 import { TENSE_CATEGORIES } from "../../src/lib/taxonomy";
+
 import { reportCheck, wantsCheck } from "./check";
-import { evalSettings, evalUserId } from "./settings";
 import { CLASSIFY_SAMPLES, type ClassifySample } from "./classify-samples";
+import { evalSettings, evalUserId } from "./settings";
+
+import type { ClassificationItem } from "../../src/lib/ai/classify-core";
 
 const args = process.argv.slice(2);
 const option = (name: string) => args.find((a) => a.startsWith(`--${name}=`))?.split("=")[1];

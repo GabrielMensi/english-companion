@@ -8,6 +8,7 @@
  */
 import type { PronunciationProgress } from "@/lib/read-aloud-core";
 import type { Stats } from "@/lib/stats-core";
+import { subtypeLabel } from "@/lib/subtypes";
 import {
   categoryLabel,
   type ErrorCategory,
@@ -16,7 +17,6 @@ import {
   type Tense,
   tenseLabel,
 } from "@/lib/taxonomy";
-import { subtypeLabel } from "@/lib/subtypes";
 import type { TenseStats } from "@/lib/tense-stats";
 import type { VocabularyWord } from "@/lib/vocabulary-core";
 

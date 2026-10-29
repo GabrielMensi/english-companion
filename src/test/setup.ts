@@ -2,6 +2,7 @@
 // replaces the edges (server-only, the AI providers), so the app's own code runs for real.
 // See docs/platform/TESTING.md.
 import { afterAll, beforeAll, vi } from "vitest";
+
 import { assertSafeDatabasePath, removeTempDir, tempDatabasePath } from "./temp-db";
 
 // "@/db" reads DATABASE_PATH when it is first imported, so it is set here, before any test import.

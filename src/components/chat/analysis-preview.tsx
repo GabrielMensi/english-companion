@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Bot, Loader2, MessageCircleHeart } from "lucide-react";
+
 import { DiffText } from "@/components/chat/diff-text";
 import { SeverityBadge } from "@/components/severity-badge";
 import type { AnalysisPreview } from "@/lib/ai/analysis";

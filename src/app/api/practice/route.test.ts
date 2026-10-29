@@ -1,6 +1,7 @@
 // Integration test (docs/platform/TESTING.md): starting a practice chat creates a session and its opening message.
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { fakeAi, resetFakeAi } from "@/test/ai";
 import { createTestUser, type TestUser } from "@/test/auth";
 import { db, resetDb, schema } from "@/test/db";

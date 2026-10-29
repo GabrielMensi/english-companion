@@ -14,14 +14,15 @@ import {
   X,
 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
+
 import { SpeakButton } from "@/components/audio/speak-button";
 import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AnalysisPreviewView } from "@/components/chat/analysis-preview";
 import { Composer, type ComposerState, type Notify } from "@/components/chat/composer";
 import { DiffText } from "@/components/chat/diff-text";
 import { MistakeGroups } from "@/components/chat/mistake-list";
-import { CopyButton, copyText } from "@/components/copy-button";
 import { FluencyNote } from "@/components/chat/user-message";
+import { CopyButton, copyText } from "@/components/copy-button";
 import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
 import type { SessionMode } from "@/db/schema";

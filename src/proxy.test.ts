@@ -1,7 +1,9 @@
 // proxy.ts: host, cross-site and the optimistic login check (a cookie must exist; the handlers check it for real).
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
+
 import { authCookiePrefix } from "@/lib/auth/auth-node";
+
 import { proxy } from "./proxy";
 
 // Locally the cookie name carries a prefix from the database path (see authCookiePrefix).

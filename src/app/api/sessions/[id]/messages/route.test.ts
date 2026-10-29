@@ -2,6 +2,7 @@
 // throwaway SQLite file, with the providers replaced by the AI SDK's mock models (src/test/setup.ts).
 // Never calls a real API.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
 import type { Analysis } from "@/lib/ai/analysis";
 import type { ChatMessage, TurnEvent } from "@/lib/types";
 import { fakeAi, resetFakeAi } from "@/test/ai";

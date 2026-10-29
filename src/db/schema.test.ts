@@ -3,6 +3,7 @@
 import { is } from "drizzle-orm";
 import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
+
 import { OWNED_TABLES } from "./claim";
 import * as schema from "./schema";
 

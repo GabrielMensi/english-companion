@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+
 import { db } from "@/db";
 
 // Public on purpose (the container healthcheck and uptime probes call it): no data, only whether the

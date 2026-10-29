@@ -1,6 +1,7 @@
 import { repeatsDiscard } from "../../src/lib/eval/discards";
-import type { Analysis } from "../../src/lib/ai/analysis";
+
 import type { Sample } from "./samples";
+import type { Analysis } from "../../src/lib/ai/analysis";
 
 export interface SampleScore {
   /** Points earned and possible: one per detected fragment, applied fix, typo label and Spanish lookup. */

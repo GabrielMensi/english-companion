@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import type { Tense } from "@/lib/taxonomy";
+
 import { countTenses, detectTenses } from "./tenses-core";
 
 const CASES: [string, Tense[]][] = [

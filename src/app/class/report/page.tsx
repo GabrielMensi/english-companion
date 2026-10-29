@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
+
 import { ClassQuestionsPanel } from "@/components/class/class-questions";
 import { ReportActions } from "@/components/class/report-actions";
 import { ReportView } from "@/components/insights/report-view";
@@ -8,9 +9,9 @@ import { NoProviderNotice } from "@/components/no-provider-notice";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { hasConfiguredProvider } from "@/lib/ai/providers";
+import { requirePageUser } from "@/lib/auth/session";
 import { classReportToMarkdown } from "@/lib/class-core";
 import { getClassReport } from "@/lib/class-report";
-import { requirePageUser } from "@/lib/auth/session";
 
 const date = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" });
 const dateTime = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" });

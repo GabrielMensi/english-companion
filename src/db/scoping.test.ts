@@ -6,7 +6,9 @@
 // owned, and anything under scripts/ (the evals are operator-only and scope by hand).
 import fs from "node:fs";
 import path from "node:path";
+
 import { describe, expect, it } from "vitest";
+
 import { OWNED_TABLES } from "./claim";
 
 const camel = (name: string) => name.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());

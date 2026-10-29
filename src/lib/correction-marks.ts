@@ -1,4 +1,5 @@
 import { diffWordsWithSpace } from "diff";
+
 import { type Severity, SEVERITIES } from "@/lib/taxonomy";
 
 /** What the marks need from a correction. */

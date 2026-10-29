@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { isAllowedHost, requestHost, withoutDefaultPort } from "./allowed-hosts";
 
 describe("isAllowedHost", () => {

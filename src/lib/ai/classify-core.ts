@@ -4,9 +4,10 @@
  * category; this assigns the fixed fine-grained type and, for verb mistakes,
  * the tense. Kept free of server-only imports so it can be unit tested.
  */
-import { z } from "@/lib/zod";
-import { type ErrorCategory, type Severity, type Tense, TENSE_CATEGORIES, TENSE_HINTS, TENSES } from "@/lib/taxonomy";
 import { isValidSubtype, SUBTYPES } from "@/lib/subtypes";
+import { type ErrorCategory, type Severity, type Tense, TENSE_CATEGORIES, TENSE_HINTS, TENSES } from "@/lib/taxonomy";
+import { z } from "@/lib/zod";
+
 import { toSnakeCase } from "./analysis";
 
 export interface ClassificationItem {

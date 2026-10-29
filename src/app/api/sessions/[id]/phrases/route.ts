@@ -1,11 +1,11 @@
-import { z } from "@/lib/zod";
 import { errorToMessage } from "@/lib/ai/fallback";
+import { withUser } from "@/lib/auth/with-user";
 import { getSession } from "@/lib/chat";
 import { parseBody } from "@/lib/request-body";
 import { logRouteError } from "@/lib/server-log";
 import { createPhraseSuggestions, savePhrases } from "@/lib/topic-review";
 import { MAX_PHRASE_LENGTH, TopicToolError } from "@/lib/topic-review-core";
-import { withUser } from "@/lib/auth/with-user";
+import { z } from "@/lib/zod";
 
 /** Suggests useful phrases from a topic chat. Nothing is saved until the learner picks some (PUT). */
 export const POST = withUser(async (_request: Request, ctx: RouteContext<"/api/sessions/[id]/phrases">, { userId }) => {

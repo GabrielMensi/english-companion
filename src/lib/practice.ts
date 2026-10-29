@@ -1,7 +1,7 @@
 import "server-only";
 
 import { asc, eq, lt } from "drizzle-orm";
-import { z } from "@/lib/zod";
+
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
 import type { Message } from "@/db/schema";
@@ -12,6 +12,7 @@ import { countsInStats, ERROR_CATEGORIES, type ErrorCategory, type Severity, typ
 import { conversationPracticeRule, EXERCISE_KINDS, exerciseReply, practiceTopic } from "@/lib/tense-practice";
 import { topicRule, topicTenseRule } from "@/lib/topics";
 import { deleteUserSetting, getUserSetting, listUserSettings, setUserSetting } from "@/lib/user-settings";
+import { z } from "@/lib/zod";
 
 /**
  * What a practice chat is practicing. Stored in the user's key-value `user_settings`

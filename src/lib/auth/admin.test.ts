@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { createTestUser } from "@/test/auth";
 import { resetDb } from "@/test/db";
+
 import { canUseEval, isAdmin } from "./admin";
 
 beforeEach(() => resetDb());

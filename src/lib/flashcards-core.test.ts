@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   applyCorrection,
   buildQueue,
@@ -13,6 +14,7 @@ import {
   type QueuedCard,
   vocabularyCards,
 } from "./flashcards-core";
+
 import type { ReviewState } from "./srs";
 import type { VocabularyWord } from "./vocabulary-core";
 

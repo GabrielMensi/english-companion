@@ -1,10 +1,10 @@
-import { z } from "@/lib/zod";
+import { withUser } from "@/lib/auth/with-user";
 import { classifyManually } from "@/lib/classification";
 import { getCorrectionUpdate } from "@/lib/corrections";
-import { ERROR_CATEGORIES, TENSES } from "@/lib/taxonomy";
 import { parseBody } from "@/lib/request-body";
 import { logRouteError } from "@/lib/server-log";
-import { withUser } from "@/lib/auth/with-user";
+import { ERROR_CATEGORIES, TENSES } from "@/lib/taxonomy";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({
   category: z.enum(ERROR_CATEGORIES),

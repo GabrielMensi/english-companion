@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Loader2, PlugZap } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -8,6 +9,7 @@ import { type Chain, chainSteps, moveStep, toggleStep } from "@/lib/ai/fallback"
 import { PROVIDERS, type ProviderId } from "@/lib/ai/provider-info";
 import type { Settings } from "@/lib/settings";
 import { cn } from "@/lib/utils";
+
 import { modelFacts, type Providers, TestResult, type TestState } from "./provider-card";
 
 /**

@@ -2,7 +2,8 @@ import "server-only";
 
 import fs from "node:fs";
 import path from "node:path";
-import type { AutoModelForCTC, AutoProcessor, Tensor } from "@huggingface/transformers";
+
+import { cmuLookup } from "@/lib/cmu-lookup";
 import { serverEnv } from "@/lib/env";
 import {
   analyzePhonemes,
@@ -13,8 +14,9 @@ import {
   PHONEME_VOCAB_FILE,
   parseWav,
 } from "@/lib/phonemes-core";
-import { cmuLookup } from "@/lib/cmu-lookup";
 import type { PronunciationCategory } from "@/lib/taxonomy";
+
+import type { AutoModelForCTC, AutoProcessor, Tensor } from "@huggingface/transformers";
 
 /**
  * The read-aloud sound check (beta): wav2vec2 phonemes on the server's CPU through transformers.js.

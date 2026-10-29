@@ -1,14 +1,15 @@
 "use client";
 
-import { ClassBadge } from "@/components/class-badge";
 import { MessageSquare, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+
 import { SpeakButton } from "@/components/audio/speak-button";
-import { Highlight } from "@/components/vocabulary/highlight";
+import { ClassBadge } from "@/components/class-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Highlight } from "@/components/vocabulary/highlight";
 import { api } from "@/lib/api";
 import { type VocabularyWord, wordKey } from "@/lib/vocabulary-core";
 

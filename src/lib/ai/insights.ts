@@ -1,7 +1,7 @@
 import "server-only";
 
 import { generateText, NoObjectGeneratedError, Output } from "ai";
-import type { z } from "@/lib/zod";
+
 import type { StatsDigest } from "@/lib/insights/digest-core";
 import type { LevelEstimate, LevelWindow } from "@/lib/insights/level-core";
 import {
@@ -15,6 +15,8 @@ import {
   studyPlanSchema,
 } from "@/lib/insights/plan-core";
 import type { Settings } from "@/lib/settings";
+import type { z } from "@/lib/zod";
+
 import { withFallback } from "./providers";
 
 export async function generateObject<S extends z.ZodType>(
