@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useNotify } from "@/components/pip/floating-window-context";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
@@ -47,6 +47,7 @@ export function ClassificationDialog({
   const [tense, setTense] = useState<string>(correction.tense ?? NONE);
   const [tenseUsed, setTenseUsed] = useState<string>(correction.tenseUsed ?? NONE);
   const [saving, setSaving] = useState(false);
+  const notify = useNotify();
   const hasTense = TENSE_CATEGORIES.includes(category);
 
   function changeCategory(value: ErrorCategory) {
@@ -69,7 +70,7 @@ export function ClassificationDialog({
       onSaved(update);
       onOpenChange(false);
     } catch (error) {
-      toast.error((error as Error).message);
+      notify("error", (error as Error).message);
     } finally {
       setSaving(false);
     }

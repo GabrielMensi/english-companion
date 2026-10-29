@@ -11,6 +11,7 @@ import { TimelineChart } from "@/components/dashboard/timeline-chart";
 import { TopMistakes } from "@/components/dashboard/top-mistakes";
 import { Page, PageHeader, Section, SectionLink } from "@/components/layout/page";
 import { StartPracticeButton } from "@/components/practice/start-practice-button";
+import { NoProviderNotice } from "@/components/no-provider-notice";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { hasConfiguredProvider } from "@/lib/ai/providers";
 import { categoryTopic, selectCategoryTargets } from "@/lib/category-practice";
@@ -94,6 +95,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
           </>
         }
       />
+
+      {!hasModel && (
+        <NoProviderNotice detail="Your stats still work; the exercises behind “Practice this” need a key." />
+      )}
 
       {hasSpoken && input !== "typed" && (
         <p className="text-sm text-muted-foreground">
