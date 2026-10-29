@@ -36,6 +36,7 @@ const { getFlashcardsOverview, countCardsToStudy, getStudyQueue } = await import
 const { getSuspendedCards } = await import("@/lib/flashcards-upkeep");
 const { getReviewDashboard } = await import("@/lib/review-stats");
 const { getVocabulary } = await import("@/lib/vocabulary");
+const { countDiscardedMistakes, getDiscardedMistakes } = await import("@/lib/corrections");
 const { getReadAloudData, getPronunciationSummary, hasReadings, getAccuracyTimeline } =
   await import("@/lib/read-aloud");
 const { getLevelData, getReportDigest, getStoredPlan } = await import("@/lib/insights/insights");
@@ -350,6 +351,23 @@ describe("listings and statistics: B sees nothing of A", () => {
     expect(theirs.hasSpoken).toBe(false);
     expect(getVocabulary(b.id)).toEqual([]);
     expect(getVocabulary(a.id)).toHaveLength(1);
+  });
+
+  it("discarded mistakes: listed per owner, gone after undo", async () => {
+    const id = ids.correction.id;
+    const url = `http://t/api/corrections/${id}/discard`;
+    expect(
+      (await discardRoute.POST(a.request(url, { method: "POST", body: json({ reason: "fine" }) }), ctx(id))).status,
+    ).toBe(200);
+    expect(getDiscardedMistakes(b.id)).toEqual({ items: [], total: 0 });
+    const mine = getDiscardedMistakes(a.id);
+    expect(mine.total).toBe(1);
+    expect(mine.items[0]).toMatchObject({ id, reason: "fine", sessionId: ids.session.id });
+    expect(getDiscardedMistakes(a.id, 0)).toMatchObject({ items: [], total: 1 });
+    expect(countDiscardedMistakes(a.id)).toBe(1);
+    expect(countDiscardedMistakes(b.id)).toBe(0);
+    await discardRoute.DELETE(a.request(url, { method: "DELETE" }), ctx(id));
+    expect(getDiscardedMistakes(a.id)).toEqual({ items: [], total: 0 });
   });
 
   it("flashcards: decks, queue, counts, suspended cards, review stats", () => {

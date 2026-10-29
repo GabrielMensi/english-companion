@@ -111,7 +111,7 @@ Probalo con la copia de la base del worktree de integración (`data/dev.db`), nu
 
 - [ ] `pnpm test:e2e`: construye la app y pasa 10/10 sin tocar `data/`.
 - [ ] `AI_FAKE=1 pnpm dev` (sin `E2E_TEST_SERVER`, o con la base real) se niega a arrancar.
-- [ ] GitHub → Actions → "E2E" → Run workflow: verde.
+- [ ] Después del merge a `main` (GitHub solo deja disparar workflows que existen en la rama por defecto): Actions → "E2E" → Run workflow: verde. La corrida nocturna prueba `develop`.
 - [ ] En /settings (y en general): sin errores "Content Security Policy" en la consola. Zod ahora se importa siempre desde `@/lib/zod` (el lint lo exige).
 
 ## Tanda 4
@@ -125,6 +125,13 @@ Necesita Chrome o Edge (la ventana flotante no se pudo probar a mano).
 - [ ] Sin red → Save: el error aparece dentro del diálogo.
 - [ ] "Discard": el error desaparece y una nota dice que se deshace desde la pestaña; Undo funciona desde la pestaña.
 - [ ] Sin API key → /dashboard muestra el aviso arriba; con key, no.
+
+### Errores descartados (#166: #165)
+
+- [ ] /dashboard → "Most frequent mistakes" → "Discard this example" en uno: aparece el link "Discarded (1)".
+- [ ] Abrirlo: el fragmento tachado, la corrección, la categoría y la fecha; "Open chat" abre el chat correcto.
+- [ ] Undo: la fila desaparece; en el dashboard el error vuelve a contar y el link se va.
+- [ ] Una segunda cuenta ve solo sus propios descartes.
 
 ## Problemas encontrados
 
