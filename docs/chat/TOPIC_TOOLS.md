@@ -1,6 +1,6 @@
 # Herramientas de los chats de tema
 
-> Chat & corrections · Feature · Done · [#161](https://github.com/GabrielMensi/english-companion/issues/161), [#162](https://github.com/GabrielMensi/english-companion/issues/162), [#163](https://github.com/GabrielMensi/english-companion/issues/163)
+> Area: Chat & corrections · Kind: Feature · Status: Done · Board: [#161](https://github.com/GabrielMensi/english-companion/issues/161), [#162](https://github.com/GabrielMensi/english-companion/issues/162), [#163](https://github.com/GabrielMensi/english-companion/issues/163)
 
 Tres extras de los chats "Talk about…" (#71). Aparecen en el encabezado del chat, solo en chats de tema.
 

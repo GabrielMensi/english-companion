@@ -1,6 +1,6 @@
 # Deploy: host, imagen y plan
 
-> Area: Platform · Kind: Research · Status: Implemented (not deployed) · Board: #127, #139, #140
+> Area: Platform · Kind: Research · Status: Done · Board: #127, #139, #140
 
 Decisión de dónde y cómo correr la app online, dejándola **lista pero sin publicar**. No se despliega nada hasta que se cumpla la checklist de [SECURITY_REVIEW.md](SECURITY_REVIEW.md) (login, límites, CSP, keys cifradas) y el diseño de [AUTH_MULTIUSER.md](AUTH_MULTIUSER.md) esté implementado. Los releases están en [RELEASES.md](RELEASES.md).
 

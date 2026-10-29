@@ -1,6 +1,6 @@
 # Eval: correcciones en chats de tema y role-play
 
-> AI pipeline · Eval · In progress · [#146](https://github.com/GabrielMensi/english-companion/issues/146), [#147](https://github.com/GabrielMensi/english-companion/issues/147)
+> Area: AI pipeline · Kind: Eval · Status: Done · Board: [#146](https://github.com/GabrielMensi/english-companion/issues/146), [#147](https://github.com/GabrielMensi/english-companion/issues/147)
 
 Dos preguntas sobre la calidad de las correcciones. Las dos se miden con `pnpm eval:models` (ver [README](../../README.md#modelos-recomendados)).
 
