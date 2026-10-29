@@ -175,6 +175,21 @@ Los pasos de la sección de clases que agregó el equipo (más arriba) siguen va
 - [ ] Today: "wrote this week" no cuenta cargas de clase.
 - [ ] Descartar un error "From class": en Discarded dice "Open class" y lleva a /class.
 
+## Al mergear a `develop` (después de aceptar todo)
+
+Simulado sobre una copia de tu base anterior a la corrida (revisión final, `reviews/final-r1.md`): migraciones 0014–0016, alta de cuenta, tus keys pasan cifradas a tu cuenta y `auth:claim-data` mueve todo; no se pierde ninguna fila (21 chats, 96 mensajes, 329 correcciones).
+
+1. **Pará la app de 3737** (Ctrl+C en `pnpm dev`): el merge sube Next (16.4.0 → 16.4.3) y agrega dependencias (better-auth…); un hot reload antes de `pnpm install` rompe la app.
+2. **Backup**, con la app parada: `mkdir -p data/backups && cp data/companion.db data/backups/pre-accounts-$(date +%F).db` (y `companion.db-wal` / `-shm` si siguen ahí).
+3. Mergear la PR y, en esta carpeta, `git pull && pnpm install` (un solo comando).
+4. **Variables de entorno:** en local no hace falta nada nuevo (tus keys están guardadas en la app; `SHARED_KEYS` vale `true` por defecto). Opcional: `SIGNUP_ALLOWED_EMAILS` para sumar cuentas más adelante. No pongas `ALLOWED_HOSTS` en local: activa el modo deploy, que exige `BETTER_AUTH_*`, `APP_ENCRYPTION_KEY` y `SHARED_KEYS`.
+5. `pnpm dev`: las migraciones se aplican al arrancar. https://localhost:3737 te manda a `/login`; en `/signup` creá tu cuenta (contraseña de 10+ caracteres; la primera cuenta no necesita allowlist).
+6. **Settings:** tus keys de Gemini y Groq aparecen como `••••xxxx` y ya quedaron cifradas. En `data/` aparecen `encryption.key` y `auth.secret`. **Guardá `data/encryption.key` aparte de la base:** sin ese archivo las keys guardadas no se pueden descifrar y hay que volver a pegarlas.
+7. En esta carpeta: `pnpm auth:claim-data <tu email>` (puede correr con la app levantada). Hace `data/backups/pre-claim-<fecha>.db` e imprime las filas que movió.
+8. Verificar: tus chats en la barra lateral, los números del dashboard iguales a antes, sin el aviso amarillo de "claim", y Settings → Test anda en cada proveedor.
+9. Para volver atrás: parar la app, `git checkout <sha anterior de develop> && pnpm install` y restaurar el backup del paso 2 sobre `data/companion.db` (borrando `-wal` / `-shm`).
+10. Worktrees de acá en adelante: copiar `data/encryption.key` junto con la base.
+
 ## Problemas encontrados
 
 -
