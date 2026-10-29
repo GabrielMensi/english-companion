@@ -16,7 +16,12 @@ import type { FluencyMetrics } from "@/lib/fluency";
 import type { TenseCounts } from "@/lib/tenses-core";
 import type { ErrorCategory, PronunciationCategory, Severity, Tense } from "@/lib/taxonomy";
 
-export type SessionMode = "correction" | "conversation";
+/** "class" chats are hidden holders of what the teacher corrected in a class (see src/lib/class.ts). */
+export type SessionMode = "correction" | "conversation" | "class";
+/** Where a correction came from: the AI analysis of a message, or the teacher in a class. */
+export type CorrectionSource = "ai" | "class";
+/** Where a vocabulary entry came from: a [bracket] lookup in the app, or a word from a class. */
+export type VocabularySource = "app" | "class";
 export type MessageRole = "user" | "assistant";
 export type MessageStatus = "pending" | "done" | "error";
 /** How the learner wrote the message: typed, or dictated with speech-to-text. */
@@ -142,6 +147,7 @@ export const corrections = sqliteTable(
     discardedAt: integer("discarded_at", { mode: "timestamp_ms" }),
     /** Why it was discarded, if the learner said. */
     discardReason: text("discard_reason"),
+    source: text("source").$type<CorrectionSource>().notNull().default("ai"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -165,6 +171,7 @@ export const vocabulary = sqliteTable(
     spanish: text("spanish").notNull(),
     english: text("english", { mode: "json" }).$type<string[]>().notNull(),
     note: text("note"),
+    source: text("source").$type<VocabularySource>().notNull().default("app"),
     createdAt: createdAt(),
   },
   (t) => [index("vocabulary_created_idx").on(t.createdAt), index("vocabulary_user_idx").on(t.userId, t.createdAt)],
@@ -316,6 +323,28 @@ export const pronunciationIssues = sqliteTable(
 );
 
 /**
+ * A class with the teacher (on Meet): when it was, the level the teacher thinks the learner has, and notes.
+ * What the teacher corrected is stored as ordinary messages, corrections and vocabulary (source "class")
+ * of the hidden chat `chatSessionId`, created with the first load.
+ */
+export const classSessions = sqliteTable(
+  "class_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references((): AnySQLiteColumn => authUser.id, { onDelete: "cascade" }),
+    heldAt: integer("held_at", { mode: "timestamp_ms" }).notNull(),
+    /** CEFR level the teacher gave (A1-C2), if they did. */
+    teacherLevel: text("teacher_level"),
+    notes: text("notes"),
+    chatSessionId: text("chat_session_id").references(() => sessions.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("class_sessions_user_idx").on(t.userId, t.heldAt)],
+);
+
+/**
  * The old key-value table, from when the app had one user. Settings, practice state and AI outputs moved to
  * `userSettings`; this one only still holds `api-keys`, global until the per-user keys (#126). It is the only
  * table of data without `user_id` (see schema.test.ts).
@@ -432,6 +461,7 @@ export const vocabularyRelations = relations(vocabulary, ({ one }) => ({
 }));
 
 export type Session = typeof sessions.$inferSelect;
+export type ClassSession = typeof classSessions.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Correction = typeof corrections.$inferSelect;
 export type VocabularyEntry = typeof vocabulary.$inferSelect;

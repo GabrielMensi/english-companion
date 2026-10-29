@@ -82,6 +82,7 @@ describe("vocabularyCards", () => {
     key: "incluso",
     spanish: "Incluso",
     english: ["Even so", "Actually"],
+    source: "app",
     note: null,
     timesLookedUp: 2,
     firstSeen: 1,

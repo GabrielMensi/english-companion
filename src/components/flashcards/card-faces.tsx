@@ -213,8 +213,11 @@ export function MistakeBack({ card }: { card: MistakeCard }) {
         <SpeakButton text={card.correction} />
       </div>
       <p className="text-sm">{card.explanation}</p>
-      <p className="text-xs text-muted-foreground">{mistakeType(card)}</p>
-      {card.fixedSentence !== card.sentence && (
+      <p className="text-xs text-muted-foreground">
+        {mistakeType(card)}
+        {card.fromClass && " · From class"}
+      </p>
+      {card.fixedSentence !== card.sentence && !card.fromClass && (
         <SourceSentence sessionId={card.sessionId}>
           <Marked text={card.fixedSentence} terms={[card.correction]} tone="good" />
         </SourceSentence>

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq, gte, isNotNull, lt } from "drizzle-orm";
+import { eq, gt, gte, isNotNull, lt, ne, notInArray } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
@@ -24,15 +24,28 @@ export function getDashboardData(userId: string, range: RangeKey, input: InputFi
   const now = Date.now();
   const days = RANGES[range];
   const from = days === null ? null : now - days * DAY;
-  const previousFrom = days === null ? null : now - 2 * days * DAY;
+  return getPeriodData(
+    userId,
+    { from, to: null, previousFrom: days === null ? null : now - 2 * days * DAY, now },
+    input,
+  );
+}
 
+/** Everything the dashboard shows, for any period. `withoutClass` leaves out what the teacher corrected in class. */
+export function getPeriodData(
+  userId: string,
+  { from, to, previousFrom, now }: { from: number | null; to: number | null; previousFrom: number | null; now: number },
+  input: InputFilter = "all",
+  { withoutClass = false } = {},
+) {
   const settings = getSettings(userId);
+  const classChats = withoutClass ? classChatIds(userId) : [];
   const period = (start: number | null, end: number | null) => ({
-    messages: loadMessages(userId, start, end, input),
-    corrections: loadCorrections(userId, start, end, input),
+    messages: loadMessages(userId, start, end, input, classChats),
+    corrections: loadCorrections(userId, start, end, input, withoutClass),
   });
 
-  const current = period(from, null);
+  const current = period(from, to);
   const previous = from !== null ? period(previousFrom, from) : { messages: [], corrections: [] };
 
   const stats = computeStats({
@@ -55,12 +68,17 @@ export function getDashboardData(userId: string, range: RangeKey, input: InputFi
 
   // Fluency only exists for dictated messages, so the written/spoken filter doesn't change it.
   const fluency = computeFluencyStats(
-    loadFluency(userId, from, null),
+    loadFluency(userId, from, to),
     from !== null ? loadFluency(userId, previousFrom, from) : [],
   );
 
   // Words looked up with [brackets] during the period, grouped and newest first.
-  const vocabulary = getVocabulary(userId).filter((w) => from === null || w.lastSeen >= from);
+  const vocabulary = getVocabulary(userId).filter(
+    (w) =>
+      (from === null || w.lastSeen >= from) &&
+      (to === null || w.lastSeen < to) &&
+      !(withoutClass && w.source === "class"),
+  );
 
   return {
     stats,
@@ -70,6 +88,16 @@ export function getDashboardData(userId: string, range: RangeKey, input: InputFi
     countTypos: settings.countTyposInStats,
     hasSpoken: hasSpokenMessages(userId),
   };
+}
+
+/** The hidden chats that hold what the teacher corrected in class. */
+function classChatIds(userId: string): string[] {
+  return db
+    .select({ id: schema.sessions.id })
+    .from(schema.sessions)
+    .where(owned(schema.sessions, userId, eq(schema.sessions.mode, "class")))
+    .all()
+    .map((s) => s.id);
 }
 
 function hasSpokenMessages(userId: string): boolean {
@@ -109,6 +137,7 @@ function loadMessages(
   from: number | null,
   to: number | null,
   input: InputFilter,
+  classChats: string[] = [],
 ): (StatMessage & { tenseCounts: TenseCounts })[] {
   return db
     .select({
@@ -126,6 +155,9 @@ function loadMessages(
         userId,
         eq(schema.messages.role, "user"),
         eq(schema.messages.status, "done"),
+        // A load with only words from class has no words of the learner's: not a message.
+        gt(schema.messages.wordCount, 0),
+        classChats.length > 0 ? notInArray(schema.messages.sessionId, classChats) : undefined,
         inputFilter(input),
         ...rangeFilter(schema.messages.createdAt, from, to),
       ),
@@ -162,13 +194,20 @@ function loadCorrections(
   from: number | null,
   to: number | null,
   input: InputFilter,
+  withoutClass = false,
 ): (StatCorrection & TenseStatCorrection)[] {
   return db
     .select({ correction: schema.corrections, inputMode: schema.messages.inputMode })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
     .where(
-      owned(schema.corrections, userId, inputFilter(input), ...rangeFilter(schema.corrections.createdAt, from, to)),
+      owned(
+        schema.corrections,
+        userId,
+        withoutClass ? ne(schema.corrections.source, "class") : undefined,
+        inputFilter(input),
+        ...rangeFilter(schema.corrections.createdAt, from, to),
+      ),
     )
     .all()
     .map(({ correction, inputMode }) => ({

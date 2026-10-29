@@ -36,6 +36,7 @@ function word(spanish: string, english: string, times: number): VocabularyWord {
     key: spanish,
     spanish,
     english: [english],
+    source: "app",
     note: null,
     timesLookedUp: times,
     firstSeen: now,

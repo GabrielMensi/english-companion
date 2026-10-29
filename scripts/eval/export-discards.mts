@@ -67,7 +67,7 @@ function contextOf(sessionId: string, createdAt: Date): DiscardContext {
     else history.push({ learner: null, assistant: m.content });
   }
   return {
-    mode: session?.mode ?? "correction",
+    mode: session?.mode === "conversation" ? "conversation" : "correction",
     practiceRule: practiceReplyRule(getPractice(userId, sessionId)),
     history,
   };

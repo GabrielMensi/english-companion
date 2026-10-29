@@ -1,8 +1,10 @@
 import "server-only";
 
-import { eq } from "drizzle-orm";
+import { eq, gt } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
+import { getTeacherLevel } from "@/lib/class";
+import { compareWithTeacher, type TeacherComparison } from "@/lib/class-core";
 import { getUserSetting, setUserSetting } from "@/lib/user-settings";
 import { explainLevel, generateStudyPlan } from "@/lib/ai/insights";
 import { withChatPriority } from "@/lib/classification";
@@ -12,6 +14,7 @@ import { getDashboardData } from "@/lib/stats";
 import { countTenses, TENSE_COUNTER_VERSION } from "@/lib/tenses-core";
 import { buildDigest, type StatsDigest } from "./digest-core";
 import {
+  type CefrLevel,
   estimateLevel,
   type LevelCorrection,
   type LevelEstimate,
@@ -77,6 +80,8 @@ export interface LevelData {
   evolution: LevelWindow[];
   /** The AI explanation, when there's one for this level and roughly this much writing. */
   explanation: StoredLevelExplanation | null;
+  /** What the teacher said in the latest class that gave a level, compared with the estimate. */
+  teacher: { level: CefrLevel; heldAt: number; comparison: TeacherComparison | null } | null;
 }
 
 export function getLevelData(userId: string): LevelData {
@@ -92,7 +97,13 @@ export function getLevelData(userId: string): LevelData {
   });
   const evolution = levelEvolution({ messages, corrections, countTypos: settings.countTyposInStats });
   const stored = readStored<StoredLevelExplanation>(userId, LEVEL_KEY);
-  return { estimate, evolution, explanation: isExplanationCurrent(stored, estimate) ? stored : null };
+  const teacher = getTeacherLevel(userId);
+  return {
+    estimate,
+    evolution,
+    explanation: isExplanationCurrent(stored, estimate) ? stored : null,
+    teacher: teacher && { ...teacher, comparison: compareWithTeacher(estimate, teacher.level) },
+  };
 }
 
 export async function createLevelExplanation(userId: string): Promise<StoredLevelExplanation> {
@@ -125,7 +136,15 @@ function loadLevelInput(userId: string) {
       tenseCounts: schema.messages.tenseCounts,
     })
     .from(schema.messages)
-    .where(owned(schema.messages, userId, eq(schema.messages.role, "user"), eq(schema.messages.status, "done")))
+    .where(
+      owned(
+        schema.messages,
+        userId,
+        eq(schema.messages.role, "user"),
+        eq(schema.messages.status, "done"),
+        gt(schema.messages.wordCount, 0),
+      ),
+    )
     .all()
     .map((m) => ({
       id: m.id,

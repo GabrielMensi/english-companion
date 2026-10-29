@@ -17,7 +17,7 @@ import {
 import type { Settings } from "@/lib/settings";
 import { withFallback } from "./providers";
 
-async function generateObject<S extends z.ZodType>(
+export async function generateObject<S extends z.ZodType>(
   settings: Settings,
   options: { instructions: string; prompt: string; schema: S; temperature: number },
 ) {

@@ -2,7 +2,7 @@
  * Pure statistics computation for the dashboard. Data volume is personal-scale,
  * so everything is computed in memory from the raw rows of the period.
  */
-import type { InputMode } from "@/db/schema";
+import type { CorrectionSource, InputMode } from "@/db/schema";
 import {
   countsInStats,
   type ErrorCategory,
@@ -33,6 +33,8 @@ export interface StatCorrection {
   inputMode: InputMode;
   /** Discarded by the learner as a wrong correction: left out of every number. */
   discardedAt: number | null;
+  /** Optional so older callers keep working: absent means the AI. */
+  source?: CorrectionSource;
 }
 
 export interface StatsInput {
@@ -71,6 +73,7 @@ export interface StatMistake {
   explanation: string;
   severity: Severity;
   createdAt: number;
+  source: CorrectionSource;
 }
 
 /** Mistakes listed per category on the dashboard. */
@@ -284,7 +287,7 @@ function emptyCategoryStat(category: ErrorCategory): CategoryStat {
 
 function statMistake(c: StatCorrection): StatMistake {
   const { id, original, correction, explanation, severity, createdAt } = c;
-  return { id, original, correction, explanation, severity, createdAt };
+  return { id, original, correction, explanation, severity, createdAt, source: c.source ?? "ai" };
 }
 
 function emptySeverityRecord(): Record<Severity, number> {
