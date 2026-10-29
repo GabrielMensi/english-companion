@@ -7,8 +7,12 @@ import { defineConfig, devices } from "@playwright/test";
 
 const PORT = Number(process.env.E2E_PORT ?? 3750);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-/** Inside the system's temp directory, so it can never be the app's real database. */
-const DATA_DIR = path.join(fs.realpathSync(os.tmpdir()), "english-companion-e2e");
+/**
+ * A new directory inside the system's temp directory for each run, so it can never be the app's real database
+ * and two runs never share one. Playwright loads this file again in every worker: the path travels by env.
+ */
+process.env.E2E_DATA_DIR ??= fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "english-companion-e2e-"));
+const DATA_DIR = process.env.E2E_DATA_DIR;
 
 export const STORAGE_STATE = path.join(DATA_DIR, "auth-state.json");
 
@@ -40,7 +44,7 @@ export default defineConfig({
   ],
   webServer: {
     // A fresh database each run, then the production build the tests are about.
-    command: `rm -rf "${DATA_DIR}" && mkdir -p "${DATA_DIR}" && pnpm build && pnpm exec next start --port ${PORT} --hostname 127.0.0.1`,
+    command: `pnpm build && pnpm exec next start --port ${PORT} --hostname 127.0.0.1`,
     url: `${BASE_URL}/api/health`,
     timeout: 300_000,
     reuseExistingServer: !!process.env.E2E_REUSE_SERVER && !process.env.CI,
@@ -53,7 +57,19 @@ export default defineConfig({
       // The fake model needs no key, but the app wants a provider to be configured.
       GOOGLE_GENERATIVE_AI_API_KEY: "e2e-fake-key",
       GROQ_API_KEY: "",
+      // Everything the app reads is pinned (an empty value counts as unset and wins over .env.local), so
+      // a developer's own settings can't change the run.
       ALLOWED_HOSTS: "",
+      BETTER_AUTH_URL: "",
+      BETTER_AUTH_SECRET: "",
+      TRUST_PROXY: "",
+      CSP_REPORT_ONLY: "false",
+      ENABLE_EVAL: "",
+      MIGRATE_ON_START: "true",
+      ASR_SAMPLES_DIR: path.join(DATA_DIR, "asr-samples"),
+      PHONEME_MODEL_DIR: path.join(DATA_DIR, "models"),
+      PHONEME_CHECK: "false",
+      SIGNUP_ALLOWED_EMAILS: "",
       NEXT_TELEMETRY_DISABLED: "1",
     },
   },

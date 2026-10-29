@@ -66,7 +66,7 @@ export interface ResolvedModel {
 function fakeAiEnabled(): boolean {
   const env = serverEnv();
   if (!env.AI_FAKE) return false;
-  const problems = fakeAiProblems(env, process.env.NODE_ENV);
+  const problems = fakeAiProblems(env);
   if (problems.length > 0) throw new Error(problems.join("; "));
   return true;
 }

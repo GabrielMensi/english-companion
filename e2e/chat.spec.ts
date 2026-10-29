@@ -16,7 +16,9 @@ test("a correction message shows the correction card and a mistake can be discar
   await expect(page.getByRole("button", { name: "Copy corrected" })).toBeVisible();
 
   // Discard a mistake: it moves to the discarded group and leaves the count.
-  await mistakes.getByRole("button", { name: "Discard" }).first().click({ force: true });
+  const discard = mistakes.getByRole("button", { name: "Discard" }).first();
+  await discard.focus(); // the button only shows on hover or focus
+  await discard.click();
   await expect(page.getByText(/1 discarded/)).toBeVisible();
   await expect(mistakes.getByRole("heading", { name: "1 mistake" })).toBeVisible();
 });
@@ -27,7 +29,7 @@ test("a message that fails can be retried", async ({ page }) => {
   await expect(page).toHaveURL(/\/chat\//);
 
   // The fake AI fails the first time a message has the "fail-once" marker.
-  await page.getByRole("textbox").fill("I goed to the cinema, fail-once.");
+  await page.getByRole("textbox").fill(`I goed to the cinema, fail-once ${test.info().retry}-${Date.now()}.`);
   await page.getByRole("button", { name: "Send" }).click();
   await page.getByRole("button", { name: "Retry" }).click();
 

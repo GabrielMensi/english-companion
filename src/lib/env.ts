@@ -4,6 +4,9 @@
  * paths have defaults. Only invalid values fail, at startup (instrumentation.ts) with a message that
  * names each variable. `NODE_ENV` is Next's and isn't listed here.
  */
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { z } from "zod";
 
 /** An empty or blank value (`GROQ_API_KEY=` in .env.local) counts as unset. */
@@ -82,7 +85,7 @@ const envSchema = z.object({
   CSP_REPORT_ONLY: optional(flag.default(false)),
   /** End-to-end tests only: every AI call is answered by a fake model (lib/ai/fake-model.ts). See `fakeAiProblems`. */
   AI_FAKE: optional(flag.default(false)),
-  /** The E2E server runs `next start` (NODE_ENV=production): this is what lets AI_FAKE through there. */
+  /** Set by the E2E server only: without it AI_FAKE is refused. */
   E2E_TEST_SERVER: optional(flag.default(false)),
 });
 
@@ -117,16 +120,31 @@ export function deployProblems(env: Env): string[] {
 }
 
 /**
- * Why `AI_FAKE` must not be on, if it's set: never in a deploy (`ALLOWED_HOSTS`), and in production
- * (`next start`) only for the E2E server, which says so with `E2E_TEST_SERVER`.
+ * Why `AI_FAKE` must not be on, if it's set. It only runs on the end-to-end test server: `E2E_TEST_SERVER=1`
+ * in every mode, never in a deploy (`ALLOWED_HOSTS`), and only on a throwaway database inside the system's
+ * temp directory, so canned corrections can never be saved into real data.
  */
-export function fakeAiProblems(env: Env, nodeEnv: string | undefined): string[] {
+export function fakeAiProblems(env: Env): string[] {
   if (!env.AI_FAKE) return [];
   const problems: string[] = [];
+  if (!env.E2E_TEST_SERVER) problems.push("AI_FAKE needs E2E_TEST_SERVER=1 (only the end-to-end tests use it)");
   if (env.ALLOWED_HOSTS.length > 0) problems.push("AI_FAKE can't be used together with ALLOWED_HOSTS (a deploy)");
-  if (nodeEnv === "production" && !env.E2E_TEST_SERVER)
-    problems.push("AI_FAKE in production needs E2E_TEST_SERVER=1 (only the end-to-end tests use it)");
+  if (!isInsideTempDir(env.DATABASE_PATH))
+    problems.push("AI_FAKE needs DATABASE_PATH inside the system's temp directory (a throwaway database)");
   return problems;
+}
+
+function isInsideTempDir(file: string): boolean {
+  const resolved = path.resolve(file);
+  return [os.tmpdir(), safeRealpath(os.tmpdir())].some((dir) => resolved.startsWith(path.resolve(dir) + path.sep));
+}
+
+function safeRealpath(dir: string): string {
+  try {
+    return fs.realpathSync(dir);
+  } catch {
+    return dir;
+  }
 }
 
 /** Whether the eval pages and routes are on: always in development, in production only with ENABLE_EVAL. */

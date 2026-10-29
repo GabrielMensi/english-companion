@@ -26,6 +26,10 @@ test("practice generates a set of exercises", async ({ page }) => {
   await expect(page.getByText("___").first()).toBeVisible();
 });
 
+// KNOWN ISSUE: something on /settings (the voice settings' speech libraries) evaluates strings and the CSP
+// blocks it. It is not part of this smoke test; remove the line when the CSP work for Kokoro lands.
+test.use({ knownCspViolations: ["script-src eval"] });
+
 test("the settings page loads", async ({ page }) => {
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Settings", level: 1 })).toBeVisible();

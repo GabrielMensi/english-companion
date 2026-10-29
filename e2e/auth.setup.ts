@@ -1,4 +1,4 @@
-import { expect, test as setup } from "@playwright/test";
+import { expect, test as setup } from "./fixtures";
 import { STORAGE_STATE } from "../playwright.config";
 
 /** The database is new, so the first account can be created: its session is reused by every other flow. */
