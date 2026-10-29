@@ -59,6 +59,7 @@
 - Evals de chats de tema y de correcciones descartadas (#146, #147): `pnpm eval:export-discards` y `eval:models --topics` miden si el modelo repite lo que descartaste ([TOPIC_EVAL.md](ai/TOPIC_EVAL.md)).
 - Ventana flotante y dashboard (#154, #166): "Wrong type?" y "Discard" en las correcciones de la ventana flotante, aviso si falta la API key y página con la lista de errores descartados para deshacerlos.
 - Herramientas en chats de tema (#161–#163): feedback al final de la entrevista, tiempo verbal a practicar según el tema y frases del chat al Vocabulario ([TOPIC_TOOLS.md](chat/TOPIC_TOOLS.md)).
+- Repo público (#184): README en inglés con versión en español, capturas con datos de demo (`pnpm screenshots`) y licencia MIT. Primeras betas en `main`: `v0.2.0-beta.1` y `v0.2.0-beta.2`.
 
 ## Próximo
 
