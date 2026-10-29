@@ -3,6 +3,7 @@
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { DiscardButton } from "@/components/dashboard/discard-button";
+import { ClassBadge } from "@/components/class-badge";
 import { SeverityBadge } from "@/components/severity-badge";
 import type { CategoryStat } from "@/lib/stats-core";
 import { categoryLabel } from "@/lib/taxonomy";
@@ -57,6 +58,7 @@ export function CategoryRow({ stat: c, trend }: { stat: CategoryStat; trend: Rea
                     <ArrowRight className="size-3.5 text-muted-foreground" />
                     <span className="text-mark-right">{m.correction}</span>
                     <SeverityBadge severity={m.severity} />
+                    {m.source === "class" && <ClassBadge />}
                     <DiscardButton correctionId={m.id} />
                   </div>
                   <p className="text-muted-foreground">{m.explanation}</p>

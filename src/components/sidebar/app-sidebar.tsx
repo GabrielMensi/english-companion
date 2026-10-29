@@ -55,6 +55,7 @@ function navGroups(cardsToStudy: number): NavGroup[] {
       items: [
         { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
         { href: "/insights", label: "Insights", icon: Lightbulb },
+        { href: "/class", label: "Class", icon: GraduationCap },
       ],
     },
     {
@@ -122,7 +123,7 @@ export function AppSidebar({
 
   if (collapsed) {
     return (
-      <aside className="flex w-14 shrink-0 flex-col items-center border-r bg-sidebar py-3 text-sidebar-foreground">
+      <aside className="flex w-14 shrink-0 flex-col items-center border-r bg-sidebar py-3 text-sidebar-foreground print:hidden">
         {toggleButton}
         <div data-area="write" className="mt-3 flex flex-col gap-1">
           <Hint label="New chat" side="right">
@@ -191,7 +192,7 @@ export function AppSidebar({
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
+    <aside className="flex w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground print:hidden">
       <div className="flex items-center justify-between gap-1 py-3 pr-2 pl-4">
         <Link href="/" className="flex min-w-0 items-center gap-2 font-semibold">
           <GraduationCap className="size-5 shrink-0" />

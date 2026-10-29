@@ -35,7 +35,7 @@ export default async function Today() {
   const { tenses, categories } = getPracticeSuggestions(userId);
   const tense = tenses[0];
   const category = categories[0];
-  const week = getReportDigest(userId, "7", { withPronunciation: false }).totals;
+  const week = getReportDigest(userId, "7", { withPronunciation: false, withoutClass: true }).totals;
   const pronunciation = getPronunciationSummary(userId);
   // The sound with the most issues (categories come sorted that way). "Other" has no sentences to practice,
   // and without any issue there is no weakest sound to name, so the row stays hidden.

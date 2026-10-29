@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { UndoDiscardButton } from "@/components/dashboard/undo-discard-button";
 import { Page, PageHeader } from "@/components/layout/page";
+import { mistakeOrigin } from "@/lib/class-core";
 import { requirePageUser } from "@/lib/auth/session";
 import { DISCARDED_LIMIT, getDiscardedMistakes } from "@/lib/corrections";
 import { categoryLabel } from "@/lib/taxonomy";
@@ -50,12 +51,12 @@ export default async function DiscardedPage() {
                     {m.reason && <> · “{m.reason}”</>}
                   </p>
                   <Link
-                    href={`/chat/${m.sessionId}`}
-                    aria-label={`Open the chat of: ${m.original} → ${m.correction}`}
+                    href={mistakeOrigin(m).href}
+                    aria-label={`${mistakeOrigin(m).label}: ${m.original} → ${m.correction}`}
                     className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
                   >
                     <MessageSquare className="size-3.5" />
-                    Open chat
+                    {mistakeOrigin(m).label}
                   </Link>
                 </div>
                 <UndoDiscardButton correctionId={m.id} label={`${m.original} → ${m.correction}`} />

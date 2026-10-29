@@ -37,6 +37,7 @@
 - Mazo **Hard to say** en Flashcards (#65): las oraciones leídas en voz alta con palabras escuchadas distinto vuelven con repaso espaciado; se responden leyéndolas, con el mismo puntaje que Read aloud y la nota sugerida por la lectura ([VOICE.md](voice/VOICE.md)).
 - Solo APIs (#72): se sacaron los modelos locales (Ollama); la cadena es Gemini → Groq y sin ninguna API key la app lo avisa en el chat. Tag `archive/local-models-ollama` para volver ([LOCAL_MODELS.md](ai/LOCAL_MODELS.md)).
 - Panel de pronunciación en el dashboard (#73): porcentaje de palabras escuchadas como están escritas, sonidos cada 100 palabras leídas con tendencia contra el período anterior y link a Read aloud con ese sonido.
+- Clases (#158, #159, #160): página Class con las clases del profesor y su nivel CEFR, reporte imprimible y exportable para llevar ("desde la última clase", sin lo que cargó el profesor, con preguntas sugeridas por la IA) y correcciones y palabras del profesor como fuente "From class" que cuentan en las estadísticas y las flashcards ([CLASS_REPORT.md](class/CLASS_REPORT.md)).
 - Insights (#75): el reporte muestra las áreas flojas con tasa, cantidad de errores y tipos como chips, sin cadenas "A · B · C".
 - Conversaciones sobre un tema (#71): "Talk about…" con 5 temas (entrevista de SWE, entrevista técnica, tecnología e IA, daily stand-up, small talk y viajes) o uno propio; la corrección y las estadísticas son las de siempre.
 - Investigación de pronunciación con modelos de audio (#74): wav2vec2 de fonemas en CPU para la schwa y las formas débiles; el acento por Gemini se descartó ([PRONUNCIATION_AUDIO.md](voice/PRONUNCIATION_AUDIO.md)).
@@ -101,6 +102,8 @@ Un espacio para los libros: visor de PDF, un botón que pasa la página actual a
 
 ### 1. Reporte para llevar a clase (prioridad 1)
 
+> Implementado (#158): página `/class/report`, ver [CLASS_REPORT.md](class/CLASS_REPORT.md).
+
 Antes de cada clase, la app genera una página con: los errores más repetidos de la semana con ejemplos reales, las palabras buscadas con `[corchetes]` y las categorías que empeoraron. Se comparte pantalla en Meet o se manda antes, y el profesor dedica la clase a lo que realmente te cuesta en vez de adivinarlo.
 
 - Barato: los datos ya están en el dashboard (`getDashboardData`). Es una vista imprimible / exportable (Markdown o PDF) con rango "desde la última clase".
@@ -116,6 +119,8 @@ Se extrae una sola vez el índice de cada libro a un "syllabus" local (JSON en `
 - Extracción: renderizar las páginas del índice a imagen y pasarlas a un modelo de visión con un schema (unidad, lección, título, gramática, vocabulario, categoría), revisando el resultado a mano una vez. Es un paso único por libro.
 
 ### 3. Correcciones del profesor después de la clase
+
+> Implementado (#159, #160): fuente "From class" y nivel del profesor por clase, ver [CLASS_REPORT.md](class/CLASS_REPORT.md).
 
 Después de la clase se cargan las correcciones y palabras nuevas que dio el profesor, como una nueva fuente "From class" (columna `source` en `corrections` / `vocabulary`). Suman a las estadísticas y al vocabulario junto con las de la IA, y después entran en las flashcards. Se puede cargar en texto libre y que la IA lo estructure con la misma taxonomía.
 

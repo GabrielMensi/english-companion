@@ -13,6 +13,7 @@ export function getVocabulary(userId: string): VocabularyWord[] {
       spanish: schema.vocabulary.spanish,
       english: schema.vocabulary.english,
       note: schema.vocabulary.note,
+      source: schema.vocabulary.source,
       createdAt: schema.vocabulary.createdAt,
       messageId: schema.vocabulary.messageId,
       sessionId: schema.messages.sessionId,

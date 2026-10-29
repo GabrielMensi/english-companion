@@ -1,5 +1,6 @@
 "use client";
 
+import { ClassBadge } from "@/components/class-badge";
 import { MessageSquare, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -74,6 +75,7 @@ export function VocabularyList({ initialWords }: { initialWords: VocabularyWord[
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {w.source === "class" && <ClassBadge />}
                 <span className="text-xs whitespace-nowrap text-muted-foreground">
                   {w.timesLookedUp > 1 ? `${w.timesLookedUp}× · ` : ""}
                   {dateFormat.format(w.lastSeen)}

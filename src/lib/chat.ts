@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, desc, eq, lt } from "drizzle-orm";
+import { asc, desc, eq, lt, ne } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
 import type { Correction, Message, SessionMode, VocabularyEntry } from "@/db/schema";
@@ -22,12 +22,15 @@ import { logRouteError } from "@/lib/server-log";
 const HISTORY_TURNS = 10;
 
 export function listSessions(userId: string) {
-  return db
-    .select()
-    .from(schema.sessions)
-    .where(owned(schema.sessions, userId))
-    .orderBy(desc(schema.sessions.updatedAt))
-    .all();
+  return (
+    db
+      .select()
+      .from(schema.sessions)
+      // The hidden chats of what the teacher corrected in class aren't conversations.
+      .where(owned(schema.sessions, userId, ne(schema.sessions.mode, "class")))
+      .orderBy(desc(schema.sessions.updatedAt))
+      .all()
+  );
 }
 
 /** The chat, or undefined when it doesn't exist or belongs to someone else. */
@@ -35,7 +38,7 @@ export function getSession(userId: string, id: string) {
   return db
     .select()
     .from(schema.sessions)
-    .where(owned(schema.sessions, userId, eq(schema.sessions.id, id)))
+    .where(owned(schema.sessions, userId, eq(schema.sessions.id, id), ne(schema.sessions.mode, "class")))
     .get();
 }
 
@@ -59,7 +62,8 @@ export function updateSession(userId: string, id: string, data: { title?: string
 export function deleteSession(userId: string, id: string) {
   const deleted = db
     .delete(schema.sessions)
-    .where(owned(schema.sessions, userId, eq(schema.sessions.id, id)))
+    // A class's hidden chat goes with its class (src/lib/class.ts), never on its own.
+    .where(owned(schema.sessions, userId, eq(schema.sessions.id, id), ne(schema.sessions.mode, "class")))
     .run().changes;
   if (deleted > 0) {
     deletePractice(userId, id);
@@ -85,7 +89,8 @@ export function getMessage(userId: string, id: string): ChatMessage | undefined 
       with: { corrections: true, vocabulary: true },
     })
     .sync();
-  return row ? toChatMessage(row) : undefined;
+  // The messages of a class's hidden chat can't be retried, prompted or opened.
+  return row && getSession(userId, row.sessionId) ? toChatMessage(row) : undefined;
 }
 
 function toChatMessage({

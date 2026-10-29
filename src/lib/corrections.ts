@@ -2,6 +2,7 @@ import "server-only";
 
 import { count, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
+import type { CorrectionSource } from "@/db/schema";
 import { owned } from "@/db/owned";
 import { toChatCorrection } from "@/lib/correction-review";
 import { getSettings } from "@/lib/settings";
@@ -64,6 +65,8 @@ export type DiscardedMistake = {
   reason: string | null;
   discardedAt: Date;
   sessionId: string;
+  /** "class" when the teacher gave it: its chat is hidden, so the page links to Class instead. */
+  source: CorrectionSource;
 };
 
 /** The learner's discarded mistakes, newest discard first (at most `limit`), and how many there are in all. */
@@ -80,6 +83,7 @@ export function getDiscardedMistakes(
       reason: schema.corrections.discardReason,
       discardedAt: schema.corrections.discardedAt,
       sessionId: schema.messages.sessionId,
+      source: schema.corrections.source,
     })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))

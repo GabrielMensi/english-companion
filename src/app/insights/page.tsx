@@ -78,6 +78,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
           estimate={level.estimate}
           evolution={level.evolution}
           explanation={level.explanation}
+          teacher={level.teacher}
           hasModel={hasModel}
         />
       </Section>
