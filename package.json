@@ -29,7 +29,7 @@
   "dependencies": {
     "@ai-sdk/google": "^4.0.93",
     "@ai-sdk/groq": "^4.0.59",
-    "@huggingface/transformers": "3.8.1",
+    "@huggingface/transformers": "4.3.1",
     "ai": "^7.0.137",
     "better-auth": "1.7.14",
     "better-sqlite3": "^13.0.3",
