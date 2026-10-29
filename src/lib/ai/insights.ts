@@ -1,7 +1,7 @@
 import "server-only";
 
 import { generateText, NoObjectGeneratedError, Output } from "ai";
-import type { z } from "zod";
+import type { z } from "@/lib/zod";
 import type { StatsDigest } from "@/lib/insights/digest-core";
 import type { LevelEstimate, LevelWindow } from "@/lib/insights/level-core";
 import {

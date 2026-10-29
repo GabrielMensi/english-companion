@@ -4,8 +4,10 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import type { generateText } from "ai";
 import { type KeyProvider, maskKey } from "@/lib/credentials";
+import { fakeAiProblems, serverEnv } from "@/lib/env";
 import { resolveApiKey } from "@/lib/secrets";
 import type { Settings } from "@/lib/settings";
+import { createFakeModel } from "./fake-model";
 import { fallbackOrder, runWithFallback } from "./fallback";
 import { groqReasoningEffort, MAX_OUTPUT_TOKENS } from "./groq-options";
 import { NO_PROVIDER_MESSAGE, PROVIDER_IDS, type ProviderId, PROVIDERS } from "./provider-info";
@@ -57,8 +59,29 @@ export interface ResolvedModel {
   call: (options: { temperature: number; retry?: boolean }) => CallSettings;
 }
 
+/**
+ * End-to-end tests only (`AI_FAKE=1`): the fake model answers instead of the provider. Refuses to start
+ * in a deploy or in production without `E2E_TEST_SERVER` (see `fakeAiProblems`).
+ */
+function fakeAiEnabled(): boolean {
+  const env = serverEnv();
+  if (!env.AI_FAKE) return false;
+  const problems = fakeAiProblems(env);
+  if (problems.length > 0) throw new Error(problems.join("; "));
+  return true;
+}
+
 export function resolveModel(settings: Settings, provider: ProviderId = settings.provider): ResolvedModel {
   const modelId = settings.models[provider];
+
+  if (fakeAiEnabled()) {
+    const model = createFakeModel(modelId);
+    return {
+      provider,
+      modelId,
+      call: ({ temperature, retry = true }) => ({ model, temperature, maxRetries: retry ? 2 : 0, timeout: TIMEOUT_MS }),
+    };
+  }
 
   switch (provider) {
     case "gemini": {
@@ -152,6 +175,8 @@ export function resolveTranscriptionModel(): {
 
 /** Lists the models available for a provider (used by the settings page). */
 export async function listModels(provider: ProviderId): Promise<string[]> {
+  // The fake AI has no models to list, and its fake keys must not be sent to the providers.
+  if (fakeAiEnabled()) return [];
   const signal = AbortSignal.timeout(5000);
   switch (provider) {
     case "gemini": {

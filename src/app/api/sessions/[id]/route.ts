@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { deleteSession, getSession, updateSession } from "@/lib/chat";
 import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
 import { parseBody } from "@/lib/request-body";

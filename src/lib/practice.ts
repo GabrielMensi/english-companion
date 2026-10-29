@@ -1,7 +1,7 @@
 import "server-only";
 
 import { asc, eq, lt } from "drizzle-orm";
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
 import type { Message } from "@/db/schema";

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { getPronunciationSummary, saveAttempt } from "@/lib/read-aloud";
 import { parseBody } from "@/lib/request-body";
 import { isBetaPronunciation, PRONUNCIATION_CATEGORIES } from "@/lib/taxonomy";
