@@ -33,7 +33,7 @@ export default async function ReadAloudPage({ searchParams }: PageProps<"/read-a
         items={{ sounds, correction: corrections, vocabulary }}
         initialSummary={summary}
         initialFocus={parseFocus(focus)}
-        canRecord={resolveTranscriptionModel() !== null}
+        canRecord={resolveTranscriptionModel(userId) !== null}
         language={getSettings(userId).explanationLanguage}
       />
     </Page>

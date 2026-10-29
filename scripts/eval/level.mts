@@ -52,7 +52,7 @@ import { countsInStats } from "../../src/lib/taxonomy";
 import { countTenses, TENSE_COUNTER_VERSION, type TenseCounts } from "../../src/lib/tenses-core";
 import { countWords } from "../../src/lib/text";
 import { type Bundle, bundleEssays, DEFAULT_CORPUS_DIR, type Edit, type Essay, loadEssays } from "./level-data";
-import { evalSettings } from "./settings";
+import { evalSettings, evalUserId } from "./settings";
 
 const args = process.argv.slice(2);
 const option = (name: string) =>
@@ -275,6 +275,7 @@ async function compareWithApp(spec: string) {
     process.exit(1);
   }
   const base = await evalSettings();
+  const userId = (await evalUserId()) ?? "";
   const settings = {
     ...base,
     provider: provider as ProviderId,
@@ -304,7 +305,11 @@ async function compareWithApp(spec: string) {
     if (requests > 0) await sleep(delayMs);
     requests++;
     try {
-      const { analysis } = await analyzeMessage({ text: essay.text, mode: "correction", history: [] }, settings);
+      const { analysis } = await analyzeMessage(
+        userId,
+        { text: essay.text, mode: "correction", history: [] },
+        settings,
+      );
       const stored = analysis.errors.map((e) => ({
         severity: e.severity,
         category: e.category,

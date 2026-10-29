@@ -6,7 +6,7 @@ import { withUser } from "@/lib/auth/with-user";
 const MAX_BYTES = 10 * 1024 * 1024; // ~5 minutes of 16 kHz mono WAV
 
 /** Transcribes a dictated message recorded in the browser (16 kHz mono WAV). */
-export const POST = withUser(async (request: Request) => {
+export const POST = withUser(async (request: Request, _ctx, { userId }) => {
   const audio = await readBody(request, MAX_BYTES);
   if (!audio) return Response.json({ error: "The recording is too long (max ~5 minutes)" }, { status: 413 });
   if (audio.length === 0) return Response.json({ error: "The recording is empty" }, { status: 400 });
@@ -15,7 +15,7 @@ export const POST = withUser(async (request: Request) => {
   }
 
   try {
-    return Response.json(await transcribeSpeech(audio));
+    return Response.json(await transcribeSpeech(userId, audio));
   } catch (error) {
     const status = error instanceof TranscriptionUnavailableError ? 409 : 502;
     logRouteError("POST /api/transcribe", error, status);

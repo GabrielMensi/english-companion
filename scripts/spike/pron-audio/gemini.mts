@@ -23,6 +23,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { shortReason } from "../../../src/lib/ai/fallback";
 import { resolveApiKey } from "../../../src/lib/secrets";
+import { evalUserId } from "../../eval/settings";
 import { type Clip, CLIPS, SPIKE_CATEGORIES, SPIKE_DIR } from "./clips";
 
 const args = process.argv.slice(2);
@@ -34,7 +35,7 @@ const only = flag("only");
 let models = args.filter((a) => !a.startsWith("--"));
 if (models.length === 0) models = ["gemini-flash-lite-latest", "gemini-flash-latest"];
 
-const key = resolveApiKey("gemini")?.key;
+const key = resolveApiKey((await evalUserId()) ?? "", "gemini")?.key;
 if (!key) {
   console.error("No Gemini API key: add it in Settings (DATABASE_PATH) or .env.local.");
   process.exit(1);

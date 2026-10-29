@@ -15,9 +15,9 @@ import { logRouteError } from "@/lib/server-log";
 /**
  * Deferred fine classification of mistakes. The chat saves each mistake as
  * "pending"; this job classifies them in batches when the dashboard is opened,
- * when the app has been idle for a while, or on demand. Chat requests always
- * go first and only one model call runs at a time, so the chat stays fast and
- * a batch doesn't use up the free tier's per-minute limit right when a message needs it.
+ * when the app has been idle for a while, or on demand. A user's chat requests always go first and only
+ * one batch of theirs runs at a time, so the chat stays fast and a batch doesn't use up the free tier's
+ * per-minute limit right when a message needs it.
  *
  * Each user has their own job (their mistakes, their settings, their chats' priority). Only the number
  * of batches running at once is shared: a few at a time, the rest wait in line.
@@ -27,11 +27,11 @@ const BATCH_SIZE = 8;
 const MAX_ATTEMPTS = 3;
 const IDLE_MS = 5 * 60_000;
 /**
- * Users whose batches run at the same time; the rest wait their turn. One while the API keys are global
- * (#126): every account shares their quota, so batches go one at a time and wait for any chat. Revisit
- * (and make chats hold back only their own user's batch) when keys are per user.
+ * Users whose batches run at the same time; the rest wait their turn (a few at a time so one server doesn't
+ * make many calls at once). Keys and quotas are per user, so a chat only holds back its own user's batch.
+ * (With SHARED_KEYS the accounts without a key of their own do share the server key's quota; the cap keeps that mild.)
  */
-const MAX_CONCURRENT_JOBS = 1;
+const MAX_CONCURRENT_JOBS = 2;
 
 interface JobState {
   running: boolean;
@@ -167,7 +167,7 @@ async function classifyPending(userId: string) {
     if (forModel.length === 0) continue;
 
     try {
-      const { results, classifiedBy } = await classifyBatch(forModel, getSettings(userId));
+      const { results, classifiedBy } = await classifyBatch(userId, forModel, getSettings(userId));
       for (const item of forModel) {
         const result = results.get(item.id);
         if (result) save(userId, item.id, result, classifiedBy);
@@ -182,10 +182,9 @@ async function classifyPending(userId: string) {
   }
 }
 
-async function waitForChatIdle(_userId: string) {
-  // Any user's chat counts, because the keys (and their free-tier quota) are shared by every account.
-  while ([...jobs.byUser.values()].some((s) => s.activeChats > 0))
-    await new Promise((resolve) => setTimeout(resolve, 500));
+async function waitForChatIdle(userId: string) {
+  const state = stateOf(userId);
+  while (state.activeChats > 0) await new Promise((resolve) => setTimeout(resolve, 500));
 }
 
 function loadPending(userId: string): ClassificationItem[] {

@@ -18,9 +18,9 @@ export interface ProviderStatus {
   detail: string | null;
 }
 
-export function providerStatus(): Record<ProviderId, ProviderStatus> {
+export function providerStatus(userId: string): Record<ProviderId, ProviderStatus> {
   const keyStatus = (provider: KeyProvider): ProviderStatus => {
-    const resolved = resolveApiKey(provider);
+    const resolved = resolveApiKey(userId, provider);
     return resolved
       ? { configured: true, source: resolved.source, detail: maskKey(resolved.key) }
       : { configured: false, source: null, detail: null };
@@ -31,8 +31,8 @@ export function providerStatus(): Record<ProviderId, ProviderStatus> {
   };
 }
 
-function requireApiKey(provider: KeyProvider): string {
-  const resolved = resolveApiKey(provider);
+function requireApiKey(userId: string, provider: KeyProvider): string {
+  const resolved = resolveApiKey(userId, provider);
   if (!resolved) {
     throw new Error(`Missing ${PROVIDERS[provider].label} API key. Add it in Settings.`);
   }
@@ -57,12 +57,16 @@ export interface ResolvedModel {
   call: (options: { temperature: number; retry?: boolean }) => CallSettings;
 }
 
-export function resolveModel(settings: Settings, provider: ProviderId = settings.provider): ResolvedModel {
+export function resolveModel(
+  userId: string,
+  settings: Settings,
+  provider: ProviderId = settings.provider,
+): ResolvedModel {
   const modelId = settings.models[provider];
 
   switch (provider) {
     case "gemini": {
-      const model = createGoogleGenerativeAI({ apiKey: requireApiKey("gemini") })(modelId);
+      const model = createGoogleGenerativeAI({ apiKey: requireApiKey(userId, "gemini") })(modelId);
       return {
         provider,
         modelId,
@@ -75,7 +79,7 @@ export function resolveModel(settings: Settings, provider: ProviderId = settings
       };
     }
     case "groq": {
-      const model = createGroq({ apiKey: requireApiKey("groq") })(modelId);
+      const model = createGroq({ apiKey: requireApiKey(userId, "groq") })(modelId);
       const reasoningEffort = groqReasoningEffort(modelId);
       return {
         provider,
@@ -93,18 +97,18 @@ export function resolveModel(settings: Settings, provider: ProviderId = settings
   }
 }
 
-function isConfigured(provider: ProviderId): boolean {
-  return resolveApiKey(provider) !== null;
+function isConfigured(userId: string, provider: ProviderId): boolean {
+  return resolveApiKey(userId, provider) !== null;
 }
 
 /** Whether any provider has an API key; without one no AI feature works. */
-export function hasConfiguredProvider(): boolean {
-  return PROVIDER_IDS.some(isConfigured);
+export function hasConfiguredProvider(userId: string): boolean {
+  return PROVIDER_IDS.some((p) => isConfigured(userId, p));
 }
 
 /** Providers the user can pick: every provider with an API key, and the selected one. */
-export function availableModels(settings: Settings) {
-  return PROVIDER_IDS.filter((p) => p === settings.provider || isConfigured(p)).map((provider) => ({
+export function availableModels(userId: string, settings: Settings) {
+  return PROVIDER_IDS.filter((p) => p === settings.provider || isConfigured(userId, p)).map((provider) => ({
     provider,
     name: PROVIDERS[provider].name,
     model: settings.models[provider],
@@ -116,16 +120,21 @@ export function availableModels(settings: Settings) {
  * fallback in order. Retries are skipped while another model can take over.
  */
 export function withFallback<T>(
+  userId: string,
   settings: Settings,
   run: (model: ResolvedModel, options: { isLast: boolean }) => Promise<T>,
 ) {
   // Say what to do instead of "missing Gemini API key" when there's no key at all.
-  if (!hasConfiguredProvider()) return Promise.reject(new Error(NO_PROVIDER_MESSAGE));
-  const candidates = fallbackOrder(settings.provider, settings.fallbacks, isConfigured).map((provider) => ({
-    provider,
-    modelId: settings.models[provider],
-  }));
-  return runWithFallback(candidates, (candidate, options) => run(resolveModel(settings, candidate.provider), options));
+  if (!hasConfiguredProvider(userId)) return Promise.reject(new Error(NO_PROVIDER_MESSAGE));
+  const candidates = fallbackOrder(settings.provider, settings.fallbacks, (p) => isConfigured(userId, p)).map(
+    (provider) => ({
+      provider,
+      modelId: settings.models[provider],
+    }),
+  );
+  return runWithFallback(candidates, (candidate, options) =>
+    run(resolveModel(userId, settings, candidate.provider), options),
+  );
 }
 
 /**
@@ -137,12 +146,12 @@ export const TRANSCRIPTION_MODEL = { provider: "groq", modelId: "whisper-large-v
 
 type GroqTranscriptionModel = ReturnType<ReturnType<typeof createGroq>["transcription"]>;
 
-export function resolveTranscriptionModel(): {
+export function resolveTranscriptionModel(userId: string): {
   model: GroqTranscriptionModel;
   provider: string;
   modelId: string;
 } | null {
-  const resolved = resolveApiKey("groq");
+  const resolved = resolveApiKey(userId, "groq");
   if (!resolved) return null;
   return {
     model: createGroq({ apiKey: resolved.key }).transcription(TRANSCRIPTION_MODEL.modelId),
@@ -151,11 +160,11 @@ export function resolveTranscriptionModel(): {
 }
 
 /** Lists the models available for a provider (used by the settings page). */
-export async function listModels(provider: ProviderId): Promise<string[]> {
+export async function listModels(userId: string, provider: ProviderId): Promise<string[]> {
   const signal = AbortSignal.timeout(5000);
   switch (provider) {
     case "gemini": {
-      const key = resolveApiKey("gemini")?.key;
+      const key = resolveApiKey(userId, "gemini")?.key;
       if (!key) return [];
       const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {
         headers: { "x-goog-api-key": key },
@@ -174,7 +183,7 @@ export async function listModels(provider: ProviderId): Promise<string[]> {
         .sort();
     }
     case "groq": {
-      const key = resolveApiKey("groq")?.key;
+      const key = resolveApiKey(userId, "groq")?.key;
       if (!key) return [];
       const res = await fetch("https://api.groq.com/openai/v1/models", {
         headers: { Authorization: `Bearer ${key}` },

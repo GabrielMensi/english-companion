@@ -23,11 +23,12 @@ import { withFallback } from "./providers";
  * the usable ones. Too few usable items counts as a failure, so the next model is tried.
  */
 async function generateItems<Raw, T>(
+  userId: string,
   settings: Settings,
   prompt: { instructions: string; prompt: string; schema: z.ZodType<Raw> },
   normalize: (raw: Raw) => T[],
 ) {
-  const { result, used } = await withFallback(settings, async (resolved, { isLast }) => {
+  const { result, used } = await withFallback(userId, settings, async (resolved, { isLast }) => {
     const run = async () => {
       const { output } = await generateText({
         ...resolved.call({ temperature: 0.7, retry: isLast }),
@@ -52,9 +53,14 @@ async function generateItems<Raw, T>(
 }
 
 /** Generates a set of tense exercises. */
-export async function generateExercises(request: Omit<ExerciseRequest, "explanationLanguage">, settings: Settings) {
+export async function generateExercises(
+  userId: string,
+  request: Omit<ExerciseRequest, "explanationLanguage">,
+  settings: Settings,
+) {
   const input = { ...request, explanationLanguage: settings.explanationLanguage };
   return generateItems(
+    userId,
     settings,
     { instructions: buildExerciseInstructions(input), prompt: buildExercisePrompt(input), schema: exercisesSchema },
     (raw) => normalizeExercises(raw, input),
@@ -63,11 +69,13 @@ export async function generateExercises(request: Omit<ExerciseRequest, "explanat
 
 /** Generates a set of exercises (fill in, multiple choice, fix the mistake) for an error category. */
 export async function generateCategoryExercises(
+  userId: string,
   request: Omit<CategoryExerciseRequest, "explanationLanguage">,
   settings: Settings,
 ) {
   const input = { ...request, explanationLanguage: settings.explanationLanguage };
   return generateItems(
+    userId,
     settings,
     {
       instructions: buildCategoryExerciseInstructions(input),

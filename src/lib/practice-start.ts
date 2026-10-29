@@ -60,7 +60,11 @@ export async function startPractice(userId: string, input: StartPracticeInput) {
   } else {
     const contrastWith = input.kind === "contrast" && input.contrastWith !== input.tense ? input.contrastWith : null;
     const generated = await withChatPriority(userId, () =>
-      generateExercises({ kind: input.kind as ExerciseKind, tense: input.tense, contrastWith }, getSettings(userId)),
+      generateExercises(
+        userId,
+        { kind: input.kind as ExerciseKind, tense: input.tense, contrastWith },
+        getSettings(userId),
+      ),
     );
     practice = { kind: input.kind, tense: input.tense, contrastWith, items: generated.items };
     // "Use it" tasks go one at a time; the drills show the whole set, answered in one message.
@@ -133,6 +137,7 @@ export async function startCategoryPractice(userId: string, input: StartCategory
   const subtype = validSubtype(input.category, input.subtype);
   const generated = await withChatPriority(userId, () =>
     generateCategoryExercises(
+      userId,
       { category: input.category, subtype, mistakes: recentMistakes(userId, input.category, subtype) },
       getSettings(userId),
     ),

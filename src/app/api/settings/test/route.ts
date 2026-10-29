@@ -18,7 +18,7 @@ export const POST = withUser(async (request: Request, _ctx, { userId }) => {
   const started = Date.now();
   try {
     const { text } = await generateText({
-      ...resolveModel(getSettings(userId), body.data.provider).call({ temperature: 0, retry: false }),
+      ...resolveModel(userId, getSettings(userId), body.data.provider).call({ temperature: 0, retry: false }),
       prompt: "Reply with exactly: OK",
       maxOutputTokens: 20,
     });

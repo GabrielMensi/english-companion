@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { GLOBAL_SETTINGS, OWNED_TABLES } from "./claim";
+import { OWNED_TABLES } from "./claim";
 
 const camel = (name: string) => name.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 /** `missed_exercises` -> `missedExercises`; `user_settings` is checked too. */
@@ -44,13 +44,12 @@ const queries = files.flatMap((file) => {
 });
 
 describe("the legacy global settings table", () => {
-  it("only the API keys use it, and the claim leaves exactly those keys in place", () => {
+  it("is only read to hand the old API keys to the first account (secrets.ts); nothing new goes in it", () => {
     const users = files.filter((file) => /schema\.settings\b/.test(fs.readFileSync(file, "utf8")));
-    // A new global key means a new file here (or a new key in secrets.ts): declare it in GLOBAL_SETTINGS
-    // (src/db/claim.ts) on purpose, or the claim moves it to one user. Per-user data goes to user_settings.
+    // Per-user data goes to user_settings. The old single-user row is moved out by secrets.ts and deleted.
     expect(users).toEqual([path.join("src", "lib", "secrets.ts")]);
-    expect(fs.readFileSync(users[0], "utf8")).toContain(`"${GLOBAL_SETTINGS[0]}"`);
-    expect(GLOBAL_SETTINGS).toEqual(["api-keys"]);
+    const source = fs.readFileSync(users[0], "utf8");
+    expect(source).not.toMatch(/insert\(schema\.settings\)/);
   });
 });
 

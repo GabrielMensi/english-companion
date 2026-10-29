@@ -85,7 +85,7 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
           key={JSON.stringify(params)}
           kind={kind}
           initialQueue={queue}
-          canRecord={resolveTranscriptionModel() !== null}
+          canRecord={resolveTranscriptionModel(userId) !== null}
           language={getSettings(userId).explanationLanguage}
         />
       </Page>

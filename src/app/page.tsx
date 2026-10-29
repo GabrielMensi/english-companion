@@ -26,7 +26,7 @@ export default async function Today() {
   await connection();
   const { userId } = await requirePageUser("/");
   const sessions = listSessions(userId);
-  const hasModel = hasConfiguredProvider();
+  const hasModel = hasConfiguredProvider(userId);
   if (sessions.length === 0) return <FirstRun hasModel={hasModel} />;
 
   const last = sessions[0];

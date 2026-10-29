@@ -10,7 +10,7 @@ const tables = (
   Object.values(schema).filter((value) => is(value, SQLiteTable)) as Parameters<typeof getTableConfig>[0][]
 ).map((table) => getTableConfig(table));
 
-/** Better Auth's own tables, and the legacy key-value table that only keeps the (global) API keys. */
+/** Better Auth's own tables, and the legacy key-value table (emptied: its API keys moved to the first account). */
 const WITHOUT_OWNER = new Set(["user", "session", "account", "verification", "rate_limit", "settings"]);
 
 describe("schema ownership", () => {

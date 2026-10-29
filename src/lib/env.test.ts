@@ -1,6 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { deployProblems, evalEnabled, parseEnv } from "./env";
 
+const KEY = Buffer.alloc(32, 7).toString("base64");
+
+describe("encryption and shared keys", () => {
+  it("accepts a 32-byte base64 key, old keys as a list, and SHARED_KEYS defaults to true", () => {
+    const env = parseEnv({ APP_ENCRYPTION_KEY: KEY, APP_ENCRYPTION_KEYS_OLD: ` ${KEY}, ${KEY} ` });
+    expect(env.APP_ENCRYPTION_KEY).toBe(KEY);
+    expect(env.APP_ENCRYPTION_KEYS_OLD).toEqual([KEY, KEY]);
+    expect(parseEnv({}).SHARED_KEYS).toBe(true);
+    expect(parseEnv({ SHARED_KEYS: "false" }).SHARED_KEYS).toBe(false);
+  });
+
+  it("rejects a key of the wrong size without printing it", () => {
+    expect(() => parseEnv({ APP_ENCRYPTION_KEY: "c2hvcnQ=" })).toThrow(/APP_ENCRYPTION_KEY/);
+    expect(() => parseEnv({ APP_ENCRYPTION_KEYS_OLD: "c2hvcnQ=" })).toThrow(/APP_ENCRYPTION_KEYS_OLD/);
+  });
+});
+
 describe("parseEnv", () => {
   it("starts with nothing set: paths get their defaults and API keys stay unset", () => {
     const env = parseEnv({});
@@ -130,13 +147,15 @@ describe("deployProblems", () => {
 
   it("a deploy (ALLOWED_HOSTS set) needs the secret and the public URL", () => {
     const problems = deployProblems(parseEnv({ ALLOWED_HOSTS: "companion.example.com" }));
-    expect(problems).toHaveLength(2);
+    expect(problems).toHaveLength(3);
+    expect(problems.join()).toMatch(/APP_ENCRYPTION_KEY/);
     expect(problems.join()).toMatch(/BETTER_AUTH_SECRET/);
     expect(problems.join()).toMatch(/BETTER_AUTH_URL/);
     const ready = parseEnv({
       ALLOWED_HOSTS: "companion.example.com",
       BETTER_AUTH_SECRET: "x".repeat(32),
       BETTER_AUTH_URL: "https://companion.example.com",
+      APP_ENCRYPTION_KEY: KEY,
     });
     expect(deployProblems(ready)).toEqual([]);
   });

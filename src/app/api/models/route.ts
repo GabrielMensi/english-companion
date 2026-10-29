@@ -5,7 +5,7 @@ import { listModels } from "@/lib/ai/providers";
 import { logRouteError } from "@/lib/server-log";
 import { withUser } from "@/lib/auth/with-user";
 
-export const GET = withUser(async (request: NextRequest) => {
+export const GET = withUser(async (request: NextRequest, _ctx, { userId }) => {
   const params = request.nextUrl.searchParams;
   const provider = params.get("provider") as ProviderId | null;
   if (!provider || !PROVIDER_IDS.includes(provider)) {
@@ -13,7 +13,7 @@ export const GET = withUser(async (request: NextRequest) => {
   }
 
   try {
-    return Response.json({ models: await listModels(provider) });
+    return Response.json({ models: await listModels(userId, provider) });
   } catch (error) {
     logRouteError("GET /api/models (listing models)", error);
     return Response.json({ models: [], error: errorToMessage(error) });

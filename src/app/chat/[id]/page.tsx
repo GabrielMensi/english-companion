@@ -30,10 +30,10 @@ export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
         topic: practice?.kind === "topic" ? practice.topic : null,
       }}
       initialMessages={getMessages(userId, session.id)}
-      models={availableModels(settings)}
+      models={availableModels(userId, settings)}
       selectedProvider={settings.provider}
-      hasModel={hasConfiguredProvider()}
-      canDictate={resolveTranscriptionModel() !== null}
+      hasModel={hasConfiguredProvider(userId)}
+      canDictate={resolveTranscriptionModel(userId) !== null}
       answerTemplate={setSize ? answerTemplate(setSize) : null}
     />
   );

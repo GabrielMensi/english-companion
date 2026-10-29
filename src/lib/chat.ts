@@ -152,6 +152,7 @@ export async function analyzeStoredMessage(
     const started = Date.now();
     const { analysis, provider, modelId, fallbackAttempts } = await withChatPriority(userId, () =>
       analyzeMessage(
+        userId,
         {
           text: message.content,
           mode: session.mode,
@@ -315,7 +316,7 @@ export async function improveMessagePrompt(userId: string, messageId: string) {
 
   const started = Date.now();
   const { prompt, provider, modelId } = await withChatPriority(userId, () =>
-    improvePrompt(message.correctedText ?? message.content, getSettings(userId)),
+    improvePrompt(userId, message.correctedText ?? message.content, getSettings(userId)),
   );
   const update = {
     improvedPrompt: prompt,
