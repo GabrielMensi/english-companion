@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { errorToMessage } from "@/lib/ai/fallback";
 import { createClassQuestions } from "@/lib/class-report";
 import { parseBody } from "@/lib/request-body";

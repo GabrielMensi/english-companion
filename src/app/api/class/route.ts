@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { CEFR_LEVELS } from "@/lib/insights/level-core";
 import { createClassSession, getClassView } from "@/lib/class";
 import { parseBody } from "@/lib/request-body";
