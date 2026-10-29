@@ -99,6 +99,13 @@
       "when": 1791760863070,
       "tag": "0013_discard_mistakes",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1793228678482,
+      "tag": "0014_auth_tables",
+      "breakpoints": true
     }
   ]
 }

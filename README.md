@@ -37,7 +37,7 @@ pnpm install
 pnpm dev
 ```
 
-Abrí https://localhost:3737 y armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key, el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
+Abrí https://localhost:3737: la app **pide login siempre**, también en local. La primera vez, entrá a `/signup` y creá tu cuenta (email y contraseña de al menos 10 caracteres): la primera cuenta se crea sin más y después el registro se cierra. **No agregues otras cuentas todavía** (`SIGNUP_ALLOWED_EMAILS`): hasta que llegue el multiusuario (la PR que sigue) los datos no tienen dueño y cualquier cuenta ve y borra todos los chats y puede leer y reemplazar las API keys de Configuración. Sin email de verificación, quien se registre primero con un email permitido se queda con él. Después armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key, el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
 
 Si preferís configurarlo por entorno, copiá `.env.example` a `.env.local`: esas variables se usan cuando no hay nada guardado en la app.
 
@@ -52,7 +52,11 @@ certutil -user -addstore Root $env:USERPROFILE\Downloads\mkcert-rootCA.pem
 
 Después reiniciá Chrome. Solo se importa el certificado público; la clave queda en WSL.
 
-La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migra solo al arrancar.
+La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migra solo al arrancar. La clave que firma las cookies de sesión se genera sola la primera vez en `data/auth.secret` (permisos `600`, junto a la base); en un deploy hay que definir `BETTER_AUTH_SECRET` y `BETTER_AUTH_URL` (ver [docs/platform/AUTH_MULTIUSER.md](docs/platform/AUTH_MULTIUSER.md)).
+
+**Olvidé la contraseña**: no hay email para recuperarla. En la carpeta de la app corré `pnpm auth:reset-password <email>`: pide la nueva contraseña, la cambia y borra las sesiones de esa cuenta (una copia de la cookie puede seguir valiendo hasta 5 minutos).
+
+**Varias copias de la app en la misma máquina**: las cookies se comparten entre puertos de un mismo host, así que el nombre de la cookie de sesión lleva un prefijo que sale de la ruta de la base (`ec-<hash>.session_token`). Cada carpeta (la app en uso y los worktrees) tiene su propia base, su propio `data/auth.secret` y su propia sesión: iniciar sesión en un worktree no cierra la de la app en el puerto 3737. Si `data/auth.secret` queda vacío o corto, la app no arranca y avisa; borrá el archivo para generar uno nuevo.
 
 ### Modelos recomendados
 
@@ -82,6 +86,7 @@ Configuración recomendada: **Gemini Flash-Lite como principal y `qwen/qwen3.8-2
 | `pnpm eval:classify <provider>:<model> …` | Compara modelos clasificando errores ya detectados (tipo fino y tiempos verbales). `--with-user-labels` suma los tipos corregidos a mano en la app                                                                                                                                |
 | `pnpm eval:asr [engine:model …]`          | Transcribe las grabaciones de `/eval/asr` con cada motor de speech-to-text y mide si conservan tus errores o los "corrigen" (ver [docs/voice/VOICE.md](docs/voice/VOICE.md))                                                                                                      |
 | `pnpm eval:level`                         | Compara el nivel CEFR estimado con textos de alumnos calificados por Cambridge (Write & Improve, se descarga aparte; ver [docs/progress/LEVEL_CALIBRATION.md](docs/progress/LEVEL_CALIBRATION.md))                                                                                |
+| `pnpm auth:reset-password <email>`        | Cambia la contraseña de una cuenta (sin email de recuperación) y cierra sus sesiones                                                                                                                                                                                              |
 | `pnpm db:generate`                        | Genera una migración después de cambiar `src/db/schema.ts`                                                                                                                                                                                                                        |
 | `pnpm db:migrate`                         | Aplica las migraciones pendientes haciendo antes un backup (`data/backups/`); es el paso de migración del deploy ([docs/platform/DEPLOY.md](docs/platform/DEPLOY.md)). Con `pnpm dev` no hace falta: migra al arrancar                                                            |
 | `pnpm db:backup`                          | Copia consistente de la base en `data/backups/` (`--prefix`, `--keep`)                                                                                                                                                                                                            |

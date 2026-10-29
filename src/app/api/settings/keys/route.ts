@@ -3,6 +3,7 @@ import { providerStatus } from "@/lib/ai/providers";
 import { KEY_PROVIDERS } from "@/lib/credentials";
 import { setApiKey } from "@/lib/secrets";
 import { parseBody } from "@/lib/request-body";
+import { withUser } from "@/lib/auth/with-user";
 
 const bodySchema = z.object({
   provider: z.enum(KEY_PROVIDERS),
@@ -11,10 +12,10 @@ const bodySchema = z.object({
 });
 
 /** Saves or removes an API key. Responds with the masked status only, never the key. */
-export async function PUT(request: Request) {
+export const PUT = withUser(async (request: Request) => {
   const body = await parseBody(request, bodySchema, "Invalid API key");
   if (!body.ok) return body.response;
 
   setApiKey(body.data.provider, body.data.apiKey);
   return Response.json({ providers: providerStatus() });
-}
+});

@@ -72,6 +72,20 @@ Nada para probar a mano. Opcional: la app arranca y abre un chat (cambió dónde
 - [ ] Opcional, si instalás Docker: los comandos de "Probar la imagen" en `docs/platform/DEPLOY.md` (base descartable). CI ya construye la imagen y chequea `/api/health` en cada PR que toca esos archivos.
 - [ ] Leer la guía "Cómo desplegar" en DEPLOY.md. No se publicó nada; el workflow de deploy está apagado.
 
+### Login (#148: #124, #138)
+
+Desde acá la app pide login siempre, también en local.
+
+- [ ] Reiniciar `pnpm dev` en el worktree de integración: cualquier página (p. ej. /dashboard) manda a `/login?next=/dashboard`.
+- [ ] `/signup`: crear tu cuenta (la primera; contraseña de 10+ caracteres). Entrás a la app, la barra lateral muestra tu email y "Sign out", y están todos tus chats y estadísticas.
+- [ ] Con sesión, `/login` y `/signup` te llevan al inicio. "Sign out" vuelve a `/login`.
+- [ ] `/signup` con otro email: rechazado (403), el mismo mensaje exista o no ese email.
+- [ ] Contraseña mal varias veces seguidas: "too many attempts" (429) a partir del 4º intento.
+- [ ] Sin cookie, `curl -sk https://localhost:3738/api/sessions` da 401; `curl -sk https://localhost:3738/api/health` da `{"ok":true}`.
+- [ ] La app de 3737 y la del worktree tienen sesiones separadas (entrar en una no te saca de la otra).
+- [ ] `pnpm auth:reset-password <tu email>` pone una contraseña nueva y cierra las sesiones.
+- No agregues otras cuentas hasta que entre multiusuario (los datos todavía no están separados por usuario).
+
 ## Problemas encontrados
 
 -

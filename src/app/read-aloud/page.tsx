@@ -6,9 +6,11 @@ import { resolveTranscriptionModel } from "@/lib/ai/providers";
 import { getReadAloudData } from "@/lib/read-aloud";
 import { parseFocus } from "@/lib/read-aloud-core";
 import { getSettings } from "@/lib/settings";
+import { requirePageUser } from "@/lib/auth/session";
 
 export default async function ReadAloudPage({ searchParams }: PageProps<"/read-aloud">) {
   await connection();
+  await requirePageUser("/read-aloud");
   const { focus } = await searchParams;
   const { sounds, corrections, vocabulary, summary } = getReadAloudData();
 

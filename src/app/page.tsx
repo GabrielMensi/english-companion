@@ -20,9 +20,11 @@ import { getPracticeSuggestions } from "@/lib/practice-start";
 import { PRONUNCIATION_LABELS, TENSE_LABELS } from "@/lib/taxonomy";
 import type { PracticeTarget } from "@/lib/tense-practice";
 import { greeting, todaySummary, weekSummary } from "@/lib/today-core";
+import { requirePageUser } from "@/lib/auth/session";
 
 export default async function Today() {
   await connection();
+  await requirePageUser("/");
   const sessions = listSessions();
   const hasModel = hasConfiguredProvider();
   if (sessions.length === 0) return <FirstRun hasModel={hasModel} />;

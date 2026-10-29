@@ -246,7 +246,8 @@ Hoy **no** hay nada desplegado. Cuando se cumpla la checklist de arriba:
 docker build -t english-companion:local .
 mkdir -p /tmp/ec-data && chmod 777 /tmp/ec-data   # una base descartable, nunca data/companion.db
 docker run --rm -v /tmp/ec-data:/data english-companion:local node scripts/db-migrate.mjs
-docker run --rm -p 127.0.0.1:3737:3737 -e ALLOWED_HOSTS=localhost -v /tmp/ec-data:/data english-companion:local
+docker run --rm -p 127.0.0.1:3737:3737 -e ALLOWED_HOSTS=localhost -e BETTER_AUTH_URL=http://localhost:3737 \
+  -e BETTER_AUTH_SECRET="$(openssl rand -base64 48)" -v /tmp/ec-data:/data english-companion:local
 curl http://localhost:3737/api/health
 ```
 

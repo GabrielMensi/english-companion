@@ -77,3 +77,4 @@ Estado: ⏳ pendiente · 🔨 en curso · 👀 en revisión · ✅ mergeado en l
 - 2026-10-28: #143 (kokoro-csp) mergeada. deploy-ready en revisión; auth y voice implementando.
 - 2026-10-28: #145 (voice) mergeada. deploy-ready: #144 abierta, el contenedor no arrancaba (`next.config.ts` importa `src/lib/csp` y la imagen no copia `src/`), en arreglo. auth en revisión 2. Incidente: varios equipos usaron `pkill -f`/`pgrep` por patrón; la app del usuario en 3737 apareció apagada (no se sabe si por eso). Regla agregada al brief.
 - 2026-10-28: #144 (deploy-ready) mergeada con el build de Docker verde (el contenedor no arrancaba porque `next.config.ts` importa `src/lib/csp`; la imagen ahora lo copia). Tanda 2: falta auth (revisión 2). Tanda 3: evals arrancado (#146, #147).
+- 2026-10-28: #148 (auth) mergeada (CI de Docker necesitaba BETTER_AUTH_SECRET/URL, agregadas). Tanda 2 completa. Tanda 3: multi-user y e2e arrancados; evals en curso.

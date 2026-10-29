@@ -4,9 +4,11 @@ import { SettingsForm } from "@/components/settings/settings-form";
 import { VoiceSettings } from "@/components/settings/voice-settings";
 import { providerStatus } from "@/lib/ai/providers";
 import { getSettings } from "@/lib/settings";
+import { requirePageUser } from "@/lib/auth/session";
 
 export default async function SettingsPage() {
   await connection();
+  await requirePageUser("/settings");
   const settings = getSettings();
   return (
     <Page width="md">

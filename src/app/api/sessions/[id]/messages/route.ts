@@ -3,12 +3,13 @@ import { addUserMessage, analyzeStoredMessage, getMessage, getMessages, getSessi
 import { FLUENCY_VERSION } from "@/lib/fluency";
 import { turnStreamResponse, wantsTurnStream } from "@/lib/turn-stream";
 import { parseBody } from "@/lib/request-body";
+import { withUser } from "@/lib/auth/with-user";
 
-export async function GET(_request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) {
+export const GET = withUser(async (_request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) => {
   const { id } = await ctx.params;
   if (!getSession(id)) return Response.json({ error: "Chat not found" }, { status: 404 });
   return Response.json(getMessages(id));
-}
+});
 
 const bodySchema = z.object({
   text: z.string().trim().min(1).max(20_000),
@@ -40,7 +41,7 @@ const bodySchema = z.object({
  * Stores the message, analyzes it and returns the resulting turn (message + reply). With
  * `Accept: application/x-ndjson` the analysis is streamed while it's generated.
  */
-export async function POST(request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) {
+export const POST = withUser(async (request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) => {
   const { id } = await ctx.params;
   const body = await parseBody(request, bodySchema, "The message is empty");
   if (!body.ok) return body.response;
@@ -55,4 +56,4 @@ export async function POST(request: Request, ctx: RouteContext<"/api/sessions/[i
     });
   }
   return Response.json(await analyzeStoredMessage(message.id));
-}
+});

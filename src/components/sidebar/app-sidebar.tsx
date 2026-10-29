@@ -21,6 +21,7 @@ import type { Area } from "@/components/layout/page";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { TalkAboutButton } from "@/components/sidebar/talk-about-button";
 import { SessionItem } from "@/components/sidebar/session-item";
+import { SignOutButton } from "@/components/sidebar/sign-out-button";
 import { ThemeToggle } from "@/components/sidebar/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -73,10 +74,12 @@ export function AppSidebar({
   sessions,
   cardsToStudy,
   initialCollapsed,
+  userEmail,
 }: {
   sessions: SessionSummary[];
   cardsToStudy: number;
   initialCollapsed: boolean;
+  userEmail: string;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
@@ -179,6 +182,9 @@ export function AppSidebar({
           <Hint label="Toggle theme" side="right">
             <ThemeToggle />
           </Hint>
+          <Hint label={`Sign out (${userEmail})`} side="right">
+            <SignOutButton />
+          </Hint>
         </div>
       </aside>
     );
@@ -274,6 +280,14 @@ export function AppSidebar({
           Settings
         </Link>
         <ThemeToggle />
+      </div>
+      <div className="flex items-center justify-between gap-1 border-t py-2 pr-2 pl-5">
+        <span className="min-w-0 truncate text-xs text-muted-foreground" title={userEmail}>
+          {userEmail}
+        </span>
+        <Hint label="Sign out" side="bottom">
+          <SignOutButton />
+        </Hint>
       </div>
     </aside>
   );
