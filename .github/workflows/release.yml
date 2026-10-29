@@ -52,8 +52,13 @@ jobs:
     needs: verify
     uses: ./.github/workflows/ci.yml
 
+  # The browser smoke tests (Playwright, fake AI): too slow for every PR, so they gate the release instead.
+  e2e:
+    needs: verify
+    uses: ./.github/workflows/e2e.yml
+
   release:
-    needs: [verify, checks]
+    needs: [verify, checks, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

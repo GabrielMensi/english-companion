@@ -1,5 +1,5 @@
 /** Model ids in Settings (no server-only imports, unit tested). */
-import { z } from "zod";
+import { z } from "@/lib/zod";
 
 /**
  * A model id as providers write them ("gemini-flash-latest", "openai/gpt-oss-120b"). The id goes

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { TENSES } from "@/lib/taxonomy";
 import { setTopicTense } from "@/lib/practice";
 import { deleteSession, getSession, updateSession } from "@/lib/chat";

@@ -8,7 +8,7 @@
  * is dropped instead of shown (the #71 manual test caught Groq inventing a detail).
  * Schemas are small and flat so every provider fills them reliably, Groq's structured output included.
  */
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { categoryLabel } from "@/lib/taxonomy";
 
 export type ExplanationLanguage = "es" | "en";
