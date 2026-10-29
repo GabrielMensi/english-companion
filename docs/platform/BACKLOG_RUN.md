@@ -4,6 +4,12 @@
 
 Plan para cerrar el backlog pendiente (2026-10-28) con equipos de subagentes (implementador Sonnet + revisor Opus, hasta 4 en paralelo) y un orquestador. **Este archivo es el estado del trabajo**: si una sesión se corta, la siguiente retoma desde acá ("seguí con el backlog run").
 
+## Resultado (2026-10-29)
+
+Terminado y listo para la prueba manual. 20 PRs mergeadas en `integration/backlog`, cada una revisada (implementador Sonnet + revisor Opus) y con CI verde: #129, #130, #131, #141, #142, #143, #144, #145, #148, #150, #154, #155, #164, #166, #167, #168, #169, #171, #172, #173. Revisión cruzada final aprobada (`ec-worktrees/reviews/final-r1.md` y siguientes). Verificación final sobre la integración: typecheck, lint, 903 tests, format, knip, build y E2E 10/10.
+
+Siguiente paso: el usuario prueba con [BACKLOG_MANUAL_TESTS.md](BACKLOG_MANUAL_TESTS.md); los arreglos se hacen en `integration/backlog`; con todo aceptado, PR a `develop` siguiendo "Al mergear a `develop`" de ese doc. Los ítems del board quedan en _In review_ hasta ese merge (después, _Done_ con la fecha del merge).
+
 ## Reglas del flujo
 
 - Rama de integración: `integration/backlog` (sale de `develop`). Worktree del orquestador: `~/personal-projects/ec-worktrees/integration`.
@@ -88,3 +94,4 @@ Estado: ⏳ pendiente · 🔨 en curso · 👀 en revisión · ✅ mergeado en l
 - 2026-10-29: #168 (keys) mergeada (el orquestador adaptó las llamadas de IA de topics al usuario, bajó el tope de import a 30k filas y pasó APP_ENCRYPTION_KEY/SHARED_KEYS al CI de Docker; E2E 10/10). Falta class (revisión 2).
 - 2026-10-29: #169 (class) mergeada: tandas 1–4 completas (16 PRs). Tanda 5: import order (#170) y revisión cruzada final en curso.
 - 2026-10-29: #171 (import order) mergeada. Revisión cruzada final: un bug entre equipos (export/import pierde los datos de clases; lo arregla keys en `team/export-class`) y docs desactualizados (equipo `final-docs`). Pasos de actualización para el usuario agregados al doc de prueba manual.
+- 2026-10-29: #172 (docs) y #173 (export/import con clases) mergeadas. Verificación final verde. `pnpm audit --prod` muestra avisos de vite 8.3.1 y esbuild (herramientas de desarrollo traídas como peers de better-auth; no corren en la app): quedan en el board. Corrida terminada; esperando la prueba manual.

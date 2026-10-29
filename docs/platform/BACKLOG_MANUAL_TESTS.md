@@ -175,6 +175,12 @@ Los pasos de la sección de clases que agregó el equipo (más arriba) siguen va
 - [ ] Today: "wrote this week" no cuenta cargas de clase.
 - [ ] Descartar un error "From class": en Discarded dice "Open class" y lleva a /class.
 
+### Exportar/importar con clases (#173) y docs (#172)
+
+- [ ] Exportar desde una cuenta con una clase cargada e importar en una segunda cuenta: /class muestra la clase con fecha, nivel del profesor, notas, correcciones y palabras, y las estadísticas de clase coinciden.
+- [ ] Leer lo agregado a `docs/ROADMAP.md` ("Hecho") y a `CLAUDE.md` (reglas nuevas y pasos de worktree).
+- [ ] `pnpm dev` sigue validando las variables de entorno al arrancar (un valor inválido en `.env.local` lo frena con un mensaje claro).
+
 ## Al mergear a `develop` (después de aceptar todo)
 
 Simulado sobre una copia de tu base anterior a la corrida (revisión final, `reviews/final-r1.md`): migraciones 0014–0016, alta de cuenta, tus keys pasan cifradas a tu cuenta y `auth:claim-data` mueve todo; no se pierde ninguna fila (21 chats, 96 mensajes, 329 correcciones).
