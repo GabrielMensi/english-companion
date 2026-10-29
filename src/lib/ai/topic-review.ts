@@ -18,10 +18,11 @@ import {
 import { withFallback } from "./providers";
 
 async function generateObject<S extends z.ZodType>(
+  userId: string,
   settings: Settings,
   options: { instructions: string; prompt: string; schema: S; temperature: number },
 ) {
-  const { result, used } = await withFallback(settings, async (resolved, { isLast }) => {
+  const { result, used } = await withFallback(userId, settings, async (resolved, { isLast }) => {
     const run = () =>
       generateText({
         ...resolved.call({ temperature: options.temperature, retry: isLast }),
@@ -41,8 +42,13 @@ async function generateObject<S extends z.ZodType>(
 }
 
 /** Reviews a topic conversation from the learner's real messages and stored corrections. */
-export async function generateFeedback(topic: string, turns: readonly ReviewTurn[], settings: Settings) {
-  const { output, provider, modelId } = await generateObject(settings, {
+export async function generateFeedback(
+  userId: string,
+  topic: string,
+  turns: readonly ReviewTurn[],
+  settings: Settings,
+) {
+  const { output, provider, modelId } = await generateObject(userId, settings, {
     instructions: buildFeedbackInstructions(topic, settings.explanationLanguage),
     prompt: buildFeedbackPrompt(topic, turns),
     schema: feedbackSchema,
@@ -53,12 +59,13 @@ export async function generateFeedback(topic: string, turns: readonly ReviewTurn
 
 /** Picks reusable expressions from the chat's texts; only phrases found in them survive. */
 export async function suggestPhrases(
+  userId: string,
   topic: string,
   sources: readonly PhraseSource[],
   alreadySaved: ReadonlySet<string>,
   settings: Settings,
 ) {
-  const { output } = await generateObject(settings, {
+  const { output } = await generateObject(userId, settings, {
     instructions: buildPhrasesInstructions(topic),
     prompt: buildPhrasesPrompt(sources),
     schema: phrasesSchema,

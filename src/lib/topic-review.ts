@@ -85,7 +85,7 @@ export async function createFeedback(userId: string, sessionId: string): Promise
   if (turns.length < MIN_REVIEW_TURNS)
     throw new TopicToolError("Answer a few more questions first: there is not enough to review");
   const { feedback, provider, modelId } = await withChatPriority(userId, () =>
-    generateFeedback(topic, turns, getSettings(userId)),
+    generateFeedback(userId, topic, turns, getSettings(userId)),
   );
   const stored: StoredFeedback = { feedback, messages: turns.length, generatedAt: Date.now(), provider, modelId };
   setUserSetting(userId, feedbackKey(sessionId), stored);
@@ -111,7 +111,9 @@ export async function createPhraseSuggestions(userId: string, sessionId: string)
     return m.naturalText && m.naturalText !== m.content ? [{ messageId: m.id, text: m.naturalText }] : [];
   });
   if (sources.length === 0) throw new TopicToolError("There is nothing to pick from yet");
-  return withChatPriority(userId, () => suggestPhrases(topic, sources, savedPhrases(userId), getSettings(userId)));
+  return withChatPriority(userId, () =>
+    suggestPhrases(userId, topic, sources, savedPhrases(userId), getSettings(userId)),
+  );
 }
 
 /**
