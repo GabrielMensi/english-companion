@@ -6,6 +6,7 @@ import {
   isGrounded,
   normalizeFeedback,
   normalizePhrases,
+  TopicToolError,
   type ReviewTurn,
 } from "./topic-review-core";
 
@@ -83,6 +84,34 @@ describe("introducedDetails", () => {
   });
 });
 
+describe("introducedDetails with valid feedback", () => {
+  const sources = [
+    "I worked with react and aws for two years, I used the api",
+    "yesterday I go to the office in monday",
+  ];
+  const clean = (text: string, counts = 0) => introducedDetails(text, sources, counts);
+
+  it.each([
+    ["Spanish openings with ¡ and ¿", "¡Buen trabajo! Usaste bien el Present Perfect."],
+    ["a question opening", "¿Notaste que repetiste el error?"],
+    ["tense names", "You used the Past Simple well."],
+    ["language names", "You mixed Spanish word order."],
+    ["a possessive", "Good use of React's hooks."],
+    ["a plural of a learner's word", "You explained the APIs clearly."],
+    ["a dash opening", "Your answer — Great structure."],
+    ["lowercase learner terms", "Good use of React and AWS."],
+  ])("accepts %s", (_name, text) => {
+    expect(clean(text)).toEqual([]);
+  });
+
+  it("allows small counts about the review, not facts", () => {
+    expect(clean("En el mensaje 2 usaste bien el pasado.", 3)).toEqual([]);
+    expect(clean("Repetiste este error 3 veces.", 3)).toEqual([]);
+    expect(clean("Repetiste este error 3 veces.")).toEqual(["3"]);
+    expect(clean("Managed 12 engineers.", 3)).toEqual(["12"]);
+  });
+});
+
 describe("normalizeFeedback", () => {
   const raw = {
     overall: "  Good effort. You worked at Amazon for 10 years. ",
@@ -113,10 +142,24 @@ describe("normalizeFeedback", () => {
     expect(normalizeFeedback(raw, once).recurringMistakes).toEqual([]);
   });
 
-  it("fails when nothing usable is left", () => {
+  it("keeps Spanish feedback with Spanish punctuation, tense names and small counts", () => {
+    const feedback = normalizeFeedback(
+      {
+        overall: "¡Buen trabajo! Repetiste el mismo error 2 veces.",
+        strengths: ["Usaste bien el Past Simple."],
+        recurringMistakes: [],
+        betterAnswers: [],
+      },
+      turns,
+    );
+    expect(feedback.overall).toBe("¡Buen trabajo! Repetiste el mismo error 2 veces.");
+    expect(feedback.strengths).toEqual(["Usaste bien el Past Simple."]);
+  });
+
+  it("fails with a plain message when nothing usable is left", () => {
     expect(() =>
       normalizeFeedback({ overall: "", strengths: [], recurringMistakes: [], betterAnswers: [] }, turns),
-    ).toThrow();
+    ).toThrow(TopicToolError);
   });
 });
 

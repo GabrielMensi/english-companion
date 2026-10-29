@@ -9,7 +9,7 @@
  * Schemas are small and flat so every provider fills them reliably, Groq's structured output included.
  */
 import { z } from "@/lib/zod";
-import { categoryLabel } from "@/lib/taxonomy";
+import { CATEGORY_LABELS, categoryLabel, TENSE_LABELS } from "@/lib/taxonomy";
 
 export type ExplanationLanguage = "es" | "en";
 
@@ -145,31 +145,54 @@ export function buildFeedbackPrompt(topic: string, turns: readonly ReviewTurn[])
 /** Words that can open a sentence or name something, left out of the "new name" check. */
 const NAME_TOKEN = /[\p{L}\d][\p{L}\d'’-]*/gu;
 
+/** The review's own vocabulary: tense and category names (from the fixed taxonomy) and language names. */
+const OWN_WORDS = new Set(
+  [...Object.values(TENSE_LABELS), ...Object.values(CATEGORY_LABELS), "English", "Spanish", "Inglés", "Español"]
+    .join(" ")
+    .toLowerCase()
+    .match(/[\p{L}]+/gu),
+);
+
+/** Marks that open a sentence or a clause: what follows is capitalized without being a name. */
+const OPENING = /[.!?:;¿¡—–«•*-]$/;
+
 /**
  * Numbers and capitalized names (not at the start of a sentence, not "I") that `text` adds on top of `sources`.
  * Catches the typical invention: a company, a technology or a figure the learner never mentioned.
+ * `smallCounts`: whole numbers up to that value are fine ("message 2", "3 times"), for text that talks about the
+ * review itself; rewritten answers are checked strictly.
  */
-export function introducedDetails(text: string, sources: readonly string[]): string[] {
+export function introducedDetails(text: string, sources: readonly string[], smallCounts = 0): string[] {
   const known = ` ${normalizeQuote(sources.join(" ")).replace(/[^\p{L}\d' -]/gu, " ")} `;
+  const isKnown = (word: string) => known.includes(` ${word} `);
   const added: string[] = [];
   for (const match of text.matchAll(NAME_TOKEN)) {
-    const token = match[0].replace(/['’-]+$/, "");
-    const before = text.slice(0, match.index).replace(/["“”'‘’(\s]+$/, "");
-    const sentenceStart = before === "" || /[.!?:]$/.test(before);
+    const token = match[0].replace(/['’-]+$/, "").replace(/['’]s$/i, "");
+    const before = text.slice(0, match.index).replace(/["“”'‘’()\[\]\s]+$/, "");
+    const sentenceStart = before === "" || OPENING.test(before);
     const isNumber = /\d/.test(token);
     const isName = /^\p{Lu}/u.test(token) && !sentenceStart && token !== "I" && !/^I['’]/.test(token);
     if (!isNumber && !isName) continue;
-    if (!known.includes(` ${normalizeQuote(token)} `) && !known.includes(` ${normalizeQuote(token)}s `))
-      added.push(token);
+    if (isNumber && /^\d+$/.test(token) && Number(token) >= 1 && Number(token) <= smallCounts) continue;
+    const word = normalizeQuote(token);
+    if (
+      OWN_WORDS.has(word) ||
+      isKnown(word) ||
+      isKnown(`${word}s`) ||
+      (word.endsWith("s") && isKnown(word.slice(0, -1)))
+    ) {
+      continue;
+    }
+    added.push(token);
   }
   return added;
 }
 
 /** The sentences of `text` that don't add details missing from `sources`. */
-function withoutInventedDetails(text: string, sources: readonly string[]): string {
+function withoutInventedDetails(text: string, sources: readonly string[], smallCounts: number): string {
   const sentences = text.match(/[^.!?]+[.!?]*/g) ?? [];
   return sentences
-    .filter((sentence) => introducedDetails(sentence, sources).length === 0)
+    .filter((sentence) => introducedDetails(sentence, sources, smallCounts).length === 0)
     .join("")
     .trim();
 }
@@ -183,13 +206,15 @@ export function normalizeFeedback(raw: RawFeedback, turns: readonly ReviewTurn[]
   const learner = turns.map((t) => t.text);
   const sources = [...learner, ...turns.flatMap((t) => [t.question ?? "", t.natural ?? ""])];
   const mistakes = new Map(turns.flatMap((t) => t.mistakes.map((m) => [m.id, m] as const)));
+  // Numbers about the review itself ("message 2", "3 times") are fine up to this.
+  const counts = Math.max(turns.length, mistakes.size);
   const perCategory = new Map<string, number>();
   for (const m of mistakes.values()) perCategory.set(m.category, (perCategory.get(m.category) ?? 0) + 1);
 
   const seenCategories = new Set<string>();
   const recurringMistakes = raw.recurringMistakes.flatMap((r) => {
     const mistake = mistakes.get(r.mistakeId.trim().replace(/^\[|\]$/g, ""));
-    const pattern = withoutInventedDetails(r.pattern.trim(), sources);
+    const pattern = withoutInventedDetails(r.pattern.trim(), sources, counts);
     if (!mistake || !pattern || (perCategory.get(mistake.category) ?? 0) < 2 || seenCategories.has(mistake.category)) {
       return [];
     }
@@ -198,9 +223,9 @@ export function normalizeFeedback(raw: RawFeedback, turns: readonly ReviewTurn[]
   });
 
   const feedback: TopicFeedback = {
-    overall: withoutInventedDetails(raw.overall.trim(), sources),
+    overall: withoutInventedDetails(raw.overall.trim(), sources, counts),
     strengths: raw.strengths
-      .map((s) => withoutInventedDetails(s.trim(), sources))
+      .map((s) => withoutInventedDetails(s.trim(), sources, counts))
       .filter(Boolean)
       .slice(0, MAX_STRENGTHS),
     recurringMistakes: recurringMistakes.slice(0, MAX_RECURRING),
@@ -210,7 +235,7 @@ export function normalizeFeedback(raw: RawFeedback, turns: readonly ReviewTurn[]
       .slice(0, MAX_BETTER),
   };
   if (!feedback.overall && feedback.strengths.length === 0 && feedback.betterAnswers.length === 0) {
-    throw new Error("The model returned an empty review");
+    throw new TopicToolError("Couldn’t write a review grounded in this chat this time, try again");
   }
   return feedback;
 }
