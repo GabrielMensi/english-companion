@@ -5,7 +5,6 @@
  *
  *   pnpm eval:asr                       # every remote engine with a key
  *   pnpm eval:asr groq:whisper-large-v3-turbo gemini:gemini-3.5-transcribe
- *   pnpm eval:asr whisper-cpp:http://localhost:8080
  *
  * Engines:
  *   groq:<model>            Groq Whisper, temperature 0
@@ -13,21 +12,29 @@
  *   gemini:<model>          Gemini Transcribe, VERBATIM mode
  *   gemini-smart:<model>    Gemini Transcribe, SMART mode (for comparison)
  *   gemini-llm:<model>      a Gemini chat model asked to transcribe literally
- *   whisper-cpp:<url>       a local whisper.cpp server (whisper-server)
  *
  * Options: --delay=<ms> between remote requests (default 3000).
+ *          --check  print PASS/FAIL per engine against thresholds.json and exit 1 on a regression.
  * API keys come from the app's settings (DATABASE_PATH) or .env.local.
  */
+import "./load-env";
 import fs from "node:fs";
 import path from "node:path";
+
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { generateText, transcribe } from "ai";
+
 import { shortReason } from "../../src/lib/ai/fallback";
 import { ASR_SAMPLES } from "../../src/lib/eval/asr-samples";
 import { type MistakeOutcome, scoreTranscript } from "../../src/lib/eval/asr-score";
 import { ASR_SAMPLES_DIR } from "../../src/lib/eval/asr-store";
 import { resolveApiKey } from "../../src/lib/secrets";
+
+import { reportCheck, wantsCheck } from "./check";
+import { evalUserId } from "./settings";
+
+const userId = (await evalUserId()) ?? "";
 
 /** Whisper imitates the prompt's style: an ungrammatical, disfluent one discourages "cleaning up". */
 const VERBATIM_PROMPT =
@@ -38,8 +45,8 @@ const delayMs = Number(args.find((a) => a.startsWith("--delay="))?.split("=")[1]
 let specs = args.filter((a) => !a.startsWith("--"));
 if (specs.length === 0) {
   specs = [
-    ...(resolveApiKey("groq") ? ["groq:whisper-large-v3-turbo", "groq-verbatim:whisper-large-v3-turbo"] : []),
-    ...(resolveApiKey("gemini")
+    ...(resolveApiKey(userId, "groq") ? ["groq:whisper-large-v3-turbo", "groq-verbatim:whisper-large-v3-turbo"] : []),
+    ...(resolveApiKey(userId, "gemini")
       ? ["gemini:gemini-3.5-transcribe", "gemini-smart:gemini-3.5-transcribe", "gemini-llm:gemini-flash-lite-latest"]
       : []),
   ];
@@ -51,7 +58,7 @@ if (samples.length === 0) {
   process.exit(1);
 }
 if (specs.length === 0) {
-  console.error("No engines: add a Groq or Gemini API key in Settings, or pass whisper-cpp:<url>.");
+  console.error("No engines: add a Groq or Gemini API key in Settings.");
   process.exit(1);
 }
 console.log(`${samples.length} of ${ASR_SAMPLES.length} sentences recorded.`);
@@ -118,29 +125,13 @@ function transcriber(engine: string, model: string): Transcriber {
           })
         ).text;
     }
-    case "whisper-cpp": {
-      return async (audio, abortSignal) => {
-        const form = new FormData();
-        form.append("file", new Blob([new Uint8Array(audio)], { type: "audio/wav" }), "audio.wav");
-        form.append("temperature", "0");
-        form.append("language", "en");
-        form.append("response_format", "json");
-        const res = await fetch(`${model.replace(/\/$/, "")}/inference`, {
-          method: "POST",
-          body: form,
-          signal: abortSignal,
-        });
-        if (!res.ok) throw new Error(`whisper.cpp responded ${res.status}`);
-        return ((await res.json()) as { text: string }).text;
-      };
-    }
     default:
       throw new Error(`Unknown engine "${engine}"`);
   }
 }
 
 function requireKey(provider: "groq" | "gemini") {
-  const resolved = resolveApiKey(provider);
+  const resolved = resolveApiKey(userId, provider);
   if (!resolved) throw new Error(`Missing ${provider} API key`);
   return resolved.key;
 }
@@ -148,6 +139,7 @@ function requireKey(provider: "groq" | "gemini") {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const summary: Record<string, string | number>[] = [];
 const details: unknown[] = [];
+let regressed = false;
 
 for (const spec of specs) {
   const [engine, ...rest] = spec.split(":");
@@ -167,7 +159,7 @@ for (const spec of specs) {
   let failures = 0;
 
   for (const [i, sample] of samples.entries()) {
-    if (engine !== "whisper-cpp" && i > 0) await sleep(delayMs);
+    if (i > 0) await sleep(delayMs);
     const audio = fs.readFileSync(path.join(ASR_SAMPLES_DIR, `${sample.id}.wav`));
     const started = Date.now();
     try {
@@ -187,6 +179,10 @@ for (const spec of specs) {
   }
 
   const done = samples.length - failures;
+  if (wantsCheck(args)) {
+    const metrics = { wer: wers.length ? wers.reduce((a, b) => a + b, 0) / wers.length : null, failures };
+    regressed = !reportCheck("asr", spec, metrics) || regressed;
+  }
   const pct = (n: number) => (done ? `${Math.round((n / done) * 100)}%` : "-");
   summary.push({
     engine: spec,
@@ -209,3 +205,4 @@ fs.mkdirSync(dir, { recursive: true });
 const file = path.join(dir, `asr-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
 fs.writeFileSync(file, JSON.stringify({ summary, details }, null, 1));
 console.log(`Details saved to ${path.relative(process.cwd(), file)}`);
+if (regressed) process.exitCode = 1;

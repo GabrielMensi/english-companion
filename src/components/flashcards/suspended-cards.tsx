@@ -4,6 +4,7 @@ import { PlayCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import type { SuspendedCard } from "@/lib/flashcards-upkeep";
@@ -56,7 +57,7 @@ export function SuspendedCards({ cards }: { cards: SuspendedCard[] }) {
                 <span className="font-medium">{card.front}</span>
                 {card.back && <span className="text-muted-foreground"> → {card.back}</span>}
               </div>
-              <Button variant="ghost" size="sm" disabled={busy === id} onClick={() => unsuspend(card)}>
+              <Button variant="ghost" size="sm" disabled={busy === id} onClick={() => void unsuspend(card)}>
                 <PlayCircle /> Unsuspend
               </Button>
             </li>

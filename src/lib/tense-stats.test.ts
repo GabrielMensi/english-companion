@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { computeTenseStats, type TenseStatCorrection, type TenseStatMessage } from "./tense-stats";
 
 function correction(partial: Partial<TenseStatCorrection>): TenseStatCorrection {

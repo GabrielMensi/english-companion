@@ -99,6 +99,27 @@
       "when": 1791760863070,
       "tag": "0013_discard_mistakes",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1793228678482,
+      "tag": "0014_auth_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1793233465187,
+      "tag": "0015_multi_user",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1793247859548,
+      "tag": "0016_past_speed",
+      "breakpoints": true
     }
   ]
 }

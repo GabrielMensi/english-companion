@@ -1,8 +1,10 @@
-import { z } from "zod";
+import { withUser } from "@/lib/auth/with-user";
 import { classifyManually } from "@/lib/classification";
 import { getCorrectionUpdate } from "@/lib/corrections";
+import { parseBody } from "@/lib/request-body";
+import { logRouteError } from "@/lib/server-log";
 import { ERROR_CATEGORIES, TENSES } from "@/lib/taxonomy";
-import { readJson } from "@/lib/request-body";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({
   category: z.enum(ERROR_CATEGORIES),
@@ -12,15 +14,16 @@ const bodySchema = z.object({
 });
 
 /** The learner fixes a mistake's type by hand. Returns a `CorrectionUpdate`. */
-export async function PATCH(request: Request, ctx: RouteContext<"/api/corrections/[id]">) {
+export const PATCH = withUser(async (request: Request, ctx: RouteContext<"/api/corrections/[id]">, { userId }) => {
   const { id } = await ctx.params;
-  const body = bodySchema.safeParse(await readJson(request));
-  if (!body.success) return Response.json({ error: "Invalid type" }, { status: 400 });
+  const body = await parseBody(request, bodySchema, "Invalid type");
+  if (!body.ok) return body.response;
   try {
-    const update = classifyManually(id, body.data) ? getCorrectionUpdate(id) : undefined;
+    const update = classifyManually(userId, id, body.data) ? getCorrectionUpdate(userId, id) : undefined;
     if (!update) return Response.json({ error: "Mistake not found" }, { status: 404 });
     return Response.json(update);
   } catch (error) {
+    logRouteError("PATCH /api/corrections/[id]", error, 400);
     return Response.json({ error: (error as Error).message }, { status: 400 });
   }
-}
+});

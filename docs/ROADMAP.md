@@ -37,24 +37,34 @@
 - Mazo **Hard to say** en Flashcards (#65): las oraciones leídas en voz alta con palabras escuchadas distinto vuelven con repaso espaciado; se responden leyéndolas, con el mismo puntaje que Read aloud y la nota sugerida por la lectura ([VOICE.md](voice/VOICE.md)).
 - Solo APIs (#72): se sacaron los modelos locales (Ollama); la cadena es Gemini → Groq y sin ninguna API key la app lo avisa en el chat. Tag `archive/local-models-ollama` para volver ([LOCAL_MODELS.md](ai/LOCAL_MODELS.md)).
 - Panel de pronunciación en el dashboard (#73): porcentaje de palabras escuchadas como están escritas, sonidos cada 100 palabras leídas con tendencia contra el período anterior y link a Read aloud con ese sonido.
+- Clases (#158, #159, #160): página Class con las clases del profesor y su nivel CEFR, reporte imprimible y exportable para llevar ("desde la última clase", sin lo que cargó el profesor, con preguntas sugeridas por la IA) y correcciones y palabras del profesor como fuente "From class" que cuentan en las estadísticas y las flashcards ([CLASS_REPORT.md](class/CLASS_REPORT.md)).
 - Insights (#75): el reporte muestra las áreas flojas con tasa, cantidad de errores y tipos como chips, sin cadenas "A · B · C".
 - Conversaciones sobre un tema (#71): "Talk about…" con 5 temas (entrevista de SWE, entrevista técnica, tecnología e IA, daily stand-up, small talk y viajes) o uno propio; la corrección y las estadísticas son las de siempre.
 - Investigación de pronunciación con modelos de audio (#74): wav2vec2 de fonemas en CPU para la schwa y las formas débiles; el acento por Gemini se descartó ([PRONUNCIATION_AUDIO.md](voice/PRONUNCIATION_AUDIO.md)).
+- Chequeo de sonidos en Read aloud (beta, #132, #133): wav2vec2 de fonemas en CPU marca vocales débiles dichas plenas (`schwa_reduction`, sin contar en estadísticas) y confirma o anota los problemas de th, b/v y vocales; acento de palabra por prosodia (#134) y wav2vec2 en el navegador (#135) medidos, sin función por ahora; script y guía para el eval con grabaciones reales (#136), pendiente de las grabaciones ([PRONUNCIATION_AUDIO.md](voice/PRONUNCIATION_AUDIO.md)).
 - Antes de publicar: estrategia de tests (#78, [TESTING.md](platform/TESTING.md), con un primer test de ruta con la IA simulada), revisión de calidad de código (#77, [CODE_QUALITY.md](platform/CODE_QUALITY.md): Prettier, ESLint más estricto, knip, páginas de error) y de seguridad (#76, [SECURITY_REVIEW.md](platform/SECURITY_REVIEW.md): bloqueo de escrituras cross-site, límites de tamaño, headers, Next 16.3.8, la base con permisos 600; el login queda para Authentication).
 - Plataforma (#86–#94, #109): todo el código formateado con Prettier (`pnpm format:check`, commit en `.git-blame-ignore-revs`); CI en cada PR (typecheck, lint, tests, knip, build), gitleaks y Dependabot (CodeQL espera a que el repo sea público); dependencias al día (Next 16.4, React 19.3, TypeScript 6); las reglas de promesas de ESLint son errores y el lint queda en 0 warnings; lista de hosts permitidos contra DNS rebinding, `pnpm dev` escucha solo en 127.0.0.1 y las variables de entorno se validan con zod al arrancar; las migraciones ya no chocan si varios procesos abren la base a la vez.
+- Deploy listo, sin publicar (#127, #139, #140): `Dockerfile`, `deploy/` (compose, Caddy, `deploy.sh`, `backup.sh`), `pnpm db:migrate` con backup y `MIGRATE_ON_START`, `/api/health`, puerto e IPv6 en los hosts permitidos; pasos en [DEPLOY.md](platform/DEPLOY.md).
 - Descartar errores (#95, #96): "Wrong type?" marca un error como typo y "Discard" lo saca de las estadísticas cuando la corrección estaba mal (se puede deshacer); la tarjeta de corrección y el dashboard se actualizan al momento.
 - Sin API key (#97, #98): Today, Practice e Insights avisan y desactivan los botones de IA con un link a Settings; la configuración vieja se reescribe al leerla, sin los campos de Ollama.
 - Progreso (#99–#101): sección de pronunciación en el reporte de Insights, gráfico de precisión de Read aloud en el dashboard y la proporción de errores del nivel CEFR revisada por proveedor y con chats reales ([LEVEL_CALIBRATION.md](progress/LEVEL_CALIBRATION.md)).
+- Login (#124, #138): la app pide cuenta siempre, también en local (Better Auth, primera cuenta en `/signup`, `pnpm auth:reset-password`), con tests que recorren cada ruta y página para que ninguna quede abierta ([AUTH_MULTIUSER.md](platform/AUTH_MULTIUSER.md)).
+- Varias cuentas (#125, #155): cada cuenta ve solo sus datos y sus ajustes; lo que guardaste antes de las cuentas pasa a la tuya con `pnpm auth:claim-data <email>` (con respaldo).
+- API keys por cuenta, cifradas (#126, #156, #157): se guardan cifradas con `data/encryption.key`, `pnpm keys:reencrypt` al rotarla, y Configuración > Your data exporta e importa tus datos en JSON para mover el historial entre PCs.
+- CSP con nonce en todas las páginas (#137), zod sin `eval` (#153: su prueba con `new Function` chocaba con la CSP; ahora `@/lib/zod` con `jitless`), Kokoro en WebGPU intentado (#45, lo valida el usuario) y Next 16.4.3 con el arreglo de seguridad (#142).
+- Tests (#111–#114, #164): rutas con login y la IA simulada, tests de aislamiento entre cuentas y E2E con Playwright (`pnpm test:e2e`, nocturno y antes de un release; [TESTING.md](platform/TESTING.md)).
+- IA más robusta (#115–#118): fallback de Groq para mensajes largos, los descartes se conservan al reintentar, umbrales de regresión en `pnpm eval:*` (`--check`) y whisper.cpp fuera del eval de ASR.
+- Limpieza (#119–#123): logger de rutas sin texto del alumno, lectura de bodies con límite y código muerto fuera ([CODE_QUALITY.md](platform/CODE_QUALITY.md)).
+- Releases (#128): ramas `main`/`develop`, SemVer, tags y workflow de release ([RELEASES.md](platform/RELEASES.md)).
+- Evals de chats de tema y de correcciones descartadas (#146, #147): `pnpm eval:export-discards` y `eval:models --topics` miden si el modelo repite lo que descartaste ([TOPIC_EVAL.md](ai/TOPIC_EVAL.md)).
+- Ventana flotante y dashboard (#154, #166): "Wrong type?" y "Discard" en las correcciones de la ventana flotante, aviso si falta la API key y página con la lista de errores descartados para deshacerlos.
+- Herramientas en chats de tema (#161–#163): feedback al final de la entrevista, tiempo verbal a practicar según el tema y frases del chat al Vocabulario ([TOPIC_TOOLS.md](chat/TOPIC_TOOLS.md)).
 
 ## Próximo
 
-### Kev como clasificador
-
-Descartado con #72 (la app ya no corre modelos locales). Ver [ERROR_CLASSIFICATION.md](ai/ERROR_CLASSIFICATION.md).
-
 ### Voz
 
-Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). La lectura en voz alta con pronunciación por reglas ya está (fase 3, #53); el repaso espaciado de pronunciación también (mazo Hard to say, #65); el panel en el dashboard también (#73). Falta la schwa y las formas débiles con wav2vec2 ([PRONUNCIATION_AUDIO.md](voice/PRONUNCIATION_AUDIO.md)) y las clases (fase 4); whisper.cpp local se descartó con #72. Kokoro como voz local ya está (en CPU; WebGPU pendiente, #45). Investigación y plan en [VOICE.md](voice/VOICE.md).
+Dictado, estadísticas escritas vs habladas, escuchar, conversación por voz y fluidez ya están hechos (fases 1 y 2). La lectura en voz alta con pronunciación por reglas ya está (fase 3, #53); el repaso espaciado de pronunciación también (mazo Hard to say, #65); el panel en el dashboard también (#73). La schwa y las formas débiles con wav2vec2 ya están como beta en Read aloud (#132, #133; falta el eval con grabaciones reales, [PRONUNCIATION_AUDIO.md](voice/PRONUNCIATION_AUDIO.md)). Falta hablar en las clases (fase 4); whisper.cpp local se descartó con #72. Kokoro como voz local ya está (en CPU; WebGPU pendiente, #45). Investigación y plan en [VOICE.md](voice/VOICE.md).
 
 ### Ejercicios dirigidos
 
@@ -97,7 +107,9 @@ Lo que se verificó (2026-09-28):
 
 Un espacio para los libros: visor de PDF, un botón que pasa la página actual a texto y detecta los ejercicios, resolverlos en la app y corregirlos de a uno (o en grupo), contra la answer key cuando existe y con la IA cuando no. Registra el avance por lección y usa el índice para recomendar ejercicios. Cubre la extracción del índice de §2. Investigación y diseño en [TEXTBOOKS.md](class/TEXTBOOKS.md).
 
-### 1. Reporte para llevar a clase (prioridad 1)
+### 1. Reporte para llevar a clase (hecho)
+
+> Implementado (#158): página `/class/report`, ver [CLASS_REPORT.md](class/CLASS_REPORT.md).
 
 Antes de cada clase, la app genera una página con: los errores más repetidos de la semana con ejemplos reales, las palabras buscadas con `[corchetes]` y las categorías que empeoraron. Se comparte pantalla en Meet o se manda antes, y el profesor dedica la clase a lo que realmente te cuesta en vez de adivinarlo.
 
@@ -113,7 +125,9 @@ Se extrae una sola vez el índice de cada libro a un "syllabus" local (JSON en `
 - **Vocabulario activo**: marcar si usás al escribir las palabras de la unidad, no solo si las reconocés.
 - Extracción: renderizar las páginas del índice a imagen y pasarlas a un modelo de visión con un schema (unidad, lección, título, gramática, vocabulario, categoría), revisando el resultado a mano una vez. Es un paso único por libro.
 
-### 3. Correcciones del profesor después de la clase
+### 3. Correcciones del profesor después de la clase (hecho)
+
+> Implementado (#159, #160): fuente "From class" y nivel del profesor por clase, ver [CLASS_REPORT.md](class/CLASS_REPORT.md).
 
 Después de la clase se cargan las correcciones y palabras nuevas que dio el profesor, como una nueva fuente "From class" (columna `source` en `corrections` / `vocabulary`). Suman a las estadísticas y al vocabulario junto con las de la IA, y después entran en las flashcards. Se puede cargar en texto libre y que la IA lo estructure con la misma taxonomía.
 
@@ -151,4 +165,4 @@ Consideraciones:
 
 ### Otras
 
-- Exportar/importar la base de datos para mover el historial entre PCs. El export tiene que excluir la fila `api-keys` de `settings`, para no compartir keys por accidente.
+- ~~Exportar/importar la base de datos para mover el historial entre PCs~~ (#157): hecho, por cuenta y en JSON, sin keys (Configuración > Your data).

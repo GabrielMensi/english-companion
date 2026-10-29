@@ -4,6 +4,7 @@ import { AlertTriangle, Loader2, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import type { ClassificationStatus as Status } from "@/lib/classification";
@@ -49,9 +50,9 @@ export function ClassificationStatus({ initial }: { initial: Status }) {
   }, [initial.pending, router]);
 
   async function retry() {
-    hadPending.current = true;
     try {
       const next = await api<Status>("/api/classification", { body: { retryFailed: true } });
+      hadPending.current = true;
       setStatus(next);
       if (next.running) setTimeout(() => router.refresh(), POLL_MS);
     } catch (error) {
@@ -77,7 +78,7 @@ export function ClassificationStatus({ initial }: { initial: Status }) {
           {status.pending} {status.pending === 1 ? "mistake isn’t" : "mistakes aren’t"} classified in detail yet:{" "}
           {status.lastError}
         </span>
-        <Button size="sm" variant="outline" onClick={retry}>
+        <Button size="sm" variant="outline" onClick={() => void retry()}>
           <RotateCcw /> Retry
         </Button>
       </Banner>
@@ -91,7 +92,7 @@ export function ClassificationStatus({ initial }: { initial: Status }) {
         <span className="flex-1">
           {status.failed} {status.failed === 1 ? "mistake" : "mistakes"} couldn’t be classified in detail.
         </span>
-        <Button size="sm" variant="outline" onClick={retry}>
+        <Button size="sm" variant="outline" onClick={() => void retry()}>
           <RotateCcw /> Retry
         </Button>
       </Banner>

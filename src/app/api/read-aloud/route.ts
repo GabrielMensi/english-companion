@@ -1,13 +1,17 @@
-import { z } from "zod";
+import { withUser } from "@/lib/auth/with-user";
 import { getPronunciationSummary, saveAttempt } from "@/lib/read-aloud";
-import { PRONUNCIATION_CATEGORIES } from "@/lib/taxonomy";
-import { readJson } from "@/lib/request-body";
+import { parseBody } from "@/lib/request-body";
+import { isBetaPronunciation, PRONUNCIATION_CATEGORIES } from "@/lib/taxonomy";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({
   text: z.string().trim().min(1).max(500),
   source: z.enum(["sounds", "correction", "vocabulary", "review"]),
   sourceId: z.string().nullable(),
-  focus: z.enum(PRONUNCIATION_CATEGORIES).nullable(),
+  focus: z
+    .enum(PRONUNCIATION_CATEGORIES)
+    .refine((c) => !isBetaPronunciation(c))
+    .nullable(),
   transcript: z.string().max(2000),
   transcriptionProvider: z.string().nullable(),
   transcriptionModel: z.string().nullable(),
@@ -15,9 +19,9 @@ const bodySchema = z.object({
 });
 
 /** Scores and saves a read-aloud attempt (already transcribed with /api/transcribe). */
-export async function POST(request: Request) {
-  const body = bodySchema.safeParse(await readJson(request));
-  if (!body.success) return Response.json({ error: "Invalid data" }, { status: 400 });
-  const result = saveAttempt(body.data);
-  return Response.json({ result, summary: getPronunciationSummary() });
-}
+export const POST = withUser(async (request: Request, _ctx, { userId }) => {
+  const body = await parseBody(request, bodySchema, "Invalid data");
+  if (!body.ok) return body.response;
+  const result = saveAttempt(userId, body.data);
+  return Response.json({ result, summary: getPronunciationSummary(userId) });
+});

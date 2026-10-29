@@ -1,6 +1,7 @@
-import type { StoredLevelExplanation } from "@/lib/insights/insights";
+import type { LevelData, StoredLevelExplanation } from "@/lib/insights/insights";
 import { CEFR_LEVELS, type LevelEstimate, type LevelWindow } from "@/lib/insights/level-core";
 import { cn } from "@/lib/utils";
+
 import { LevelExplanationPanel } from "./level-explanation";
 
 const CONFIDENCE_LABELS = { low: "Low confidence", medium: "Medium confidence", high: "Good confidence" } as const;
@@ -11,18 +12,24 @@ export function LevelCard({
   estimate,
   evolution,
   explanation,
+  teacher,
   hasModel,
 }: {
   estimate: LevelEstimate;
   evolution: LevelWindow[];
   explanation: StoredLevelExplanation | null;
+  /** The level the teacher gave in the latest class that gave one. */
+  teacher: LevelData["teacher"];
   hasModel: boolean;
 }) {
   if (estimate.level === null) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Not enough writing yet: the estimate needs at least 300 words. Write about {estimate.wordsNeeded} more.
-      </p>
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Not enough writing yet: the estimate needs at least 300 words. Write about {estimate.wordsNeeded} more.
+        </p>
+        <TeacherLevel teacher={teacher} />
+      </div>
     );
   }
 
@@ -45,6 +52,8 @@ export function LevelCard({
           </p>
         </div>
       </div>
+
+      <TeacherLevel teacher={teacher} />
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -141,4 +150,16 @@ function Scale({ score, from, to }: { score: number; from: string; to: string })
 
 function formatDay(ms: number) {
   return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/** What the teacher said in class, next to the estimate; it never changes the estimate. */
+function TeacherLevel({ teacher }: { teacher: LevelData["teacher"] }) {
+  if (!teacher) return null;
+  return (
+    <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+      Your teacher’s level on {new Date(teacher.heldAt).toLocaleDateString("en-US", { dateStyle: "medium" })}:{" "}
+      <span className="font-medium">{teacher.level}</span>
+      {teacher.comparison && <span className="text-muted-foreground"> · {teacher.comparison.text}</span>}
+    </p>
+  );
 }

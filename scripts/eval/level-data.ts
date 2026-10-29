@@ -16,6 +16,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+
 import { CEFR_LEVELS, type CefrLevel } from "../../src/lib/insights/level-core";
 
 export const DEFAULT_CORPUS_DIR = "data/cefr/wi+locness";

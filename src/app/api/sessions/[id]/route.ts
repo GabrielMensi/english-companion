@@ -1,26 +1,35 @@
-import { z } from "zod";
+import { withUser } from "@/lib/auth/with-user";
 import { deleteSession, getSession, updateSession } from "@/lib/chat";
 import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
-import { readJson } from "@/lib/request-body";
+import { setTopicTense } from "@/lib/practice";
+import { parseBody } from "@/lib/request-body";
+import { TENSES } from "@/lib/taxonomy";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
   mode: z.enum(["correction", "conversation"]).optional(),
+  /** The tense a topic chat also practices, or null for none. */
+  tense: z.enum(TENSES).nullable().optional(),
 });
 
-export async function PATCH(request: Request, ctx: RouteContext<"/api/sessions/[id]">) {
+export const PATCH = withUser(async (request: Request, ctx: RouteContext<"/api/sessions/[id]">, { userId }) => {
   const { id } = await ctx.params;
-  if (!getSession(id)) return Response.json({ error: "Chat not found" }, { status: 404 });
+  if (!getSession(userId, id)) return Response.json({ error: "Chat not found" }, { status: 404 });
 
-  const body = bodySchema.safeParse(await readJson(request));
-  if (!body.success) return Response.json({ error: "Invalid data" }, { status: 400 });
-  return Response.json(updateSession(id, body.data));
-}
+  const body = await parseBody(request, bodySchema, "Invalid data");
+  if (!body.ok) return body.response;
+  const { tense, ...changes } = body.data;
+  if (tense !== undefined && !setTopicTense(userId, id, tense)) {
+    return Response.json({ error: "Only topic chats can practice a tense" }, { status: 400 });
+  }
+  return Response.json(updateSession(userId, id, changes));
+});
 
-export async function DELETE(_request: Request, ctx: RouteContext<"/api/sessions/[id]">) {
+export const DELETE = withUser(async (_request: Request, ctx: RouteContext<"/api/sessions/[id]">, { userId }) => {
   const { id } = await ctx.params;
-  deleteSession(id);
+  deleteSession(userId, id);
   // Its mistakes and words are gone: so are their flashcards.
-  cleanOrphanReviews();
+  cleanOrphanReviews(userId);
   return new Response(null, { status: 204 });
-}
+});

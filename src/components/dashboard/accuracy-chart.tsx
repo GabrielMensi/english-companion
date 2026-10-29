@@ -1,6 +1,7 @@
 "use client";
 
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
 import type { AccuracyPoint } from "@/lib/read-aloud-core";
 
 type Point = AccuracyPoint & { percent: number | null };

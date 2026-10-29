@@ -1,4 +1,5 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+
 import { CategoryRow } from "@/components/dashboard/category-row";
 import type { CategoryStat } from "@/lib/stats-core";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,17 +14,18 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
+import { SUBTYPES } from "@/lib/subtypes";
 import {
   CATEGORY_LABELS,
   ERROR_CATEGORIES,
   type ErrorCategory,
-  SUBTYPES,
   type Tense,
   TENSE_CATEGORIES,
   TENSE_LABELS,
   TENSES,
 } from "@/lib/taxonomy";
 import type { ChatCorrection, CorrectionUpdate } from "@/lib/types";
+import { voided } from "@/lib/voided";
 
 // Radix Select items can't have an empty value.
 const NONE = "none";
@@ -46,6 +47,7 @@ export function ClassificationDialog({
   const [tense, setTense] = useState<string>(correction.tense ?? NONE);
   const [tenseUsed, setTenseUsed] = useState<string>(correction.tenseUsed ?? NONE);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const hasTense = TENSE_CATEGORIES.includes(category);
 
   function changeCategory(value: ErrorCategory) {
@@ -55,6 +57,7 @@ export function ClassificationDialog({
 
   async function save() {
     setSaving(true);
+    setError(null);
     try {
       const update = await api<CorrectionUpdate>(`/api/corrections/${correction.id}`, {
         method: "PATCH",
@@ -67,8 +70,8 @@ export function ClassificationDialog({
       });
       onSaved(update);
       onOpenChange(false);
-    } catch (error) {
-      toast.error((error as Error).message);
+    } catch (caught) {
+      setError((caught as Error).message);
     } finally {
       setSaving(false);
     }
@@ -76,7 +79,7 @@ export function ClassificationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[calc(100%-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>What kind of mistake is it?</DialogTitle>
           <DialogDescription>
@@ -128,11 +131,17 @@ export function ClassificationDialog({
           </>
         )}
 
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={save} disabled={!subtype || saving}>
+          <Button onClick={voided(save)} disabled={!subtype || saving}>
             Save
           </Button>
         </DialogFooter>

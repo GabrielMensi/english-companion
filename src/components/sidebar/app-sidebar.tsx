@@ -17,10 +17,12 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+
 import type { Area } from "@/components/layout/page";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
-import { TalkAboutButton } from "@/components/sidebar/talk-about-button";
 import { SessionItem } from "@/components/sidebar/session-item";
+import { SignOutButton } from "@/components/sidebar/sign-out-button";
+import { TalkAboutButton } from "@/components/sidebar/talk-about-button";
 import { ThemeToggle } from "@/components/sidebar/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -54,6 +56,7 @@ function navGroups(cardsToStudy: number): NavGroup[] {
       items: [
         { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
         { href: "/insights", label: "Insights", icon: Lightbulb },
+        { href: "/class", label: "Class", icon: GraduationCap },
       ],
     },
     {
@@ -73,10 +76,12 @@ export function AppSidebar({
   sessions,
   cardsToStudy,
   initialCollapsed,
+  userEmail,
 }: {
   sessions: SessionSummary[];
   cardsToStudy: number;
   initialCollapsed: boolean;
+  userEmail: string;
 }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(initialCollapsed);
@@ -119,7 +124,7 @@ export function AppSidebar({
 
   if (collapsed) {
     return (
-      <aside className="flex w-14 shrink-0 flex-col items-center border-r bg-sidebar py-3 text-sidebar-foreground">
+      <aside className="flex w-14 shrink-0 flex-col items-center border-r bg-sidebar py-3 text-sidebar-foreground print:hidden">
         {toggleButton}
         <div data-area="write" className="mt-3 flex flex-col gap-1">
           <Hint label="New chat" side="right">
@@ -179,13 +184,16 @@ export function AppSidebar({
           <Hint label="Toggle theme" side="right">
             <ThemeToggle />
           </Hint>
+          <Hint label={`Sign out (${userEmail})`} side="right">
+            <SignOutButton />
+          </Hint>
         </div>
       </aside>
     );
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
+    <aside className="flex w-64 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground print:hidden">
       <div className="flex items-center justify-between gap-1 py-3 pr-2 pl-4">
         <Link href="/" className="flex min-w-0 items-center gap-2 font-semibold">
           <GraduationCap className="size-5 shrink-0" />
@@ -274,6 +282,14 @@ export function AppSidebar({
           Settings
         </Link>
         <ThemeToggle />
+      </div>
+      <div className="flex items-center justify-between gap-1 border-t py-2 pr-2 pl-5">
+        <span className="min-w-0 truncate text-xs text-muted-foreground" title={userEmail}>
+          {userEmail}
+        </span>
+        <Hint label="Sign out" side="bottom">
+          <SignOutButton />
+        </Hint>
       </div>
     </aside>
   );

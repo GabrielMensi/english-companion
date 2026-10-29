@@ -1,13 +1,28 @@
 import { relations } from "drizzle-orm";
-import { type AnySQLiteColumn, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  type AnySQLiteColumn,
+  index,
+  integer,
+  primaryKey,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
+
 import type { FallbackAttempt } from "@/lib/ai/fallback";
 import type { CardKind } from "@/lib/flashcards-core";
-import type { Grade } from "@/lib/srs";
 import type { FluencyMetrics } from "@/lib/fluency";
-import type { TenseCounts } from "@/lib/tenses-core";
+import type { Grade } from "@/lib/srs";
 import type { ErrorCategory, PronunciationCategory, Severity, Tense } from "@/lib/taxonomy";
+import type { TenseCounts } from "@/lib/tenses-core";
 
-export type SessionMode = "correction" | "conversation";
+/** "class" chats are hidden holders of what the teacher corrected in a class (see src/lib/class.ts). */
+export type SessionMode = "correction" | "conversation" | "class";
+/** Where a correction came from: the AI analysis of a message, or the teacher in a class. */
+export type CorrectionSource = "ai" | "class";
+/** Where a vocabulary entry came from: a [bracket] lookup in the app, or a word from a class. */
+export type VocabularySource = "app" | "class";
 export type MessageRole = "user" | "assistant";
 export type MessageStatus = "pending" | "done" | "error";
 /** How the learner wrote the message: typed, or dictated with speech-to-text. */
@@ -25,20 +40,34 @@ const createdAt = () =>
     .notNull()
     .$defaultFn(() => new Date());
 
-export const sessions = sqliteTable("sessions", {
-  id: text("id").primaryKey(),
-  title: text("title").notNull().default("Nuevo chat"),
-  mode: text("mode").$type<SessionMode>().notNull().default("correction"),
-  createdAt: createdAt(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-    .notNull()
-    .$defaultFn(() => new Date()),
-});
+/**
+ * Whose row it is. Nullable on purpose: SQLite can't add a NOT NULL column with a foreign key to a table
+ * that has rows, and rebuilding the table would cascade-delete its children. Rows from before accounts
+ * existed stay NULL until `pnpm auth:claim-data <email>` gives them to a user; no query returns them
+ * before that (every query filters by the signed-in user, see src/db/owned.ts).
+ */
+const owner = () => text("user_id").references((): AnySQLiteColumn => authUser.id, { onDelete: "cascade" });
+
+export const sessions = sqliteTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: owner(),
+    title: text("title").notNull().default("Nuevo chat"),
+    mode: text("mode").$type<SessionMode>().notNull().default("correction"),
+    createdAt: createdAt(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("sessions_user_idx").on(t.userId, t.updatedAt)],
+);
 
 export const messages = sqliteTable(
   "messages",
   {
     id: text("id").primaryKey(),
+    userId: owner(),
     sessionId: text("session_id")
       .notNull()
       .references(() => sessions.id, { onDelete: "cascade" }),
@@ -80,13 +109,17 @@ export const messages = sqliteTable(
     tenseCounts: text("tense_counts", { mode: "json" }).$type<{ version: number; counts: TenseCounts }>(),
     createdAt: createdAt(),
   },
-  (t) => [index("messages_session_idx").on(t.sessionId, t.createdAt)],
+  (t) => [
+    index("messages_session_idx").on(t.sessionId, t.createdAt),
+    index("messages_user_idx").on(t.userId, t.createdAt),
+  ],
 );
 
 export const corrections = sqliteTable(
   "corrections",
   {
     id: text("id").primaryKey(),
+    userId: owner(),
     messageId: text("message_id")
       .notNull()
       .references(() => messages.id, { onDelete: "cascade" }),
@@ -115,12 +148,15 @@ export const corrections = sqliteTable(
     discardedAt: integer("discarded_at", { mode: "timestamp_ms" }),
     /** Why it was discarded, if the learner said. */
     discardReason: text("discard_reason"),
+    source: text("source").$type<CorrectionSource>().notNull().default("ai"),
     createdAt: createdAt(),
   },
   (t) => [
     index("corrections_message_idx").on(t.messageId),
     index("corrections_classification_idx").on(t.classification),
     index("corrections_created_idx").on(t.createdAt),
+    index("corrections_user_idx").on(t.userId, t.createdAt),
+    index("corrections_user_classification_idx").on(t.userId, t.classification),
   ],
 );
 
@@ -129,15 +165,17 @@ export const vocabulary = sqliteTable(
   "vocabulary",
   {
     id: text("id").primaryKey(),
+    userId: owner(),
     messageId: text("message_id")
       .notNull()
       .references(() => messages.id, { onDelete: "cascade" }),
     spanish: text("spanish").notNull(),
     english: text("english", { mode: "json" }).$type<string[]>().notNull(),
     note: text("note"),
+    source: text("source").$type<VocabularySource>().notNull().default("app"),
     createdAt: createdAt(),
   },
-  (t) => [index("vocabulary_created_idx").on(t.createdAt)],
+  (t) => [index("vocabulary_created_idx").on(t.createdAt), index("vocabulary_user_idx").on(t.userId, t.createdAt)],
 );
 
 /**
@@ -149,6 +187,7 @@ export const reviews = sqliteTable(
   "reviews",
   {
     id: text("id").primaryKey(),
+    userId: owner(),
     kind: text("kind").$type<CardKind>().notNull(),
     cardKey: text("card_key").notNull(),
     ease: real("ease").notNull(),
@@ -167,7 +206,12 @@ export const reviews = sqliteTable(
     suspendedAt: integer("suspended_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("reviews_card_idx").on(t.kind, t.cardKey), index("reviews_due_idx").on(t.dueAt)],
+  (t) => [
+    // One state per card and learner. Rows from before accounts (user_id NULL) don't collide with each other:
+    // SQLite treats NULLs as distinct, and they were already unique by (kind, card_key).
+    uniqueIndex("reviews_user_card_idx").on(t.userId, t.kind, t.cardKey),
+    index("reviews_due_idx").on(t.dueAt),
+  ],
 );
 
 /**
@@ -180,6 +224,7 @@ export const missedExercises = sqliteTable(
   "missed_exercises",
   {
     id: text("id").primaryKey(),
+    userId: owner(),
     sessionId: text("session_id").references(() => sessions.id, { onDelete: "set null" }),
     /** Position of the item in the chat's set (0-based). */
     itemIndex: integer("item_index").notNull(),
@@ -195,7 +240,10 @@ export const missedExercises = sqliteTable(
     learnerAnswer: text("learner_answer").notNull(),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("missed_exercises_item_idx").on(t.sessionId, t.itemIndex)],
+  (t) => [
+    uniqueIndex("missed_exercises_item_idx").on(t.sessionId, t.itemIndex),
+    index("missed_exercises_user_idx").on(t.userId, t.createdAt),
+  ],
 );
 
 /**
@@ -207,6 +255,7 @@ export const reviewLog = sqliteTable(
   "review_log",
   {
     id: text("id").primaryKey(),
+    userId: owner(),
     kind: text("kind").$type<CardKind>().notNull(),
     cardKey: text("card_key").notNull(),
     grade: text("grade").$type<Grade>().notNull(),
@@ -216,7 +265,7 @@ export const reviewLog = sqliteTable(
     intervalDays: integer("interval_days").notNull(),
     reviewedAt: integer("reviewed_at", { mode: "timestamp_ms" }).notNull(),
   },
-  (t) => [index("review_log_reviewed_idx").on(t.reviewedAt)],
+  (t) => [index("review_log_reviewed_idx").on(t.reviewedAt), index("review_log_user_idx").on(t.userId, t.reviewedAt)],
 );
 
 /**
@@ -228,6 +277,7 @@ export const readAloudAttempts = sqliteTable(
   "read_aloud_attempts",
   {
     id: text("id").primaryKey(),
+    userId: owner(),
     source: text("source").$type<ReadAloudSource>().notNull(),
     /** The message or vocabulary row the sentence came from (not a foreign key: attempts outlive them). */
     sourceId: text("source_id"),
@@ -242,7 +292,10 @@ export const readAloudAttempts = sqliteTable(
     transcriptionModel: text("transcription_model"),
     createdAt: createdAt(),
   },
-  (t) => [index("read_aloud_attempts_created_idx").on(t.createdAt)],
+  (t) => [
+    index("read_aloud_attempts_created_idx").on(t.createdAt),
+    index("read_aloud_attempts_user_idx").on(t.userId, t.createdAt),
+  ],
 );
 
 /** A word heard differently in a read-aloud attempt, with its pronunciation category. */
@@ -250,6 +303,7 @@ export const pronunciationIssues = sqliteTable(
   "pronunciation_issues",
   {
     id: text("id").primaryKey(),
+    userId: owner(),
     attemptId: text("attempt_id")
       .notNull()
       .references(() => readAloudAttempts.id, { onDelete: "cascade" }),
@@ -265,12 +319,129 @@ export const pronunciationIssues = sqliteTable(
   (t) => [
     index("pronunciation_issues_attempt_idx").on(t.attemptId),
     index("pronunciation_issues_created_idx").on(t.createdAt),
+    index("pronunciation_issues_user_idx").on(t.userId, t.createdAt),
   ],
 );
 
+/**
+ * A class with the teacher (on Meet): when it was, the level the teacher thinks the learner has, and notes.
+ * What the teacher corrected is stored as ordinary messages, corrections and vocabulary (source "class")
+ * of the hidden chat `chatSessionId`, created with the first load.
+ */
+export const classSessions = sqliteTable(
+  "class_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references((): AnySQLiteColumn => authUser.id, { onDelete: "cascade" }),
+    heldAt: integer("held_at", { mode: "timestamp_ms" }).notNull(),
+    /** CEFR level the teacher gave (A1-C2), if they did. */
+    teacherLevel: text("teacher_level"),
+    notes: text("notes"),
+    chatSessionId: text("chat_session_id").references(() => sessions.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("class_sessions_user_idx").on(t.userId, t.heldAt)],
+);
+
+/**
+ * The old key-value table, from when the app had one user. Settings, practice state and AI outputs moved to
+ * `userSettings`, and so did the API keys (encrypted, see lib/secrets.ts); the old `api-keys` row is moved to the
+ * first account on first use and deleted. Nothing new goes here. It is the only table of data without `user_id`
+ * (see schema.test.ts).
+ */
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).notNull(),
+});
+
+/** Per-user key-value: `app` (settings), `practice:<chat id>`, `insights-plan`, `insights-level-explanation`. */
+export const userSettings = sqliteTable(
+  "user_settings",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references((): AnySQLiteColumn => authUser.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    value: text("value", { mode: "json" }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.key] })],
+);
+
+// Better Auth's tables (src/lib/auth/auth.ts maps them by model name). `session` here is the login
+// session; `sessions` above are the chats. Property names are the ones Better Auth uses.
+const authDate = (name: string) => integer(name, { mode: "timestamp_ms" }).notNull();
+
+export const authUser = sqliteTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: integer("email_verified", { mode: "boolean" }).notNull().default(false),
+  image: text("image"),
+  createdAt: authDate("created_at").$defaultFn(() => new Date()),
+  updatedAt: authDate("updated_at").$defaultFn(() => new Date()),
+});
+
+export const authSession = sqliteTable(
+  "session",
+  {
+    id: text("id").primaryKey(),
+    expiresAt: authDate("expires_at"),
+    token: text("token").notNull().unique(),
+    createdAt: authDate("created_at").$defaultFn(() => new Date()),
+    updatedAt: authDate("updated_at").$defaultFn(() => new Date()),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUser.id, { onDelete: "cascade" }),
+  },
+  (t) => [index("session_user_idx").on(t.userId)],
+);
+
+export const authAccount = sqliteTable(
+  "account",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => authUser.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp_ms" }),
+    refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp_ms" }),
+    scope: text("scope"),
+    /** Scrypt hash of the password (provider "credential"). */
+    password: text("password"),
+    createdAt: authDate("created_at").$defaultFn(() => new Date()),
+    updatedAt: authDate("updated_at").$defaultFn(() => new Date()),
+  },
+  (t) => [index("account_user_idx").on(t.userId)],
+);
+
+export const authVerification = sqliteTable(
+  "verification",
+  {
+    id: text("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: authDate("expires_at"),
+    createdAt: authDate("created_at").$defaultFn(() => new Date()),
+    updatedAt: authDate("updated_at").$defaultFn(() => new Date()),
+  },
+  (t) => [index("verification_identifier_idx").on(t.identifier)],
+);
+
+/** Better Auth's rate limiter (`rateLimit.storage: "database"`): one row per client and route. */
+export const authRateLimit = sqliteTable("rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: integer("last_request").notNull(),
 });
 
 export const sessionsRelations = relations(sessions, ({ many }) => ({
@@ -292,6 +463,7 @@ export const vocabularyRelations = relations(vocabulary, ({ one }) => ({
 }));
 
 export type Session = typeof sessions.$inferSelect;
+export type ClassSession = typeof classSessions.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type Correction = typeof corrections.$inferSelect;
 export type VocabularyEntry = typeof vocabulary.$inferSelect;
@@ -300,3 +472,4 @@ export type MissedExercise = typeof missedExercises.$inferSelect;
 export type ReviewLogEntry = typeof reviewLog.$inferSelect;
 export type ReadAloudAttempt = typeof readAloudAttempts.$inferSelect;
 export type PronunciationIssueRow = typeof pronunciationIssues.$inferSelect;
+export type AuthUser = typeof authUser.$inferSelect;

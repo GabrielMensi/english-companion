@@ -2,6 +2,8 @@
 
 import { Loader2, Volume2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
+
 import {
   getGpuRejection,
   type KokoroDevice,
@@ -11,6 +13,7 @@ import {
   retryKokoroGpu,
   useKokoroStatus,
 } from "@/components/audio/kokoro";
+import { formatKokoroDiagnostics } from "@/components/audio/kokoro-diagnostics";
 import {
   getSpeechPrefs,
   preloadSpeech,
@@ -143,7 +146,7 @@ export function VoiceSettings() {
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={() => speak(SAMPLE)} disabled={trying}>
+          <Button variant="outline" size="sm" onClick={() => void speak(SAMPLE)} disabled={trying}>
             {trying ? <Loader2 className="animate-spin" /> : <Volume2 />}
             {/* Waiting for the model only happens once; after that it's just synthesizing the sample. */}
             {!trying ? "Try it" : kokoro.state === "loading" ? "Loading model…" : "Synthesizing…"}
@@ -186,6 +189,22 @@ function KokoroStatusLine({ status, devicePref }: { status: KokoroStatus; device
   }
   // Read on every render (it changes along with the status): set when the GPU's audio failed the check.
   const rejection = devicePref === "auto" ? getGpuRejection() : null;
+  function copyDiagnostics() {
+    if (status.state !== "ready") return;
+    const report = formatKokoroDiagnostics({
+      userAgent: navigator.userAgent,
+      crossOriginIsolated: window.crossOriginIsolated,
+      devicePref,
+      running: { device: status.device, dtype: status.dtype, threads: status.threads },
+      warning: status.warning,
+      rejection: getGpuRejection(),
+      diagnostics: status.diagnostics,
+    });
+    navigator.clipboard.writeText(report).then(
+      () => toast.success("Diagnostics copied"),
+      () => toast.error("Couldn’t copy to the clipboard"),
+    );
+  }
   return (
     <div className="space-y-2 text-sm text-muted-foreground">
       <div className="flex items-center justify-between gap-4">
@@ -196,6 +215,11 @@ function KokoroStatusLine({ status, devicePref }: { status: KokoroStatus; device
         {status.state === "error" && (
           <Button variant="outline" size="sm" onClick={retryKokoro}>
             Retry
+          </Button>
+        )}
+        {status.state === "ready" && (
+          <Button variant="outline" size="sm" onClick={copyDiagnostics}>
+            Copy diagnostics
           </Button>
         )}
       </div>
@@ -209,7 +233,7 @@ function KokoroStatusLine({ status, devicePref }: { status: KokoroStatus; device
             The GPU’s audio failed the check on {new Date(rejection.at).toLocaleDateString()} ({rejection.reason}), so
             Auto uses the CPU in this browser.
           </p>
-          <Button variant="outline" size="sm" onClick={() => retryKokoroGpu().catch(() => {})}>
+          <Button variant="outline" size="sm" onClick={() => void retryKokoroGpu().catch(() => {})}>
             Try the GPU again
           </Button>
         </div>

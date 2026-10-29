@@ -12,52 +12,18 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { AutoModelForCTC, AutoProcessor, type Tensor } from "@huggingface/transformers";
+
 import { align, isVowel, per, prosody, readWav, REDUCED, tokenizeIpa } from "./audio";
 import { CLIPS, SPIKE_DIR, VOICES } from "./clips";
+import { loadRecognizer } from "./model";
+import { type StressScorer, STRESS_SCORERS, stressGuesses, vowelFeatures } from "./stress";
 
-const MODEL_ID = "onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX";
 const args = process.argv.slice(2);
 const dtype = (args.find((a) => a.startsWith("--dtype="))?.split("=")[1] ?? "q8") as "fp32" | "q8" | "q4";
 const dir = args.find((a) => a.startsWith("--dir="))?.split("=")[1] ?? SPIKE_DIR;
 
-const loadStarted = Date.now();
-const processor = await AutoProcessor.from_pretrained(MODEL_ID);
-const model = await AutoModelForCTC.from_pretrained(MODEL_ID, { dtype, device: "cpu" });
-// transformers.js has no Wav2Vec2PhonemeCTCTokenizer: decode with the vocabulary by hand.
-const vocabFile = path.join(SPIKE_DIR, "wav2vec2-vocab.json");
-if (!fs.existsSync(vocabFile)) {
-  const res = await fetch(`https://huggingface.co/${MODEL_ID}/resolve/main/vocab.json`);
-  fs.writeFileSync(vocabFile, await res.text());
-}
-const vocab = JSON.parse(fs.readFileSync(vocabFile, "utf8")) as Record<string, number>;
-const idToToken = Object.fromEntries(Object.entries(vocab).map(([t, id]) => [id, t]));
-const phonemeSet = new Set(Object.keys(vocab).filter((t) => !t.startsWith("<")));
-console.log(`Loaded ${MODEL_ID} (${dtype}) in ${((Date.now() - loadStarted) / 1000).toFixed(1)} s`);
-
-/** Greedy CTC decoding that keeps the frames each phoneme spans. */
-async function recognize(samples: Float32Array) {
-  const inputs = await processor(samples);
-  const { logits } = (await model(inputs)) as { logits: Tensor };
-  const [, frames, classes] = logits.dims;
-  const data = logits.data as Float32Array;
-  const out: { token: string; start: number; end: number }[] = [];
-  let prev = -1;
-  for (let f = 0; f < frames; f++) {
-    let best = 0;
-    for (let c = 1; c < classes; c++) if (data[f * classes + c] > data[f * classes + best]) best = c;
-    if (best !== 0 && best === prev) out[out.length - 1].end = f;
-    else if (best !== 0) out.push({ token: idToToken[best], start: f, end: f });
-    prev = best;
-  }
-  return out;
-}
-
-const zscores = (xs: number[]) => {
-  const mean = xs.reduce((a, b) => a + b, 0) / xs.length;
-  const sd = Math.sqrt(xs.reduce((a, b) => a + (b - mean) ** 2, 0) / xs.length) || 1;
-  return xs.map((x) => (x - mean) / sd);
-};
+const { phonemeSet, recognize } = await loadRecognizer(dtype);
+const MODEL_ID = "onnx-community/wav2vec2-lv-60-espeak-cv-ft-ONNX";
 
 const rows: Record<string, string | number | boolean>[] = [];
 const times: number[] = [];
@@ -94,10 +60,9 @@ for (const voice of VOICES) {
     const fullVowels = reducedSlots.filter((t) => isVowel(t.heard) && !REDUCED.has(t.heard) && t.heard !== "ɪ");
 
     // Stress: prominence of each vowel of the word, located through the clip's own IPA.
-    let stressGuess: number | null = null;
+    let stressGuess: Record<StressScorer, number> | null = null;
     let stressTruth: number | null = null;
     if (clip.word && clip.word !== "to") {
-      const frames = prosody(samples, sampleRate);
       const toSaid = align(
         said.map((t) => t.token),
         heardTokens,
@@ -108,24 +73,12 @@ for (const voice of VOICES) {
       stressTruth = vowels.findIndex((v) => v.stressed);
       const found = vowels.filter((v) => v.h);
       if (found.length === vowels.length && vowels.length > 1) {
-        const features = found.map((v, i) => {
-          const start = v.h!.start;
-          const end = Math.min(found[i + 1]?.h!.start ?? v.h!.end + 4, v.h!.end + 6);
-          const span = frames.slice(Math.max(start - 1, 0), end + 1);
-          const voiced = span.filter((f) => f.f0 > 0).map((f) => f.f0);
-          return {
-            db: Math.max(...span.map((f) => f.db)),
-            f0: voiced.length ? voiced.sort((a, b) => a - b)[Math.floor(voiced.length / 2)] : 0,
-            length: end - start + 1,
-          };
-        });
-        const [db, f0, length] = [
-          zscores(features.map((f) => f.db)),
-          zscores(features.map((f) => f.f0)),
-          zscores(features.map((f) => f.length)),
-        ];
-        const score = features.map((_, i) => db[i] + f0[i] + length[i]);
-        stressGuess = score.indexOf(Math.max(...score));
+        stressGuess = stressGuesses(
+          vowelFeatures(
+            prosody(samples, sampleRate),
+            found.map((v) => v.h!),
+          ),
+        );
       }
     }
 
@@ -146,7 +99,8 @@ for (const voice of VOICES) {
       fullVowels: fullVowels.map((t) => `${t.token}→${t.heard}`).join(" "),
       schwaFlag: fullVowels.length > 0,
       stressTruth: stressTruth ?? "",
-      stressGuess: stressGuess ?? "",
+      stressGuess: stressGuess?.all ?? "",
+      stressByScorer: stressGuess ? JSON.stringify(stressGuess) : "",
     });
   }
 }
@@ -161,6 +115,24 @@ const stressBy = (variant: string, voice?: string) => {
   const subset = stressRows.filter((r) => r.variant === variant && (!voice || r.voice === voice));
   return `${subset.filter((r) => r.stressGuess === r.stressTruth).length}/${subset.length}`;
 };
+// Right verdict per feature set (loudness, pitch, length and their sums), per voice and clip kind.
+const scorerAccuracy = Object.fromEntries(
+  (Object.keys(STRESS_SCORERS) as StressScorer[]).map((name) => {
+    const by = (variant: string, voice: string) => {
+      const subset = stressRows.filter((r) => r.variant === variant && r.voice === voice);
+      const right = subset.filter(
+        (r) => (JSON.parse(String(r.stressByScorer)) as Record<string, number>)[name] === r.stressTruth,
+      );
+      return `${right.length}/${subset.length}`;
+    };
+    return [
+      name,
+      Object.fromEntries(
+        VOICES.map((v) => [v, `stress ${by("stress", v)}, ok ${by("ok", v)}, schwa ${by("schwa", v)}`]),
+      ),
+    ];
+  }),
+);
 const changed = rows.filter((r) => r.variant !== "ok" && r.perSaid !== r.perOk);
 const summary = {
   model: `${MODEL_ID} (${dtype})`,
@@ -173,6 +145,7 @@ const summary = {
   stressFound: Object.fromEntries(VOICES.map((v) => [v, stressBy("stress", v)])),
   stressRightOnCorrect: Object.fromEntries(VOICES.map((v) => [v, stressBy("ok", v)])),
   stressRightOnSchwa: Object.fromEntries(VOICES.map((v) => [v, stressBy("schwa", v)])),
+  stressByFeature: scorerAccuracy,
   alwaysFirstSyllableBaseline: `${stressRows.filter((r) => r.stressTruth === 0).length}/${stressRows.length}`,
 };
 console.log(summary);

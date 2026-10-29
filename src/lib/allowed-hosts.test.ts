@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { isAllowedHost, requestHost } from "./allowed-hosts";
+
+import { isAllowedHost, requestHost, withoutDefaultPort } from "./allowed-hosts";
 
 describe("isAllowedHost", () => {
   it("allows loopback names on any port", () => {
@@ -25,6 +26,32 @@ describe("isAllowedHost", () => {
     expect(isAllowedHost("companion.example.com", allowed)).toBe(true);
     expect(isAllowedHost("Companion.Example.com.:443", allowed)).toBe(true);
     expect(isAllowedHost("evil.companion.example.com", allowed)).toBe(false);
+  });
+});
+
+describe("isAllowedHost: IPv6 literals", () => {
+  it("allows a configured IPv6 literal on any port, and nothing close to it", () => {
+    const allowed = ["[2001:db8::1]"];
+    expect(isAllowedHost("[2001:db8::1]", allowed)).toBe(true);
+    expect(isAllowedHost("[2001:DB8::1]:3737", allowed)).toBe(true);
+    expect(isAllowedHost("[2001:db8::2]:3737", allowed)).toBe(false);
+    expect(isAllowedHost("2001", allowed)).toBe(false);
+  });
+});
+
+describe("withoutDefaultPort", () => {
+  it("drops the port the scheme implies, and only that one", () => {
+    expect(withoutDefaultPort("companion.example.com:443", "https:")).toBe("companion.example.com");
+    expect(withoutDefaultPort("companion.example.com:80", "http:")).toBe("companion.example.com");
+    expect(withoutDefaultPort("companion.example.com:443", "http:")).toBe("companion.example.com:443");
+    expect(withoutDefaultPort("companion.example.com:3737", "https:")).toBe("companion.example.com:3737");
+    expect(withoutDefaultPort("[::1]:443", "https:")).toBe("[::1]");
+  });
+
+  it("lowercases and drops a trailing dot, with or without a port", () => {
+    expect(withoutDefaultPort("Companion.Example.com.:443", "https:")).toBe("companion.example.com");
+    expect(withoutDefaultPort("Companion.Example.com.", "https:")).toBe("companion.example.com");
+    expect(withoutDefaultPort("example.com.:8080", "https:")).toBe("example.com:8080");
   });
 });
 

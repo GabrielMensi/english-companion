@@ -1,7 +1,9 @@
 import "server-only";
 
 import { generateText, NoObjectGeneratedError, Output } from "ai";
+
 import type { Settings } from "@/lib/settings";
+
 import {
   buildClassificationInstructions,
   buildClassificationPrompt,
@@ -12,8 +14,8 @@ import {
 import { withFallback } from "./providers";
 
 /** Classifies a batch of mistakes in one request. Items the model skipped are missing from the result. */
-export async function classifyBatch(items: ClassificationItem[], settings: Settings) {
-  const { result, used } = await withFallback(settings, async (resolved, { isLast }) => {
+export async function classifyBatch(userId: string, items: ClassificationItem[], settings: Settings) {
+  const { result, used } = await withFallback(userId, settings, async (resolved, { isLast }) => {
     const run = () =>
       generateText({
         ...resolved.call({ temperature: 0, retry: isLast }),

@@ -1,4 +1,5 @@
 import { Bot } from "lucide-react";
+
 import { SpeakButton } from "@/components/audio/speak-button";
 import { ModelNote } from "@/components/chat/model-note";
 import type { ChatMessage } from "@/lib/types";

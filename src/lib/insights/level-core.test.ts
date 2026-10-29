@@ -1,19 +1,16 @@
 import { describe, expect, it } from "vitest";
+
 import {
-  cleanText,
   estimateLevel,
   type LevelCorrection,
   type LevelMessage,
   levelEvolution,
   levelOf,
-  mattr,
   measureLevel,
   MIN_WORDS,
   recentWindow,
-  scoreDecreasing,
-  scoreIncreasing,
-  tokenize,
 } from "./level-core";
+import { cleanText, mattr, scoreDecreasing, scoreIncreasing, tokenize } from "./level-text";
 
 const DAY = 86_400_000;
 

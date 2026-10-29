@@ -1,9 +1,12 @@
-import type { NextRequest } from "next/server";
 import { errorToMessage } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "@/lib/ai/provider-info";
 import { listModels } from "@/lib/ai/providers";
+import { withUser } from "@/lib/auth/with-user";
+import { logRouteError } from "@/lib/server-log";
 
-export async function GET(request: NextRequest) {
+import type { NextRequest } from "next/server";
+
+export const GET = withUser(async (request: NextRequest, _ctx, { userId }) => {
   const params = request.nextUrl.searchParams;
   const provider = params.get("provider") as ProviderId | null;
   if (!provider || !PROVIDER_IDS.includes(provider)) {
@@ -11,8 +14,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    return Response.json({ models: await listModels(provider) });
+    return Response.json({ models: await listModels(userId, provider) });
   } catch (error) {
+    logRouteError("GET /api/models (listing models)", error);
     return Response.json({ models: [], error: errorToMessage(error) });
   }
-}
+});

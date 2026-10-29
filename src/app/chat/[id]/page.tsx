@@ -1,21 +1,25 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
+
 import { ChatView } from "@/components/chat/chat-view";
 import { availableModels, hasConfiguredProvider, resolveTranscriptionModel } from "@/lib/ai/providers";
+import { requirePageUser } from "@/lib/auth/session";
 import { getMessages, getSession } from "@/lib/chat";
 import { answerTemplate } from "@/lib/exercise-set";
 import { getPractice, pendingSetSize } from "@/lib/practice";
 import { getSettings } from "@/lib/settings";
+import { getStoredFeedback } from "@/lib/topic-review";
 
 export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
   await connection();
   const { id } = await params;
-  const session = getSession(id);
+  const { userId } = await requirePageUser(`/chat/${id}`);
+  const session = getSession(userId, id);
   if (!session) notFound();
 
-  const settings = getSettings();
-  const setSize = pendingSetSize(session.id);
-  const practice = getPractice(session.id);
+  const settings = getSettings(userId);
+  const setSize = pendingSetSize(userId, session.id);
+  const practice = getPractice(userId, session.id);
 
   return (
     <ChatView
@@ -27,12 +31,17 @@ export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
         mode: session.mode,
         topic: practice?.kind === "topic" ? practice.topic : null,
       }}
-      initialMessages={getMessages(session.id)}
-      models={availableModels(settings)}
+      initialMessages={getMessages(userId, session.id)}
+      models={availableModels(userId, settings)}
       selectedProvider={settings.provider}
-      hasModel={hasConfiguredProvider()}
-      canDictate={resolveTranscriptionModel() !== null}
+      hasModel={hasConfiguredProvider(userId)}
+      canDictate={resolveTranscriptionModel(userId) !== null}
       answerTemplate={setSize ? answerTemplate(setSize) : null}
+      topicTools={
+        practice?.kind === "topic"
+          ? { tense: practice.tense ?? null, feedback: getStoredFeedback(userId, session.id) }
+          : null
+      }
     />
   );
 }

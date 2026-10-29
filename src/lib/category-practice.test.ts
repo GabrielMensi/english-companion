@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   acceptedAnswers,
   type CategoryExerciseItem,
@@ -14,6 +15,7 @@ import {
   SUGGESTED_CATEGORY_TARGETS,
   validSubtype,
 } from "./category-practice";
+
 import type { CategoryStat, Stats } from "./stats-core";
 
 function category(partial: Partial<CategoryStat> & Pick<CategoryStat, "category">): CategoryStat {

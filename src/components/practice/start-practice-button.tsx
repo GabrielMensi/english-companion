@@ -4,12 +4,14 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { NeedsKeyHint } from "@/components/no-provider-notice";
 import { Button } from "@/components/ui/button";
 import type { Session } from "@/db/schema";
 import { api } from "@/lib/api";
 import type { ErrorCategory, Tense } from "@/lib/taxonomy";
 import type { ExerciseKind } from "@/lib/tense-practice";
+import { voided } from "@/lib/voided";
 
 export type StartPracticeRequest =
   | { kind: ExerciseKind | "conversation"; tense: Tense; contrastWith: Tense | null }
@@ -49,7 +51,7 @@ export function StartPracticeButton({
 
   return (
     <NeedsKeyHint active={needsKey}>
-      <Button variant={variant} size="sm" onClick={start} disabled={pending || disabled || needsKey}>
+      <Button variant={variant} size="sm" onClick={voided(start)} disabled={pending || disabled || needsKey}>
         {pending && <Loader2 className="animate-spin" />}
         {pending && request.kind !== "conversation" ? "Preparing exercises…" : children}
       </Button>

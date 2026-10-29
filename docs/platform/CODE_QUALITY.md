@@ -33,6 +33,13 @@ Revisión del código entero (creció feature por feature) antes de _Deploy the 
 - Todas las reglas que eran warning pasaron a **error**: `no-floating-promises`, `no-misused-promises`, `no-unnecessary-type-assertion`, `switch-exhaustiveness-check`, `consistent-type-imports`, `import/no-duplicates` y `no-console` (con la misma lista de permitidos y los scripts de eval afuera). `pnpm lint` da 0 errores y 0 warnings.
 - `no-misused-promises` sigue sin mirar los atributos de JSX (`checksVoidReturn: { attributes: false }`): un `onClick={async () => …}` no se marca, así que esos handlers tienen que atrapar sus errores por su cuenta.
 
+## Orden de imports (#170)
+
+- Regla `import/order` de ESLint (el plugin ya viene con `eslint-config-next`, sin dependencias nuevas). Se eligió ESLint y no un plugin de Prettier para no sumar una dependencia, y porque `eslint --fix` ya es parte del flujo de lint.
+- Grupos, separados por una línea en blanco: `node:*` (builtin), paquetes externos, `@/…` (internal), relativos (`../` y luego `./`). Alfabético dentro de cada grupo, sin distinguir mayúsculas.
+- Los imports de efecto (`import "server-only"`, `import "@/lib/zod"`) los ignora la regla: no se mueven y siguen primeros en su archivo. Si agregás uno, ponelo arriba a mano.
+- Se corrigió todo el repo en un commit aparte (`eslint --fix`), registrado en `.git-blame-ignore-revs`. Un `import` debajo de código ejecutable (como pasaba en `scripts/eval/asr.mts`) hay que subirlo a mano.
+
 ## Hallazgos que quedan
 
 ### Producción
@@ -44,9 +51,9 @@ Revisión del código entero (creció feature por feature) antes de _Deploy the 
 
 ### Duplicación y archivos grandes
 
-- La validación del body se repite en 12 rutas (`bodySchema.safeParse(await request.json().catch(() => null))` + 400). Un helper `parseBody(request, schema, message)` lo dejaría en una línea. Chico, pero toca todas las rutas.
+- ~~La validación del body se repetía en 12 rutas~~ (hecho: `parseBody` en `src/lib/request-body.ts`).
 - Helpers repetidos: `humanize` (`top-mistakes.tsx`, `digest-core.ts`), `formatDate` de claves `YYYY-MM-DD` (`review-panel.tsx`, `timeline-chart.tsx`), cuatro `round` con distinta precisión. Los dos `formatDuration` y los dos `splitSentences` hacen cosas distintas a propósito (formato y criterio de corte), así que se quedan, pero convendría nombrarlos distinto.
-- Archivos que piden partirse: `flashcards/review-session.tsx` (648 líneas: sesión, tarjeta y controles juntos), `insights/level-core.ts` (525), `taxonomy.ts` (469, aunque es casi todo datos), `tense-practice.ts` (427), `pronunciation-core.ts` (401), `chat/chat-view.tsx` (387), `exercise-set.ts` (379), `audio/kokoro.ts` (364), `audio/speech.ts` (332).
+- Archivos que piden partirse: `flashcards/review-session.tsx` (429 líneas tras sacar las caras de las tarjetas a `card-faces.tsx`; `insights/level-core.ts` y `taxonomy.ts` ya se partieron en `level-text.ts` y `subtypes.ts`), `tense-practice.ts` (427), `pronunciation-core.ts` (401), `chat/chat-view.tsx` (387), `exercise-set.ts` (379), `audio/kokoro.ts` (364), `audio/speech.ts` (332).
 
 ### Dependencias
 
@@ -88,8 +95,8 @@ En el tablero como Backlog (Area Platform salvo que se diga otra cosa):
 | ~~Arreglar los 10 warnings de promesas y subir esas reglas a error~~ (hecho en #91)                      | P2       | S    | Chore   |
 | Logger mínimo en el servidor para los errores de las rutas (sin keys ni texto del alumno)                | P1       | S    | Feature |
 | Validar las variables de entorno al arrancar (zod)                                                       | P1       | XS   | Chore   |
-| Helper `parseBody` para las rutas                                                                        | P2       | S    | Chore   |
-| Partir `review-session.tsx` y los archivos grandes de lógica                                             | P2       | M    | Chore   |
+| ~~Helper `parseBody` para las rutas~~ (hecho)                                                            | P2       | S    | Chore   |
+| ~~Partir `review-session.tsx` y los archivos grandes de lógica~~ (hecho)                                 | P2       | M    | Chore   |
 | ~~Actualizar dependencias: minors, `@types/node` a 22; evaluar TypeScript 7 y ESLint 10~~ (hecho en #89) | P2       | M    | Chore   |
 | Subir a ESLint 10 cuando `eslint-config-next` y sus plugins lo soporten                                  | P2       | S    | Chore   |
 | Subir a TypeScript 7 cuando `typescript-eslint` y Next lo soporten                                       | P2       | S    | Chore   |

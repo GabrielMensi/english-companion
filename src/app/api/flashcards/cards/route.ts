@@ -1,7 +1,8 @@
-import { z } from "zod";
+import { withUser } from "@/lib/auth/with-user";
 import { CARD_KINDS } from "@/lib/flashcards-core";
 import { deleteCard, suspendCard, unsuspendCard } from "@/lib/flashcards-upkeep";
-import { readJson } from "@/lib/request-body";
+import { parseBody } from "@/lib/request-body";
+import { z } from "@/lib/zod";
 
 const cardSchema = z.object({
   kind: z.enum(CARD_KINDS),
@@ -9,19 +10,19 @@ const cardSchema = z.object({
 });
 
 /** Suspends a card (hides it from its deck) or brings it back. */
-export async function PATCH(request: Request) {
-  const body = cardSchema.extend({ suspended: z.boolean() }).safeParse(await readJson(request));
-  if (!body.success) return Response.json({ error: "Invalid card" }, { status: 400 });
+export const PATCH = withUser(async (request: Request, _ctx, { userId }) => {
+  const body = await parseBody(request, cardSchema.extend({ suspended: z.boolean() }), "Invalid card");
+  if (!body.ok) return body.response;
   const { kind, key, suspended } = body.data;
-  if (suspended) suspendCard(kind, key);
-  else unsuspendCard(kind, key);
+  if (suspended) suspendCard(userId, kind, key);
+  else unsuspendCard(userId, kind, key);
   return new Response(null, { status: 204 });
-}
+});
 
 /** Deletes a card at its source: the word's lookups, the mistake's corrections or the missed exercise item. */
-export async function DELETE(request: Request) {
-  const body = cardSchema.safeParse(await readJson(request));
-  if (!body.success) return Response.json({ error: "Invalid card" }, { status: 400 });
-  deleteCard(body.data.kind, body.data.key);
+export const DELETE = withUser(async (request: Request, _ctx, { userId }) => {
+  const body = await parseBody(request, cardSchema, "Invalid card");
+  if (!body.ok) return body.response;
+  deleteCard(userId, body.data.kind, body.data.key);
   return new Response(null, { status: 204 });
-}
+});

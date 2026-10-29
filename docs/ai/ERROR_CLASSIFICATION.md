@@ -154,7 +154,7 @@ La categoría gruesa la sigue eligiendo el LLM (ya lo hace bien, 93–96 % en `e
 
 ### Taxonomía fina
 
-Se agrega a `taxonomy.ts` un segundo nivel fijo, `SUBTYPES: Record<ErrorCategory, Record<string, string>>` (nombre → descripción, que sirve igual como `criteria` para systemone y como hint para el LLM). Reemplaza al `subcategory` libre; el campo viejo queda para mostrar y para las filas históricas. Ejemplos:
+Se agrega (en `src/lib/subtypes.ts`) un segundo nivel fijo, `SUBTYPES: Record<ErrorCategory, Record<string, string>>` (nombre → descripción, que sirve igual como `criteria` para systemone y como hint para el LLM). Reemplaza al `subcategory` libre; el campo viejo queda para mostrar y para las filas históricas. Ejemplos:
 
 - `verb_tense`: `tense_choice`, `time_clause`, `sequence_of_tenses`, `stative_in_continuous` (+ `tense` / `tenseUsed`).
 - `prepositions`: `dependent_preposition` (_depend on_), `time` (_in/on/at_), `place`, `movement`, `extra`, `missing`.
@@ -163,7 +163,7 @@ Se agrega a `taxonomy.ts` un segundo nivel fijo, `SUBTYPES: Record<ErrorCategory
 
 ## Plan
 
-1. **Taxonomía fina** en `taxonomy.ts` (`SUBTYPES`, `TENSES`) y migración (`subtype`, `tense`, `tenseUsed`, `classifierConfidence`, `classifier` en `corrections`).
+1. **Taxonomía fina** en `subtypes.ts` (`SUBTYPES`) y `taxonomy.ts` (`TENSES`) y migración (`subtype`, `tense`, `tenseUsed`, `classifierConfidence`, `classifier` en `corrections`).
 2. **Clasificador LLM diferido** (`classify.ts` + partes puras con tests): columna `classification` (`pending / done / failed`) en `corrections`, job por lotes con lock de GPU, disparado al abrir el dashboard, por inactividad y a mano. El prompt del chat se simplifica (sin `subcategory` libre). Script para reclasificar el historial.
 3. **Botón "wrong type"** en cada error: la corrección manual queda guardada como etiqueta. Son datos de evaluación reales y, con el tiempo, de entrenamiento.
 4. **Set de evaluación de clasificación**: ~150 errores etiquetados a mano (de `scripts/eval/samples.ts`, de la base y sintéticos), y `pnpm eval:classify <backend>` con precisión por categoría y calibración.
@@ -175,7 +175,7 @@ Criterio de decisión en el paso 5: Kev se queda si, sin fine-tuning, está a me
 
 ## Implementado
 
-- `SUBTYPES`, `TENSES` y `TENSE_CATEGORIES` en `src/lib/taxonomy.ts`. El prompt del chat no cambió: sigue devolviendo su `subcategory` libre, que queda como detalle.
+- `SUBTYPES` en `src/lib/subtypes.ts`; `TENSES` y `TENSE_CATEGORIES` en `src/lib/taxonomy.ts`. El prompt del chat no cambió: sigue devolviendo su `subcategory` libre, que queda como detalle.
 - Columnas nuevas en `corrections`: `subtype`, `tense`, `tense_used`, `classification` (`pending / done / failed / skipped`), `classified_by` (`rule`, `user` o `<provider>:<model>`) y `classification_attempts`.
 - `src/lib/ai/classify-core.ts` (puro, con tests): reglas sin modelo (sugerencias → `skipped`, typos → `keyboard_typo`, categorías de un solo tipo), prompt por lotes con solo las opciones de la categoría de cada error y normalización contra las listas fijas.
 - `src/lib/classification.ts`: job por lotes de 8, que se dispara al abrir el dashboard, tras 5 minutos sin mensajes o a mano (reintentar). El chat tiene prioridad (`withChatPriority`): el lote espera mientras hay un pedido del chat en curso. Usa el mismo modelo y los mismos fallbacks que el chat, así que no carga otro modelo local. Un proveedor caído o sin cuota no cuenta como intento fallido; una respuesta inválida sí (3 intentos → `failed`).

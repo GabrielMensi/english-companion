@@ -1,7 +1,9 @@
 import "server-only";
 
 import { APICallError } from "ai";
+
 import { computeFluency, wordsFromResponse } from "@/lib/fluency";
+
 import { UserFacingError } from "./fallback";
 import { resolveTranscriptionModel } from "./providers";
 
@@ -15,8 +17,8 @@ export class TranscriptionUnavailableError extends UserFacingError {
 }
 
 /** Transcribes a dictated message (16 kHz mono WAV) word for word, with fluency metrics from the word timestamps. */
-export async function transcribeSpeech(audio: Uint8Array) {
-  const resolved = resolveTranscriptionModel();
+export async function transcribeSpeech(userId: string, audio: Uint8Array) {
+  const resolved = resolveTranscriptionModel(userId);
   if (!resolved) throw new TranscriptionUnavailableError();
 
   const started = Date.now();

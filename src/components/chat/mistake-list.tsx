@@ -2,15 +2,18 @@
 
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
+
 import { ClassificationDialog } from "@/components/chat/classification-dialog";
+import { useNotify } from "@/components/pip/floating-window-context";
 import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
 import { discardCorrection, restoreCorrection } from "@/lib/api";
 import { groupMistakes } from "@/lib/correction-marks";
-import { categoryLabel, SEVERITY_LABELS, subtypeLabel, tenseLabel } from "@/lib/taxonomy";
+import { subtypeLabel } from "@/lib/subtypes";
+import { categoryLabel, SEVERITY_LABELS, tenseLabel } from "@/lib/taxonomy";
 import type { ChatCorrection, CorrectionUpdate } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { voided } from "@/lib/voided";
 
 /** Mistakes shown per category before "Show more". */
 const VISIBLE_PER_GROUP = 3;
@@ -28,7 +31,7 @@ export function MistakeGroups({
 }: {
   mistakes: ChatCorrection[];
   numbers: Map<string, number>;
-  /** The floating window: no severity badges, no "Wrong type?" or "Discard", every mistake visible. */
+  /** The floating window: no severity badges or detail line, every mistake visible. */
   compact?: boolean;
   /** A correction to point out for a moment, e.g. one just marked as a typo. */
   highlight?: string | null;
@@ -118,6 +121,7 @@ export function MistakeItem({
 }) {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const notify = useNotify();
   const discarded = e.discardedAt !== null;
 
   async function toggleDiscard() {
@@ -126,7 +130,7 @@ export function MistakeItem({
     try {
       onUpdate(await (discarded ? restoreCorrection(e.id) : discardCorrection(e.id)));
     } catch (error) {
-      toast.error((error as Error).message);
+      notify("error", (error as Error).message);
     } finally {
       setBusy(false);
     }
@@ -166,7 +170,7 @@ export function MistakeItem({
             {e.correction}
           </span>
           {!compact && <SeverityBadge severity={e.severity} className={cn(discarded && "opacity-60")} />}
-          {!compact && onUpdate && !discarded && (
+          {onUpdate && !discarded && (
             <Button
               variant="ghost"
               size="xs"
@@ -176,7 +180,7 @@ export function MistakeItem({
               Wrong type?
             </Button>
           )}
-          {!compact && onUpdate && (
+          {onUpdate && (
             <Button
               variant="ghost"
               size="xs"
@@ -184,7 +188,7 @@ export function MistakeItem({
                 "text-muted-foreground",
                 !discarded && "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
               )}
-              onClick={toggleDiscard}
+              onClick={voided(toggleDiscard)}
               disabled={busy}
               title={discarded ? undefined : "Not a mistake: leave it out of your stats"}
             >

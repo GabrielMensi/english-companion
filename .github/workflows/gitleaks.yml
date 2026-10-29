@@ -2,7 +2,7 @@ name: gitleaks
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, "integration/**"]
   push:
     branches: [develop, main]
 

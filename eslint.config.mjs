@@ -13,8 +13,16 @@ const eslintConfig = defineConfig([
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
     rules: {
+      // zod's runtime only through "@/lib/zod", which turns off its eval probe before any schema exists (#153).
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [{ name: "zod", message: 'Import z from "@/lib/zod" (it configures zod for the CSP).' }],
+          patterns: [{ group: ["zod/*"], message: 'Import z from "@/lib/zod" (it configures zod for the CSP).' }],
+        },
+      ],
       "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
+      "@typescript-eslint/no-misused-promises": "error",
       "@typescript-eslint/await-thenable": "error",
       "@typescript-eslint/no-unnecessary-type-assertion": "error",
       "@typescript-eslint/switch-exhaustiveness-check": ["error", { considerDefaultExhaustiveForUnions: true }],
@@ -24,6 +32,17 @@ const eslintConfig = defineConfig([
       // Server logs must never carry API keys or the learner's text; the console stays for diagnostics.
       "no-console": ["error", { allow: ["debug", "warn", "error"] }],
       "import/no-duplicates": "error",
+      // Import order (#170). Side-effect imports ("server-only", "@/lib/zod") are not touched by this rule and stay first.
+      "import/order": [
+        "error",
+        {
+          groups: ["builtin", "external", "internal", "parent", "sibling", "index", "object", "type"],
+          pathGroups: [{ pattern: "@/**", group: "internal" }],
+          pathGroupsExcludedImportTypes: ["builtin", "object"],
+          alphabetize: { order: "asc", caseInsensitive: true },
+          "newlines-between": "always",
+        },
+      ],
     },
   },
   // The eval scripts are CLIs: printing is their output.
@@ -36,6 +55,9 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "scripts-dist/**",
+    "playwright-report/**",
+    "test-results/**",
     "next-env.d.ts",
   ]),
 ]);

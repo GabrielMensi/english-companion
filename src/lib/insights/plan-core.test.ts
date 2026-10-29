@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { StatsDigest } from "./digest-core";
-import type { LevelEstimate } from "./level-core";
+
 import {
   buildLevelInstructions,
   buildLevelPrompt,
@@ -11,6 +10,9 @@ import {
   normalizeLevelExplanation,
   normalizePlan,
 } from "./plan-core";
+
+import type { StatsDigest } from "./digest-core";
+import type { LevelEstimate } from "./level-core";
 
 const focus = (topic: string) => ({ topic, why: " why ", practice: "do it", example: "Example." });
 

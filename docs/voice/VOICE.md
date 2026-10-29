@@ -135,8 +135,8 @@ pronunciation_issues: id, attemptId, expected, heard, category, detail, createdA
 - `pnpm eval:asr [engine:model …]`: transcribe cada grabación e indica si el error quedó (`kept`), si el motor lo corrigió (`fixed`) o si no aparece ninguna de las dos formas (`lost`), más el WER contra lo leído. Motores:
   - `groq` y `groq-verbatim` (Whisper, con y sin prompt verbatim);
   - `gemini` y `gemini-smart` (Gemini Transcribe);
-  - `gemini-llm` (un modelo de chat al que se le pide transcribir literal);
-  - `whisper-cpp:<url>` (servidor local).
+  - `gemini-llm` (un modelo de chat al que se le pide transcribir literal).
+  - (El motor local `whisper-cpp:<url>` se sacó del script con #118: la app es solo API desde #72.)
 - Cada request tiene un timeout de 60 s, para que un proveedor que no responde no cuelgue la corrida.
 
 **Resultados con voz real (2026-09-30, 22 oraciones leídas, un solo hablante)**:
@@ -261,6 +261,8 @@ Settings → Listening tiene un **Engine**: _Browser voice_ (default, `speechSyn
 - **Otros dtypes en WebGPU**: no sirven de salida. `fp16` da NaN/ruido (kokoro#74, onnxruntime#29807) y `q8`/`q4`/`q4f16` dan ruido en WebGPU (los mismos reportes); en el Android de kokoro#193 no anduvo ninguno. Por eso WebGPU se usa solo con `fp32` y la salida de emergencia es WASM `q8`, no otro dtype en la GPU. Si una versión futura de ONNX Runtime lo arregla (transformers.js 4 trae una más nueva), _Try the GPU again_ lo vuelve a probar.
 - **Cómo se protege ahora**: `src/components/audio/audio-check.ts` (puro, con tests) mide el audio y rechaza NaN/Infinity, más de 1 % de muestras saturadas, silencio y señal que no parece voz: planitud espectral mediana de los frames fuertes > 0,2, tasa de cruces por cero > 0,25, o rango dinámico < 20 dB (la voz tiene pausas y sílabas; el ruido es parejo). Calibrado con la salida real de Kokoro (3 voces, de "Yes." a 20 palabras): planitud ≤ 0,01, cruces ≤ 0,11, rango ≥ 60 dB; el ruido blanco da ~0,56 / ~0,5 / ~0 dB. Se valida la frase de prueba al cargar **y cada oración** mientras se usa la GPU (los bugs de onnxruntime#29807 dependen del texto): si una falla en _Auto_, esa oración se rehace en la CPU, no se reproduce el ruido, y queda recordado. Avisa con un toast.
 - **onnxruntime-web 1.30** (override en `pnpm-workspace.yaml`; transformers.js 3.8.1 trae 1.22-dev): misma API, sigue trayendo `ort-wasm-simd-threaded.jsep.*`, y `/api/tts/runtime` ahora sirve esos archivos desde el `onnxruntime-web` que importa transformers.js, así JS y WASM siempre coinciden. Verificado en Chromium headless: WASM igual que antes (factor 0,49 con 8 hilos) y WebGPU con SwiftShader da voz que pasa el chequeo. **Falta confirmar en la RX 9070 XT** si arregla el ruido: con _Auto_, "Try the GPU again" en Settings lo vuelve a probar; si sigue fallando, el chequeo lo descarta igual. Si trae problemas, se quita el override y se vuelve a 1.22.
+- **Diagnóstico en Settings** (#45): con Kokoro listo, el botón _Copy diagnostics_ (Settings → Listening) copia un reporte sin texto del usuario: navegador, aislamiento, dispositivo en uso, versión de ONNX Runtime Web, datos del adaptador WebGPU (`vendor`, `architecture`, `device`, `description`, si es el adaptador por software, si soporta `shader-f16`), el rechazo recordado y, por cada prueba hecha (GPU y/o CPU), el resultado del chequeo con sus métricas (rms, pico, saturación, planitud, cruces por cero, rango dinámico). Con eso se ve _por qué_ falló la GPU sin adivinar (`src/components/audio/kokoro-diagnostics.ts`, con tests).
+- **Causas investigadas sin la GPU** (2026-10-28): (1) el dtype ya es el correcto: `fp32` en WebGPU (fp16 da NaN, q8/q4 ruido). (2) `kokoro-js` 1.2.1 sigue en transformers.js 3.8 y transformers.js 4 todavía no es usable con él, así que no hay runtime más nuevo que probar salvo el override de `onnxruntime-web` 1.30 que ya está. (3) `kokoro-js` no deja pasar `session_options` a ONNX Runtime, así que probar `graphOptimizationLevel: "basic"` o `disabled` (una de las pocas cosas que a veces evita los kernels rotos) exigiría crear el modelo con `StyleTextToSpeech2Model` a mano; queda como idea si el diagnóstico apunta a un kernel. (4) El chequeo de audio, el descarte automático y el recuerdo en `localStorage` ya existían (ver arriba) y se dejaron como están; los selectores _Auto / GPU / CPU_ cubren el forzado.
 - **Límite**: el chequeo atrapa ruido, NaN y saturación, no una voz "congestionada" pero inteligible (la variante sutil de onnxruntime#29807). Si la GPU suena rara sin que salte el chequeo, elegir _CPU (WebAssembly)_ en Settings.
 - **Para probar el fallback sin la GPU rota** (solo en desarrollo): `localStorage["kokoro-simulate-noise"]` = `"webgpu"` (la GPU falla la frase de prueba), `"webgpu-speech"` (pasa la prueba y falla en las oraciones reales), `"wasm"` o `"all"`; borrar la clave para volver a la normalidad.
 
@@ -270,6 +272,14 @@ Settings → Listening tiene un **Engine**: _Browser voice_ (default, `speechSyn
 - Una oración de más de ~510 tokens fonéticos se corta (límite del modelo); en la práctica las respuestas del tutor son oraciones cortas.
 - `kokoro-js` no se actualiza desde 2025-05 (sigue en transformers.js 3.x). Si hace falta, se puede pasar a transformers.js 4 copiando su lógica (fonemizar + voces).
 - `stream()` de `kokoro-js` con un string nunca entrega la última oración: el worker arma y cierra el `TextSplitterStream` a mano.
+
+**Prueba manual en la RX 9070 XT** (pendiente, #45; sirve también para la CSP de #137):
+
+1. En Chrome/Edge de Windows abrí `chrome://gpu` y copiá las líneas _Graphics Feature Status → WebGPU_, _GL_RENDERER_, _Driver version_ y _Vulkan/Dawn info_ (adaptador y backend: D3D12 o Vulkan).
+2. Settings → Listening → Engine _Kokoro_ → Device _GPU (WebGPU)_ (forzado: no descarta la GPU aunque el audio falle) → _Try it_. Mirá la línea de estado ("Ready, running on the GPU (WebGPU), fp32 · amd …") y si el audio suena bien o es ruido.
+3. Clic en _Copy diagnostics_ y pegá el reporte en el issue #45 junto con lo de `chrome://gpu`.
+4. Volvé a _Auto_ y _Try the GPU again_ (si estaba rechazada): debería quedar en la CPU con el motivo, o en la GPU si ahora anda.
+5. Opcional: probá con `chrome://flags/#enable-unsafe-webgpu` o con Edge, y con `--disable-features=Vulkan` si el backend era Vulkan, para ver si cambia (y anotá cuál).
 
 ### Fase 3 — Pronunciación (lectura en voz alta ✅ implementada, 2026-10-05, issue #53)
 
@@ -287,7 +297,7 @@ Settings → Listening tiene un **Engine**: _Browser voice_ (default, `speechSyn
 3. Para cada palabra escuchada distinto, se alinean los fonemas (ARPAbet) de las dos y el primer cambio que coincide con una regla decide la categoría: _th_ → t/d/s; b ↔ v; h que se pierde, y ↔ j; una vocal agregada antes de s + consonante (también si Whisper escribe "is students" o "estudent"); iː ↔ ɪ y uː ↔ ʊ; otras vocales; consonantes finales que se pierden o cambian (_worked → work_, _bed → bet_). Si hay varias pronunciaciones (_live_ /lɪv/ o /laɪv/), se usa la más cercana y, si empatan, la regla más específica.
 4. Las palabras que no se escucharon se marcan pero no cuentan como error de pronunciación (pueden ser una palabra salteada).
 
-**Taxonomía** (`PRONUNCIATION_CATEGORIES` en `taxonomy.ts`): `vowel_length`, `vowel_quality` (nueva: _bug / book_, _call / kill_, que Whisper escuchó en la Fase 0), `th_sounds`, `b_v`, `h_j_sounds`, `initial_s_cluster`, `final_consonants`, `other`. Cada una tiene un consejo en español e inglés, según el idioma de las explicaciones. `schwa_reduction` y `word_stress` quedaron afuera: no cambian qué palabra escucha Whisper, así que con esta señal nunca se asignarían.
+**Taxonomía** (`PRONUNCIATION_CATEGORIES` en `taxonomy.ts`): `vowel_length`, `vowel_quality` (nueva: _bug / book_, _call / kill_, que Whisper escuchó en la Fase 0), `th_sounds`, `b_v`, `h_j_sounds`, `initial_s_cluster`, `final_consonants`, `other`. Cada una tiene un consejo en español e inglés, según el idioma de las explicaciones. `word_stress` quedó afuera: no cambia qué palabra escucha Whisper, así que con esta señal nunca se asignaría. `schwa_reduction` (#132) está en la lista pero como **beta**: se encuentra desde el audio con wav2vec2 ([PRONUNCIATION_AUDIO.md](PRONUNCIATION_AUDIO.md)), se muestra como pista en Read aloud y no se guarda ni cuenta en las estadísticas. Ojo: el modelo de fonemas suma ~0,5 GB de RAM al proceso del servidor mientras está cargado (`PHONEME_CHECK=false` lo apaga).
 
 **Guardado**: tablas `read_aloud_attempts` (texto, transcripción, palabras bien / total, fuente, foco) y `pronunciation_issues` (palabra esperada, escuchada, categoría y el sonido que cambió en IPA, p. ej. "/ɪ/ → /iː/"). El audio no se guarda. A Whisper no se le pasa el texto esperado como prompt: lo copiaría y escondería los errores.
 
@@ -305,7 +315,7 @@ Limitaciones:
 
 Pendiente:
 
-- Acento, schwa y word stress desde el audio: investigado en [PRONUNCIATION_AUDIO.md](PRONUNCIATION_AUDIO.md) (#74). Decisión: schwa con un modelo de fonemas wav2vec2 en CPU, acento de palabra pendiente de grabaciones reales, feedback abierto con Gemini descartado.
+- Acento, schwa y word stress desde el audio: investigado en [PRONUNCIATION_AUDIO.md](PRONUNCIATION_AUDIO.md) (#74). Decisión: schwa con un modelo de fonemas wav2vec2 en CPU (hecho como beta, #132/#133), acento de palabra pendiente de grabaciones reales (#134/#136), wav2vec2 en el navegador medido y no necesario por ahora (#135), feedback abierto con Gemini descartado.
 
 ### Fase 4 — Clases
 

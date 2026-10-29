@@ -1,8 +1,9 @@
-import { z } from "zod";
-import { CARD_KINDS } from "@/lib/flashcards-core";
+import { withUser } from "@/lib/auth/with-user";
 import { recordReview } from "@/lib/flashcards";
+import { CARD_KINDS } from "@/lib/flashcards-core";
+import { parseBody } from "@/lib/request-body";
 import { GRADES } from "@/lib/srs";
-import { readJson } from "@/lib/request-body";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({
   kind: z.enum(CARD_KINDS),
@@ -11,9 +12,9 @@ const bodySchema = z.object({
 });
 
 /** The learner graded a flashcard: schedule its next review. */
-export async function POST(request: Request) {
-  const body = bodySchema.safeParse(await readJson(request));
-  if (!body.success) return Response.json({ error: "Invalid review" }, { status: 400 });
-  const state = recordReview(body.data.kind, body.data.key, body.data.grade);
+export const POST = withUser(async (request: Request, _ctx, { userId }) => {
+  const body = await parseBody(request, bodySchema, "Invalid review");
+  if (!body.ok) return body.response;
+  const state = recordReview(userId, body.data.kind, body.data.key, body.data.grade);
   return Response.json(state);
-}
+});

@@ -1,0 +1,317 @@
+# Login, multiusuario y API keys por usuario
+
+> Area: Platform · Kind: Research · Status: Done · Board: #124, #125, #126, #156, #157
+
+> **Estado**: la PR a (auth, #124 y #138) y la b (multiusuario, #125) están implementadas; la c (keys, #126, #156 y #157) también. Lo que cambió al implementar cada una está en _Implementación de la PR a_, _b_ y _c_ más abajo.
+
+Diseño para implementar sin volver a investigar. Cubre _Authentication_ (#124), _Multi-user support_ (#125) y _Per-user API keys_ (#126), más el cifrado de las keys guardadas. Parte de [SECURITY_REVIEW.md](SECURITY_REVIEW.md) (hallazgos 1, 6 y 8) y de [TESTING.md](TESTING.md) (capa de integración). El deploy está en [DEPLOY.md](DEPLOY.md).
+
+## Decisiones (ya tomadas por el usuario)
+
+- **Multiusuario completo**, con email + contraseña (Better Auth), guardado en el mismo SQLite (adaptador de Drizzle).
+- **El login es siempre obligatorio**, también en local.
+- Los datos del único usuario actual pasan a la **primera cuenta**.
+- **Keys por usuario**, cifradas en reposo con una clave del servidor que viene del entorno.
+
+Decisiones de este doc (a confirmar en la PR si algo cambia): registro **cerrado con allowlist** (ver Política de registro), migración de datos con **un comando explícito** (ver Migración de los datos actuales), AES-256-GCM para las keys, sin verificación de email ni reseteo por email.
+
+## 1. Autenticación (PR a)
+
+### Librería y versiones
+
+- **Better Auth 1.7.x** (última estable al escribir: `1.7.14`). Su `peerDependencies` acepta `next ^14 || ^15 || ^16`, `react ^18 || ^19` y `drizzle-orm ^0.45.2` (el repo usa `next 16.4.0`, `react 19.3.0`, `drizzle-orm ^0.45.4`). Sin dependencias nuevas aparte de `better-auth`. Fijar la versión exacta (como `@huggingface/transformers`) y dejar que Dependabot la suba.
+- Hash de contraseñas: el de Better Auth (scrypt, en Node). No hace falta argon2.
+- Auth.js se descartó: Better Auth trae email+password, rate limit y sesiones en base sin armar el esquema a mano, y el adaptador de Drizzle es oficial.
+
+### Piezas
+
+| Archivo (nuevo)                                     | Qué hace                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/lib/auth/auth.ts` (`server-only`)              | `betterAuth({...})` con `drizzleAdapter(db, { provider: "sqlite", schema })`, `emailAndPassword`, el plugin `nextCookies()` (último de la lista) y el hook de registro.                                                                                                                                                                    |
+| `src/lib/auth/auth-core.ts` (sin `server-only`)     | Lógica pura con tests: `canSignUp(email, { allowlist, userCount })`, normalización del email, política de contraseña.                                                                                                                                                                                                                      |
+| `src/lib/auth/session.ts` (`server-only`)           | `getUser()` (lee la sesión de verdad: `auth.api.getSession({ headers: await headers() })`) y `requireUser()` (lanza `UnauthorizedError` si no hay sesión).                                                                                                                                                                                 |
+| `src/app/api/auth/[...all]/route.ts`                | `export const { GET, POST } = toNextJsHandler(auth)`.                                                                                                                                                                                                                                                                                      |
+| `src/app/login/page.tsx`, `src/app/signup/page.tsx` | Formularios (client components) con `authClient.signIn.email` / `signUp.email`. Texto de UI en inglés.                                                                                                                                                                                                                                     |
+| `src/lib/auth/client.ts`                            | `createAuthClient()` (solo `signIn`, `signUp`, `signOut`).                                                                                                                                                                                                                                                                                 |
+| `src/db/schema.ts`                                  | Tablas de Better Auth: `user`, `session`, `account`, `verification` y `rateLimit` (`key`, `count`, `lastRequest`; la pide `rateLimit.storage: "database"`, sin ella el rate limit falla en runtime) (se generan con `npx @better-auth/cli generate`, se pegan a mano en `schema.ts` con el estilo del repo y se corre `pnpm db:generate`). |
+
+Las tablas de Better Auth usan ids `text`, fechas `integer timestamp` y nombres en singular (`user`, `session`): no chocan con las del repo (`sessions` es el de los **chats**, plural). Para no confundir, en el código importar las de auth como `authUser`, `authSession`.
+
+### Variables de entorno nuevas (agregar a `src/lib/env.ts`, con tests, y a la tabla de SECURITY_REVIEW)
+
+| Variable                | Obligatoria          | Qué es                                                                                                                                                                   |
+| ----------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `BETTER_AUTH_SECRET`    | sí (≥ 32 caracteres) | Firma de cookies/tokens. Local: se genera una vez en `data/auth.secret` (permisos `600`) si falta; con `ALLOWED_HOSTS` definido (deploy) falta = el servidor no arranca. |
+| `BETTER_AUTH_URL`       | solo en deploy       | URL pública (`https://companion.example.com`). Solo en deploy; local se infiere de la request (ver abajo).                                                               |
+| `SIGNUP_ALLOWED_EMAILS` | no                   | Emails que pueden registrarse, separados por coma. Ver Política de registro.                                                                                             |
+
+**Orígenes (verificado contra los tipos de `better-auth@1.7.14`: `trustedOrigins` acepta `string[]` o `(request?) => Awaitable<(string | null | undefined)[]>`, y `baseURL` acepta un string o `{ allowedHosts, fallback }`)**. `pnpm dev` escucha en `127.0.0.1`, y los worktrees usan otros puertos (3738, 3741–3745...), así que una URL fija local no sirve:
+
+- **Deploy** (`ALLOWED_HOSTS` definido): `baseURL = BETTER_AUTH_URL` (fija) y `trustedOrigins = ["https://<cada host de ALLOWED_HOSTS>"]`. Con `TRUST_PROXY=true`, además `advanced.trustedProxyHeaders: true` para que respete `X-Forwarded-Host/Proto` (el mismo criterio que `requestHost`).
+- **Local** (sin `ALLOWED_HOSTS`): `trustedOrigins` como **función de la request** que devuelve el `Origin` de la request solo si su hostname es loopback (`localhost`, `127.0.0.1`, `[::1]`, cualquier puerto, http o https), la misma regla que `allowed-hosts.ts`; la lógica vive en `auth-core.ts` (`isLoopbackOrigin`, con tests). `baseURL` se deja sin fijar (se infiere de la request) o se usa `{ allowedHosts: [...loopback], fallback }`; el comodín de puerto en `allowedHosts` no está documentado en los tipos: probarlo, y si no anda, inferir. _Implementación_: anda `{ allowedHosts: ["localhost:*", "127.0.0.1:*", "[::1]:*"], fallback: "https://127.0.0.1:3737" }` (probado con la app real en el puerto 3747); y localmente `advanced.useSecureCookies: false`, así la cookie no cambia de nombre entre `pnpm dev` (https) y `pnpm start` (http); en deploy es `true`.
+- La cookie lleva prefijo `__Secure-` solo con `https`; en `http://127.0.0.1` (`pnpm start`) va sin prefijo. _Implementación_: en local no se usa el prefijo en ningún caso (ver arriba). Los tests de login se hacen en `http` y en `https` y en un puerto distinto de 3737.
+
+### Sesiones y cookies
+
+- Sesión en base (tabla `session`), cookie `httpOnly`, `SameSite=Lax`, `Secure` automático cuando `BETTER_AUTH_URL` es `https` (prefijo `__Secure-`). Duración 30 días, se renueva cada día (`session.expiresIn` / `updateAge`). `cookieCache` activado 5 minutos para no ir a SQLite en cada request (revocar una sesión tarda hasta 5 min en notarse; aceptable).
+- Cerrar sesión borra la fila. _Implementación_: una copia de la cookie sigue valiendo hasta 5 minutos por el `cookieCache` (se probó con la app real); el navegador sí pierde las cookies. El reseteo por comando borra las sesiones de la cuenta (no hay pantalla de cambio de contraseña todavía; cuando exista, usar `revokeOtherSessions: true`).
+- Sin verificación de email (no hay proveedor de correo) y sin "olvidé mi contraseña" por email: el reseteo es un comando de administrador, `pnpm auth:reset-password <email>` (script en `scripts/`, pide la nueva contraseña por stdin, hace el cambio por el camino del core, **no** con `auth.api.setUserPassword` (eso es del plugin `admin` y pide una sesión de admin): hash con `(await auth.$context).password.hash(nueva)`, `UPDATE account SET password = <hash> WHERE user_id = ? AND provider_id = 'credential'` y `DELETE FROM session WHERE user_id = ?`; verificado en los tipos, `ctx.password.hash` existe). Se documenta en el README.
+- Contraseña: mínimo 10 caracteres, máximo 128 (`emailAndPassword.minPasswordLength/maxPasswordLength`). Sin reglas de composición.
+- **Rate limit de Better Auth** (la IP: ver _Implementación_ más abajo) (`rateLimit: { enabled: true, storage: "database" }`; por defecto solo se activa en producción): 3 intentos por 10 s en `/sign-in/email` y `/sign-up/email` como mínimo (regla `customRules`). El de las rutas de IA es aparte (sección 4).
+
+### CSRF
+
+Se mantienen las dos capas y se suma una:
+
+1. `src/proxy.ts` + `src/lib/cross-site.ts` (ya existen; _Implementación_: el chequeo de login va después de estos dos, y el redirect a `/login` tiene que ser una URL absoluta, que el proxy arma con el host de `requestHost`, no con `request.url`): `POST/PUT/PATCH/DELETE` a `/api/*` con `Sec-Fetch-Site` distinto de `same-origin`, o sin él y con `Origin` distinto del host, dan 403. Aplica también a `/api/auth/*`; los formularios de login son same-origin, no se rompen. Con las cookies `SameSite=Lax` el riesgo restante es mínimo.
+2. Better Auth verifica `Origin` contra `trustedOrigins` en cada request con cookie (activo por defecto; **no** poner `advanced.disableCSRFCheck`). _Implementación_: con `NODE_ENV=test` Better Auth apaga esta verificación por su cuenta, así que no se puede testear en vitest; se cubre con `proxy.test.ts` (la capa 1) y se probó a mano contra el servidor real (`Origin: https://evil.test` con cookie válida da 403).
+3. Las páginas no usan Server Actions para mutar (todo pasa por rutas `/api`), así que no hay que sumar nada de ese lado. Si un día se agregan, Next ya compara `Origin` con `Host` y hay que alinearlo con `serverActions.allowedOrigins`.
+
+Re-chequear con tests: un `POST` con cookie válida pero `Origin: https://evil.test` da 403 (lo cubre `cross-site.test.ts` y un test nuevo de integración).
+
+### Qué se protege
+
+**Todo, salvo** (lista cerrada, en `src/lib/auth/public-routes.ts`, con test):
+
+- Páginas: `/login`, `/signup`.
+- API: `/api/auth/*`, `/api/health` (nuevo, para el healthcheck del deploy: devuelve `{ ok: true }` tras un `select 1`, sin datos).
+- Estáticos, sin datos: todo `/_next/*` (`static`, `image`, y `webpack-hmr` en dev, o el HMR se rompe en `/login`), los archivos de `public/` (`*.svg`) y los íconos de metadata (`/favicon.ico`). El matcher de `proxy.ts` hoy solo excluye `/_next/static/`, así que la regla de "público" del proxy es: `/_next/*` + archivos con extensión de `public/` + la lista explícita de arriba. Todo lo demás, con sesión.
+
+Dos niveles, como recomienda `node_modules/next/dist/docs/01-app/02-guides/authentication.md`:
+
+1. **`src/proxy.ts` (chequeo optimista)**: después de los chequeos actuales de host y CSRF, si la ruta no es pública y no hay cookie de sesión (`getSessionCookie(request)` de `better-auth/cookies`, solo mira que exista, no toca la base): páginas → redirect a `/login?next=<ruta>`; `/api/*` → `401 { error: "Sign in to continue" }`. El proxy de Next 16 corre en Node, pero se queda optimista: la cookie falsa pasa este nivel y cae en el segundo.
+2. **Cada route handler y cada página (chequeo real)**: `const { userId } = await requireUser()` como **primera línea**. El proxy no alcanza (Next lo desaconseja como única barrera). Se envuelve en un helper para que no se pueda olvidar: `withUser(handler)` en `src/lib/auth/with-user.ts` que traduce `UnauthorizedError` a 401 y le pasa `userId`. Las páginas llaman `getUser()` y hacen `redirect("/login")`. El layout muestra el email y "Sign out" en la barra lateral.
+
+Rutas especiales:
+
+- `/api/tts/runtime/[file]` (WASM de ONNX Runtime para Kokoro): no tiene datos, pero también pide sesión (la página que lo usa ya la pide). Cuidado con los headers COOP/COEP: no cambian.
+- `/api/eval/*` y `/eval/asr`: herramienta de desarrollo (graba audio en disco). En producción devuelven 404 salvo `ENABLE_EVAL=true` (variable nueva, default `false`); con login, además solo para el primer usuario (admin). Evita que cualquier usuario escriba en `data/asr-samples`.
+- `/api/classification`, `/api/settings/test`, `/api/transcribe`: gastan cuota; van por el rate limit de la sección 4.
+
+### Test de regresión (parte del PR a, depende de test-infra)
+
+_Implementación_: `src/app/security.test.ts`. Un test de integración que **recorre los `route.ts` de `src/app/api/`** (glob con `import.meta.glob` o `fs`), importa cada handler (`GET/POST/PUT/PATCH/DELETE`) y lo llama **sin cookie**: debe dar 401, salvo las rutas de la lista pública. Si alguien agrega una ruta nueva sin `withUser`, el test falla solo. Otro recorre `page.tsx` y verifica el redirect (_Implementación_: como un `page.tsx` async no se puede llamar sin el runtime de Next, el test comprueba en el código fuente que cada página llama a `requirePageUser`; el redirect en sí lo cubre `proxy.test.ts`). Además: body demasiado grande sigue dando 413, y 401 gana sobre 413 (no se lee el body de quien no tiene sesión).
+
+### Implementación de la PR a: lo que se decidió al hacerla
+
+- `getAuth()` es lazy (`src/lib/auth/auth.ts`): `next build` importa las rutas y no debe necesitar el secreto. `BETTER_AUTH_SECRET` local se genera en `auth.secret` **junto a `DATABASE_PATH`** (no en un `data/` fijo), igual que la clave de cifrado futura.
+- `withUser(handler)` pasa `(request, ctx, { userId, email, name })`; `getUser(headers?)`/`requireUser(headers?)` aceptan los headers de la request (los handlers los tienen; las páginas usan los de Next). Las páginas llaman `requirePageUser(path)`. Sin sesión, el layout raíz no dibuja la barra lateral ni lee datos.
+- La exigencia de despliegue (`ALLOWED_HOSTS` sin `BETTER_AUTH_SECRET`/`BETTER_AUTH_URL`) es `deployProblems(env)` en `env.ts`, que corre en `instrumentation.ts`; no está en `parseEnv` para no romper cada uso de `ALLOWED_HOSTS` en tests.
+- `ENABLE_EVAL` y el primer usuario como admin: `evalEnabled()` en `env.ts` e `isAdmin`/`canUseEval` en `src/lib/auth/admin.ts`; las páginas y rutas de `eval` dan 404 si no.
+- Tablas de auth: `user`, `session`, `account`, `verification`, `rate_limit` (en `schema.ts` como `authUser`, `authSession`, ...), migración `0014_auth_tables` (solo `CREATE TABLE` e índices).
+- Tests: `createTestUser()` en `src/test/auth.ts` crea la cuenta por Better Auth y devuelve `request()`/`headers()` con la cookie; el setup fija `BETTER_AUTH_SECRET` y `SIGNUP_ALLOWED_EMAILS`. Con `vi.useFakeTimers()` la comprobación de sesión (cripto asíncrona real) no avanza con `advanceTimersByTimeAsync(0)`: crear primero lo que haga falta y esperar con `vi.waitFor` (ver el test de reintentos en `sessions/[id]/messages`).
+- No hay `GET /api/auth/signup-status` (se quitó: nada lo usaba y revelaba si la instancia estaba libre); `/signup` lee el dato directo de la base.
+- Cookies: localmente el nombre lleva `ec-<hash de DATABASE_PATH>` (`advanced.cookiePrefix`, `authCookiePrefix`), porque las cookies se comparten entre puertos del mismo host y un worktree cerraba la sesión de la app en uso. Un deploy usa el nombre por defecto.
+- IP del rate limit: sin `TRUST_PROXY` no se lee ningún header (nada que mande el cliente cambia su bucket); con `TRUST_PROXY` se lee `X-Forwarded-For` de derecha a izquierda saltando rangos privados (`ipAddressOptions`). **El proxy tiene que poner la dirección del cliente en `X-Forwarded-For`** (Caddy lo hace por defecto y descarta el que manda el cliente); un proxy que solo pasa el header del cliente sin agregar el suyo deja el límite en manos del cliente.
+- Secreto local: un `auth.secret` vacío o corto es un error de arranque (Better Auth usaría un secreto por defecto público), nunca se reemplaza solo.
+- El rechazo del registro cerrado se hace en un hook `before` de `/sign-up/email` (antes de que Better Auth compruebe si el email existe, para que un email registrado no conteste distinto) y de nuevo en `databaseHooks` como respaldo.
+
+## 2. Política de registro
+
+Opciones: (A) registro abierto, (B) invitación con token, (C) allowlist de emails por variable de entorno.
+
+**Recomendada: C, con arranque limpio.** `SIGNUP_ALLOWED_EMAILS=ana@x.com,bruno@y.com`.
+
+- Si la variable tiene emails: solo esos se pueden registrar (comparación en minúsculas). El registro es el mismo formulario; se rechaza con "Sign-up is closed" (mensaje igual para email no permitido y para registro cerrado: no revela quién está en la lista).
+- Si está vacía: solo se puede crear la **primera** cuenta (cuando `user` está vacía); después se cierra. Es el caso local: el usuario actual crea su cuenta y nadie más puede.
+- Se aplica en `databaseHooks.user.create.before` (cubre cualquier camino de alta, no solo el endpoint) y se ve en `/signup` (la página lee si hay lugar directo de la base y muestra el formulario o un aviso).
+- Para dar de alta a alguien: se agrega su email a la variable y se reinicia (para cuatro o cinco personas alcanza; es el mismo mecanismo que `ALLOWED_HOSTS`). Si algún día hace falta más, B (tabla `invites`) es un cambio chico y compatible.
+- En un deploy, la lista **debe** estar definida desde el primer arranque (si no, el primero que llegue a `/signup` se queda con la instancia). Lo exige el checklist de DEPLOY.md.
+
+Por qué no A: cada usuario consume su propia cuota de IA (BYOK) pero también CPU, disco y el clasificador del servidor; el registro abierto invita a abuso y a spam de cuentas, y no hay verificación de email. Por qué no B ahora: más piezas (tabla, pantalla de admin) para un puñado de usuarios.
+
+## 3. Multiusuario (PR b)
+
+### Migración de esquema (aditiva)
+
+Una migración de Drizzle con `ALTER TABLE ... ADD COLUMN user_id text REFERENCES user(id) ON DELETE CASCADE` **nullable** en cada tabla de datos, más índices. SQLite no deja agregar una columna `NOT NULL` con FK sin default, y además la base real ya tiene filas: nullable es lo seguro. Las filas viejas quedan con `user_id` NULL hasta el paso de "claim" y **ninguna consulta las devuelve** (todas filtran `eq(user_id, userId)`).
+
+| Tabla                  | Cambio                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Backfill (script de claim)                                                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `sessions`             | `user_id`, índice `(user_id, updated_at)`                                                                                                                                                                                                                                                                                                                                                                                                              | `UPDATE ... SET user_id = :id WHERE user_id IS NULL`                                                                                                                                 |
+| `messages`             | `user_id` (denormalizado desde la sesión: las rutas por id de mensaje y las estadísticas no hacen join), índice `(user_id, created_at)`                                                                                                                                                                                                                                                                                                                | desde `sessions` (`user_id = :id` también)                                                                                                                                           |
+| `corrections`          | `user_id`, índices `(user_id, created_at)`, `(user_id, classification)`                                                                                                                                                                                                                                                                                                                                                                                | igual                                                                                                                                                                                |
+| `vocabulary`           | `user_id`, índice `(user_id, created_at)`                                                                                                                                                                                                                                                                                                                                                                                                              | igual                                                                                                                                                                                |
+| `reviews`              | `user_id`; el único `reviews_card_idx (kind, card_key)` pasa a `(user_id, kind, card_key)`                                                                                                                                                                                                                                                                                                                                                             | igual (el índice nuevo va en la misma migración: con `user_id` NULL no choca, porque SQLite trata los NULL como distintos, y las filas viejas ya eran únicas por `(kind, card_key)`) |
+| `missed_exercises`     | `user_id`; su único `(session_id, item_index)` se queda (la sesión ya es de un usuario)                                                                                                                                                                                                                                                                                                                                                                | igual                                                                                                                                                                                |
+| `review_log`           | `user_id`, índice `(user_id, reviewed_at)`                                                                                                                                                                                                                                                                                                                                                                                                             | igual                                                                                                                                                                                |
+| `read_aloud_attempts`  | `user_id`, índice `(user_id, created_at)`                                                                                                                                                                                                                                                                                                                                                                                                              | igual                                                                                                                                                                                |
+| `pronunciation_issues` | `user_id`, índice `(user_id, created_at)`                                                                                                                                                                                                                                                                                                                                                                                                              | igual                                                                                                                                                                                |
+| `settings`             | **tabla nueva `user_settings (user_id, key, value)`** con PK `(user_id, key)`. `settings` guarda hoy **más** que `app` y `api-keys`: `practice:<sessionId>` (estado de cada chat de práctica, `practice.ts`) y `insights-plan` (`insights/insights.ts`). Todas pasan a `user_settings`. La `settings` vieja se deja intacta (una release de respaldo) y se borra en una migración posterior (un `DROP TABLE` de una tabla sin FK entrantes es seguro). | **copia todas las filas** de `settings` al usuario (`app`, `api-keys`, `practice:*`, `insights-plan` y cualquier otra)                                                               |
+
+**Guardarraíl obligatorio sobre el SQL generado.** La base se abre con `foreign_keys = ON` y `migrate()` (`src/db/index.ts`) aplica todas las migraciones pendientes dentro de **una** transacción `BEGIN IMMEDIATE`; SQLite ignora `PRAGMA foreign_keys = OFF` dentro de una transacción. Si `drizzle-kit generate` produce una **reconstrucción de tabla** (`CREATE TABLE __new_sessions`, `INSERT ... SELECT`, `DROP TABLE sessions`) en vez de `ADD COLUMN`, el `DROP TABLE` dispara las cascadas (`ON DELETE CASCADE`) y borra `messages`, `corrections` y `vocabulary` de la base real. Por eso:
+
+1. Quien genere la migración **lee el `.sql`**: solo puede contener `ALTER TABLE ... ADD COLUMN`, `CREATE TABLE`, `CREATE INDEX` y `DROP INDEX`/`CREATE UNIQUE INDEX`. Si aparece `__new_` o `DROP TABLE` de una tabla con datos, se reescribe a mano (o se parte en pasos que no reconstruyan).
+2. El test de migraciones con el fixture viejo (de test-infra) agrega: **conteo de filas por tabla antes y después** de aplicar la migración nueva, igual en todas, y un test que falla si algún `.sql` de `drizzle/` posterior a esta migración contiene `DROP TABLE` sobre una tabla de datos.
+3. La misma regla vale para una eventual migración posterior de `NOT NULL`: Drizzle la generaría como reconstrucción de tabla, así que **no se hace**; la columna queda nullable y la garantía es el helper y el test de esquema.
+
+Reglas de la migración: nunca `NOT NULL` sobre filas existentes, nunca borrar datos. Mientras tanto la garantía la da (1) el helper de acceso y (2) un test que revisa que **toda tabla de `schema.ts` salvo las de auth tiene `user_id`** (introspección de `schema`): una tabla nueva sin dueño rompe el test.
+
+### Migración de los datos actuales: `pnpm auth:claim-data <email>`
+
+Elegido: **comando explícito, una vez**, no un claim automático en el primer registro. Es lo más seguro porque:
+
+- No hay forma de que un desconocido se quede con los datos por llegar primero a un deploy que partió de una copia de la base.
+- Es reversible (hace un backup antes) y se puede probar sobre una copia (`DATABASE_PATH=data/dev.db`).
+- El costo es un comando, una vez, por la persona que ya está administrando la app.
+
+Flujo para el usuario actual:
+
+1. Actualiza la app (PR b mergeada). La migración agrega las columnas; todo sigue andando, pero (con el PR a ya mergeado) tiene que iniciar sesión: crea su cuenta en `/signup` (es la primera, entra sin allowlist).
+2. Mientras no corra el claim, la app muestra los chats vacíos y un aviso en el arranque (`console.warn` de una línea, sin contenido) y una banda en la UI para el admin: "Your earlier data isn't assigned to an account yet. Run `pnpm auth:claim-data your@email`".
+3. Corre `pnpm auth:claim-data tu@email`:
+   - Falla si el email no existe en `user`, o si hay más de un usuario **y** ya hay filas con dueño distinto (no pisa nada ajeno). Solo toca filas con `user_id IS NULL`.
+   - Hace un backup con `db.backup()` de better-sqlite3 a `data/backups/pre-claim-<timestamp>.db` (permisos `600`).
+   - En **una transacción**: `UPDATE` de cada tabla de la lista (`WHERE user_id IS NULL`), copia de **todas** las filas de `settings` → `user_settings` (incluidas las `practice:*` y `insights-plan`, y las keys `api-keys`; ya cifradas en el paso c o todavía en claro: las cifra con la clave del servidor si ya existe el paso c), y verificación al final (cuenta de filas con NULL = 0 y totales por tabla iguales a los de antes). Si algo falla, rollback.
+   - Es idempotente: una segunda corrida no encuentra nada que reclamar.
+4. En el deploy: se copia la base local con el claim ya hecho (preferible) o se corre el comando en el servidor con la base restaurada.
+
+### Cómo se acota cada query
+
+Regla: **ninguna función que lee o escribe datos de usuario sin recibir `userId`**. Es un cambio mecánico de firma en **todo módulo que importa `@/db`** (hoy 15 archivos de `src/lib/`, p. ej. `chat`, `corrections`, `stats`, `review-stats`, `flashcards`, `flashcards-upkeep`, `missed-exercises`, `practice`, `practice-start`, `read-aloud`, `vocabulary`, `settings`, `secrets`, `classification`, `insights/insights`; el listado real sale de `grep -l '@/db' src`) y en **todo `route.ts`** (hoy 23). El test de aislamiento y el de "401 en toda ruta" recorren los archivos reales, no una lista escrita acá.
+
+- **`practice.ts` e `insights.ts`** leen y escriben `user_settings` con `userId`; el `LIKE 'practice:%'` de `practice.ts` filtra además por `user_id` (si no, listaría los chats de práctica de todos).
+
+- Helper `src/db/owned.ts`: `owned(table, userId, ...more)` devuelve `and(eq(table.userId, userId), ...more)`, así no se escribe a mano (y se revisa en review) cada filtro.
+- **Por id** (`/api/sessions/[id]`, `/api/messages/[id]/retry`, `/api/corrections/[id]`...): el `where` incluye siempre `userId` además del id. Si no existe **para ese usuario**, responde **404** (no 403: no revela que el id existe).
+- **Inserts**: toda fila nueva lleva `userId`; los hijos lo copian del padre en la misma función (`messages`, `corrections`, `vocabulary`).
+- **Estadísticas** (`stats.ts`, `tense-stats`, `dashboard-summary`, `insights`, nivel CEFR, fluidez, pronunciación): las consultas de carga reciben `userId`; el cálculo puro (`*-core.ts`) no cambia. `countsInStats` se sigue usando igual.
+- **Flashcards**: `reviews` se busca por `(user_id, kind, card_key)`; el upkeep (`flashcards-upkeep.ts`: huérfanas, sincronización) corre **por usuario** y solo limpia filas de ese usuario.
+- **Borrar un usuario** (futuro): `ON DELETE CASCADE` desde `user`. `missed_exercises.session_id` es `SET NULL`, así que su `user_id` también cascadea (por eso la columna propia).
+
+### Settings por usuario
+
+`getSettings(userId)` / `saveSettings(userId, ...)` leen y escriben `user_settings` con clave `app`. Para un usuario nuevo sin fila: `DEFAULT_SETTINGS`. La cadena de proveedores, el idioma de explicación y las tarjetas por sesión son entonces por usuario sin tocar `settings-core.ts`. Las keys van en la clave `api-keys` de la misma tabla (sección 5).
+
+### Jobs en segundo plano
+
+- **Clasificador** (`classification.ts`): el estado (`running`, `activeChats`, `idleTimer`, `lastError`) hoy es uno solo en `globalThis`. Pasa a `Map<userId, JobState>`. Cada lote trabaja con correcciones de **un** usuario, con **su** `getSettings` y **sus** keys (se resuelven dentro del job, sin request, con el `userId` capturado). `withChatPriority(userId, run)`: un chat solo frena el lote del mismo usuario (las keys y cuotas son suyas). Tope global de lotes simultáneos (2) para no saturar el servidor, con una cola simple en memoria. `getClassificationStatus(userId)` filtra por usuario. El `idleTimer` se arma por usuario; si ese usuario no tiene keys, el lote falla y se reintenta (hasta `MAX_ATTEMPTS`) como hoy.
+- **Upkeep de flashcards**: se dispara desde las rutas de flashcards con el `userId` de la sesión; no hay barrido global.
+- Ningún job escanea tablas sin filtrar por usuario (lo cubre el test de aislamiento).
+
+### Tests de aislamiento (integración, `ai/test`, base temporal, dos usuarios)
+
+Fixture: usuarios A y B, cada uno con chat, mensajes, correcciones, vocabulario, tarjetas y settings. Tests:
+
+1. Por **cada ruta con id**: B pide/modifica/borra un id de A → 404 y la fila de A queda igual.
+2. Por **cada ruta de listado/estadística**: la respuesta de B no contiene ningún id ni texto de A (se comparan los conjuntos de ids).
+3. El clasificador de B no toma correcciones de A, ni usa las keys ni los settings de A.
+4. `tenseCounts` / dashboard / insights de B ignoran los datos de A.
+5. Guardia de esquema: toda tabla de datos tiene `user_id` (arriba).
+6. Una consulta "sin filtro" de la API (`db.select().from(schema.x)` sin `userId`) falla un lint: regla `no-restricted-syntax` o un test que greppea `src/lib` por `.from(schema.<tabla>)` sin `owned(`/`userId` cercano (empezar con el test, es más barato que una regla propia).
+
+### Implementación de la PR b: lo que se decidió al hacerla
+
+- **Migración `0015_multi_user`**: la generó `drizzle-kit` y es solo `CREATE TABLE user_settings`, `ALTER TABLE ... ADD user_id`, `CREATE INDEX` y el cambio del único de `reviews` (`DROP INDEX reviews_card_idx` + `CREATE UNIQUE INDEX reviews_user_card_idx (user_id, kind, card_key)`), sin reconstrucción de tablas. Una corrección a mano: drizzle-kit emitió `REFERENCES user(id)` **sin** `ON DELETE cascade` en los `ADD COLUMN` (aunque el esquema lo pide); se agregó a mano para que borrar un usuario borre sus datos. `src/db/migrations.test.ts` aplica la migración sobre una base de la versión anterior con filas en las 10 tablas y comprueba que el conteo no cambia, que todo queda sin dueño, que las cascadas siguen funcionando y que el único es por usuario.
+- **`settings` vieja**: ya no se copia entera. Los pares `app`, `practice:*`, `insights-plan` e `insights-level-explanation` pasan a `user_settings`; **`api-keys` se queda en `settings`, global**, porque las keys por usuario son la PR c y `resolveApiKey` (llamada desde `providers.ts`, sin usuario) no cambia acá. Consecuencia mientras tanto: todas las cuentas comparten las keys guardadas del dueño de la app (y las de `.env`). La tabla `settings` es la única de datos sin `user_id` (lo declara `schema.test.ts`).
+- **`claim-data` mueve en vez de copiar**: las filas de `settings` (salvo `api-keys`) se copian a `user_settings` (si la cuenta ya había guardado esa misma clave después de registrarse, **gana lo de la cuenta**: la fila vieja se descarta y el comando imprime cuáles) y se **borran** de `settings` en la misma transacción. Es lo que hace idempotente al comando (si no, una segunda corrida resucitaría un chat de práctica borrado). El respaldo `data/backups/pre-claim-<fecha>.db` cubre volver atrás. No rechaza si hay otras cuentas con datos: solo toca filas con `user_id IS NULL`, nunca las ajenas. Si la cuenta ya tenía estado para una misma tarjeta (`reviews`), gana el de la cuenta y el viejo se descarta (se informa cuántos).
+- **El aviso de datos sin reclamar** es una banda en el layout (`UnclaimedDataNotice`), solo para el primer usuario (`isAdmin`) y mientras haya filas sin dueño (`hasUnclaimedData`, `EXISTS ... LIMIT 1` por tabla). No hay `console.warn` al arrancar (`instrumentation.ts` corre antes de que exista la base lista para consultar).
+- **`owned(table, userId, ...more)`** (`src/db/owned.ts`) arma todos los filtros. Cada función de `src/lib/` recibe `userId` como primer argumento; los hijos (`messages`, `corrections`, `vocabulary`, `missed_exercises`, `read_aloud_attempts`, `pronunciation_issues`, `reviews`, `review_log`) copian el dueño al insertarse. `src/db/scoping.test.ts` lee el código fuente y falla si una consulta sobre estas tablas no nombra al dueño (`owned(` o un `userId` en el insert).
+- **`userId` no sale del servidor**: `ChatMessage`, `ChatCorrection` y `ChatVocabulary` lo omiten.
+- **Clasificador**: `Map<userId, JobState>` en `globalThis` y `withChatPriority(userId, run)`. Mientras las keys sean globales (todas las cuentas comparten la cuota gratuita) hay **un solo lote a la vez** (`MAX_CONCURRENT_JOBS = 1`, con cola en memoria) y el lote espera a que **ningún** usuario tenga un chat activo; al llegar las keys por usuario (#126) se vuelve a "un chat frena solo el lote de su usuario" y un tope de 2. Los lotes usan `getSettings(userId)`.
+- **El claim corre `IMMEDIATE`** (toma el lock de escritura antes de leer, espera hasta `BUSY_TIMEOUT_MS`): se puede correr con la app andando sin que un commit de la app en el medio lo haga fallar con `SQLITE_BUSY`.
+- `missed_exercises` también tiene su índice `(user_id, created_at)` (en la misma `0015`).
+- **Evals** (`scripts/eval/*`, herramienta del administrador): corren con los settings de la primera cuenta (`scripts/eval/settings.ts`) y `eval:classify` lee las correcciones fijadas a mano de **todas** las cuentas. Es a propósito: es una herramienta local, no una ruta.
+- **Fuera de esta PR**: los límites por usuario de la sección 4 (rate limit de rutas de IA y de audio) no se hicieron; quedan como pendiente (ver el tablero).
+
+## 4. Límites por usuario (parte del PR b)
+
+SECURITY_REVIEW hallazgo 8. En memoria (un solo proceso, como el clasificador), en `src/lib/rate-limit.ts` (lógica pura con tests, ventana deslizante):
+
+- Rutas de IA (send, retry, practice, insights, prompt, `settings/test`, `classification`): 30 pedidos por minuto por usuario.
+- `/api/transcribe`: 10 por minuto y 60 minutos de audio por día por usuario (se suma `audioDurationMs` de `messages` del día).
+- Si el usuario usa las keys compartidas del servidor (sección 5), tope diario de mensajes (default 100, `SHARED_KEY_DAILY_MESSAGES`).
+- Respuesta `429` con `Retry-After`. Al reiniciar el proceso se reinician los contadores: aceptable (el diario sale de la base).
+
+## 5. API keys por usuario, cifradas (PR c)
+
+### Qué cambia
+
+`src/lib/secrets.ts` pasa de `getStoredKeys()` global a `getStoredKeys(userId)` (fila `api-keys` de `user_settings`), y `resolveApiKey(userId, provider)`. `resolveModel` y todo lo que lo llama (`analyzeMessage`, `generateText`, el clasificador, `transcribe`, `listModels`) reciben el `userId` (o las keys ya resueltas). La UI de Settings (tarjetas por proveedor, botones Test) no cambia: solo guarda y prueba las keys del usuario de la sesión.
+
+### Cifrado en reposo
+
+- **Algoritmo**: AES-256-GCM con `node:crypto` (sin dependencias). IV aleatorio de 12 bytes por cifrado, tag de 16 bytes.
+- **Formato** guardado (string): `v1.<keyId>.<iv>.<tag>.<ciphertext>`, todo base64url. `keyId` = primeros 4 bytes de `SHA-256(clave)` en hex, para saber con cuál clave se cifró.
+- **AAD** (datos autenticados): `"<userId>:<provider>"`. Una fila copiada a otro usuario o a otro proveedor no descifra.
+- El valor guardado en `user_settings` pasa de `{ gemini: "AIza…" }` a `{ gemini: "v1.…" }`. La lectura detecta el formato: si no empieza con `v1.`, es una key en claro del formato viejo y se acepta (migración perezosa) y se re-cifra al leerla en la primera escritura. El claim de datos (sección 3) las cifra directamente.
+- Las keys **nunca** viajan al cliente (hoy ya es así: `maskKey`) ni se loguean. El módulo `secrets-crypto.ts` (puro, sin `server-only`, con tests: ida y vuelta, AAD distinta falla, tag alterado falla, clave equivocada falla, formato viejo se acepta) recibe la clave por parámetro.
+
+### Clave del servidor
+
+- **Variable**: `APP_ENCRYPTION_KEY`, 32 bytes en base64 (`openssl rand -base64 32`). Se valida en `env.ts` (largo exacto tras decodificar).
+- **Rotación**: `APP_ENCRYPTION_KEYS_OLD` (lista separada por comas de claves anteriores). Se cifra siempre con `APP_ENCRYPTION_KEY`; se descifra buscando por `keyId` entre la actual y las viejas. Para rotar: poner la nueva en `APP_ENCRYPTION_KEY`, mover la anterior a `..._OLD`, reiniciar, correr `pnpm keys:reencrypt` (relee todas las filas `api-keys` y las vuelve a cifrar con la actual, en una transacción, con backup antes), y recién después se puede quitar la vieja.
+- **Sin la variable, en local**: se genera una clave aleatoria una vez en `<carpeta de DATABASE_PATH>/encryption.key` (permisos `600`, aviso de una línea en el log, en inglés). Protege de que alguien lea un backup o una copia de la base sin la carpeta de la clave; **no** protege de quien tenga acceso a la carpeta `data/` entera. Para el uso local de una persona es el equilibrio correcto: el usuario no tiene que configurar nada.
+  - **Worktrees**: la base de un worktree es una copia (`data/dev.db`), así que hay que copiar **también `data/encryption.key`** (a la misma carpeta que la base copiada, `data/`); si no, las keys copiadas no descifran. Se agrega a los pasos de worktree de `CLAUDE.md` y a `setup-worktree.sh`.
+  - **Una key que no descifra no es un 500**: cuenta como "sin key" para ese proveedor, con una línea de advertencia en el log (sin la key ni el texto cifrado) y el aviso de "add your key" en la UI.
+- **Sin la variable, en deploy** (`ALLOWED_HOSTS` definido): el servidor **no arranca** (`instrumentation.ts`, mensaje claro). Nunca se genera una clave sola en un servidor.
+- **Backup**: la clave tiene que respaldarse **aparte** de la base (gestor de contraseñas). Perderla = el usuario vuelve a pegar sus keys; no se pierden chats ni estadísticas.
+
+### Keys del servidor (variables de entorno)
+
+`GOOGLE_GENERATIVE_AI_API_KEY` y `GROQ_API_KEY` hoy son fallback global. Con varios usuarios:
+
+- Nueva variable `SHARED_KEYS` (`true`/`false`, default `true` para que el uso local actual no cambie). Con `true`, un usuario sin key propia usa la del servidor, con el tope diario de la sección 4. Con `false` (**recomendado en el deploy**) cada uno trae las suyas.
+- Sin ninguna key (propia ni compartida): `NO_PROVIDER_MESSAGE`, como hoy, y el aviso del dashboard (_Dashboard: show the no-API-key notice at the top_) lleva a Settings.
+
+### Dictado sin key de Groq
+
+El dictado usa Groq Whisper. Sin key de Groq (propia o compartida): el botón de micrófono queda **deshabilitado con un texto** ("Add a Groq key in Settings to dictate") y `/api/transcribe` responde 400 con el mismo mensaje (`TranscriptionUnavailableError`, que ya existe). No hay otro motor de respaldo; escribir sigue andando.
+
+### Tests
+
+Cifrado (arriba), "las keys de A no se resuelven para B" (aislamiento), "el cliente nunca recibe la key" (el JSON de `GET /api/settings` no contiene el valor guardado), y el claim cifra las keys viejas.
+
+### Implementación de la PR c: lo que se decidió al hacerla
+
+- **Cifrado**: `secrets-crypto.ts` (puro) y `encryption-key.ts` (clave desde `APP_ENCRYPTION_KEY` o `data/encryption.key`, `600`, escritura atómica como `auth.secret`; cacheada por configuración). `keyId` son 4 bytes (8 hex) de SHA-256. El archivo de clave inválido es un error explícito y nunca se reemplaza; una key que no descifra (clave perdida o distinta) cuenta como "sin key" con una advertencia de una línea sin la key ni el cifrado, y la fila queda intacta. En un deploy (`ALLOWED_HOSTS`) falta `APP_ENCRYPTION_KEY` = no arranca (`deployProblems`).
+- **Las keys de las cuentas viven en `user_settings.api-keys`**. `resolveApiKey(userId, provider)`, `resolveModel(userId, …)`, `withFallback(userId, …)`, `analyzeMessage`, `improvePrompt`, `classifyBatch`, `generateStudyPlan`, `explainLevel`, `generateExercises`, `generateCategoryExercises`, `transcribeSpeech`, `listModels`, `providerStatus`, `hasConfiguredProvider`, `availableModels` y `resolveTranscriptionModel` reciben el `userId` como primer argumento. Las keys en texto plano o cifradas con una clave vieja se re-cifran al leerlas.
+- **Migración de las keys globales: perezosa, no solo en el claim.** La base real ya hizo el claim en la PR b (que dejó `api-keys` en `settings`), así que el claim solo no alcanza. `adoptLegacyKeys` (en `secrets.ts`) mueve la fila `settings.api-keys` a la **primera cuenta** (`isAdmin`) la primera vez que se lee o escribe una key: cifra, escribe en `user_settings` y borra la fila vieja en una transacción; lo que la cuenta ya guardó gana; si la clave de cifrado no se puede leer, la fila vieja se queda (nunca se pierde una key). Es idempotente. El claim ahora **mueve también** `api-keys` (en claro, el claim no depende de la clave de cifrado; la lectura la cifra) y, si la cuenta ya tenía keys, las **une por proveedor** (gana la de la cuenta, el viejo rellena los que faltan; nunca se descarta una). La adopción también prefiere la key vieja si la de la cuenta no se puede descifrar. `settings` queda vacía y sin uso (el test de `scoping` solo permite que `secrets.ts` la lea).
+- **`SHARED_KEYS`** (sin definir = `true` en local; **con `ALLOWED_HOSTS` hay que definirlo explícitamente**, si no la app no arranca; en el deploy, `false`): sin key propia, la cuenta usa `GOOGLE_GENERATIVE_AI_API_KEY` / `GROQ_API_KEY`; con `false` no. El tope diario por usuario sigue pendiente con los límites de la sección 4.
+- **Clasificador**: ya no hay un lote a la vez por keys compartidas: `MAX_CONCURRENT_JOBS = 2` y un chat frena solo el lote de su usuario. Con `SHARED_KEYS=true` las cuentas sin key propia comparten la cuota de la key del servidor; el tope de 2 lo mantiene moderado.
+- **`pnpm keys:reencrypt`** (`src/db/reencrypt.ts`, con tests): backup `pre-reencrypt-<fecha>.db`, una transacción, deja intactas y reporta las que no descifran.
+- **Export / import (#157): JSON por cuenta**, no una copia de SQLite: una copia traería a las demás cuentas y las tablas de login, y no se puede filtrar sin reabrir la base. El archivo (`english-companion-export`, versión 1; `data-transfer-core.ts`) tiene las 10 tablas de datos (incluye `class_sessions`; el chat oculto de la clase y sus correcciones viajan con `source: "class"`; un test exige que toda tabla con `user_id` esté exportada o en una lista explícita de excluidas) y los settings `app` y los por chat (`practice:*`, `feedback:*`; los resultados de insights son cachés y no viajan); nunca keys, login, email ni ids de usuario (lista blanca de settings). Import (`POST /api/data/import`, hasta 10 MB y 30.000 filas (~3 s de servidor bloqueado como máximo), de a una importación por vez, una transacción): **aditivo** y repetible (una fila con el mismo id ya de la cuenta se salta; las únicas por tarjeta o ejercicio se saltan); si el id pertenece a **otra cuenta** (ids únicos en toda la base) se le deriva uno estable (`sha256(userId, tabla, id)`) y los hijos lo siguen, así que importar el mismo archivo dos veces no duplica; cada fila se valida contra el esquema (tipos, enums de la taxonomía) y las inválidas o sin padre se cuentan y se descartan. UI: Configuración > _Your data_.
+- **Pendiente**: tope diario por usuario con `SHARED_KEYS=true`; el dictado sin key responde 409 (ya existía) en vez del 400 del diseño.
+
+## 6. Plan de implementación en orden
+
+Tres PRs, en este orden (cada una usable sola). Dependen de que `test-infra` (tests de rutas y de migraciones) ya esté mergeado.
+
+### a) PR auth (tanda 2, equipo `auth`)
+
+1. `better-auth` (versión exacta), variables nuevas en `env.ts` con tests, `BETTER_AUTH_SECRET` autogenerado en local.
+2. Tablas de auth en `schema.ts` + `pnpm db:generate` + test de migración con el fixture viejo.
+3. `auth.ts`, `auth-core.ts` (+ tests de `canSignUp`), ruta `/api/auth/[...all]`, `session.ts`, `with-user.ts`.
+4. Páginas `/login`, `/signup`, botón "Sign out" y email en la barra lateral. Redirect `?next=` solo a rutas internas (validar que empiece con `/` y no con `//`).
+5. `proxy.ts`: chequeo optimista + lista pública; `GET /api/health`.
+6. Envolver todas las rutas (`route.ts`) con `withUser`; `requireUser`/`getUser` en las páginas. `eval` fuera de dev por `ENABLE_EVAL`.
+7. Test de regresión "401 en toda ruta" y "toda página redirige", tests de CSRF con cookie, 413 vs 401.
+8. Docs: README (cómo crear la cuenta, reseteo de contraseña), SECURITY_REVIEW (hallazgos 1 y 2 resueltos, checklist), `.env.example`.
+   - **Efecto para el usuario**: tras el merge tiene que crear su cuenta una vez; sus datos siguen ahí (todavía sin dueño) y la primera cuenta los ve todos. En esta etapa solo existe una cuenta (registro cerrado salvo el primero), así que no hay mezcla posible.
+
+### b) PR multiusuario (tanda 3, equipo `multi-user`)
+
+1. Migración `user_id` nullable + `user_settings` + índices; `src/db/owned.ts`.
+2. Firma con `userId` en los módulos de `src/lib/` y rutas; settings por usuario; límites por usuario (`rate-limit.ts`).
+3. Clasificador y upkeep por usuario.
+4. `pnpm auth:claim-data <email>` (script en `scripts/`, con tests contra una base temporal: filas con NULL → dueño, idempotencia, rollback si falla, backup creado).
+5. Tests de aislamiento (sección 3), guardia de esquema.
+6. Banda de "datos sin asignar" y `console.warn` de arranque.
+7. `SIGNUP_ALLOWED_EMAILS` documentado; probar con dos cuentas en el worktree.
+8. Antes de mergear a `develop`: backup de `data/companion.db` y **correr el claim** sobre la base real justo después del merge (lo hace el usuario o el orquestador, con el comando de arriba).
+
+### c) PR keys (tanda 4, equipo `keys`)
+
+1. `secrets-crypto.ts` + tests; `APP_ENCRYPTION_KEY(S_OLD)`, archivo de clave local, chequeo de arranque en deploy.
+2. `secrets.ts` por usuario y cifrado; lectura del formato viejo; `resolveModel` con `userId`.
+3. `SHARED_KEYS`, tope diario, dictado sin key (UI y ruta).
+4. `pnpm keys:reencrypt`; el claim de datos cifra las keys.
+5. Tests (sección 5), docs (README: dónde está la clave y cómo respaldarla), SECURITY_REVIEW (hallazgo 6 resuelto).
+6. _Export / import the database_ (también en esta tanda): por usuario y **sin keys**.
+
+## Riesgos y preguntas abiertas
+
+- **Better Auth cambia rápido**: antes de empezar la PR a, leer su guía de Next (`https://www.better-auth.com/docs/integrations/next`) y el `CHANGELOG` de la versión elegida; los nombres de opciones de este doc se verificaron contra los tipos de `better-auth@1.7.14` (`trustedOrigins` como función, `baseURL` dinámico, `rateLimit.customRules/storage`, `emailAndPassword.minPasswordLength/maxPasswordLength/disableSignUp`, `databaseHooks.user.create.before`, `advanced.useSecureCookies/trustedProxyHeaders`, `session.cookieCache`, `ctx.password.hash`); si se sube la versión, repetir la verificación.
+- **Reseteo de contraseña sin email**: depende del administrador. Si algún día se suma un proveedor de correo, se activa `sendResetPassword` sin cambiar el esquema.
+- **Rate limit en memoria**: sirve con un solo proceso (que es lo que ya exige el clasificador); con más de una instancia habría que moverlo a la base.
+- **Índice único de `reviews`**: cambiarlo a `(user_id, kind, card_key)` hay que cubrirlo con el test de migraciones con el fixture viejo (de test-infra).

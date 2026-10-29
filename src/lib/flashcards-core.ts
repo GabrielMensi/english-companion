@@ -40,6 +40,8 @@ export interface MistakeCard {
   /** The sentence with only this mistake fixed. */
   fixedSentence: string;
   sessionId: string;
+  /** The newest time it was reported was in class: the teacher gave it, and there is no chat to open. */
+  fromClass: boolean;
   timesMade: number;
   lastSeen: number;
 }
@@ -184,6 +186,7 @@ export interface MistakeRow {
   sessionId: string;
   /** What the learner wrote (the whole message). */
   sentence: string;
+  source?: "ai" | "class";
 }
 
 /**
@@ -223,6 +226,7 @@ export function mistakeCards(rows: MistakeRow[]): MistakeCard[] {
       sentence,
       fixedSentence: applyCorrection(sentence, row.original, row.correction),
       sessionId: row.sessionId,
+      fromClass: row.source === "class",
       timesMade: 1,
       lastSeen: row.createdAt,
     });

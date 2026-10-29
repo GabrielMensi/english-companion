@@ -2,9 +2,11 @@ name: CI
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, "integration/**"]
   push:
-    branches: [develop]
+    branches: [develop, main]
+  # Called by release.yml, so a tag runs the same checks before publishing.
+  workflow_call:
 
 permissions:
   contents: read
@@ -39,8 +41,8 @@ jobs:
         run: pnpm typecheck
       - name: Lint
         run: pnpm lint
-      - name: Test
-        run: pnpm test
+      - name: Test (with the coverage floor for src/lib)
+        run: pnpm test:coverage
       - name: Knip
         run: pnpm knip
       - name: Format

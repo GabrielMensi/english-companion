@@ -90,7 +90,7 @@ En _train_ (1.000 palabras): 23 % / 76 % antes, 62 % / 97 % después. Antes, cas
 
 Groq cuenta un 8 % más que Gemini en los mismos textos; por nivel salta entre 0,42 y 1,0, pero con 2 a 5 textos por nivel eso es ruido (C2 son 15 errores en total). Un 8 % más de errores mueve el puntaje de precisión menos de un cuarto de nivel. Además, en la app Groq es solo el respaldo: de los 59 mensajes reales, 52 los corrigió Gemini flash-lite, 2 Groq y 5 Ollama (gemma4:12b, de antes de sacar los modelos locales en #72) (el modelo principal sigue siendo `gemini-flash-lite-latest`, el mismo del puente original, así que no hizo falta gastar cuota de Gemini).
 
-**Chat real: no hay calificación del profesor.** La base no guarda ningún nivel ni nota del profesor por sesión (no existe ese campo), así que calibrar contra el profesor sigue bloqueado hasta que se registre. Lo que sí se puede medir sin IA, con `countsInStats` y la taxonomía, sobre `data/dev.db` (copia del 28/9 al 8/10, 59 mensajes):
+**Chat real: no había calificación del profesor.** Ahora se guarda el nivel que da el profesor en cada clase (`class_sessions.teacher_level`, #160, [CLASS_REPORT.md](../class/CLASS_REPORT.md)) y se muestra junto a la estimación en Insights; calibrar contra el profesor con chat real ya es posible en cuanto haya varias clases con nivel (la copia analizada abajo es anterior a ese campo). Lo que sí se puede medir sin IA, con `countsInStats` y la taxonomía, sobre `data/dev.db` (copia del 28/9 al 8/10, 59 mensajes):
 
 | Tipo     | Mensajes | Palabras | Errores contados | Cada 100 palabras | En categorías no medibles al hablar |
 | -------- | -------- | -------- | ---------------- | ----------------- | ----------------------------------- |
@@ -131,5 +131,7 @@ pnpm eval:level --spoken            # todo dictado
 pnpm eval:level --analyze=gemini:gemini-flash-lite-latest --limit=30   # puente con la IA (gasta cuota; queda en caché)
 pnpm eval:level --analyze=groq:qwen/qwen3.8-27b --limit=30 --delay=75000   # Groq: más pausa por su límite de tokens por minuto
 ```
+
+**Fallas de Groq en textos largos (#115).** Con 6 ensayos (uno por nivel, Groq forzado, 70 s de pausa), 3 fallaron: el modelo se quedaba sin tokens de salida ("max completion tokens reached", HTTP 400) porque Qwen3 gasta tokens razonando. Ahora `providers.ts` apaga el razonamiento en Qwen3 (`reasoningEffort: none`; `low` en gpt-oss, que no admite apagarlo) y fija `maxOutputTokens` en 4096 (`src/lib/ai/groq-options.ts`). Se repitió la corrida solo con los 3 que habían fallado (los otros 3 quedaron en caché): 2 de 3 salieron, así que fallan 1 de 6 en vez de 3 de 6. El que sigue fallando (`1-129891`) lo rechaza Groq por tamaño: la app lo reconoce como "request too large", no reintenta con el mismo modelo, pasa al siguiente de la cadena y, si no hay más, muestra "This message is too long for the provider's free tier limit". Un límite por minuto normal ("Rate limit reached… try again in 3s") no se confunde con eso.
 
 Los resultados se guardan en `.eval-results/level-*.json` (con las mediciones de cada alumno simulado, para recalcular anclajes). `--analyze` se corta en el primer error de cuota; los textos que Groq rechaza por largos se saltean.

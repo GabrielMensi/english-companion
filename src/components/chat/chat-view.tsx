@@ -5,22 +5,30 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
+
 import { preloadSpeech, speak, stopSpeaking, useSpeechSupported, useVoiceMode } from "@/components/audio/speech";
 import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AssistantMessage } from "@/components/chat/assistant-message";
 import { ChatMenu, type ModelOption, ModeSwitch } from "@/components/chat/chat-controls";
 import { Composer, type Notify, useComposer } from "@/components/chat/composer";
 import { MiniChat, type Notice } from "@/components/chat/mini-chat";
-import { NoProviderNotice } from "@/components/no-provider-notice";
+import { TopicTools } from "@/components/chat/topic-tools";
 import { UserMessage } from "@/components/chat/user-message";
+import { NoProviderNotice } from "@/components/no-provider-notice";
+import { FloatingWindowProvider } from "@/components/pip/floating-window-context";
 import { usePipWindow } from "@/components/pip/use-pip-window";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import type { SessionMode } from "@/db/schema";
 import type { AnalysisPreview } from "@/lib/ai/analysis";
 import type { ProviderId } from "@/lib/ai/provider-info";
+import { reviewFeedback } from "@/lib/analysis-card-core";
 import { api, streamTurn } from "@/lib/api";
-import type { ChatMessage, SessionSummary, VoiceInput } from "@/lib/types";
+import type { Tense } from "@/lib/taxonomy";
+import type { StoredFeedback } from "@/lib/topic-review";
+import { MIN_REVIEW_TURNS } from "@/lib/topic-review-core";
+import type { ChatMessage, CorrectionUpdate, SessionSummary, VoiceInput } from "@/lib/types";
+import { voided } from "@/lib/voided";
 
 export function ChatView({
   session,
@@ -30,6 +38,7 @@ export function ChatView({
   hasModel,
   canDictate,
   answerTemplate = null,
+  topicTools = null,
 }: {
   session: Omit<SessionSummary, "practice">;
   initialMessages: ChatMessage[];
@@ -40,6 +49,8 @@ export function ChatView({
   canDictate: boolean;
   /** In an exercise chat waiting for the answers to its set: numbered lines to fill in. */
   answerTemplate?: string | null;
+  /** In a topic chat: its tense focus and saved feedback. */
+  topicTools?: { tense: Tense | null; feedback: StoredFeedback | null } | null;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
@@ -226,6 +237,21 @@ export function ChatView({
     setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)));
   }
 
+  /** A mistake changed from the floating window: update the message and say how it affects the stats. */
+  function updateCorrection({ correction, countsInStats }: CorrectionUpdate) {
+    const before = messages.flatMap((m) => m.corrections).find((c) => c.id === correction.id);
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.corrections.some((c) => c.id === correction.id)
+          ? { ...m, corrections: m.corrections.map((c) => (c.id === correction.id ? correction : c)) }
+          : m,
+      ),
+    );
+    const note = before && reviewFeedback(before, correction, countsInStats);
+    // Undoing a discard is done in the tab, where discarded mistakes are listed.
+    if (note) notify("info", correction.discardedAt !== null ? `${note}. Undo it from the tab.` : note);
+  }
+
   async function changeMode(value: SessionMode) {
     setMode(value);
     try {
@@ -238,7 +264,7 @@ export function ChatView({
 
   return (
     <div data-area="write" className="flex h-full flex-col">
-      <header className="flex items-center justify-between gap-4 border-b px-6 py-2">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-6 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="truncate font-medium">{session.title}</h1>
           {session.topic && (
@@ -247,7 +273,7 @@ export function ChatView({
             </StatusBadge>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {mode === "conversation" && speechSupported && (
             <Button
               variant={voiceConversation ? "secondary" : "ghost"}
@@ -265,7 +291,15 @@ export function ChatView({
               Voice
             </Button>
           )}
-          <ModeSwitch value={mode} onChange={changeMode} />
+          {topicTools && (
+            <TopicTools
+              sessionId={session.id}
+              tense={topicTools.tense}
+              feedback={topicTools.feedback}
+              canReview={messages.filter((m) => m.role === "user" && m.status === "done").length >= MIN_REVIEW_TURNS}
+            />
+          )}
+          <ModeSwitch value={mode} onChange={voided(changeMode)} />
           <ChatMenu
             key={selectedProvider}
             models={models}
@@ -286,7 +320,13 @@ export function ChatView({
           )}
           {messages.map((m) =>
             m.role === "user" ? (
-              <UserMessage key={m.id} message={m} preview={previews[m.id]} onRetry={retry} onUpdate={updateMessage} />
+              <UserMessage
+                key={m.id}
+                message={m}
+                preview={previews[m.id]}
+                onRetry={voided(retry)}
+                onUpdate={voided(updateMessage)}
+              />
             ) : (
               <AssistantMessage key={m.id} message={m} />
             ),
@@ -324,25 +364,28 @@ export function ChatView({
 
       {pipWindow &&
         createPortal(
-          <MiniChat
-            title={session.title}
-            mode={mode}
-            message={lastSent}
-            preview={lastSent && previews[lastSent.id]}
-            reply={reply}
-            composer={composer}
-            canDictate={canDictate}
-            notice={notice?.window === pipWindow ? notice : null}
-            onDismissNotice={() => setNotice(null)}
-            notify={notify}
-            onRetry={retry}
-            onClose={closePip}
-            voice={
-              mode === "conversation" && speechSupported
-                ? { on: voiceConversation, canTurnOn: canDictate, toggle: toggleVoiceMode }
-                : null
-            }
-          />,
+          <FloatingWindowProvider value={{ container: pipWindow.document.body, notify }}>
+            <MiniChat
+              title={session.title}
+              mode={mode}
+              message={lastSent}
+              preview={lastSent && previews[lastSent.id]}
+              reply={reply}
+              composer={composer}
+              canDictate={canDictate}
+              notice={notice?.window === pipWindow ? notice : null}
+              onDismissNotice={() => setNotice(null)}
+              notify={notify}
+              onRetry={voided(retry)}
+              onUpdateCorrection={updateCorrection}
+              onClose={closePip}
+              voice={
+                mode === "conversation" && speechSupported
+                  ? { on: voiceConversation, canTurnOn: canDictate, toggle: toggleVoiceMode }
+                  : null
+              }
+            />
+          </FloatingWindowProvider>,
           pipWindow.document.body,
         )}
     </div>

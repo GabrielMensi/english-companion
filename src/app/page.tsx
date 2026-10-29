@@ -1,40 +1,43 @@
 import { AudioLines, Dumbbell, Layers, MessageSquareText, MessagesSquare, PencilLine } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
+
 import { Page, Section, SectionLink } from "@/components/layout/page";
+import { NoProviderNotice } from "@/components/no-provider-notice";
 import { CATEGORY_STATUS, EXERCISE_LABELS, STATUS } from "@/components/practice/labels";
 import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { TalkAboutButton } from "@/components/sidebar/talk-about-button";
-import { NoProviderNotice } from "@/components/no-provider-notice";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { hasConfiguredProvider } from "@/lib/ai/providers";
+import { requirePageUser } from "@/lib/auth/session";
 import { categoryTopic } from "@/lib/category-practice";
 import { listSessions } from "@/lib/chat";
 import { countCardsToStudy } from "@/lib/flashcards";
 import { getReportDigest } from "@/lib/insights/insights";
 import { chatLabels } from "@/lib/practice";
-import { getPronunciationSummary } from "@/lib/read-aloud";
 import { getPracticeSuggestions } from "@/lib/practice-start";
+import { getPronunciationSummary } from "@/lib/read-aloud";
 import { PRONUNCIATION_LABELS, TENSE_LABELS } from "@/lib/taxonomy";
 import type { PracticeTarget } from "@/lib/tense-practice";
 import { greeting, todaySummary, weekSummary } from "@/lib/today-core";
 
 export default async function Today() {
   await connection();
-  const sessions = listSessions();
-  const hasModel = hasConfiguredProvider();
+  const { userId } = await requirePageUser("/");
+  const sessions = listSessions(userId);
+  const hasModel = hasConfiguredProvider(userId);
   if (sessions.length === 0) return <FirstRun hasModel={hasModel} />;
 
   const last = sessions[0];
-  const lastLabel = chatLabels().get(last.id);
-  const cardsToStudy = countCardsToStudy();
-  const { tenses, categories } = getPracticeSuggestions();
+  const lastLabel = chatLabels(userId).get(last.id);
+  const cardsToStudy = countCardsToStudy(userId);
+  const { tenses, categories } = getPracticeSuggestions(userId);
   const tense = tenses[0];
   const category = categories[0];
-  const week = getReportDigest("7").totals;
-  const pronunciation = getPronunciationSummary();
+  const week = getReportDigest(userId, "7", { withPronunciation: false, withoutClass: true }).totals;
+  const pronunciation = getPronunciationSummary(userId);
   // The sound with the most issues (categories come sorted that way). "Other" has no sentences to practice,
   // and without any issue there is no weakest sound to name, so the row stays hidden.
   const soundStats = pronunciation.categories.find((c) => c.category !== "other");

@@ -4,6 +4,7 @@ import { Cpu, MoreHorizontal, PictureInPicture2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -101,7 +102,7 @@ export function ChatMenu({
           <Cpu className="size-3.5" />
           Model that corrects
         </DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={value} onValueChange={(v) => changeModel(v as ProviderId)}>
+        <DropdownMenuRadioGroup value={value} onValueChange={(v) => void changeModel(v as ProviderId)}>
           {models.map((m) => (
             <DropdownMenuRadioItem key={m.provider} value={m.provider}>
               {modelLabel(m.provider, m.model)}

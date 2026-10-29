@@ -32,12 +32,14 @@ Corre en tu máquina (la base de datos es un SQLite local) y está pensado para 
 
 ## Setup
 
-```bash
-pnpm install
-pnpm dev
-```
+Desde un clon nuevo:
 
-Abrí https://localhost:3737 y armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key, el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys se guardan solo en tu base local y nunca se muestran completas; el resto de los cambios se guarda solo.
+1. `pnpm install`
+2. Opcional: `cp .env.example .env.local` y completá `GOOGLE_GENERATIVE_AI_API_KEY` / `GROQ_API_KEY` (también se pueden pegar después en Configuración). No hace falta ninguna otra variable en local: la clave de cifrado (`data/encryption.key`) y la de las cookies (`data/auth.secret`) se generan solas en la primera ejecución. `APP_ENCRYPTION_KEY`, `BETTER_AUTH_*`, `SHARED_KEYS` y `ALLOWED_HOSTS` son solo para un deploy ([docs/platform/DEPLOY.md](docs/platform/DEPLOY.md)); no pongas `ALLOWED_HOSTS` en local.
+3. `pnpm dev`, abrí https://localhost:3737 y creá tu cuenta en `/signup` (la app pide login siempre).
+4. Si ya tenías datos de antes de las cuentas (una base `data/companion.db` vieja): `pnpm auth:claim-data <tu email>` se los asigna a tu cuenta. Si los traés de otra PC, copiá también `data/encryption.key` o importá el JSON de Configuración > Your data.
+
+Abrí https://localhost:3737: la app **pide login siempre**, también en local. La primera vez, entrá a `/signup` y creá tu cuenta (email y contraseña de al menos 10 caracteres): la primera cuenta se crea sin más y después el registro se cierra. Otras cuentas solo se pueden crear con `SIGNUP_ALLOWED_EMAILS`; cada cuenta tiene sus propios datos y sus propias API keys. Sin email de verificación, quien se registre primero con un email permitido se queda con él. Después armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key, el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys son **por cuenta**, se guardan **cifradas** en tu base local (AES-256-GCM; la clave de cifrado se genera sola en `data/encryption.key`, junto a la base, con permisos `600`: respaldala aparte, y si copiás la base a otra carpeta o PC copiá también ese archivo, o las keys no descifran y hay que pegarlas de nuevo) y nunca se muestran completas. Sin una key propia, una cuenta usa la del `.env.local` (`SHARED_KEYS=true`, el valor por defecto); con `SHARED_KEYS=false` cada cuenta trae las suyas. Si rotás la clave: `pnpm keys:reencrypt` (ver [docs/platform/AUTH_MULTIUSER.md](docs/platform/AUTH_MULTIUSER.md)). **Configuración > Your data** exporta tus datos a un archivo JSON (sin keys ni datos de login) o importa uno en tu cuenta, para mover el historial entre PCs; el resto de los cambios se guarda solo.
 
 Si preferís configurarlo por entorno, copiá `.env.example` a `.env.local`: esas variables se usan cuando no hay nada guardado en la app.
 
@@ -52,7 +54,13 @@ certutil -user -addstore Root $env:USERPROFILE\Downloads\mkcert-rootCA.pem
 
 Después reiniciá Chrome. Solo se importa el certificado público; la clave queda en WSL.
 
-La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migra solo al arrancar.
+La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migra solo al arrancar. La clave que firma las cookies de sesión se genera sola la primera vez en `data/auth.secret` (permisos `600`, junto a la base); en un deploy hay que definir `BETTER_AUTH_SECRET` y `BETTER_AUTH_URL` (ver [docs/platform/AUTH_MULTIUSER.md](docs/platform/AUTH_MULTIUSER.md)).
+
+**Olvidé la contraseña**: no hay email para recuperarla. En la carpeta de la app corré `pnpm auth:reset-password <email>`: pide la nueva contraseña, la cambia y borra las sesiones de esa cuenta (una copia de la cookie puede seguir valiendo hasta 5 minutos).
+
+**Mis datos de antes no aparecen (primera vez con cuentas)**: lo que guardaste antes de que existieran las cuentas (chats, errores, tarjetas, ajustes) no tiene dueño todavía y la app no se lo muestra a nadie. Creá tu cuenta en `/signup` y, en la carpeta de la app, corré `pnpm auth:claim-data <tu email>`: hace un respaldo en `data/backups/pre-claim-<fecha>.db`, le asigna todo a esa cuenta en una sola transacción e imprime cuántas filas movió. Se corre una vez (volver a correrlo no hace nada) y funciona sobre una copia con `DATABASE_PATH=data/dev.db`. Mientras tanto, la primera cuenta ve un aviso arriba. Las cuentas siguientes empiezan vacías: cada una ve solo lo suyo.
+
+**Varias copias de la app en la misma máquina**: las cookies se comparten entre puertos de un mismo host, así que el nombre de la cookie de sesión lleva un prefijo que sale de la ruta de la base (`ec-<hash>.session_token`). Cada carpeta (la app en uso y los worktrees) tiene su propia base, su propio `data/auth.secret` y su propia sesión: iniciar sesión en un worktree no cierra la de la app en el puerto 3737. Si `data/auth.secret` queda vacío o corto, la app no arranca y avisa; borrá el archivo para generar uno nuevo.
 
 ### Modelos recomendados
 
@@ -71,17 +79,23 @@ Configuración recomendada: **Gemini Flash-Lite como principal y `qwen/qwen3.8-2
 
 ## Scripts
 
-| Comando                                   | Qué hace                                                                                                                                                                                           |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`                                | Levanta la app en modo desarrollo                                                                                                                                                                  |
-| `pnpm test`                               | Tests unitarios (vitest)                                                                                                                                                                           |
-| `pnpm typecheck`                          | Genera tipos de rutas y corre `tsc`                                                                                                                                                                |
-| `pnpm lint`                               | ESLint                                                                                                                                                                                             |
-| `pnpm eval:models <provider>:<model> …`   | Compara modelos sobre un set de oraciones con errores conocidos (ej. `gemini:gemini-flash-lite-latest groq:qwen/qwen3.8-27b`)                                                                      |
-| `pnpm eval:classify <provider>:<model> …` | Compara modelos clasificando errores ya detectados (tipo fino y tiempos verbales). `--with-user-labels` suma los tipos corregidos a mano en la app                                                 |
-| `pnpm eval:asr [engine:model …]`          | Transcribe las grabaciones de `/eval/asr` con cada motor de speech-to-text y mide si conservan tus errores o los "corrigen" (ver [docs/voice/VOICE.md](docs/voice/VOICE.md))                       |
-| `pnpm eval:level`                         | Compara el nivel CEFR estimado con textos de alumnos calificados por Cambridge (Write & Improve, se descarga aparte; ver [docs/progress/LEVEL_CALIBRATION.md](docs/progress/LEVEL_CALIBRATION.md)) |
-| `pnpm db:generate`                        | Genera una migración después de cambiar `src/db/schema.ts`                                                                                                                                         |
+| Comando                                   | Qué hace                                                                                                                                                                                                                                                                          |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                                | Levanta la app en modo desarrollo                                                                                                                                                                                                                                                 |
+| `pnpm test`                               | Tests unitarios (vitest)                                                                                                                                                                                                                                                          |
+| `pnpm typecheck`                          | Genera tipos de rutas y corre `tsc`                                                                                                                                                                                                                                               |
+| `pnpm lint`                               | ESLint                                                                                                                                                                                                                                                                            |
+| `pnpm eval:models <provider>:<model> …`   | Compara modelos sobre un set de oraciones con errores conocidos (ej. `gemini:gemini-flash-lite-latest groq:qwen/qwen3.8-27b`). Con `--check` (también en `eval:classify` y `eval:asr`) marca PASS/FAIL contra `scripts/eval/thresholds.json`                                      |
+| `pnpm keys:reencrypt`                     | Vuelve a cifrar las API keys guardadas con la `APP_ENCRYPTION_KEY` actual (después de rotarla; hace backup antes)                                                                                                                                                                 |
+| `pnpm eval:export-discards`               | Exporta tus correcciones descartadas a `.eval-results/discards.json` (local, no va a git). `eval:models … --with-discards` mide si el modelo las repite; `--topics` / `--topics-only` / `--topics-plain` miden chats de tema (ver [docs/ai/TOPIC_EVAL.md](docs/ai/TOPIC_EVAL.md)) |
+| `pnpm eval:classify <provider>:<model> …` | Compara modelos clasificando errores ya detectados (tipo fino y tiempos verbales). `--with-user-labels` suma los tipos corregidos a mano en la app                                                                                                                                |
+| `pnpm eval:asr [engine:model …]`          | Transcribe las grabaciones de `/eval/asr` con cada motor de speech-to-text y mide si conservan tus errores o los "corrigen" (ver [docs/voice/VOICE.md](docs/voice/VOICE.md))                                                                                                      |
+| `pnpm eval:level`                         | Compara el nivel CEFR estimado con textos de alumnos calificados por Cambridge (Write & Improve, se descarga aparte; ver [docs/progress/LEVEL_CALIBRATION.md](docs/progress/LEVEL_CALIBRATION.md))                                                                                |
+| `pnpm auth:claim-data <email>`            | Le asigna a una cuenta los datos de antes de las cuentas (con respaldo, una transacción, idempotente)                                                                                                                                                                             |
+| `pnpm auth:reset-password <email>`        | Cambia la contraseña de una cuenta (sin email de recuperación) y cierra sus sesiones                                                                                                                                                                                              |
+| `pnpm db:generate`                        | Genera una migración después de cambiar `src/db/schema.ts`                                                                                                                                                                                                                        |
+| `pnpm db:migrate`                         | Aplica las migraciones pendientes haciendo antes un backup (`data/backups/`); es el paso de migración del deploy ([docs/platform/DEPLOY.md](docs/platform/DEPLOY.md)). Con `pnpm dev` no hace falta: migra al arrancar                                                            |
+| `pnpm db:backup`                          | Copia consistente de la base en `data/backups/` (`--prefix`, `--keep`)                                                                                                                                                                                                            |
 
 ## Stack
 
@@ -96,7 +110,8 @@ src/
   db/                  schema de Drizzle y conexión (migra al arrancar)
   lib/
     ai/                providers, prompt de análisis, "convertir en prompt"
-    taxonomy.ts        categorías, tipos, tiempos verbales y gravedades (fijos)
+    taxonomy.ts        categorías, tiempos verbales y gravedades (fijos)
+    subtypes.ts        tipos finos de error por categoría (fijos)
     classification.ts  clasificación diferida de errores (lotes, prioridad del chat)
     chat.ts            sesiones, mensajes y persistencia del análisis
     stats-core.ts      cálculo de estadísticas (puro, testeado)

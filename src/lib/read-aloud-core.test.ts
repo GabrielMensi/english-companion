@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   accuracyTimeline,
   parseFocus,
@@ -112,6 +113,22 @@ describe("soundOrder / soundItems", () => {
   });
 });
 
+describe("beta categories", () => {
+  it("never count in the summary nor get practice sentences", () => {
+    const summary = summarizePronunciation(
+      [{ correctWords: 3, totalWords: 4 }],
+      [
+        { category: "schwa_reduction", expected: "to", heard: "to" },
+        { category: "schwa_reduction", expected: "of", heard: "of" },
+        { category: "th_sounds", expected: "think", heard: "sink" },
+      ],
+    );
+    expect(summary.categories.map((c) => c.category)).toEqual(["th_sounds"]);
+    expect(soundOrder(summary)).not.toContain("schwa_reduction");
+    expect(soundItems(["schwa_reduction"])).toEqual([]);
+  });
+});
+
 describe("parseFocus", () => {
   it("accepts a sound with built-in sentences", () => {
     expect(parseFocus("th_sounds")).toBe("th_sounds");
@@ -122,6 +139,7 @@ describe("parseFocus", () => {
     expect(parseFocus(undefined)).toBeNull();
     expect(parseFocus("")).toBeNull();
     expect(parseFocus("other")).toBeNull();
+    expect(parseFocus("schwa_reduction")).toBeNull();
     expect(parseFocus("verb_tense")).toBeNull();
   });
 });

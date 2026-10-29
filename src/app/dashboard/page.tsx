@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
+
 import { CategoryChart } from "@/components/dashboard/category-chart";
 import { CategoryTable } from "@/components/dashboard/category-table";
 import { ClassificationStatus } from "@/components/dashboard/classification-status";
@@ -10,11 +11,14 @@ import { TensePanel } from "@/components/dashboard/tense-panel";
 import { TimelineChart } from "@/components/dashboard/timeline-chart";
 import { TopMistakes } from "@/components/dashboard/top-mistakes";
 import { Page, PageHeader, Section, SectionLink } from "@/components/layout/page";
+import { NoProviderNotice } from "@/components/no-provider-notice";
 import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { hasConfiguredProvider } from "@/lib/ai/providers";
+import { requirePageUser } from "@/lib/auth/session";
 import { categoryTopic, selectCategoryTargets } from "@/lib/category-practice";
 import { getClassificationStatus } from "@/lib/classification";
+import { countDiscardedMistakes } from "@/lib/corrections";
 import { dashboardDetail, dashboardHeadline } from "@/lib/dashboard-summary";
 import { getAccuracyTimeline, getPronunciationProgress, hasReadings } from "@/lib/read-aloud";
 import { getReviewDashboard } from "@/lib/review-stats";
@@ -26,15 +30,20 @@ const INPUT_LABELS: Record<InputFilter, string> = { all: "All", typed: "Written"
 
 export default async function DashboardPage({ searchParams }: PageProps<"/dashboard">) {
   await connection();
-  const hasModel = hasConfiguredProvider();
+  const { userId } = await requirePageUser("/dashboard");
+  const hasModel = hasConfiguredProvider(userId);
   const { range: rawRange, input: rawInput } = await searchParams;
   const range: RangeKey = typeof rawRange === "string" && rawRange in RANGES ? (rawRange as RangeKey) : "30";
   const input: InputFilter = INPUT_FILTERS.includes(rawInput as InputFilter) ? (rawInput as InputFilter) : "all";
-  const { stats, tenses, vocabulary, fluency, countTypos, hasSpoken } = getDashboardData(range, input);
-  const reviews = getReviewDashboard(range);
+  const { stats, tenses, vocabulary, fluency, countTypos, hasSpoken } = getDashboardData(userId, range, input);
+  const reviews = getReviewDashboard(userId, range);
+  const discardedCount = countDiscardedMistakes(userId);
   // Read-aloud practice isn't messages, so the written/spoken filter doesn't change it.
-  const pronunciation = hasReadings()
-    ? { progress: getPronunciationProgress(RANGES[range]), timeline: getAccuracyTimeline(RANGES[range]) }
+  const pronunciation = hasReadings(userId)
+    ? {
+        progress: getPronunciationProgress(userId, RANGES[range]),
+        timeline: getAccuracyTimeline(userId, RANGES[range]),
+      }
     : null;
   // The weakest categories in this period that make good exercises; none when there isn't enough data.
   const practiceTargets = selectCategoryTargets(stats).filter((t) => t.status === "weak");
@@ -93,6 +102,10 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         }
       />
 
+      {!hasModel && (
+        <NoProviderNotice detail="Your stats still work; the exercises behind “Practice this” need a key." />
+      )}
+
       {hasSpoken && input !== "typed" && (
         <p className="text-sm text-muted-foreground">
           In spoken messages, articles, prepositions, pronouns, plurals, questions, spelling and punctuation aren’t
@@ -100,7 +113,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
         </p>
       )}
 
-      <ClassificationStatus initial={getClassificationStatus()} />
+      <ClassificationStatus initial={getClassificationStatus(userId)} />
 
       {stats.totals.messages === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed py-16 text-center">
@@ -184,7 +197,15 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
               <CategoryTable categories={stats.categories} />
             </Section>
 
-            <Section title="Most frequent mistakes" description="With the most recent example">
+            <Section
+              title="Most frequent mistakes"
+              description="With the most recent example"
+              action={
+                discardedCount > 0 && (
+                  <SectionLink href="/dashboard/discarded">Discarded ({discardedCount})</SectionLink>
+                )
+              }
+            >
               <TopMistakes mistakes={stats.topMistakes} />
             </Section>
 

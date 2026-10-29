@@ -1,26 +1,35 @@
 import "server-only";
 
-import { and, asc, eq, like, lt } from "drizzle-orm";
-import { z } from "zod";
+import { asc, eq, lt } from "drizzle-orm";
+
 import { db, schema } from "@/db";
+import { owned } from "@/db/owned";
 import type { Message } from "@/db/schema";
 import { categoryTopic, EXERCISE_FORMATS } from "@/lib/category-practice";
 import { gradeCategorySet, gradeTenseSet, setSummary } from "@/lib/exercise-set";
 import { getSettings } from "@/lib/settings";
 import { countsInStats, ERROR_CATEGORIES, type ErrorCategory, type Severity, type Tense, TENSES } from "@/lib/taxonomy";
 import { conversationPracticeRule, EXERCISE_KINDS, exerciseReply, practiceTopic } from "@/lib/tense-practice";
-import { topicRule } from "@/lib/topics";
+import { topicRule, topicTenseRule } from "@/lib/topics";
+import { deleteUserSetting, getUserSetting, listUserSettings, setUserSetting } from "@/lib/user-settings";
+import { z } from "@/lib/zod";
 
 /**
- * What a practice chat is practicing. Stored in the key-value `settings` table
- * (key `practice:<session id>`) instead of a new column, so the feature needs
+ * What a practice chat is practicing. Stored in the user's key-value `user_settings`
+ * table (key `practice:<session id>`) instead of a new column, so the feature needs
  * no migration. Chats without an entry are normal chats.
  */
 const tense = z.enum(TENSES);
 const practiceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("conversation"), tense }),
   // A conversation about a topic the learner chose (src/lib/topics.ts). Normal writing, not practice.
-  z.object({ kind: z.literal("topic"), preset: z.string().nullable(), topic: z.string() }),
+  z.object({
+    kind: z.literal("topic"),
+    preset: z.string().nullable(),
+    topic: z.string(),
+    // A tense to practice in the conversation too; chats from before this have none.
+    tense: tense.nullable().optional(),
+  }),
   z.object({
     kind: z.enum(EXERCISE_KINDS),
     tense,
@@ -42,14 +51,15 @@ export type Practice = z.infer<typeof practiceSchema>;
 
 const keyOf = (sessionId: string) => `practice:${sessionId}`;
 
-export function getPractice(sessionId: string): Practice | null {
-  const row = db
-    .select()
-    .from(schema.settings)
-    .where(eq(schema.settings.key, keyOf(sessionId)))
-    .get();
-  if (!row) return null;
-  const parsed = practiceSchema.safeParse(row.value);
+/** Whether a stored value is a practice state this app can read (used to vet imported ones). */
+export function isPractice(value: unknown): boolean {
+  return practiceSchema.safeParse(value).success;
+}
+
+export function getPractice(userId: string, sessionId: string): Practice | null {
+  const value = getUserSetting(userId, keyOf(sessionId));
+  if (value === undefined) return null;
+  const parsed = practiceSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
 
@@ -57,12 +67,8 @@ export function getPractice(sessionId: string): Practice | null {
  * How each chat is labeled in the sidebar and on the home page: practice
  * sessions (exercises or a guided conversation), and topic conversations with their topic.
  */
-export function chatLabels(): Map<string, { practice: boolean; topic: string | null }> {
-  const rows = db
-    .select()
-    .from(schema.settings)
-    .where(like(schema.settings.key, keyOf("%")))
-    .all();
+export function chatLabels(userId: string): Map<string, { practice: boolean; topic: string | null }> {
+  const rows = listUserSettings(userId, keyOf(""));
   const labels = new Map<string, { practice: boolean; topic: string | null }>();
   for (const row of rows) {
     const parsed = practiceSchema.safeParse(row.value);
@@ -76,23 +82,28 @@ export function chatLabels(): Map<string, { practice: boolean; topic: string | n
   return labels;
 }
 
-export function savePractice(sessionId: string, practice: Practice) {
-  db.insert(schema.settings)
-    .values({ key: keyOf(sessionId), value: practice })
-    .onConflictDoUpdate({ target: schema.settings.key, set: { value: practice } })
-    .run();
+export function savePractice(userId: string, sessionId: string, practice: Practice) {
+  setUserSetting(userId, keyOf(sessionId), practice);
 }
 
-export function deletePractice(sessionId: string) {
-  db.delete(schema.settings)
-    .where(eq(schema.settings.key, keyOf(sessionId)))
-    .run();
+/** Changes (or clears) the tense of a topic chat. False when the chat isn't a topic chat. */
+export function setTopicTense(userId: string, sessionId: string, tense: Tense | null): boolean {
+  const practice = getPractice(userId, sessionId);
+  if (practice?.kind !== "topic") return false;
+  savePractice(userId, sessionId, { ...practice, tense });
+  return true;
+}
+
+export function deletePractice(userId: string, sessionId: string) {
+  deleteUserSetting(userId, keyOf(sessionId));
 }
 
 /** Extra instruction for the conversation reply: follow-up questions that need the practiced tense, or stay on the topic. */
 export function practiceReplyRule(practice: Practice | null): string | undefined {
   if (practice?.kind === "conversation") return conversationPracticeRule(practice.tense);
-  if (practice?.kind === "topic") return topicRule(practice);
+  if (practice?.kind === "topic") {
+    return [topicRule(practice), practice.tense ? topicTenseRule(practice.tense) : null].filter(Boolean).join(" ");
+  }
   return undefined;
 }
 
@@ -133,12 +144,14 @@ export function isSetPractice(practice: Practice | null): practice is SetPractic
 }
 
 /** The learner's earlier analyzed messages in the chat, oldest first. */
-function earlierAnswers(message: Message) {
+function earlierAnswers(userId: string, message: Message) {
   return db
     .select({ id: schema.messages.id })
     .from(schema.messages)
     .where(
-      and(
+      owned(
+        schema.messages,
+        userId,
         eq(schema.messages.sessionId, message.sessionId),
         eq(schema.messages.role, "user"),
         eq(schema.messages.status, "done"),
@@ -159,12 +172,13 @@ function earlierAnswers(message: Message) {
  * nothing left to answer.
  */
 export function exerciseReplyFor(
+  userId: string,
   practice: Practice | null,
   message: Message,
   mistakes: readonly FoundMistake[],
 ): ExerciseTurn | null {
   if (!practice || practice.kind === "conversation" || practice.kind === "topic") return null;
-  const earlier = earlierAnswers(message);
+  const earlier = earlierAnswers(userId, message);
 
   if (practice.kind === "use") {
     const result = exerciseReply({ practice, index: earlier.length, learnerText: message.content, previousChecks: [] });
@@ -174,7 +188,7 @@ export function exerciseReplyFor(
   if (earlier.length > 0) return null;
 
   // Only mistakes that count in the stats decide whether an answer is wrong.
-  const { countTyposInStats } = getSettings();
+  const { countTyposInStats } = getSettings(userId);
   // Just found by the correction, so none of them can be discarded yet.
   const counted = mistakes.filter((m) =>
     countsInStats({ ...m, inputMode: message.inputMode, discardedAt: null }, countTyposInStats),
@@ -209,13 +223,13 @@ export function exerciseReplyFor(
  * Whether the chat is waiting for the answer to its set, and how many items it
  * has: for the composer's numbered draft.
  */
-export function pendingSetSize(sessionId: string): number | null {
-  const practice = getPractice(sessionId);
+export function pendingSetSize(userId: string, sessionId: string): number | null {
+  const practice = getPractice(userId, sessionId);
   if (!isSetPractice(practice)) return null;
   const answered = db
     .select({ id: schema.messages.id })
     .from(schema.messages)
-    .where(and(eq(schema.messages.sessionId, sessionId), eq(schema.messages.role, "user")))
+    .where(owned(schema.messages, userId, eq(schema.messages.sessionId, sessionId), eq(schema.messages.role, "user")))
     .get();
   return answered ? null : practice.items.length;
 }

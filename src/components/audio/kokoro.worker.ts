@@ -6,9 +6,12 @@
  */
 import { env as transformersEnv } from "@huggingface/transformers";
 import { env, KokoroTTS, TextSplitterStream } from "kokoro-js";
+
 import { checkSpeechAudio } from "./audio-check";
 import { speechChunks } from "./speech-chunks";
+
 import type { KokoroConfig, KokoroDevice, KokoroDtype, KokoroRequest, KokoroResponse } from "./kokoro";
+import type { GpuAdapterDetails, KokoroDiagnostics, TestResult } from "./kokoro-diagnostics";
 
 const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 /** Synthesized once after loading, and its audio checked, to prove the device really works. */
@@ -38,6 +41,8 @@ let loading: Promise<Engine> | null = null;
 let current = 0;
 /** GPU name, for Settings (null when there's no WebGPU adapter). */
 let adapterName: string | null = null;
+/** What this worker learned, for the "Copy diagnostics" button in Settings. */
+const diagnostics: KokoroDiagnostics = { adapter: null, onnxRuntime: null, tests: [] };
 
 /** Adds up the download progress of every model file. */
 function progressTracker(device: KokoroDevice, dtype: KokoroDtype) {
@@ -55,21 +60,29 @@ function progressTracker(device: KokoroDevice, dtype: KokoroDtype) {
   };
 }
 
-interface GpuAdapterInfo {
-  vendor?: string;
-  architecture?: string;
-  description?: string;
+interface GpuAdapter {
+  info?: { vendor?: string; architecture?: string; device?: string; description?: string };
+  isFallbackAdapter?: boolean;
+  features?: { has(feature: string): boolean };
 }
 
 /** Whether there's a WebGPU adapter; also records its name for Settings. */
 async function hasWebGpu() {
   try {
-    const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<{ info?: GpuAdapterInfo } | null> } })
-      .gpu;
+    const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<GpuAdapter | null> } }).gpu;
     const adapter = gpu ? await gpu.requestAdapter() : null;
     if (!adapter) return false;
     const info = adapter.info;
     adapterName = info ? [info.vendor, info.architecture, info.description].filter(Boolean).join(" ") || null : null;
+    const details: GpuAdapterDetails = {
+      vendor: info?.vendor || null,
+      architecture: info?.architecture || null,
+      device: info?.device || null,
+      description: info?.description || null,
+      isFallbackAdapter: (adapter as { isFallbackAdapter?: boolean }).isFallbackAdapter ?? null,
+      shaderF16: adapter.features?.has("shader-f16") ?? false,
+    };
+    diagnostics.adapter = details;
     return true;
   } catch {
     return false;
@@ -115,6 +128,9 @@ async function load(): Promise<Engine> {
   const threads = self.crossOriginIsolated ? config.threads : 1;
   const wasm = transformersEnv.backends.onnx.wasm;
   if (wasm) wasm.numThreads = threads;
+  diagnostics.onnxRuntime = (transformersEnv.backends.onnx as { versions?: { web?: string } }).versions?.web ?? null;
+  diagnostics.tests = [];
+  diagnostics.adapter = null;
   const gpu = config.device !== "wasm" && (await hasWebGpu());
   const tryGpu = gpu && (config.device === "webgpu" || !config.gpuRejection);
   const attempts: { device: KokoroDevice; dtype: KokoroDtype }[] = [];
@@ -142,6 +158,14 @@ async function load(): Promise<Engine> {
       const engine: Engine = { tts, device, dtype };
       const test = await synth(engine, TEST_SENTENCE, "af_heart", 1, true);
       const check = checkSpeechAudio(test);
+      const result: TestResult = {
+        device,
+        dtype,
+        ok: check.ok,
+        reason: check.ok ? null : check.reason,
+        metrics: check.metrics,
+      };
+      diagnostics.tests.push(result);
       console.debug(
         `[kokoro] ${device}/${dtype}${device === "wasm" ? `, ${threads} thread(s)` : ""}: model ${secs(loaded - started)}, ` +
           `test sentence ${secs(performance.now() - loaded)} for ${secs((test.length / SAMPLE_RATE) * 1000)} of audio`,
@@ -166,6 +190,7 @@ async function load(): Promise<Engine> {
         adapter: device === "webgpu" ? adapterName : null,
         threads: device === "wasm" ? threads : null,
         warning,
+        diagnostics: structuredClone(diagnostics),
       });
       return engine;
     } catch (error) {

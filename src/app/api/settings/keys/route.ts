@@ -1,20 +1,21 @@
-import { z } from "zod";
 import { providerStatus } from "@/lib/ai/providers";
+import { withUser } from "@/lib/auth/with-user";
 import { KEY_PROVIDERS } from "@/lib/credentials";
+import { parseBody } from "@/lib/request-body";
 import { setApiKey } from "@/lib/secrets";
-import { readJson } from "@/lib/request-body";
+import { z } from "@/lib/zod";
 
 const bodySchema = z.object({
   provider: z.enum(KEY_PROVIDERS),
-  /** null removes the saved key (falls back to the environment variable, if any). */
+  /** null removes the saved key (falls back to the server key from the environment, unless SHARED_KEYS=false). */
   apiKey: z.string().trim().min(1).max(500).nullable(),
 });
 
 /** Saves or removes an API key. Responds with the masked status only, never the key. */
-export async function PUT(request: Request) {
-  const body = bodySchema.safeParse(await readJson(request));
-  if (!body.success) return Response.json({ error: "Invalid API key" }, { status: 400 });
+export const PUT = withUser(async (request: Request, _ctx, { userId }) => {
+  const body = await parseBody(request, bodySchema, "Invalid API key");
+  if (!body.ok) return body.response;
 
-  setApiKey(body.data.provider, body.data.apiKey);
-  return Response.json({ providers: providerStatus() });
-}
+  setApiKey(userId, body.data.provider, body.data.apiKey);
+  return Response.json({ providers: providerStatus(userId) });
+});

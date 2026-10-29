@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   cleanTopic,
   resolveTopic,
@@ -6,6 +7,7 @@ import {
   TOPIC_PRESETS,
   topicOpening,
   topicRule,
+  topicTenseRule,
   topicTitle,
 } from "./topics";
 
@@ -74,5 +76,14 @@ describe("topicOpening and topicTitle", () => {
   it("use the custom topic", () => {
     expect(topicOpening({ preset: null, topic: "Football" })).toMatch(/^Let’s talk about Football\./);
     expect(topicTitle({ preset: null, topic: "Football" })).toBe("Football");
+  });
+});
+
+describe("topicTenseRule", () => {
+  it("asks for questions that need the tense without naming it to the learner", () => {
+    const rule = topicTenseRule("present_perfect");
+    expect(rule).toContain("present perfect");
+    expect(rule).toContain("I have worked");
+    expect(rule).toContain("Never mention grammar or tenses");
   });
 });

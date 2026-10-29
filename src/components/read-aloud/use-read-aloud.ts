@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { stopSpeaking } from "@/components/audio/speech";
 import { useRecorder } from "@/components/audio/use-recorder";
 import type { ReadAloudSource } from "@/db/schema";
+import type { PhonemeCheckResult } from "@/lib/phonemes-core";
 import type { ReadAloudResult } from "@/lib/pronunciation-core";
 import type { PronunciationSummary } from "@/lib/read-aloud-core";
 import type { PronunciationCategory } from "@/lib/taxonomy";
@@ -21,6 +23,22 @@ export interface ReadingOutcome {
   transcript: string;
   score: ReadAloudResult;
   summary: PronunciationSummary | null;
+  /** The beta sound check of the recording, when asked for: resolves to null if it couldn't be asked. */
+  soundCheck: Promise<PhonemeCheckResult | null> | null;
+}
+
+/** Sends the recording to the beta sound check; never rejects (the reading's result doesn't depend on it). */
+async function askSoundCheck(wav: ArrayBuffer, text: string, transcript: string): Promise<PhonemeCheckResult | null> {
+  try {
+    const body = new FormData();
+    body.set("audio", new Blob([wav], { type: "audio/wav" }));
+    body.set("text", text);
+    body.set("transcript", transcript);
+    const res = await fetch("/api/read-aloud/phonemes", { method: "POST", body });
+    return res.ok ? ((await res.json()) as PhonemeCheckResult) : null;
+  } catch {
+    return null;
+  }
 }
 
 interface Transcription {
@@ -49,7 +67,7 @@ export function useReadAloud() {
   }
 
   /** Stops and scores the reading; null if nothing was heard or it failed (a toast says why). */
-  async function stop(reading: Reading): Promise<ReadingOutcome | null> {
+  async function stop(reading: Reading, options: { soundCheck?: boolean } = {}): Promise<ReadingOutcome | null> {
     const recording = await recorder.stop();
     if (!recording) return null;
     setBusy(true);
@@ -78,7 +96,12 @@ export function useReadAloud() {
         error?: string;
       };
       if (!saved.ok || !data.result) throw new Error(data.error ?? `Error ${saved.status}`);
-      return { transcript: heard.text, score: data.result, summary: data.summary ?? null };
+      return {
+        transcript: heard.text,
+        score: data.result,
+        summary: data.summary ?? null,
+        soundCheck: options.soundCheck ? askSoundCheck(recording.wav, reading.text, heard.text) : null,
+      };
     } catch (error) {
       toast.error(`Couldn't check the reading: ${(error as Error).message}`);
       return null;

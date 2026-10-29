@@ -1,25 +1,19 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
+
 import { DeckOverview } from "@/components/flashcards/deck-overview";
 import { ReviewSession } from "@/components/flashcards/review-session";
 import { SuspendedCards } from "@/components/flashcards/suspended-cards";
 import { Page, PageHeader } from "@/components/layout/page";
-import type { CardKind, MistakeFilter } from "@/lib/flashcards-core";
 import { resolveTranscriptionModel } from "@/lib/ai/providers";
+import { requirePageUser } from "@/lib/auth/session";
 import { getFlashcardsOverview, getStudyQueue } from "@/lib/flashcards";
+import type { CardKind, MistakeFilter } from "@/lib/flashcards-core";
 import { getSuspendedCards } from "@/lib/flashcards-upkeep";
 import { getSettings } from "@/lib/settings";
-import {
-  categoryLabel,
-  ERROR_CATEGORIES,
-  type ErrorCategory,
-  isValidSubtype,
-  subtypeLabel,
-  type Tense,
-  TENSE_LABELS,
-  TENSES,
-} from "@/lib/taxonomy";
+import { isValidSubtype, subtypeLabel } from "@/lib/subtypes";
+import { categoryLabel, ERROR_CATEGORIES, type ErrorCategory, type Tense, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
 
 const DECKS: Record<string, CardKind> = {
   vocabulary: "vocabulary",
@@ -58,12 +52,13 @@ function filterTitle(filter: MistakeFilter): string {
 
 export default async function FlashcardsPage({ searchParams }: PageProps<"/flashcards">) {
   await connection();
+  const { userId } = await requirePageUser("/flashcards");
   const params = await searchParams;
   const kind = typeof params.deck === "string" ? DECKS[params.deck] : undefined;
 
   if (kind) {
     const filter = kind === "mistake" ? parseFilter(params) : {};
-    const queue = getStudyQueue(kind, filter);
+    const queue = getStudyQueue(userId, kind, filter);
     const title =
       kind === "vocabulary"
         ? "Vocabulary"
@@ -91,14 +86,14 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
           key={JSON.stringify(params)}
           kind={kind}
           initialQueue={queue}
-          canRecord={resolveTranscriptionModel() !== null}
-          language={getSettings().explanationLanguage}
+          canRecord={resolveTranscriptionModel(userId) !== null}
+          language={getSettings(userId).explanationLanguage}
         />
       </Page>
     );
   }
 
-  const overview = getFlashcardsOverview();
+  const overview = getFlashcardsOverview(userId);
   return (
     <Page area="train">
       <PageHeader
@@ -106,7 +101,7 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
         description="Review the words you looked up, the mistakes you made, the exercises you missed and the sentences that were hard to say, spaced out so they stick."
       />
       <DeckOverview overview={overview} />
-      <SuspendedCards cards={getSuspendedCards()} />
+      <SuspendedCards cards={getSuspendedCards(userId)} />
     </Page>
   );
 }

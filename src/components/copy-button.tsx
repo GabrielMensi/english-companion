@@ -3,7 +3,9 @@
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
+import { voided } from "@/lib/voided";
 
 /**
  * Copies with the clipboard of the window the element is in: the floating window has its own,
@@ -40,7 +42,7 @@ export function CopyButton({
       variant="ghost"
       size={label ? "sm" : "icon-xs"}
       className={label ? undefined : "text-muted-foreground hover:text-foreground"}
-      onClick={copy}
+      onClick={voided(copy)}
       aria-label={label ? undefined : copied ? "Copied" : `Copy: ${text}`}
       title={label ? undefined : copied ? "Copied" : "Copy"}
     >

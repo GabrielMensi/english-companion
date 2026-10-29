@@ -1,5 +1,7 @@
-import type { Analysis } from "../../src/lib/ai/analysis";
+import { repeatsDiscard } from "../../src/lib/eval/discards";
+
 import type { Sample } from "./samples";
+import type { Analysis } from "../../src/lib/ai/analysis";
 
 export interface SampleScore {
   /** Points earned and possible: one per detected fragment, applied fix, typo label and Spanish lookup. */
@@ -8,6 +10,8 @@ export interface SampleScore {
   missed: string[];
   /** Errors reported on sentences that have no mistakes. */
   falsePositives: number;
+  /** Discarded fragments (`forbidden`) that the model reported again. */
+  repeatedDiscards: number;
 }
 
 const lower = (s: string) => s.toLowerCase();
@@ -48,8 +52,19 @@ export function scoreSample(sample: Sample, analysis: Analysis): SampleScore {
     else missed.push(`no translation: "${word}"`);
   }
 
-  // A sentence without mistakes is worth one point if nothing is flagged.
-  const clean = sample.expect.length === 0;
+  // Each fragment the learner discarded earns a point if the model leaves it alone (suggestions count too).
+  let repeatedDiscards = 0;
+  for (const fragment of sample.forbidden ?? []) {
+    possible++;
+    if (analysis.errors.some((err) => repeatsDiscard(err.original, fragment))) {
+      repeatedDiscards++;
+      missed.push(`reported a discarded correction: "${fragment}"`);
+    } else points++;
+  }
+
+  // A sentence without mistakes is worth one point if nothing is flagged. Discarded samples may
+  // contain other real mistakes, so only the discarded fragments are scored there.
+  const clean = sample.expect.length === 0 && !sample.forbidden?.length;
   // Suggestions are optional improvements, not mistakes, so they don't count.
   const mistakes = analysis.errors.filter((e) => e.severity !== "suggestion");
   const falsePositives = clean ? mistakes.length : 0;
@@ -59,5 +74,5 @@ export function scoreSample(sample: Sample, analysis: Analysis): SampleScore {
     else missed.push(`false positives: ${mistakes.map((e) => `"${e.original}"`).join(", ")}`);
   }
 
-  return { points, possible, missed, falsePositives };
+  return { points, possible, missed, falsePositives, repeatedDiscards };
 }

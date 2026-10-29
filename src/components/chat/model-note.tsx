@@ -1,4 +1,5 @@
 import { AlertTriangle, Cpu } from "lucide-react";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { FallbackAttempt } from "@/lib/ai/fallback";
 import { modelLabel } from "@/lib/ai/provider-info";

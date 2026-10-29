@@ -8,12 +8,12 @@
  */
 import type { PronunciationProgress } from "@/lib/read-aloud-core";
 import type { Stats } from "@/lib/stats-core";
+import { subtypeLabel } from "@/lib/subtypes";
 import {
   categoryLabel,
   type ErrorCategory,
   PRONUNCIATION_LABELS,
   type PronunciationCategory,
-  subtypeLabel,
   type Tense,
   tenseLabel,
 } from "@/lib/taxonomy";
@@ -255,11 +255,13 @@ export function digestToPromptText(d: StatsDigest): string {
  * The digest (and optionally a study plan) as Markdown, to paste in a note,
  * send to the teacher before class or share on screen.
  */
-export function digestToMarkdown(d: StatsDigest, plan?: MarkdownPlan | null): string {
+export function digestToMarkdown(d: StatsDigest, plan?: MarkdownPlan | null, options: { title?: string } = {}): string {
   const out: string[] = [];
   const period = d.period.days === null ? "All time" : `Last ${d.period.days} days`;
   out.push(
-    `# English report — ${period} (${formatDate(d.period.from ?? d.period.to)} – ${formatDate(d.period.to)})`,
+    options.title
+      ? `# ${options.title}`
+      : `# English report — ${period} (${formatDate(d.period.from ?? d.period.to)} – ${formatDate(d.period.to)})`,
     "",
   );
   out.push(

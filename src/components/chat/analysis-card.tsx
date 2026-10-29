@@ -3,6 +3,7 @@
 import { BookOpen, CheckCircle2, ChevronRight, Loader2, MessageCircleHeart, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
 import { SpeakButton } from "@/components/audio/speak-button";
 import { DiffText } from "@/components/chat/diff-text";
 import { MistakeGroups, MistakeItem } from "@/components/chat/mistake-list";
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { cardSections, reviewFeedback } from "@/lib/analysis-card-core";
 import { api, restoreCorrection } from "@/lib/api";
 import type { ChatMessage, CorrectionUpdate } from "@/lib/types";
+import { voided } from "@/lib/voided";
 
 /** How long a correction stays highlighted after it moves to another section. */
 const HIGHLIGHT_MS = 2500;
@@ -226,13 +228,13 @@ export function AnalysisCard({
         {message.improvedPrompt ? (
           <>
             <CopyButton text={message.improvedPrompt} label="Copy prompt" />
-            <Button variant="ghost" size="sm" onClick={improve} disabled={improving}>
+            <Button variant="ghost" size="sm" onClick={voided(improve)} disabled={improving}>
               {improving ? <Loader2 className="animate-spin" /> : <RefreshCw />}
               Regenerate prompt
             </Button>
           </>
         ) : (
-          <Button variant="ghost" size="sm" onClick={improve} disabled={improving}>
+          <Button variant="ghost" size="sm" onClick={voided(improve)} disabled={improving}>
             {improving ? <Loader2 className="animate-spin" /> : <Sparkles />}
             Turn into prompt
           </Button>

@@ -1,9 +1,11 @@
 /** Read-aloud practice: picking sentences and summing up pronunciation issues. Pure, no AI. */
 import type { ReadAloudSource } from "@/db/schema";
-import type { PronunciationCard } from "./flashcards-core";
+
 import { SOUND_SENTENCES } from "./read-aloud-sentences";
 import { bucketKey } from "./stats-core";
-import { PRONUNCIATION_CATEGORIES, type PronunciationCategory } from "./taxonomy";
+import { isBetaPronunciation, STABLE_PRONUNCIATION_CATEGORIES, type PronunciationCategory } from "./taxonomy";
+
+import type { PronunciationCard } from "./flashcards-core";
 
 export interface ReadAloudItem {
   /** Stable within a list, for React keys. */
@@ -38,7 +40,7 @@ export function readableSentences(text: string): string[] {
 /** Built-in sentences, the sounds the learner gets wrong most first, each sound's sentences in order. */
 export function soundItems(order: PronunciationCategory[]): ReadAloudItem[] {
   return order.flatMap((category) =>
-    category === "other"
+    category === "other" || category === "schwa_reduction"
       ? []
       : SOUND_SENTENCES[category].map((s, i) => ({
           key: `sounds:${category}:${i}`,
@@ -93,6 +95,7 @@ export function summarizePronunciation(attempts: AttemptRow[], issues: IssueRow[
   }
 
   const categories = [...byCategory.entries()]
+    .filter(([category]) => !isBetaPronunciation(category))
     .map(([category, examples]) => {
       const list = [...examples.values()].sort((a, b) => b.count - a.count || a.expected.localeCompare(b.expected));
       return { category, count: list.reduce((sum, e) => sum + e.count, 0), examples: list.slice(0, 3) };
@@ -100,7 +103,7 @@ export function summarizePronunciation(attempts: AttemptRow[], issues: IssueRow[
     .sort(
       (a, b) =>
         b.count - a.count ||
-        PRONUNCIATION_CATEGORIES.indexOf(a.category) - PRONUNCIATION_CATEGORIES.indexOf(b.category),
+        STABLE_PRONUNCIATION_CATEGORIES.indexOf(a.category) - STABLE_PRONUNCIATION_CATEGORIES.indexOf(b.category),
     );
 
   return { attempts: attempts.length, words, accuracy: words > 0 ? correct / words : null, categories };
@@ -216,17 +219,19 @@ function round(n: number): number {
 /** Sounds to practice: the ones with the most issues first, then the rest in taxonomy order. */
 export function soundOrder(summary: PronunciationSummary): PronunciationCategory[] {
   const worst = summary.categories.map((c) => c.category).filter((c) => c !== "other");
-  return [...worst, ...PRONUNCIATION_CATEGORIES.filter((c) => c !== "other" && !worst.includes(c))];
+  return [...worst, ...STABLE_PRONUNCIATION_CATEGORIES.filter((c) => c !== "other" && !worst.includes(c))];
 }
 
 /**
  * The sound to open the page on, from `?focus=`: a category with built-in
  * sentences ("other" has none). Anything else means all sounds.
  */
-export function parseFocus(value: string | string[] | undefined): Exclude<PronunciationCategory, "other"> | null {
+export function parseFocus(
+  value: string | string[] | undefined,
+): Exclude<PronunciationCategory, "other" | "schwa_reduction"> | null {
   const focus = Array.isArray(value) ? value[0] : value;
-  return focus && focus !== "other" && (PRONUNCIATION_CATEGORIES as readonly string[]).includes(focus)
-    ? (focus as Exclude<PronunciationCategory, "other">)
+  return focus && focus !== "other" && (STABLE_PRONUNCIATION_CATEGORIES as readonly string[]).includes(focus)
+    ? (focus as Exclude<PronunciationCategory, "other" | "schwa_reduction">)
     : null;
 }
 

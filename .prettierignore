@@ -3,3 +3,7 @@ drizzle/
 public/
 pnpm-lock.yaml
 next-env.d.ts
+scripts-dist
+playwright-report
+test-results
+blob-report

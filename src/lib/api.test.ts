@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { readLines } from "./api";
 
 function streamOf(chunks: string[]) {

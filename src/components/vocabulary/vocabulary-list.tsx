@@ -4,10 +4,12 @@ import { MessageSquare, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+
 import { SpeakButton } from "@/components/audio/speak-button";
-import { Highlight } from "@/components/vocabulary/highlight";
+import { ClassBadge } from "@/components/class-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Highlight } from "@/components/vocabulary/highlight";
 import { api } from "@/lib/api";
 import { type VocabularyWord, wordKey } from "@/lib/vocabulary-core";
 
@@ -74,11 +76,12 @@ export function VocabularyList({ initialWords }: { initialWords: VocabularyWord[
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {w.source === "class" && <ClassBadge />}
                 <span className="text-xs whitespace-nowrap text-muted-foreground">
                   {w.timesLookedUp > 1 ? `${w.timesLookedUp}× · ` : ""}
                   {dateFormat.format(w.lastSeen)}
                 </span>
-                <DeleteButton onConfirm={() => remove(w)} />
+                <DeleteButton onConfirm={() => void remove(w)} />
               </div>
             </div>
             {w.note && <p className="text-sm text-muted-foreground">{w.note}</p>}

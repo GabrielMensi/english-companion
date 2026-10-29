@@ -2,10 +2,13 @@
 
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { useState } from "react";
+
+import { ClassBadge } from "@/components/class-badge";
 import { DiscardButton } from "@/components/dashboard/discard-button";
 import { SeverityBadge } from "@/components/severity-badge";
 import type { CategoryStat } from "@/lib/stats-core";
-import { categoryLabel, subtypeLabel } from "@/lib/taxonomy";
+import { subtypeLabel } from "@/lib/subtypes";
+import { categoryLabel } from "@/lib/taxonomy";
 import { cn } from "@/lib/utils";
 
 /** A row of the category table that opens to list its latest mistakes, each one with "Discard". */
@@ -56,6 +59,7 @@ export function CategoryRow({ stat: c, trend }: { stat: CategoryStat; trend: Rea
                     <ArrowRight className="size-3.5 text-muted-foreground" />
                     <span className="text-mark-right">{m.correction}</span>
                     <SeverityBadge severity={m.severity} />
+                    {m.source === "class" && <ClassBadge />}
                     <DiscardButton correctionId={m.id} />
                   </div>
                   <p className="text-muted-foreground">{m.explanation}</p>

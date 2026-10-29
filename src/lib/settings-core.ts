@@ -1,9 +1,9 @@
 /** Settings format and its upgrade from older versions (no server-only imports, unit tested). */
-import { z } from "zod";
 import { normalizeChain, upgradeChain } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, PROVIDERS } from "@/lib/ai/provider-info";
 import { MAX_SESSION_CARDS, NEW_CARDS_PER_SESSION } from "@/lib/flashcards-core";
 import { modelIdSchema, savedModels } from "@/lib/model-id";
+import { z } from "@/lib/zod";
 
 /**
  * 2: the fallback order is the user's (before, remote providers were always tried first).

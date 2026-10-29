@@ -2,10 +2,11 @@
  * Pure parts of the message analysis: output schema, prompt building and
  * normalization. Kept free of server-only imports so it can be unit tested.
  */
-import type { DeepPartial } from "ai";
-import { z } from "zod";
 import type { InputMode, SessionMode } from "@/db/schema";
 import { CATEGORY_HINTS, ERROR_CATEGORIES, SEVERITIES, TRANSCRIBER_CATEGORIES } from "@/lib/taxonomy";
+import { z } from "@/lib/zod";
+
+import type { DeepPartial } from "ai";
 
 export const analysisSchema = z.object({
   correctedText: z.string().describe("The learner's message with the minimum edits needed to make it correct."),

@@ -6,7 +6,8 @@
  * imports so it can be unit tested.
  */
 import type { Stats } from "@/lib/stats-core";
-import { CATEGORY_HINTS, CATEGORY_LABELS, type ErrorCategory, isValidSubtype, subtypeLabel } from "@/lib/taxonomy";
+import { isValidSubtype, subtypeLabel } from "@/lib/subtypes";
+import { CATEGORY_HINTS, CATEGORY_LABELS, type ErrorCategory } from "@/lib/taxonomy";
 import { comparable } from "@/lib/tense-practice";
 import { escapeRegExp } from "@/lib/text";
 

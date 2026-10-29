@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { type MigrationFile, pendingMigrations } from "@/db/migrations-core";
 
 const m = (folderMillis: number): MigrationFile => ({ folderMillis, hash: `h${folderMillis}`, sql: [] });

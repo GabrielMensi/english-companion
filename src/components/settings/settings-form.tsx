@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +12,7 @@ import { PROVIDER_IDS, type ProviderId } from "@/lib/ai/provider-info";
 import { api } from "@/lib/api";
 import { NEW_CARD_LIMIT_OPTIONS } from "@/lib/flashcards-upkeep-core";
 import type { Settings } from "@/lib/settings";
+
 import { ModelChain } from "./model-chain";
 import { ProviderCard, type Providers, type TestState } from "./provider-card";
 

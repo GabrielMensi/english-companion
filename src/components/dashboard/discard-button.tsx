@@ -4,8 +4,10 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { discardCorrection, restoreCorrection } from "@/lib/api";
+import { voided } from "@/lib/voided";
 
 /**
  * "Discard" on a mistake the dashboard lists: the model got it wrong, so it
@@ -46,7 +48,14 @@ export function DiscardButton({
   }
 
   return (
-    <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={discard} disabled={busy} title={title}>
+    <Button
+      variant="ghost"
+      size="xs"
+      className="text-muted-foreground"
+      onClick={voided(discard)}
+      disabled={busy}
+      title={title}
+    >
       {busy && <Loader2 className="animate-spin" />}
       {label}
     </Button>

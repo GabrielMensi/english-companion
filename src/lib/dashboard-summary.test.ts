@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { dashboardDetail, dashboardHeadline } from "@/lib/dashboard-summary";
 
 describe("dashboardHeadline", () => {

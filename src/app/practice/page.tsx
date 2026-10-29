@@ -1,22 +1,25 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { CustomCategoryPractice, CustomPractice } from "@/components/practice/custom-practice";
-import { StartPracticeButton } from "@/components/practice/start-practice-button";
+
 import { Page, PageHeader, Section } from "@/components/layout/page";
-import { CATEGORY_STATUS, EXERCISE_LABELS, STATUS } from "@/components/practice/labels";
 import { NoProviderNotice } from "@/components/no-provider-notice";
+import { CustomCategoryPractice, CustomPractice } from "@/components/practice/custom-practice";
+import { CATEGORY_STATUS, EXERCISE_LABELS, STATUS } from "@/components/practice/labels";
+import { StartPracticeButton } from "@/components/practice/start-practice-button";
 import { StatusBadge } from "@/components/status-badge";
 import { hasConfiguredProvider } from "@/lib/ai/providers";
+import { requirePageUser } from "@/lib/auth/session";
 import { categoryTopic, NOT_PRACTICED } from "@/lib/category-practice";
 import { getPracticeSuggestions } from "@/lib/practice-start";
 import { ERROR_CATEGORIES, TENSE_LABELS } from "@/lib/taxonomy";
 
 export default async function PracticePage() {
   await connection();
-  const { tenses: targets, categories } = getPracticeSuggestions();
+  const { userId } = await requirePageUser("/practice");
+  const { tenses: targets, categories } = getPracticeSuggestions(userId);
   const suggestedCategories = categories.every((c) => c.status === "suggested");
   const suggested = targets.every((t) => t.status === "suggested");
-  const hasModel = hasConfiguredProvider();
+  const hasModel = hasConfiguredProvider(userId);
 
   return (
     <Page area="train">

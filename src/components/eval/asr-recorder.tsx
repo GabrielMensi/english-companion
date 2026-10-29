@@ -3,6 +3,7 @@
 import { CheckCircle2, Circle, Loader2, Mic, Square } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { useRecorder } from "@/components/audio/use-recorder";
 import { Button } from "@/components/ui/button";
 import type { AsrSample } from "@/lib/eval/asr-samples";
@@ -64,11 +65,11 @@ export function AsrRecorder({ samples, initialRecorded }: { samples: AsrSample[]
                   <p className="leading-relaxed">{highlight(s.text, s.mistake)}</p>
                 </div>
                 {active && phase.step === "recording" ? (
-                  <Button size="sm" variant="destructive" onClick={() => stop(s.id)}>
+                  <Button size="sm" variant="destructive" onClick={() => void stop(s.id)}>
                     <Square /> Stop
                   </Button>
                 ) : (
-                  <Button size="sm" variant="outline" onClick={() => start(s.id)} disabled={busy || active}>
+                  <Button size="sm" variant="outline" onClick={() => void start(s.id)} disabled={busy || active}>
                     {active ? <Loader2 className="animate-spin" /> : <Mic />}
                     {recorded.has(s.id) ? "Record again" : "Record"}
                   </Button>

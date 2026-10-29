@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { countWords, makeTitle } from "./text";
 
 describe("countWords", () => {
