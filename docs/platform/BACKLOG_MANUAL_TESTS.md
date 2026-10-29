@@ -126,6 +126,13 @@ Necesita Chrome o Edge (la ventana flotante no se pudo probar a mano).
 - [ ] "Discard": el error desaparece y una nota dice que se deshace desde la pestaña; Undo funciona desde la pestaña.
 - [ ] Sin API key → /dashboard muestra el aviso arriba; con key, no.
 
+### Errores descartados (#166: #165)
+
+- [ ] /dashboard → "Most frequent mistakes" → "Discard this example" en uno: aparece el link "Discarded (1)".
+- [ ] Abrirlo: el fragmento tachado, la corrección, la categoría y la fecha; "Open chat" abre el chat correcto.
+- [ ] Undo: la fila desaparece; en el dashboard el error vuelve a contar y el link se va.
+- [ ] Una segunda cuenta ve solo sus propios descartes.
+
 ## Problemas encontrados
 
 -
