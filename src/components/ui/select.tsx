@@ -47,11 +47,13 @@ function SelectTrigger({
 function SelectContent({
   className,
   children,
-  position = "item-aligned",
+  position,
   align = "center",
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
   const container = usePortalContainer();
+  // `item-aligned` measures against the tab's window, not the floating window's.
+  position ??= container ? "popper" : "item-aligned";
   return (
     <SelectPrimitive.Portal container={container}>
       <SelectPrimitive.Content

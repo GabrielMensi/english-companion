@@ -46,6 +46,7 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  const inFloatingWindow = usePortalContainer() !== null;
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -56,6 +57,18 @@ function DialogContent({
           className,
         )}
         {...props}
+        {...(inFloatingWindow && {
+          onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+            props.onKeyDown?.(event);
+            if (!event.defaultPrevented) trapTab(event);
+          },
+          onOpenAutoFocus: (event: Event) => {
+            props.onOpenAutoFocus?.(event);
+            if (event.defaultPrevented) return;
+            event.preventDefault();
+            focusables(event.currentTarget as HTMLElement)[0]?.focus();
+          },
+        })}
       >
         {children}
         {showCloseButton && (
@@ -69,6 +82,29 @@ function DialogContent({
       </DialogPrimitive.Content>
     </DialogPortal>
   );
+}
+
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function focusables(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(TABBABLE));
+}
+
+/**
+ * Radix's focus trap reads the page's global `document`, so in the floating window it never wraps Tab:
+ * this does it with the dialog's own document.
+ */
+function trapTab(event: React.KeyboardEvent<HTMLElement>) {
+  if (event.key !== "Tab") return;
+  const items = focusables(event.currentTarget);
+  if (items.length === 0) return;
+  const active = event.currentTarget.ownerDocument.activeElement;
+  const edge = event.shiftKey ? items[0] : items[items.length - 1];
+  if (active === edge || !event.currentTarget.contains(active)) {
+    event.preventDefault();
+    (event.shiftKey ? items[items.length - 1] : items[0]).focus();
+  }
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {

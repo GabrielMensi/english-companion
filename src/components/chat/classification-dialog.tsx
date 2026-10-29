@@ -10,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useNotify } from "@/components/pip/floating-window-context";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/api";
@@ -47,7 +46,7 @@ export function ClassificationDialog({
   const [tense, setTense] = useState<string>(correction.tense ?? NONE);
   const [tenseUsed, setTenseUsed] = useState<string>(correction.tenseUsed ?? NONE);
   const [saving, setSaving] = useState(false);
-  const notify = useNotify();
+  const [error, setError] = useState<string | null>(null);
   const hasTense = TENSE_CATEGORIES.includes(category);
 
   function changeCategory(value: ErrorCategory) {
@@ -57,6 +56,7 @@ export function ClassificationDialog({
 
   async function save() {
     setSaving(true);
+    setError(null);
     try {
       const update = await api<CorrectionUpdate>(`/api/corrections/${correction.id}`, {
         method: "PATCH",
@@ -69,8 +69,8 @@ export function ClassificationDialog({
       });
       onSaved(update);
       onOpenChange(false);
-    } catch (error) {
-      notify("error", (error as Error).message);
+    } catch (caught) {
+      setError((caught as Error).message);
     } finally {
       setSaving(false);
     }
@@ -78,7 +78,7 @@ export function ClassificationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[calc(100%-2rem)] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>What kind of mistake is it?</DialogTitle>
           <DialogDescription>
@@ -128,6 +128,12 @@ export function ClassificationDialog({
               </Field>
             )}
           </>
+        )}
+
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
         )}
 
         <DialogFooter>
