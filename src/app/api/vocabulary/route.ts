@@ -7,10 +7,10 @@ import { withUser } from "@/lib/auth/with-user";
 const bodySchema = z.object({ ids: z.array(z.string()).min(1).max(1000) });
 
 /** Deletes every lookup of a word (the client sends all its row ids). */
-export const DELETE = withUser(async (request: Request) => {
+export const DELETE = withUser(async (request: Request, _ctx, { userId }) => {
   const body = await parseBody(request, bodySchema, "Invalid data");
   if (!body.ok) return body.response;
-  deleteVocabulary(body.data.ids);
-  cleanOrphanReviews();
+  deleteVocabulary(userId, body.data.ids);
+  cleanOrphanReviews(userId);
   return new Response(null, { status: 204 });
 });

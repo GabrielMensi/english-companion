@@ -10,9 +10,9 @@ import { requirePageUser } from "@/lib/auth/session";
 
 export default async function ReadAloudPage({ searchParams }: PageProps<"/read-aloud">) {
   await connection();
-  await requirePageUser("/read-aloud");
+  const { userId } = await requirePageUser("/read-aloud");
   const { focus } = await searchParams;
-  const { sounds, corrections, vocabulary, summary } = getReadAloudData();
+  const { sounds, corrections, vocabulary, summary } = getReadAloudData(userId);
 
   return (
     <Page area="train">
@@ -34,7 +34,7 @@ export default async function ReadAloudPage({ searchParams }: PageProps<"/read-a
         initialSummary={summary}
         initialFocus={parseFocus(focus)}
         canRecord={resolveTranscriptionModel() !== null}
-        language={getSettings().explanationLanguage}
+        language={getSettings(userId).explanationLanguage}
       />
     </Page>
   );

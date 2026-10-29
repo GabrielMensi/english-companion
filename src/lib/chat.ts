@@ -1,7 +1,8 @@
 import "server-only";
 
-import { and, asc, desc, eq, lt } from "drizzle-orm";
+import { asc, desc, eq, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { owned } from "@/db/owned";
 import type { Correction, Message, SessionMode, VocabularyEntry } from "@/db/schema";
 import { analyzeMessage, type OnPreview } from "@/lib/ai/analyze";
 import { errorToMessage } from "@/lib/ai/fallback";
@@ -19,36 +20,53 @@ import { logRouteError } from "@/lib/server-log";
 
 const HISTORY_TURNS = 10;
 
-export function listSessions() {
-  return db.select().from(schema.sessions).orderBy(desc(schema.sessions.updatedAt)).all();
-}
-
-export function getSession(id: string) {
-  return db.select().from(schema.sessions).where(eq(schema.sessions.id, id)).get();
-}
-
-export function createSession(mode: SessionMode) {
-  return db.insert(schema.sessions).values({ id: crypto.randomUUID(), title: "New chat", mode }).returning().get();
-}
-
-export function updateSession(id: string, data: { title?: string; mode?: SessionMode }) {
+export function listSessions(userId: string) {
   return db
-    .update(schema.sessions)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(schema.sessions.id, id))
+    .select()
+    .from(schema.sessions)
+    .where(owned(schema.sessions, userId))
+    .orderBy(desc(schema.sessions.updatedAt))
+    .all();
+}
+
+/** The chat, or undefined when it doesn't exist or belongs to someone else. */
+export function getSession(userId: string, id: string) {
+  return db
+    .select()
+    .from(schema.sessions)
+    .where(owned(schema.sessions, userId, eq(schema.sessions.id, id)))
+    .get();
+}
+
+export function createSession(userId: string, mode: SessionMode) {
+  return db
+    .insert(schema.sessions)
+    .values({ id: crypto.randomUUID(), userId, title: "New chat", mode })
     .returning()
     .get();
 }
 
-export function deleteSession(id: string) {
-  db.delete(schema.sessions).where(eq(schema.sessions.id, id)).run();
-  deletePractice(id);
+export function updateSession(userId: string, id: string, data: { title?: string; mode?: SessionMode }) {
+  return db
+    .update(schema.sessions)
+    .set({ ...data, updatedAt: new Date() })
+    .where(owned(schema.sessions, userId, eq(schema.sessions.id, id)))
+    .returning()
+    .get();
 }
 
-export function getMessages(sessionId: string): ChatMessage[] {
+export function deleteSession(userId: string, id: string) {
+  const deleted = db
+    .delete(schema.sessions)
+    .where(owned(schema.sessions, userId, eq(schema.sessions.id, id)))
+    .run().changes;
+  if (deleted > 0) deletePractice(userId, id);
+}
+
+export function getMessages(userId: string, sessionId: string): ChatMessage[] {
   return db.query.messages
     .findMany({
-      where: eq(schema.messages.sessionId, sessionId),
+      where: owned(schema.messages, userId, eq(schema.messages.sessionId, sessionId)),
       orderBy: [asc(schema.messages.createdAt)],
       with: { corrections: true, vocabulary: true },
     })
@@ -56,40 +74,47 @@ export function getMessages(sessionId: string): ChatMessage[] {
     .map(toChatMessage);
 }
 
-export function getMessage(id: string): ChatMessage | undefined {
+export function getMessage(userId: string, id: string): ChatMessage | undefined {
   const row = db.query.messages
     .findFirst({
-      where: eq(schema.messages.id, id),
+      where: owned(schema.messages, userId, eq(schema.messages.id, id)),
       with: { corrections: true, vocabulary: true },
     })
     .sync();
   return row ? toChatMessage(row) : undefined;
 }
 
-function toChatMessage(row: Message & { corrections: Correction[]; vocabulary: VocabularyEntry[] }): ChatMessage {
+function toChatMessage({
+  userId: _owner,
+  ...row
+}: Message & { corrections: Correction[]; vocabulary: VocabularyEntry[] }): ChatMessage {
   return {
     ...row,
     createdAt: row.createdAt.getTime(),
     corrections: row.corrections.map(toChatCorrection),
-    vocabulary: row.vocabulary.map((v) => ({ ...v, createdAt: v.createdAt.getTime() })),
+    vocabulary: row.vocabulary.map(({ userId: _vocabularyOwner, ...v }) => ({
+      ...v,
+      createdAt: v.createdAt.getTime(),
+    })),
   };
 }
 
 /** Stores the learner's message; the analysis runs in {@link analyzeStoredMessage}. */
-export function addUserMessage(sessionId: string, text: string, voice?: VoiceInput) {
-  const session = getSession(sessionId);
+export function addUserMessage(userId: string, sessionId: string, text: string, voice?: VoiceInput) {
+  const session = getSession(userId, sessionId);
   if (!session) return undefined;
 
   const isFirst = !db
     .select({ id: schema.messages.id })
     .from(schema.messages)
-    .where(eq(schema.messages.sessionId, sessionId))
+    .where(owned(schema.messages, userId, eq(schema.messages.sessionId, sessionId)))
     .get();
 
   const message = db
     .insert(schema.messages)
     .values({
       id: crypto.randomUUID(),
+      userId,
       sessionId,
       role: "user",
       content: text,
@@ -100,7 +125,7 @@ export function addUserMessage(sessionId: string, text: string, voice?: VoiceInp
     .returning()
     .get();
 
-  updateSession(sessionId, isFirst ? { title: makeTitle(text) } : {});
+  updateSession(userId, sessionId, isFirst ? { title: makeTitle(text) } : {});
   return message;
 }
 
@@ -109,24 +134,28 @@ export function addUserMessage(sessionId: string, text: string, voice?: VoiceInp
  * vocabulary and (in conversation mode) the assistant reply. Also used to retry.
  * `onPreview` streams the analysis while it's generated; what gets saved is the same.
  */
-export async function analyzeStoredMessage(messageId: string, onPreview?: OnPreview): Promise<ChatMessage[]> {
-  const message = db.select().from(schema.messages).where(eq(schema.messages.id, messageId)).get();
+export async function analyzeStoredMessage(
+  userId: string,
+  messageId: string,
+  onPreview?: OnPreview,
+): Promise<ChatMessage[]> {
+  const message = getUserMessageRow(userId, messageId);
   if (!message || message.role !== "user") throw new Error("Message not found");
-  const session = getSession(message.sessionId);
+  const session = getSession(userId, message.sessionId);
   if (!session) throw new Error("Chat not found");
 
-  const settings = getSettings();
+  const settings = getSettings(userId);
   // Practice chats (see src/lib/practice.ts): steered follow-up questions, or exercise feedback.
-  const practice = getPractice(session.id);
+  const practice = getPractice(userId, session.id);
 
   try {
     const started = Date.now();
-    const { analysis, provider, modelId, fallbackAttempts } = await withChatPriority(() =>
+    const { analysis, provider, modelId, fallbackAttempts } = await withChatPriority(userId, () =>
       analyzeMessage(
         {
           text: message.content,
           mode: session.mode,
-          history: getHistory(message),
+          history: getHistory(userId, message),
           inputMode: message.inputMode,
           practiceRule: practiceReplyRule(practice),
         },
@@ -135,18 +164,28 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
       ),
     );
     const durationMs = Date.now() - started;
-    const exercise = exerciseReplyFor(practice, message, analysis.errors);
+    const exercise = exerciseReplyFor(userId, practice, message, analysis.errors);
     const reply = exercise
       ? { content: exercise.text, provider: null, model: null, durationMs: null }
       : analysis.reply && { content: analysis.reply, provider, model: modelId, durationMs };
 
     db.transaction((tx) => {
       // Retrying replaces any previous result for this message, keeping the learner's own review of it.
-      const previous = tx.select().from(schema.corrections).where(eq(schema.corrections.messageId, message.id)).all();
+      const previous = tx
+        .select()
+        .from(schema.corrections)
+        .where(owned(schema.corrections, userId, eq(schema.corrections.messageId, message.id)))
+        .all();
       const carried = carryOverReviews(previous, analysis.errors);
-      tx.delete(schema.corrections).where(eq(schema.corrections.messageId, message.id)).run();
-      tx.delete(schema.vocabulary).where(eq(schema.vocabulary.messageId, message.id)).run();
-      tx.delete(schema.messages).where(eq(schema.messages.replyToId, message.id)).run();
+      tx.delete(schema.corrections)
+        .where(owned(schema.corrections, userId, eq(schema.corrections.messageId, message.id)))
+        .run();
+      tx.delete(schema.vocabulary)
+        .where(owned(schema.vocabulary, userId, eq(schema.vocabulary.messageId, message.id)))
+        .run();
+      tx.delete(schema.messages)
+        .where(owned(schema.messages, userId, eq(schema.messages.replyToId, message.id)))
+        .run();
 
       tx.update(schema.messages)
         .set({
@@ -159,7 +198,7 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
           fallbackAttempts: fallbackAttempts.length > 0 ? fallbackAttempts : null,
           durationMs,
         })
-        .where(eq(schema.messages.id, message.id))
+        .where(owned(schema.messages, userId, eq(schema.messages.id, message.id)))
         .run();
 
       const now = message.createdAt;
@@ -168,6 +207,7 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
           .values(
             analysis.errors.map((e, i) => ({
               id: crypto.randomUUID(),
+              userId,
               messageId: message.id,
               createdAt: now,
               ...e,
@@ -181,6 +221,7 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
           .values(
             analysis.spanishPhrases.map((p) => ({
               id: crypto.randomUUID(),
+              userId,
               messageId: message.id,
               createdAt: now,
               ...p,
@@ -192,6 +233,7 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
         tx.insert(schema.messages)
           .values({
             id: crypto.randomUUID(),
+            userId,
             sessionId: message.sessionId,
             role: "assistant",
             replyToId: message.id,
@@ -203,35 +245,42 @@ export async function analyzeStoredMessage(messageId: string, onPreview?: OnPrev
       }
     });
     // Missed exercise items go to the "Missed exercises" flashcard deck.
-    if (exercise) recordExerciseResult(message.sessionId, exercise);
+    if (exercise) recordExerciseResult(userId, message.sessionId, exercise);
   } catch (error) {
     logRouteError("chat turn", error);
     db.update(schema.messages)
       .set({ status: "error", errorMessage: errorToMessage(error) })
-      .where(eq(schema.messages.id, message.id))
+      .where(owned(schema.messages, userId, eq(schema.messages.id, message.id)))
       .run();
   }
 
-  updateSession(message.sessionId, {});
-  return getTurn(message.id);
+  updateSession(userId, message.sessionId, {});
+  return getTurn(userId, message.id);
 }
 
 /** The analyzed user message plus its reply, if any. */
-function getTurn(messageId: string): ChatMessage[] {
-  const user = getMessage(messageId)!;
+function getTurn(userId: string, messageId: string): ChatMessage[] {
+  const user = getMessage(userId, messageId)!;
   const reply = db
     .select({ id: schema.messages.id })
     .from(schema.messages)
-    .where(eq(schema.messages.replyToId, messageId))
+    .where(owned(schema.messages, userId, eq(schema.messages.replyToId, messageId)))
     .get();
-  return reply ? [user, getMessage(reply.id)!] : [user];
+  return reply ? [user, getMessage(userId, reply.id)!] : [user];
 }
 
-function getHistory(message: Message): HistoryTurn[] {
+function getHistory(userId: string, message: Message): HistoryTurn[] {
   const previous = db
     .select()
     .from(schema.messages)
-    .where(and(eq(schema.messages.sessionId, message.sessionId), lt(schema.messages.createdAt, message.createdAt)))
+    .where(
+      owned(
+        schema.messages,
+        userId,
+        eq(schema.messages.sessionId, message.sessionId),
+        lt(schema.messages.createdAt, message.createdAt),
+      ),
+    )
     .orderBy(desc(schema.messages.createdAt))
     .limit(HISTORY_TURNS * 2)
     .all()
@@ -251,13 +300,22 @@ function getHistory(message: Message): HistoryTurn[] {
   return turns;
 }
 
-export async function improveMessagePrompt(messageId: string) {
-  const message = db.select().from(schema.messages).where(eq(schema.messages.id, messageId)).get();
+/** A message row of this user (the stored row, not the chat shape). */
+function getUserMessageRow(userId: string, id: string) {
+  return db
+    .select()
+    .from(schema.messages)
+    .where(owned(schema.messages, userId, eq(schema.messages.id, id)))
+    .get();
+}
+
+export async function improveMessagePrompt(userId: string, messageId: string) {
+  const message = getUserMessageRow(userId, messageId);
   if (!message || message.role !== "user") throw new Error("Message not found");
 
   const started = Date.now();
-  const { prompt, provider, modelId } = await withChatPriority(() =>
-    improvePrompt(message.correctedText ?? message.content, getSettings()),
+  const { prompt, provider, modelId } = await withChatPriority(userId, () =>
+    improvePrompt(message.correctedText ?? message.content, getSettings(userId)),
   );
   const update = {
     improvedPrompt: prompt,
@@ -265,6 +323,9 @@ export async function improveMessagePrompt(messageId: string) {
     improvedPromptModel: modelId,
     improvedPromptDurationMs: Date.now() - started,
   };
-  db.update(schema.messages).set(update).where(eq(schema.messages.id, messageId)).run();
+  db.update(schema.messages)
+    .set(update)
+    .where(owned(schema.messages, userId, eq(schema.messages.id, messageId)))
+    .run();
   return update;
 }

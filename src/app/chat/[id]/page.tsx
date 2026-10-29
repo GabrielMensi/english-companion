@@ -11,13 +11,13 @@ import { requirePageUser } from "@/lib/auth/session";
 export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
   await connection();
   const { id } = await params;
-  await requirePageUser(`/chat/${id}`);
-  const session = getSession(id);
+  const { userId } = await requirePageUser(`/chat/${id}`);
+  const session = getSession(userId, id);
   if (!session) notFound();
 
-  const settings = getSettings();
-  const setSize = pendingSetSize(session.id);
-  const practice = getPractice(session.id);
+  const settings = getSettings(userId);
+  const setSize = pendingSetSize(userId, session.id);
+  const practice = getPractice(userId, session.id);
 
   return (
     <ChatView
@@ -29,7 +29,7 @@ export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
         mode: session.mode,
         topic: practice?.kind === "topic" ? practice.topic : null,
       }}
-      initialMessages={getMessages(session.id)}
+      initialMessages={getMessages(userId, session.id)}
       models={availableModels(settings)}
       selectedProvider={settings.provider}
       hasModel={hasConfiguredProvider()}

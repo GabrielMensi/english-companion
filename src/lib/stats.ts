@@ -1,8 +1,9 @@
 import "server-only";
 
-import { and, eq, gte, isNotNull, lt } from "drizzle-orm";
+import { eq, gte, isNotNull, lt } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { db, schema } from "@/db";
+import { owned } from "@/db/owned";
 import { computeFluencyStats } from "@/lib/fluency";
 import { getSettings } from "@/lib/settings";
 import { computeStats, type StatCorrection, type StatMessage } from "@/lib/stats-core";
@@ -19,16 +20,16 @@ export type InputFilter = (typeof INPUT_FILTERS)[number];
 
 const DAY = 86_400_000;
 
-export function getDashboardData(range: RangeKey, input: InputFilter = "all") {
+export function getDashboardData(userId: string, range: RangeKey, input: InputFilter = "all") {
   const now = Date.now();
   const days = RANGES[range];
   const from = days === null ? null : now - days * DAY;
   const previousFrom = days === null ? null : now - 2 * days * DAY;
 
-  const settings = getSettings();
+  const settings = getSettings(userId);
   const period = (start: number | null, end: number | null) => ({
-    messages: loadMessages(start, end, input),
-    corrections: loadCorrections(start, end, input),
+    messages: loadMessages(userId, start, end, input),
+    corrections: loadCorrections(userId, start, end, input),
   });
 
   const current = period(from, null);
@@ -53,10 +54,13 @@ export function getDashboardData(range: RangeKey, input: InputFilter = "all") {
   });
 
   // Fluency only exists for dictated messages, so the written/spoken filter doesn't change it.
-  const fluency = computeFluencyStats(loadFluency(from, null), from !== null ? loadFluency(previousFrom, from) : []);
+  const fluency = computeFluencyStats(
+    loadFluency(userId, from, null),
+    from !== null ? loadFluency(userId, previousFrom, from) : [],
+  );
 
   // Words looked up with [brackets] during the period, grouped and newest first.
-  const vocabulary = getVocabulary().filter((w) => from === null || w.lastSeen >= from);
+  const vocabulary = getVocabulary(userId).filter((w) => from === null || w.lastSeen >= from);
 
   return {
     stats,
@@ -64,27 +68,29 @@ export function getDashboardData(range: RangeKey, input: InputFilter = "all") {
     vocabulary,
     fluency,
     countTypos: settings.countTyposInStats,
-    hasSpoken: hasSpokenMessages(),
+    hasSpoken: hasSpokenMessages(userId),
   };
 }
 
-function hasSpokenMessages(): boolean {
+function hasSpokenMessages(userId: string): boolean {
   return (
     db
       .select({ id: schema.messages.id })
       .from(schema.messages)
-      .where(eq(schema.messages.inputMode, "spoken"))
+      .where(owned(schema.messages, userId, eq(schema.messages.inputMode, "spoken")))
       .limit(1)
       .get() !== undefined
   );
 }
 
-function loadFluency(from: number | null, to: number | null) {
+function loadFluency(userId: string, from: number | null, to: number | null) {
   return db
     .select({ fluency: schema.messages.fluency })
     .from(schema.messages)
     .where(
-      and(
+      owned(
+        schema.messages,
+        userId,
         eq(schema.messages.role, "user"),
         eq(schema.messages.inputMode, "spoken"),
         isNotNull(schema.messages.fluency),
@@ -99,6 +105,7 @@ function inputFilter(input: InputFilter) {
 }
 
 function loadMessages(
+  userId: string,
   from: number | null,
   to: number | null,
   input: InputFilter,
@@ -114,7 +121,9 @@ function loadMessages(
     })
     .from(schema.messages)
     .where(
-      and(
+      owned(
+        schema.messages,
+        userId,
         eq(schema.messages.role, "user"),
         eq(schema.messages.status, "done"),
         inputFilter(input),
@@ -122,7 +131,7 @@ function loadMessages(
       ),
     )
     .all()
-    .map((m) => ({ createdAt: m.createdAt.getTime(), wordCount: m.wordCount, tenseCounts: tenseCountsOf(m) }));
+    .map((m) => ({ createdAt: m.createdAt.getTime(), wordCount: m.wordCount, tenseCounts: tenseCountsOf(userId, m) }));
 }
 
 /**
@@ -130,22 +139,26 @@ function loadMessages(
  * before this existed, or counted with an older version of the rules, are
  * counted here the first time the dashboard needs them.
  */
-function tenseCountsOf(m: {
-  id: string;
-  content: string;
-  correctedText: string | null;
-  tenseCounts: { version: number; counts: TenseCounts } | null;
-}): TenseCounts {
+function tenseCountsOf(
+  userId: string,
+  m: {
+    id: string;
+    content: string;
+    correctedText: string | null;
+    tenseCounts: { version: number; counts: TenseCounts } | null;
+  },
+): TenseCounts {
   if (m.tenseCounts?.version === TENSE_COUNTER_VERSION) return m.tenseCounts.counts;
   const counts = countTenses(m.correctedText ?? m.content);
   db.update(schema.messages)
     .set({ tenseCounts: { version: TENSE_COUNTER_VERSION, counts } })
-    .where(eq(schema.messages.id, m.id))
+    .where(owned(schema.messages, userId, eq(schema.messages.id, m.id)))
     .run();
   return counts;
 }
 
 function loadCorrections(
+  userId: string,
   from: number | null,
   to: number | null,
   input: InputFilter,
@@ -154,7 +167,9 @@ function loadCorrections(
     .select({ correction: schema.corrections, inputMode: schema.messages.inputMode })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
-    .where(and(inputFilter(input), ...rangeFilter(schema.corrections.createdAt, from, to)))
+    .where(
+      owned(schema.corrections, userId, inputFilter(input), ...rangeFilter(schema.corrections.createdAt, from, to)),
+    )
     .all()
     .map(({ correction, inputMode }) => ({
       ...correction,

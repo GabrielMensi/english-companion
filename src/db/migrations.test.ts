@@ -88,7 +88,9 @@ describe("migrations on an empty database", () => {
       const config = getTableConfig(table);
       const actual = columnsOf(sqlite, config.name);
       expect(actual.map((c) => [c.name, c.notnull === 1, c.pk > 0]).sort(), `table ${config.name}`).toEqual(
-        config.columns.map((c) => [c.name, c.notNull, c.primary]).sort(),
+        config.columns
+          .map((c) => [c.name, c.notNull, c.primary || config.primaryKeys.some((pk) => pk.columns.includes(c))])
+          .sort(),
       );
     }
   });
@@ -177,6 +179,99 @@ describe("migrations on a database with old data", () => {
     sqlite.prepare("DELETE FROM sessions WHERE id = 's1'").run();
     expect(sqlite.prepare("SELECT count(*) FROM messages").pluck().get()).toBe(0);
     expect(sqlite.prepare("SELECT count(*) FROM corrections").pluck().get()).toBe(0);
+  });
+});
+
+describe("the multi-user migration (user_id on every data table)", () => {
+  const BEFORE_TAG = "0014_auth_tables";
+  /** Every table that gets a `user_id`, with the rows an app used for a while would have. */
+  const DATA_TABLES = [
+    "sessions",
+    "messages",
+    "corrections",
+    "vocabulary",
+    "reviews",
+    "missed_exercises",
+    "review_log",
+    "read_aloud_attempts",
+    "pronunciation_issues",
+    "settings",
+  ];
+
+  function seedEveryTable(sqlite: Database.Database) {
+    const at = 1_790_000_000_000;
+    sqlite.exec(`
+      INSERT INTO sessions (id, title, mode, created_at, updated_at) VALUES ('s1', 'Chat', 'correction', ${at}, ${at}), ('s2', 'Practice', 'correction', ${at}, ${at});
+      INSERT INTO messages (id, session_id, role, content, status, word_count, created_at) VALUES ('m1', 's1', 'user', 'I go [mi amigo]', 'done', 3, ${at});
+      INSERT INTO messages (id, session_id, role, reply_to_id, content, created_at) VALUES ('m2', 's1', 'assistant', 'm1', 'Nice!', ${at + 1});
+      INSERT INTO corrections (id, message_id, original, correction, category, subcategory, severity, explanation, created_at)
+        VALUES ('c1', 'm1', 'I go', 'I went', 'verb_tense', 'past_simple', 'moderate', 'Past.', ${at});
+      INSERT INTO vocabulary (id, message_id, spanish, english, created_at) VALUES ('v1', 'm1', 'mi amigo', '["my friend"]', ${at});
+      INSERT INTO reviews (id, kind, card_key, ease, interval_days, repetitions, lapses, due_at, review_count, created_at)
+        VALUES ('r1', 'mistake', 'I go → I went', 2.5, 1, 1, 0, ${at}, 1, ${at}), ('r2', 'vocabulary', 'mi amigo', 2.5, 0, 0, 0, ${at}, 0, ${at});
+      INSERT INTO missed_exercises (id, session_id, item_index, topic, sentence, answer, why, learner_answer, created_at)
+        VALUES ('x1', 's2', 0, 'Past simple', 'I ___ (go)', 'went', 'Past.', 'go', ${at});
+      INSERT INTO review_log (id, kind, card_key, grade, was_new, interval_days, reviewed_at) VALUES ('l1', 'mistake', 'I go → I went', 'good', 1, 1, ${at});
+      INSERT INTO read_aloud_attempts (id, source, text, transcript, correct_words, total_words, created_at) VALUES ('a1', 'sounds', 'Read it', 'red it', 1, 2, ${at});
+      INSERT INTO pronunciation_issues (id, attempt_id, expected, heard, category, created_at) VALUES ('p1', 'a1', 'read', 'red', 'vowel_length', ${at});
+      INSERT INTO settings (key, value) VALUES ('app', '{"provider":"gemini"}'), ('api-keys', '{}'), ('practice:s2', '{"kind":"conversation","tense":"past_simple"}'), ('insights-plan', '{}');
+    `);
+  }
+
+  const counts = (sqlite: Database.Database) =>
+    Object.fromEntries(
+      DATA_TABLES.map((t) => [t, sqlite.prepare(`SELECT count(*) FROM "${t}"`).pluck().get() as number]),
+    );
+
+  it("keeps the number of rows of every table and leaves them without an owner", () => {
+    const { sqlite, dir } = tempDb();
+    migrate(sqlite, migrationsUpTo(BEFORE_TAG, dir));
+    seedEveryTable(sqlite);
+    const before = counts(sqlite);
+    expect(Object.values(before).every((n) => n > 0)).toBe(true);
+
+    migrate(sqlite, MIGRATIONS);
+
+    expect(counts(sqlite)).toEqual(before);
+    for (const table of DATA_TABLES.filter((t) => t !== "settings")) {
+      expect(sqlite.prepare(`SELECT count(*) FROM "${table}" WHERE user_id IS NOT NULL`).pluck().get(), table).toBe(0);
+    }
+    expect(sqlite.prepare("SELECT count(*) FROM user_settings").pluck().get()).toBe(0);
+    expect(sqlite.pragma("foreign_key_check")).toEqual([]);
+    // Cascades still work after the upgrade: deleting a chat takes its messages, corrections and words.
+    sqlite.prepare("DELETE FROM sessions WHERE id = 's1'").run();
+    expect(sqlite.prepare("SELECT count(*) FROM messages").pluck().get()).toBe(0);
+    expect(sqlite.prepare("SELECT count(*) FROM corrections").pluck().get()).toBe(0);
+    expect(sqlite.prepare("SELECT count(*) FROM vocabulary").pluck().get()).toBe(0);
+  });
+
+  it("makes the card state unique per user, not per card", () => {
+    const { sqlite, dir } = tempDb();
+    migrate(sqlite, migrationsUpTo(BEFORE_TAG, dir));
+    seedEveryTable(sqlite);
+    migrate(sqlite, MIGRATIONS);
+    sqlite.exec(
+      `INSERT INTO user (id, name, email, created_at, updated_at) VALUES ('u1', 'A', 'a@x.com', 1, 1), ('u2', 'B', 'b@x.com', 1, 1)`,
+    );
+    const insert = sqlite.prepare(
+      "INSERT INTO reviews (id, user_id, kind, card_key, ease, due_at, created_at) VALUES (?, ?, 'mistake', 'k', 2.5, 1, 1)",
+    );
+    insert.run("n1", "u1");
+    insert.run("n2", "u2");
+    expect(() => insert.run("n3", "u1")).toThrow(/UNIQUE/);
+  });
+
+  it("deleting a user deletes their data (and only theirs)", () => {
+    const { sqlite } = tempDb();
+    migrate(sqlite, MIGRATIONS);
+    sqlite.exec(`
+      INSERT INTO user (id, name, email, created_at, updated_at) VALUES ('u1', 'A', 'a@x.com', 1, 1), ('u2', 'B', 'b@x.com', 1, 1);
+      INSERT INTO sessions (id, user_id, title, mode, created_at, updated_at) VALUES ('s1', 'u1', 'A chat', 'correction', 1, 1), ('s2', 'u2', 'B chat', 'correction', 1, 1);
+      INSERT INTO user_settings (user_id, key, value) VALUES ('u1', 'app', '{}'), ('u2', 'app', '{}');
+    `);
+    sqlite.prepare("DELETE FROM user WHERE id = 'u1'").run();
+    expect(sqlite.prepare("SELECT id FROM sessions").pluck().all()).toEqual(["s2"]);
+    expect(sqlite.prepare("SELECT user_id FROM user_settings").pluck().all()).toEqual(["u2"]);
   });
 });
 

@@ -129,3 +129,7 @@ En este orden (la prioridad se puede revisar con el tablero):
 5. **Tests de seguridad** (auth en todas las rutas, límites de entrada), junto con #76.
 6. **E2E con Playwright** y el modo de IA falsa, nightly y antes de cada release.
 7. **Umbrales en los evals**.
+
+## Test de alcance por usuario (`src/db/scoping.test.ts`)
+
+Lee el código fuente y falla si una consulta sobre una tabla con `user_id` no nombra al dueño (`owned(` o un `userId` en el insert). Es una red barata, no una prueba: **no ve** (1) una tabla guardada en una variable (`db.delete(table)`), (2) un `join` de una tabla con dueño sobre una base sin dueño, ni (3) nada de `scripts/` (los evals son del operador y filtran a mano por la primera cuenta). Lo que cubre eso es `src/app/api/isolation.test.ts` (dos cuentas reales por todas las rutas y estadísticas): una consulta nueva de otro tipo necesita su caso ahí. El mismo archivo vigila que la tabla global vieja `settings` solo la use `secrets.ts` (`GLOBAL_SETTINGS` en `src/db/claim.ts`): una clave global nueva se declara a propósito o el claim se la daría a un usuario.

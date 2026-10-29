@@ -9,8 +9,8 @@ import { requirePageUser } from "@/lib/auth/session";
 
 export default async function VocabularyPage() {
   await connection();
-  await requirePageUser("/vocabulary");
-  const words = getVocabulary();
+  const { userId } = await requirePageUser("/vocabulary");
+  const words = getVocabulary(userId);
 
   return (
     <Page area="train">

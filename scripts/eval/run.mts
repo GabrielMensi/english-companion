@@ -25,11 +25,11 @@ import path from "node:path";
 import { analyzeMessage } from "../../src/lib/ai/analyze";
 import { errorToMessage } from "../../src/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "../../src/lib/ai/provider-info";
-import { getSettings } from "../../src/lib/settings";
 import { DISCARDS_FILE } from "../../src/lib/eval/discards";
 import { findPreset } from "../../src/lib/topics";
 import { SAMPLES, TOPIC_SAMPLES, type Sample, type TopicSample } from "./samples";
 import { reportCheck, wantsCheck } from "./check";
+import { evalSettings } from "./settings";
 import { scoreSample } from "./score";
 
 const args = process.argv.slice(2);
@@ -103,7 +103,7 @@ if (specs.length === 0) {
   process.exit(1);
 }
 
-const base = getSettings();
+const base = await evalSettings();
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const summary: Record<string, string | number>[] = [];
 const details: unknown[] = [];

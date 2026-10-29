@@ -1,6 +1,6 @@
 // Database helpers for integration tests: the app's own `db` (real migrations, temp file from the
 // setup) plus small seed functions. See docs/platform/TESTING.md.
-import { getTableName, is, sql } from "drizzle-orm";
+import { eq, getTableName, is, sql } from "drizzle-orm";
 import { SQLiteTable } from "drizzle-orm/sqlite-core";
 import { db, schema } from "@/db";
 import type { ErrorCategory, Severity } from "@/lib/taxonomy";
@@ -28,6 +28,11 @@ export function resetDb(): void {
 let counter = 0;
 const nextId = (prefix: string) => `${prefix}-${++counter}`;
 
+/** The owner of a row (a chat or a message), so seeded children belong to the same user. */
+function ownerOf(table: typeof schema.sessions | typeof schema.messages, id: string): string | null {
+  return db.select({ userId: table.userId }).from(table).where(eq(table.id, id)).get()?.userId ?? null;
+}
+
 export function seedSession(values: Partial<typeof schema.sessions.$inferInsert> = {}) {
   return db
     .insert(schema.sessions)
@@ -40,7 +45,15 @@ export function seedSession(values: Partial<typeof schema.sessions.$inferInsert>
 export function seedUserMessage(sessionId: string, values: Partial<typeof schema.messages.$inferInsert> = {}) {
   return db
     .insert(schema.messages)
-    .values({ id: nextId("message"), sessionId, role: "user", content: "I go to the park yesterday.", ...values })
+    .values({
+      id: nextId("message"),
+      // Like the app: a message belongs to whoever owns its chat.
+      userId: ownerOf(schema.sessions, sessionId),
+      sessionId,
+      role: "user",
+      content: "I go to the park yesterday.",
+      ...values,
+    })
     .returning()
     .get();
 }
@@ -50,6 +63,7 @@ export function seedCorrection(messageId: string, values: Partial<typeof schema.
     .insert(schema.corrections)
     .values({
       id: nextId("correction"),
+      userId: ownerOf(schema.messages, messageId),
       messageId,
       original: "I go",
       correction: "I went",

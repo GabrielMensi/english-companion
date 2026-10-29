@@ -7,7 +7,7 @@ import type { ErrorCategory, Severity } from "@/lib/taxonomy";
 import type { ChatCorrection } from "@/lib/types";
 
 /** A stored correction as client components get it: dates as milliseconds. */
-export function toChatCorrection(row: Correction): ChatCorrection {
+export function toChatCorrection({ userId: _owner, ...row }: Correction): ChatCorrection {
   return { ...row, createdAt: row.createdAt.getTime(), discardedAt: row.discardedAt?.getTime() ?? null };
 }
 

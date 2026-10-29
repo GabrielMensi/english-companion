@@ -3,7 +3,8 @@ import type { AnalysisPreview } from "@/lib/ai/analysis";
 import type { FluencyMetrics } from "@/lib/fluency";
 
 /** Serializable shapes sent from the server to client components. */
-export type ChatCorrection = Omit<Correction, "createdAt" | "discardedAt"> & {
+// The owner (`userId`) never leaves the server.
+export type ChatCorrection = Omit<Correction, "createdAt" | "discardedAt" | "userId"> & {
   createdAt: number;
   discardedAt: number | null;
 };
@@ -14,9 +15,9 @@ export interface CorrectionUpdate {
   /** Whether it counts in the stats now, with the current Settings. */
   countsInStats: boolean;
 }
-export type ChatVocabulary = Omit<VocabularyEntry, "createdAt"> & { createdAt: number };
+export type ChatVocabulary = Omit<VocabularyEntry, "createdAt" | "userId"> & { createdAt: number };
 
-export type ChatMessage = Omit<Message, "createdAt" | "tenseCounts"> & {
+export type ChatMessage = Omit<Message, "createdAt" | "tenseCounts" | "userId"> & {
   createdAt: number;
   corrections: ChatCorrection[];
   vocabulary: ChatVocabulary[];
