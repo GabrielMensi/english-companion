@@ -34,7 +34,7 @@ const { getFlashcardsOverview, countCardsToStudy, getStudyQueue } = await import
 const { getSuspendedCards } = await import("@/lib/flashcards-upkeep");
 const { getReviewDashboard } = await import("@/lib/review-stats");
 const { getVocabulary } = await import("@/lib/vocabulary");
-const { getDiscardedMistakes } = await import("@/lib/corrections");
+const { countDiscardedMistakes, getDiscardedMistakes } = await import("@/lib/corrections");
 const { getReadAloudData, getPronunciationSummary, hasReadings, getAccuracyTimeline } =
   await import("@/lib/read-aloud");
 const { getLevelData, getReportDigest, getStoredPlan } = await import("@/lib/insights/insights");
@@ -336,6 +336,8 @@ describe("listings and statistics: B sees nothing of A", () => {
     expect(mine.total).toBe(1);
     expect(mine.items[0]).toMatchObject({ id, reason: "fine", sessionId: ids.session.id });
     expect(getDiscardedMistakes(a.id, 0)).toMatchObject({ items: [], total: 1 });
+    expect(countDiscardedMistakes(a.id)).toBe(1);
+    expect(countDiscardedMistakes(b.id)).toBe(0);
     await discardRoute.DELETE(a.request(url, { method: "DELETE" }), ctx(id));
     expect(getDiscardedMistakes(a.id)).toEqual({ items: [], total: 0 });
   });

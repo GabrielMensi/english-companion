@@ -9,7 +9,7 @@ import { restoreCorrection } from "@/lib/api";
 import { voided } from "@/lib/voided";
 
 /** "Undo" on a discarded mistake: it counts in the stats again and leaves the list (the page is computed again). */
-export function UndoDiscardButton({ correctionId }: { correctionId: string }) {
+export function UndoDiscardButton({ correctionId, label }: { correctionId: string; label: string }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -27,7 +27,7 @@ export function UndoDiscardButton({ correctionId }: { correctionId: string }) {
   }
 
   return (
-    <Button variant="outline" size="xs" onClick={voided(undo)} disabled={busy}>
+    <Button variant="outline" size="xs" onClick={voided(undo)} disabled={busy} aria-label={`Undo discard: ${label}`}>
       {busy && <Loader2 className="animate-spin" />}
       Undo
     </Button>

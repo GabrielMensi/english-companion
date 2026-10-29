@@ -15,7 +15,7 @@ import { NoProviderNotice } from "@/components/no-provider-notice";
 import { NewChatButton } from "@/components/sidebar/new-chat-button";
 import { hasConfiguredProvider } from "@/lib/ai/providers";
 import { categoryTopic, selectCategoryTargets } from "@/lib/category-practice";
-import { getDiscardedMistakes } from "@/lib/corrections";
+import { countDiscardedMistakes } from "@/lib/corrections";
 import { getClassificationStatus } from "@/lib/classification";
 import { dashboardDetail, dashboardHeadline } from "@/lib/dashboard-summary";
 import { getAccuracyTimeline, getPronunciationProgress, hasReadings } from "@/lib/read-aloud";
@@ -36,7 +36,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/dashbo
   const input: InputFilter = INPUT_FILTERS.includes(rawInput as InputFilter) ? (rawInput as InputFilter) : "all";
   const { stats, tenses, vocabulary, fluency, countTypos, hasSpoken } = getDashboardData(userId, range, input);
   const reviews = getReviewDashboard(userId, range);
-  const discardedCount = getDiscardedMistakes(userId, 0).total;
+  const discardedCount = countDiscardedMistakes(userId);
   // Read-aloud practice isn't messages, so the written/spoken filter doesn't change it.
   const pronunciation = hasReadings(userId)
     ? {

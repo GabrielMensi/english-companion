@@ -87,14 +87,20 @@ export function getDiscardedMistakes(
     .orderBy(desc(schema.corrections.discardedAt))
     .limit(limit)
     .all();
-  const total =
-    db
-      .select({ n: count() })
-      .from(schema.corrections)
-      .where(owned(schema.corrections, userId, isNotNull(schema.corrections.discardedAt)))
-      .get()?.n ?? 0;
+  const total = countDiscardedMistakes(userId);
   return {
     items: rows.flatMap((r) => (r.discardedAt ? [{ ...r, discardedAt: r.discardedAt }] : [])),
     total,
   };
+}
+
+/** How many mistakes the learner has discarded. */
+export function countDiscardedMistakes(userId: string): number {
+  return (
+    db
+      .select({ n: count() })
+      .from(schema.corrections)
+      .where(owned(schema.corrections, userId, isNotNull(schema.corrections.discardedAt)))
+      .get()?.n ?? 0
+  );
 }

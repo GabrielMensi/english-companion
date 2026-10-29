@@ -30,7 +30,9 @@ export default async function DiscardedPage() {
         }
       />
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nothing discarded.</p>
+        <p className="text-sm text-muted-foreground">
+          Nothing discarded. Use “Discard” on a mistake in the dashboard to leave it out of your stats.
+        </p>
       ) : (
         <>
           <ul className="divide-y rounded-xl border bg-card">
@@ -40,6 +42,7 @@ export default async function DiscardedPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-mark-wrong line-through">{m.original}</span>
                     <ArrowRight className="size-3.5 text-muted-foreground" />
+                    <span className="sr-only">corrected to</span>
                     <span className="text-mark-right">{m.correction}</span>
                   </div>
                   <p className="text-muted-foreground">
@@ -48,13 +51,14 @@ export default async function DiscardedPage() {
                   </p>
                   <Link
                     href={`/chat/${m.sessionId}`}
+                    aria-label={`Open the chat of: ${m.original} → ${m.correction}`}
                     className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
                   >
                     <MessageSquare className="size-3.5" />
                     Open chat
                   </Link>
                 </div>
-                <UndoDiscardButton correctionId={m.id} />
+                <UndoDiscardButton correctionId={m.id} label={`${m.original} → ${m.correction}`} />
               </li>
             ))}
           </ul>
