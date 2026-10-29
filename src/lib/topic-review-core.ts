@@ -18,11 +18,16 @@ export interface ReviewTurn {
   /** What the tutor asked before this message, if anything (shortened). */
   question: string | null;
   text: string;
+  /** Dictated: speech-to-text decided its spelling, punctuation and capitalization. */
+  spoken: boolean;
   /** The native-sounding version, when the analysis produced one. */
   natural: string | null;
   /** The mistakes that count in the stats, as found by the correction. */
-  mistakes: { original: string; correction: string; category: string }[];
+  mistakes: { id: string; original: string; correction: string; category: string }[];
 }
+
+/** Thrown for problems the learner can fix (not a topic chat, too little to review): a 400, not a server error. */
+export class TopicToolError extends Error {}
 
 /** Most recent learner messages sent to the model: enough for a long interview, short enough for any model. */
 export const MAX_REVIEW_TURNS = 30;
@@ -52,6 +57,18 @@ export function isGrounded(quote: string, sources: readonly string[]): boolean {
   return q.length >= 3 && sources.some((s) => normalizeQuote(s).includes(q));
 }
 
+/** Keeps the end of the text: a tutor reply ends with the question the learner answered. */
+function clipStart(text: string, max: number): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean.length > max ? `…${clean.slice(-max)}` : clean;
+}
+
+/** Whether `phrase` appears in `text` as whole words (ignoring case and quotation habits). */
+export function containsPhrase(text: string, phrase: string): boolean {
+  const p = normalizeQuote(phrase);
+  return p.length >= 3 && ` ${normalizeQuote(text)} `.includes(` ${p} `);
+}
+
 function languageName(language: ExplanationLanguage) {
   return language === "es" ? "Spanish (Rioplatense, neutral tone)" : "English";
 }
@@ -65,10 +82,10 @@ export const feedbackSchema = z.object({
     .array(
       z.object({
         pattern: z.string().describe("The kind of mistake that came back, in a few words."),
-        example: z.string().describe("A fragment copied exactly from one of the learner's messages."),
+        mistakeId: z.string().describe("The id (like m3) of one of the listed mistakes that shows it."),
       }),
     )
-    .describe("Up to 3 mistakes that happened more than once, most important first."),
+    .describe("Up to 3 kinds of mistakes that happened more than once, most important first."),
   betterAnswers: z
     .array(
       z.object({
@@ -80,7 +97,10 @@ export const feedbackSchema = z.object({
 });
 
 export type RawFeedback = z.infer<typeof feedbackSchema>;
-export type TopicFeedback = RawFeedback;
+/** The review as shown and stored: each recurring mistake carries the learner's own words from the stored mistake. */
+export type TopicFeedback = Omit<RawFeedback, "recurringMistakes"> & {
+  recurringMistakes: { pattern: string; example: string }[];
+};
 
 export const MAX_STRENGTHS = 3;
 export const MAX_RECURRING = 3;
@@ -91,8 +111,10 @@ export function buildFeedbackInstructions(topic: string, language: ExplanationLa
 
 Rules:
 - Use ONLY what is in the conversation. Never invent answers, facts, experience, companies, numbers or mistakes the learner did not write. If something is not in the data, do not mention it.
-- "example" and "answer" must be copied exactly (word for word) from the learner's messages; they are checked and discarded if they are not there.
-- "recurringMistakes": only mistakes that appear in at least two messages or twice in the stored mistakes. If none repeat, return an empty list.
+- "answer" must be copied exactly (word for word) from the learner's messages; it is checked and discarded if it is not there.
+- "recurringMistakes": only kinds of mistakes that appear at least twice in the listed mistakes (same category); "mistakeId" must be one of the ids in the list. If none repeat, return an empty list.
+- Never write a name, number, company, technology, place or fact that is not in the conversation, in any field (also not in "better"): the review is checked and sentences that add new ones are discarded.
+- Messages marked "(dictated)" come from speech-to-text: never comment on their spelling, punctuation or capitalization.
 - "betterAnswers": pick answers that were correct but weak (vague, too short, hard to follow, or unnatural for the situation) and write a stronger version that keeps the learner's own facts and adds nothing new. Keep each one short.
 - "strengths": concrete and tied to what they wrote (clear structure, good vocabulary, correct tenses). No generic praise.
 - Write overall, strengths and pattern in ${languageName(language)}. Keep quotes and "better" in English.
@@ -102,13 +124,16 @@ Rules:
 export function buildFeedbackPrompt(topic: string, turns: readonly ReviewTurn[]): string {
   const lines = turns.map((turn, i) => {
     const parts = [`Message ${i + 1}`];
-    if (turn.question) parts.push(`Tutor asked: ${clip(turn.question, 300)}`);
-    parts.push(`Learner wrote: ${clip(turn.text)}`);
+    if (turn.question) parts.push(`Tutor asked: ${clipStart(turn.question, 300)}`);
+    parts.push(`${turn.spoken ? "Learner said (dictated)" : "Learner wrote"}: ${clip(turn.text)}`);
     if (turn.natural) parts.push(`Native version: ${clip(turn.natural)}`);
     if (turn.mistakes.length > 0) {
       parts.push(
         `Mistakes found: ${turn.mistakes
-          .map((m) => `"${clip(m.original, 120)}" -> "${clip(m.correction, 120)}" (${categoryLabel(m.category)})`)
+          .map(
+            (m) =>
+              `[${m.id}] "${clip(m.original, 120)}" -> "${clip(m.correction, 120)}" (${categoryLabel(m.category)})`,
+          )
           .join("; ")}`,
       );
     }
@@ -117,30 +142,71 @@ export function buildFeedbackPrompt(topic: string, turns: readonly ReviewTurn[])
   return `Topic: ${topic}\n\nConversation:\n<<<\n${lines.join("\n\n")}\n>>>`;
 }
 
-/** The texts a quote in the feedback can come from. */
-export function feedbackSources(turns: readonly ReviewTurn[]): { learner: string[]; mistakes: string[] } {
-  return {
-    learner: turns.map((t) => t.text),
-    mistakes: turns.flatMap((t) => t.mistakes.map((m) => m.original)),
-  };
+/** Words that can open a sentence or name something, left out of the "new name" check. */
+const NAME_TOKEN = /[\p{L}\d][\p{L}\d'’-]*/gu;
+
+/**
+ * Numbers and capitalized names (not at the start of a sentence, not "I") that `text` adds on top of `sources`.
+ * Catches the typical invention: a company, a technology or a figure the learner never mentioned.
+ */
+export function introducedDetails(text: string, sources: readonly string[]): string[] {
+  const known = ` ${normalizeQuote(sources.join(" ")).replace(/[^\p{L}\d' -]/gu, " ")} `;
+  const added: string[] = [];
+  for (const match of text.matchAll(NAME_TOKEN)) {
+    const token = match[0].replace(/['’-]+$/, "");
+    const before = text.slice(0, match.index).replace(/["“”'‘’(\s]+$/, "");
+    const sentenceStart = before === "" || /[.!?:]$/.test(before);
+    const isNumber = /\d/.test(token);
+    const isName = /^\p{Lu}/u.test(token) && !sentenceStart && token !== "I" && !/^I['’]/.test(token);
+    if (!isNumber && !isName) continue;
+    if (!known.includes(` ${normalizeQuote(token)} `) && !known.includes(` ${normalizeQuote(token)}s `))
+      added.push(token);
+  }
+  return added;
 }
 
-/** Trims the model's feedback and drops every quote that isn't in the conversation. */
+/** The sentences of `text` that don't add details missing from `sources`. */
+function withoutInventedDetails(text: string, sources: readonly string[]): string {
+  const sentences = text.match(/[^.!?]+[.!?]*/g) ?? [];
+  return sentences
+    .filter((sentence) => introducedDetails(sentence, sources).length === 0)
+    .join("")
+    .trim();
+}
+
+/**
+ * Trims the model's feedback and drops what isn't backed by the conversation: recurring mistakes must be
+ * stored mistakes (of a category that happened at least twice), quotes must be in the learner's messages, and
+ * sentences with a name or number the learner never wrote are removed.
+ */
 export function normalizeFeedback(raw: RawFeedback, turns: readonly ReviewTurn[]): TopicFeedback {
-  const { learner, mistakes } = feedbackSources(turns);
+  const learner = turns.map((t) => t.text);
+  const sources = [...learner, ...turns.flatMap((t) => [t.question ?? "", t.natural ?? ""])];
+  const mistakes = new Map(turns.flatMap((t) => t.mistakes.map((m) => [m.id, m] as const)));
+  const perCategory = new Map<string, number>();
+  for (const m of mistakes.values()) perCategory.set(m.category, (perCategory.get(m.category) ?? 0) + 1);
+
+  const seenCategories = new Set<string>();
+  const recurringMistakes = raw.recurringMistakes.flatMap((r) => {
+    const mistake = mistakes.get(r.mistakeId.trim().replace(/^\[|\]$/g, ""));
+    const pattern = withoutInventedDetails(r.pattern.trim(), sources);
+    if (!mistake || !pattern || (perCategory.get(mistake.category) ?? 0) < 2 || seenCategories.has(mistake.category)) {
+      return [];
+    }
+    seenCategories.add(mistake.category);
+    return [{ pattern, example: mistake.original }];
+  });
+
   const feedback: TopicFeedback = {
-    overall: raw.overall.trim(),
+    overall: withoutInventedDetails(raw.overall.trim(), sources),
     strengths: raw.strengths
-      .map((s) => s.trim())
+      .map((s) => withoutInventedDetails(s.trim(), sources))
       .filter(Boolean)
       .slice(0, MAX_STRENGTHS),
-    recurringMistakes: raw.recurringMistakes
-      .map((m) => ({ pattern: m.pattern.trim(), example: m.example.trim() }))
-      .filter((m) => m.pattern && isGrounded(m.example, [...learner, ...mistakes]))
-      .slice(0, MAX_RECURRING),
+    recurringMistakes: recurringMistakes.slice(0, MAX_RECURRING),
     betterAnswers: raw.betterAnswers
       .map((b) => ({ answer: b.answer.trim(), better: b.better.trim() }))
-      .filter((b) => b.better && isGrounded(b.answer, learner))
+      .filter((b) => b.better && isGrounded(b.answer, learner) && introducedDetails(b.better, sources).length === 0)
       .slice(0, MAX_BETTER),
   };
   if (!feedback.overall && feedback.strengths.length === 0 && feedback.betterAnswers.length === 0) {
@@ -178,7 +244,7 @@ export interface PhraseSuggestion {
 }
 
 export const MAX_PHRASES = 8;
-const MAX_PHRASE_LENGTH = 60;
+export const MAX_PHRASE_LENGTH = 60;
 
 export function buildPhrasesInstructions(topic: string): string {
   return `You help a native Spanish speaker learn useful English expressions from a practice conversation about "${topic}". You get texts from the conversation: the tutor's replies and native-sounding versions of the learner's own messages.
@@ -208,7 +274,7 @@ export function normalizePhrases(
     const spanish = item.spanish.trim();
     const key = normalizeQuote(phrase);
     if (!phrase || !spanish || phrase.length > MAX_PHRASE_LENGTH || seen.has(key) || alreadySaved.has(key)) continue;
-    const source = sources.find((s) => isGrounded(phrase, [s.text]));
+    const source = sources.find((s) => containsPhrase(s.text, phrase));
     if (!source) continue;
     seen.add(key);
     result.push({ phrase, spanish, messageId: source.messageId });

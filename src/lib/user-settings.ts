@@ -4,7 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 
 /**
- * A user's key-value store (`user_settings`): `app` (their settings), `practice:<chat id>`, and the
+ * A user's key-value store (`user_settings`): `app` (their settings), `practice:<chat id>`, `feedback:<chat id>` (the review of a topic chat), and the
  * AI outputs of the insights page. Every read and write names the user.
  */
 const where = (userId: string, key: string) =>

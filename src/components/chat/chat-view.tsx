@@ -263,7 +263,7 @@ export function ChatView({
 
   return (
     <div data-area="write" className="flex h-full flex-col">
-      <header className="flex items-center justify-between gap-4 border-b px-6 py-2">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-6 py-2">
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="truncate font-medium">{session.title}</h1>
           {session.topic && (
@@ -272,7 +272,7 @@ export function ChatView({
             </StatusBadge>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {mode === "conversation" && speechSupported && (
             <Button
               variant={voiceConversation ? "secondary" : "ghost"}

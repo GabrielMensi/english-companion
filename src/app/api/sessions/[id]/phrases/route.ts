@@ -4,6 +4,7 @@ import { getSession } from "@/lib/chat";
 import { parseBody } from "@/lib/request-body";
 import { logRouteError } from "@/lib/server-log";
 import { createPhraseSuggestions, savePhrases } from "@/lib/topic-review";
+import { MAX_PHRASE_LENGTH, TopicToolError } from "@/lib/topic-review-core";
 import { withUser } from "@/lib/auth/with-user";
 
 /** Suggests useful phrases from a topic chat. Nothing is saved until the learner picks some (PUT). */
@@ -13,6 +14,7 @@ export const POST = withUser(async (_request: Request, ctx: RouteContext<"/api/s
   try {
     return Response.json(await createPhraseSuggestions(userId, id));
   } catch (error) {
+    if (error instanceof TopicToolError) return Response.json({ error: error.message }, { status: 400 });
     logRouteError("POST /api/sessions/[id]/phrases", error, 502);
     return Response.json({ error: errorToMessage(error) }, { status: 502 });
   }
@@ -20,7 +22,13 @@ export const POST = withUser(async (_request: Request, ctx: RouteContext<"/api/s
 
 const bodySchema = z.object({
   phrases: z
-    .array(z.object({ phrase: z.string().max(100), spanish: z.string().max(200), messageId: z.string().max(100) }))
+    .array(
+      z.object({
+        phrase: z.string().max(MAX_PHRASE_LENGTH),
+        spanish: z.string().max(200),
+        messageId: z.string().max(100),
+      }),
+    )
     .min(1)
     .max(20),
 });

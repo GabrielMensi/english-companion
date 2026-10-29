@@ -9,7 +9,9 @@ import { getPractice } from "@/lib/practice";
 import { getSettings } from "@/lib/settings";
 import { countsInStats } from "@/lib/taxonomy";
 import {
-  isGrounded,
+  containsPhrase,
+  MAX_PHRASE_LENGTH,
+  TopicToolError,
   MAX_REVIEW_TURNS,
   MIN_REVIEW_TURNS,
   normalizeQuote,
@@ -18,6 +20,7 @@ import {
   type ReviewTurn,
   type TopicFeedback,
 } from "@/lib/topic-review-core";
+import { mergeEnglish, wordKey } from "@/lib/vocabulary-core";
 import { getUserSetting, setUserSetting } from "@/lib/user-settings";
 
 /** The feedback of each topic chat lives in the user's key-value `user_settings` table, like the practice state. */
@@ -49,6 +52,7 @@ function reviewTurns(userId: string, sessionId: string): ReviewTurn[] {
   const messages = getMessages(userId, sessionId);
   const turns: ReviewTurn[] = [];
   let question: string | null = null;
+  let mistakeNumber = 0;
   for (const m of messages) {
     if (m.role === "assistant") {
       question = m.content;
@@ -58,10 +62,16 @@ function reviewTurns(userId: string, sessionId: string): ReviewTurn[] {
     turns.push({
       question,
       text: m.content,
+      spoken: m.inputMode === "spoken",
       natural: m.naturalText && m.naturalText !== m.content ? m.naturalText : null,
       mistakes: m.corrections
         .filter((c) => countsInStats({ ...c, inputMode: m.inputMode }, countTyposInStats))
-        .map((c) => ({ original: c.original, correction: c.correction, category: c.category })),
+        .map((c) => ({
+          id: `m${++mistakeNumber}`,
+          original: c.original,
+          correction: c.correction,
+          category: c.category,
+        })),
     });
   }
   return turns.slice(-MAX_REVIEW_TURNS);
@@ -70,10 +80,10 @@ function reviewTurns(userId: string, sessionId: string): ReviewTurn[] {
 /** Writes (and saves) the review of a topic chat from the learner's messages and stored corrections. */
 export async function createFeedback(userId: string, sessionId: string): Promise<StoredFeedback> {
   const topic = topicOf(userId, sessionId);
-  if (!topic) throw new Error("Feedback is only available in topic chats");
+  if (!topic) throw new TopicToolError("Feedback is only available in topic chats");
   const turns = reviewTurns(userId, sessionId);
   if (turns.length < MIN_REVIEW_TURNS)
-    throw new Error("Answer a few more questions first: there is not enough to review");
+    throw new TopicToolError("Answer a few more questions first: there is not enough to review");
   const { feedback, provider, modelId } = await withChatPriority(userId, () =>
     generateFeedback(topic, turns, getSettings(userId)),
   );
@@ -95,12 +105,12 @@ function savedPhrases(userId: string): Set<string> {
 /** Suggests phrases from the chat for the Vocabulary page. Nothing is saved until the learner picks them. */
 export async function createPhraseSuggestions(userId: string, sessionId: string): Promise<PhraseSuggestion[]> {
   const topic = topicOf(userId, sessionId);
-  if (!topic) throw new Error("Phrases are only available in topic chats");
+  if (!topic) throw new TopicToolError("Phrases are only available in topic chats");
   const sources: PhraseSource[] = getMessages(userId, sessionId).flatMap((m) => {
     if (m.role === "assistant") return [{ messageId: m.id, text: m.content }];
     return m.naturalText && m.naturalText !== m.content ? [{ messageId: m.id, text: m.naturalText }] : [];
   });
-  if (sources.length === 0) throw new Error("There is nothing to pick from yet");
+  if (sources.length === 0) throw new TopicToolError("There is nothing to pick from yet");
   return withChatPriority(userId, () => suggestPhrases(topic, sources, savedPhrases(userId), getSettings(userId)));
 }
 
@@ -111,21 +121,38 @@ export async function createPhraseSuggestions(userId: string, sessionId: string)
  */
 export function savePhrases(userId: string, sessionId: string, phrases: readonly PhraseSuggestion[]): number {
   const topic = topicOf(userId, sessionId);
-  if (!topic) throw new Error("Phrases are only available in topic chats");
+  if (!topic) throw new TopicToolError("Phrases are only available in topic chats");
   const messages = new Map(getMessages(userId, sessionId).map((m) => [m.id, m]));
   const saved = savedPhrases(userId);
+  const sameMeaning = new Map<string, string[]>();
+  for (const row of db
+    .select({ spanish: schema.vocabulary.spanish, english: schema.vocabulary.english })
+    .from(schema.vocabulary)
+    .where(owned(schema.vocabulary, userId))
+    .all()) {
+    const key = wordKey(row.spanish);
+    sameMeaning.set(key, mergeEnglish(sameMeaning.get(key) ?? [], row.english));
+  }
   let added = 0;
   for (const item of phrases) {
     const message = messages.get(item.messageId);
     const key = normalizeQuote(item.phrase);
-    if (!message || saved.has(key) || !isGrounded(item.phrase, [message.content, message.naturalText ?? ""])) continue;
+    const phrase = item.phrase.trim();
+    // Only the native version of the learner's message is a valid source, never what they wrote wrong.
+    const source = message?.role === "assistant" ? message.content : (message?.naturalText ?? "");
+    if (!message || saved.has(key) || phrase.length > MAX_PHRASE_LENGTH || !containsPhrase(source, phrase)) continue;
+    // The page groups words by their Spanish meaning and shows the newest entry's English: keep every
+    // English option of that meaning in the new entry, so none of them disappears from the page or the card.
+    const meaning = wordKey(item.spanish);
+    const english = mergeEnglish(sameMeaning.get(meaning) ?? [], [phrase]);
+    sameMeaning.set(meaning, english);
     db.insert(schema.vocabulary)
       .values({
         id: crypto.randomUUID(),
         userId,
         messageId: message.id,
         spanish: item.spanish.trim(),
-        english: [item.phrase.trim()],
+        english,
         note: `From the topic chat “${topic}”`,
       })
       .run();

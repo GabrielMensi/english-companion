@@ -28,7 +28,7 @@ export function TopicTools({
   canReview: boolean;
 }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex flex-wrap items-center gap-1">
       <TenseSelect sessionId={sessionId} initial={tense} />
       <FeedbackButton sessionId={sessionId} initial={feedback} canReview={canReview} />
       <PhrasesButton sessionId={sessionId} />
