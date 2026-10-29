@@ -111,7 +111,7 @@ Probalo con la copia de la base del worktree de integración (`data/dev.db`), nu
 
 - [ ] `pnpm test:e2e`: construye la app y pasa 10/10 sin tocar `data/`.
 - [ ] `AI_FAKE=1 pnpm dev` (sin `E2E_TEST_SERVER`, o con la base real) se niega a arrancar.
-- [ ] GitHub → Actions → "E2E" → Run workflow: verde.
+- [ ] Después del merge a `main` (GitHub solo deja disparar workflows que existen en la rama por defecto): Actions → "E2E" → Run workflow: verde. La corrida nocturna prueba `develop`.
 - [ ] En /settings (y en general): sin errores "Content Security Policy" en la consola. Zod ahora se importa siempre desde `@/lib/zod` (el lint lo exige).
 
 ## Tanda 4
