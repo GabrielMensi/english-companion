@@ -43,7 +43,7 @@ Reglas de ramas, versiones, tags y releases para cuando la app sea desplegable. 
 2. Rama `release/vX.Y.Z` desde `develop`: sube la versión con `npm version X.Y.Z --no-git-tag-version` (cambia `package.json`; `pnpm-lock.yaml` no lleva la versión del proyecto). Actualiza "Hecho" de `docs/ROADMAP.md`. Commit "Release vX.Y.Z".
 3. PR `release/vX.Y.Z` → `develop` (rápida), después PR `develop` → `main`. La descripción de la PR de release lista las migraciones nuevas y los pasos manuales (variables nuevas, comandos), porque es lo que lee quien despliega.
 4. Con el merge en `main`: `git checkout main && git pull && git tag -a vX.Y.Z -m "vX.Y.Z" && git push origin vX.Y.Z`.
-5. El workflow `release.yml` corre solo: valida el tag (formato, anotado, igual a `package.json`, y en `main` si no es prerelease), corre **los mismos chequeos que CI** (`ci.yml` reusado) y crea el GitHub Release con las notas generadas. Si algo falla, no hay release: se corrige y se vuelve a tagear (borrar el tag que nunca se publicó es la excepción a la regla de arriba).
+5. El workflow `release.yml` corre solo: valida el tag (formato, anotado, igual a `package.json`, y en `main` si no es prerelease), corre **los mismos chequeos que CI** (`ci.yml` reusado) y el E2E de Playwright (`e2e.yml`, ver [TESTING.md](TESTING.md)) y crea el GitHub Release con las notas generadas. Si algo falla, no hay release: se corrige y se vuelve a tagear (borrar el tag que nunca se publicó es la excepción a la regla de arriba).
 6. Cuando exista el deploy, un workflow aparte (deshabilitado hasta entonces) construye la imagen desde el tag.
 
 ## Notas del release y changelog

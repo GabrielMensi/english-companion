@@ -1,5 +1,7 @@
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { deployProblems, evalEnabled, parseEnv } from "./env";
+import { deployProblems, evalEnabled, fakeAiProblems, parseEnv } from "./env";
 
 describe("parseEnv", () => {
   it("starts with nothing set: paths get their defaults and API keys stay unset", () => {
@@ -148,5 +150,35 @@ describe("evalEnabled", () => {
     expect(evalEnabled(parseEnv({}), "production")).toBe(false);
     expect(evalEnabled(parseEnv({ ENABLE_EVAL: "true" }), "production")).toBe(true);
     expect(evalEnabled(parseEnv({ ENABLE_EVAL: "false" }), "development")).toBe(false);
+  });
+});
+
+describe("fakeAiProblems", () => {
+  const tmpDb = path.join(os.tmpdir(), "ec-e2e", "companion.db");
+  const e2e = { AI_FAKE: "1", E2E_TEST_SERVER: "1", DATABASE_PATH: tmpDb };
+
+  it("has nothing to say when AI_FAKE is off", () => {
+    expect(fakeAiProblems(parseEnv({}))).toEqual([]);
+    expect(fakeAiProblems(parseEnv({ ALLOWED_HOSTS: "app.example.com" }))).toEqual([]);
+  });
+
+  it("allows AI_FAKE on the E2E server with a throwaway database", () => {
+    expect(fakeAiProblems(parseEnv(e2e))).toEqual([]);
+  });
+
+  it("refuses AI_FAKE without E2E_TEST_SERVER, in development too", () => {
+    expect(fakeAiProblems(parseEnv({ ...e2e, E2E_TEST_SERVER: "" }))).toHaveLength(1);
+  });
+
+  it("refuses AI_FAKE in a deploy, whatever the other flags say", () => {
+    expect(fakeAiProblems(parseEnv({ ...e2e, ALLOWED_HOSTS: "app.example.com" }))).toHaveLength(1);
+  });
+
+  it("refuses AI_FAKE on a real database", () => {
+    expect(fakeAiProblems(parseEnv({ AI_FAKE: "1", E2E_TEST_SERVER: "1" }))).toHaveLength(1);
+    expect(fakeAiProblems(parseEnv({ ...e2e, DATABASE_PATH: "data/companion.db" }))).toHaveLength(1);
+    expect(fakeAiProblems(parseEnv({ ...e2e, DATABASE_PATH: path.join(os.tmpdir(), "..", "x", "a.db") }))).toHaveLength(
+      1,
+    );
   });
 });
