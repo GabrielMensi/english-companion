@@ -5,6 +5,7 @@ import { createGroq } from "@ai-sdk/groq";
 import type { generateText } from "ai";
 import { type KeyProvider, maskKey } from "@/lib/credentials";
 import { fakeAiProblems, serverEnv } from "@/lib/env";
+import { isAdmin } from "@/lib/auth/admin";
 import { resolveApiKey } from "@/lib/secrets";
 import type { Settings } from "@/lib/settings";
 import { createFakeModel } from "./fake-model";
@@ -23,8 +24,10 @@ export interface ProviderStatus {
 export function providerStatus(userId: string): Record<ProviderId, ProviderStatus> {
   const keyStatus = (provider: KeyProvider): ProviderStatus => {
     const resolved = resolveApiKey(userId, provider);
+    // The server's key is shared: only its owner sees which key it is.
+    const showTail = resolved?.source === "app" || isAdmin(userId);
     return resolved
-      ? { configured: true, source: resolved.source, detail: maskKey(resolved.key) }
+      ? { configured: true, source: resolved.source, detail: showTail ? maskKey(resolved.key) : null }
       : { configured: false, source: null, detail: null };
   };
   return {

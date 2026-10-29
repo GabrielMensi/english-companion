@@ -17,7 +17,7 @@ export type DecryptResult =
       plain: string;
       /** True when the value was stored in the old plain format or with an older key. */ stale: boolean;
     }
-  | { ok: false; reason: "no matching key" | "corrupted" };
+  | { ok: false; reason: "no matching key" | "corrupted" | "unsupported version" };
 
 /** Decodes a base64 server key; null unless it is exactly 32 bytes. */
 export function parseEncryptionKey(value: string): Buffer | null {
@@ -29,8 +29,9 @@ export function keyId(key: Buffer): string {
   return createHash("sha256").update(key).digest("hex").slice(0, 8);
 }
 
+/** Any `v<number>.` prefix is a ciphertext, so a future format is never mistaken for a plain key. */
 export function isEncrypted(stored: string): boolean {
-  return stored.startsWith(`${PREFIX}.`);
+  return /^v\d+\./.test(stored);
 }
 
 export function encryptSecret(plain: string, key: Buffer, aad: string): string {
@@ -51,12 +52,13 @@ export function encryptSecret(plain: string, key: Buffer, aad: string): string {
  */
 export function decryptSecret(stored: string, keys: Buffer[], aad: string): DecryptResult {
   if (!isEncrypted(stored)) return { ok: true, plain: stored, stale: true };
-  const [, id, iv, tag, data, ...extra] = stored.split(".");
+  const [version, id, iv, tag, data, ...extra] = stored.split(".");
+  if (version !== PREFIX) return { ok: false, reason: "unsupported version" };
   if (!id || !iv || !tag || data === undefined || extra.length > 0) return { ok: false, reason: "corrupted" };
   const index = keys.findIndex((key) => keyId(key) === id);
   if (index === -1) return { ok: false, reason: "no matching key" };
   try {
-    const decipher = createDecipheriv("aes-256-gcm", keys[index], Buffer.from(iv, "base64url"));
+    const decipher = createDecipheriv("aes-256-gcm", keys[index], Buffer.from(iv, "base64url"), { authTagLength: 16 });
     decipher.setAAD(Buffer.from(aad));
     decipher.setAuthTag(Buffer.from(tag, "base64url"));
     const plain = Buffer.concat([decipher.update(Buffer.from(data, "base64url")), decipher.final()]).toString("utf8");

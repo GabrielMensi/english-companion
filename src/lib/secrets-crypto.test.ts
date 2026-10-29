@@ -44,6 +44,13 @@ describe("secrets-crypto", () => {
     expect(decryptSecret("AIzaPlain", [key], AAD)).toEqual({ ok: true, plain: "AIzaPlain", stale: true });
   });
 
+  it("never mistakes another version for a plain key, and refuses truncated tags", () => {
+    expect(decryptSecret("v2.abc.def.ghi.jkl", [key], AAD)).toEqual({ ok: false, reason: "unsupported version" });
+    const parts = encryptSecret("k", key, AAD).split(".");
+    parts[3] = Buffer.from(parts[3], "base64url").subarray(0, 4).toString("base64url");
+    expect(decryptSecret(parts.join("."), [key], AAD).ok).toBe(false);
+  });
+
   it("parses only 32-byte base64 keys", () => {
     expect(parseEncryptionKey(key.toString("base64"))?.equals(key)).toBe(true);
     expect(parseEncryptionKey("c2hvcnQ=")).toBeNull();

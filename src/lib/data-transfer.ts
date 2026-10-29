@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import type { AnySQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { db, schema } from "@/db";
 import { owned } from "@/db/owned";
+import { isPractice } from "@/lib/practice";
 import {
   derivedId,
   EXPORT_FORMAT,
@@ -98,6 +99,11 @@ export function importUserData(userId: string, file: ParsedFile): ImportSummary 
         }
 
         const values: Row = { ...row, id, userId };
+        if (name === "readAloudAttempts") {
+          // The row a reading came from (a message or a vocabulary entry) may have a new id here.
+          const from = row.source === "correction" ? ids.messages : row.source === "vocabulary" ? ids.vocabulary : null;
+          values.sourceId = from && typeof row.sourceId === "string" ? (from.get(row.sourceId) ?? null) : null;
+        }
         let orphan = false;
         for (const parent of spec.parents) {
           const original = row[parent.column];
@@ -129,6 +135,7 @@ export function importUserData(userId: string, file: ParsedFile): ImportSummary 
     for (const [key, value] of Object.entries(file.settings)) {
       let target = key;
       const perSession = perSessionKey(key);
+      if (perSession?.prefix === "practice:" && !isPractice(value)) continue;
       if (perSession) {
         const session = ids.sessions.get(perSession.sessionId);
         if (!session) continue;

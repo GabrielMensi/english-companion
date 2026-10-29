@@ -9,14 +9,18 @@ import { getTableColumns } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 import * as schema from "@/db/schema";
 import { CARD_KINDS } from "@/lib/flashcards-core";
+import { FLUENCY_VERSION } from "@/lib/fluency";
 import { GRADES } from "@/lib/srs";
+import { upgradeSettings } from "@/lib/settings-core";
 import { ERROR_CATEGORIES, PRONUNCIATION_CATEGORIES, SEVERITIES } from "@/lib/taxonomy";
 
 export const EXPORT_FORMAT = "english-companion-export";
 export const EXPORT_VERSION = 1;
 /** Import limits: the request body, and rows per table (a heavy user has a few thousand at most). */
-export const MAX_IMPORT_BYTES = 50 * 1024 * 1024;
-export const MAX_ROWS_PER_TABLE = 200_000;
+export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
+export const MAX_ROWS_PER_TABLE = 50_000;
+/** The import is one synchronous transaction: the cap keeps it to about a second. */
+export const MAX_TOTAL_ROWS = 100_000;
 
 export type TableName =
   | "sessions"
@@ -82,9 +86,8 @@ export function perSessionKey(key: string): { prefix: string; sessionId: string 
 
 /** Settings that travel with the account. Anything else (the API keys above all) never leaves or enters. */
 export function isExportableSetting(key: string): boolean {
-  return (
-    key === "app" || key === "insights-plan" || key === "insights-level-explanation" || perSessionKey(key) !== null
-  );
+  // The insights outputs are caches the app regenerates: they stay out.
+  return key === "app" || perSessionKey(key) !== null;
 }
 
 const ENUMS: Partial<Record<TableName, Record<string, readonly string[]>>> = {
@@ -105,6 +108,24 @@ const ENUMS: Partial<Record<TableName, Record<string, readonly string[]>>> = {
 
 export type Row = Record<string, unknown>;
 
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+const isNumber = (value: unknown) => typeof value === "number" && Number.isFinite(value);
+const isNumberMap = (value: unknown) => isObject(value) && Object.values(value).every(isNumber);
+
+/** Shapes of the JSON columns, as their readers expect them. A failing optional column becomes null; a required one drops the row. */
+const JSON_CHECKS: Record<string, (value: unknown) => boolean> = {
+  "messages.fallbackAttempts": (v) => Array.isArray(v) && v.length <= 20 && v.every(isObject),
+  "messages.tenseCounts": (v) => isObject(v) && isNumber(v.version) && isNumberMap(v.counts),
+  "messages.fluency": (v) =>
+    isObject(v) &&
+    v.version === FLUENCY_VERSION &&
+    ["words", "speechMs", "pauses", "pauseMs", "longestPauseMs"].every((k) => isNumber(v[k])) &&
+    isNumberMap(v.fillers),
+  "vocabulary.english": (v) =>
+    Array.isArray(v) && v.length <= 50 && v.every((item) => typeof item === "string" && item.length <= 500),
+};
+
 export interface ExportFile {
   format: typeof EXPORT_FORMAT;
   version: typeof EXPORT_VERSION;
@@ -123,9 +144,6 @@ export function serializeRow(table: TableName, row: Row): Row {
   }
   return out;
 }
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** One row from the file, checked column by column against the schema, as the values to insert (Dates restored). */
 function parseRow(table: TableName, raw: unknown): Row | string {
@@ -151,8 +169,15 @@ function parseRow(table: TableName, raw: unknown): Row | string {
       case "boolean":
         if (typeof value !== "boolean") return `${key} must be true or false`;
         break;
-      case "json":
+      case "json": {
+        const check = JSON_CHECKS[`${table}.${key}`];
+        if (check && !check(value)) {
+          if (column.notNull) return `${key} has the wrong shape`;
+          out[key] = null;
+          continue;
+        }
         break;
+      }
       case "date":
         if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 8.64e15) {
           return `${key} must be a timestamp`;
@@ -186,10 +211,13 @@ export function parseExportFile(raw: unknown): ParsedImport {
 
   const data = {} as Record<TableName, Row[]>;
   const invalid: ParsedFile["invalid"] = {};
+  let total = 0;
   for (const name of TABLE_NAMES) {
     const rows = raw.data[name] ?? [];
     if (!Array.isArray(rows)) return { ok: false, error: `${name} must be a list` };
     if (rows.length > MAX_ROWS_PER_TABLE) return { ok: false, error: `${name} has too many rows` };
+    total += rows.length;
+    if (total > MAX_TOTAL_ROWS) return { ok: false, error: "The file has too many rows" };
     data[name] = [];
     for (const row of rows) {
       const parsed = parseRow(name, row);
@@ -201,7 +229,12 @@ export function parseExportFile(raw: unknown): ParsedImport {
   const settings: Record<string, unknown> = {};
   if (isObject(raw.settings)) {
     for (const [key, value] of Object.entries(raw.settings)) {
-      if (isExportableSetting(key) && isObject(value)) settings[key] = value;
+      if (!isExportableSetting(key) || !isObject(value)) continue;
+      if (key === "app") {
+        // Settings of an older or newer version are upgraded, or refused.
+        const upgraded = upgradeSettings(value);
+        if (upgraded) settings[key] = upgraded;
+      } else if (JSON.stringify(value).length <= 100_000) settings[key] = value;
     }
   }
   return { ok: true, file: { data, settings, invalid } };

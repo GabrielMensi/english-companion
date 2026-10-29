@@ -5,7 +5,7 @@ import { db, schema } from "@/db";
 import { isAdmin } from "@/lib/auth/admin";
 import { KEY_ENV_VARS, KEY_PROVIDERS, type KeyProvider, pickApiKey } from "@/lib/credentials";
 import { getEncryptionKeys } from "@/lib/encryption-key";
-import { serverEnv } from "@/lib/env";
+import { serverEnv, sharedKeys } from "@/lib/env";
 import { decryptSecret, encryptSecret } from "@/lib/secrets-crypto";
 import { getUserSetting, setUserSetting } from "@/lib/user-settings";
 
@@ -46,12 +46,13 @@ function adoptLegacyKeys(userId: string): void {
   try {
     const old = (legacy.value ?? {}) as Record<string, unknown>;
     const mine = readRaw(userId);
-    const [key] = getEncryptionKeys(serverEnv());
+    const all = getEncryptionKeys(serverEnv());
     for (const provider of KEY_PROVIDERS) {
       const plain = old[provider];
-      // What the account already saved is newer: it wins.
-      if (typeof plain === "string" && plain.trim() && !mine[provider]) {
-        mine[provider] = encryptSecret(plain.trim(), key, aad(userId, provider));
+      // What the account already saved is newer: it wins, unless it can't be decrypted (then it is useless).
+      const mineOk = mine[provider] && decryptSecret(mine[provider], all, aad(userId, provider)).ok;
+      if (typeof plain === "string" && plain.trim() && !mineOk) {
+        mine[provider] = encryptSecret(plain.trim(), all[0], aad(userId, provider));
       }
     }
     db.transaction((tx) => {
@@ -62,8 +63,16 @@ function adoptLegacyKeys(userId: string): void {
       tx.delete(schema.settings).where(eq(schema.settings.key, LEGACY_KEY)).run();
     });
   } catch (error) {
-    console.warn(`Could not move the saved API keys to the first account: ${errorName(error)}`);
+    warnOnce("adopt", `Could not move the saved API keys to the first account: ${errorName(error)}`);
   }
+}
+
+/** Warns once per process for each distinct problem: these functions run several times per page. */
+const warned = new Set<string>();
+function warnOnce(id: string, message: string) {
+  if (warned.has(id)) return;
+  warned.add(id);
+  console.warn(message);
 }
 
 function errorName(error: unknown) {
@@ -80,7 +89,7 @@ function getStoredKeys(userId: string): StoredKeys {
   try {
     keys = getEncryptionKeys(serverEnv());
   } catch (error) {
-    console.warn(`The saved API keys can't be read: ${errorName(error)}`);
+    warnOnce("keyfile", `The saved API keys can't be read: ${errorName(error)}`);
     return {};
   }
   const plain: StoredKeys = {};
@@ -90,7 +99,10 @@ function getStoredKeys(userId: string): StoredKeys {
     if (!stored) continue;
     const result = decryptSecret(stored, keys, aad(userId, provider));
     if (!result.ok) {
-      console.warn(`The saved ${provider} API key can't be decrypted (${result.reason}); paste it again in Settings.`);
+      warnOnce(
+        `${userId}:${provider}:${result.reason}`,
+        `The saved ${provider} API key can't be decrypted (${result.reason}); paste it again in Settings.`,
+      );
       continue;
     }
     plain[provider] = result.plain;
@@ -120,5 +132,5 @@ export function setApiKey(userId: string, provider: KeyProvider, apiKey: string 
  */
 export function resolveApiKey(userId: string, provider: KeyProvider) {
   const env = serverEnv();
-  return pickApiKey(getStoredKeys(userId)[provider], env.SHARED_KEYS ? env[KEY_ENV_VARS[provider]] : undefined);
+  return pickApiKey(getStoredKeys(userId)[provider], sharedKeys(env) ? env[KEY_ENV_VARS[provider]] : undefined);
 }

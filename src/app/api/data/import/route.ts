@@ -5,9 +5,22 @@ import { readBody } from "@/lib/request-body";
 import { logRouteError } from "@/lib/server-log";
 
 /** Adds an export file (from this or another install) to the signed-in account. Additive and repeatable. */
+let importing = false;
+
 export const POST = withUser(async (request: Request, _ctx, { userId }) => {
+  // The import is one synchronous transaction: one at a time keeps the server from being tied up.
+  if (importing) return Response.json({ error: "Another import is running. Try again in a moment." }, { status: 429 });
+  importing = true;
+  try {
+    return await run(request, userId);
+  } finally {
+    importing = false;
+  }
+});
+
+async function run(request: Request, userId: string) {
   const body = await readBody(request, MAX_IMPORT_BYTES);
-  if (!body) return Response.json({ error: "The file is too big (max 50 MB)" }, { status: 413 });
+  if (!body) return Response.json({ error: "The file is too big (max 10 MB)" }, { status: 413 });
 
   let raw: unknown;
   try {
@@ -24,4 +37,4 @@ export const POST = withUser(async (request: Request, _ctx, { userId }) => {
     logRouteError("POST /api/data/import", error);
     return Response.json({ error: "The import failed and nothing was changed" }, { status: 500 });
   }
-});
+}

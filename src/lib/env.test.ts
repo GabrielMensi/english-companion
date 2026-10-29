@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { deployProblems, evalEnabled, fakeAiProblems, parseEnv } from "./env";
+import { deployProblems, evalEnabled, fakeAiProblems, parseEnv, sharedKeys } from "./env";
 
 const KEY = Buffer.alloc(32, 7).toString("base64");
 
@@ -10,7 +10,7 @@ describe("encryption and shared keys", () => {
     const env = parseEnv({ APP_ENCRYPTION_KEY: KEY, APP_ENCRYPTION_KEYS_OLD: ` ${KEY}, ${KEY} ` });
     expect(env.APP_ENCRYPTION_KEY).toBe(KEY);
     expect(env.APP_ENCRYPTION_KEYS_OLD).toEqual([KEY, KEY]);
-    expect(parseEnv({}).SHARED_KEYS).toBe(true);
+    expect(sharedKeys(parseEnv({}))).toBe(true);
     expect(parseEnv({ SHARED_KEYS: "false" }).SHARED_KEYS).toBe(false);
   });
 
@@ -149,7 +149,8 @@ describe("deployProblems", () => {
 
   it("a deploy (ALLOWED_HOSTS set) needs the secret and the public URL", () => {
     const problems = deployProblems(parseEnv({ ALLOWED_HOSTS: "companion.example.com" }));
-    expect(problems).toHaveLength(3);
+    expect(problems).toHaveLength(4);
+    expect(problems.join()).toMatch(/SHARED_KEYS/);
     expect(problems.join()).toMatch(/APP_ENCRYPTION_KEY/);
     expect(problems.join()).toMatch(/BETTER_AUTH_SECRET/);
     expect(problems.join()).toMatch(/BETTER_AUTH_URL/);
@@ -158,6 +159,7 @@ describe("deployProblems", () => {
       BETTER_AUTH_SECRET: "x".repeat(32),
       BETTER_AUTH_URL: "https://companion.example.com",
       APP_ENCRYPTION_KEY: KEY,
+      SHARED_KEYS: "false",
     });
     expect(deployProblems(ready)).toEqual([]);
   });

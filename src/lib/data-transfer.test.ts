@@ -174,6 +174,76 @@ describe("import", () => {
   });
 });
 
+describe("hardening", () => {
+  it("a reading's source row follows its new id, or is cleared", () => {
+    const { user1 } = seedAccount(a, "A");
+    db.insert(schema.readAloudAttempts)
+      .values([
+        {
+          id: "ra-1",
+          userId: a.id,
+          source: "correction",
+          sourceId: user1.id,
+          text: "t",
+          transcript: "t",
+          correctWords: 1,
+          totalWords: 1,
+        },
+        {
+          id: "ra-2",
+          userId: a.id,
+          source: "correction",
+          sourceId: "gone",
+          text: "t",
+          transcript: "t",
+          correctWords: 1,
+          totalWords: 1,
+        },
+      ])
+      .run();
+    importUserData(b.id, parse(exportUserData(a.id)));
+    const msgIds = db
+      .select()
+      .from(schema.messages)
+      .where(eq(schema.messages.userId, b.id))
+      .all()
+      .map((m) => m.id);
+    const attempts = db.select().from(schema.readAloudAttempts).where(eq(schema.readAloudAttempts.userId, b.id)).all();
+    expect(attempts).toHaveLength(2);
+    expect(attempts.filter((r) => r.sourceId && msgIds.includes(r.sourceId))).toHaveLength(1);
+    expect(attempts.filter((r) => r.sourceId === null)).toHaveLength(1);
+  });
+
+  it("checks JSON columns and settings values like the app reads them", () => {
+    seedAccount(a, "A");
+    const file = JSON.parse(JSON.stringify(exportUserData(a.id)));
+    file.data.vocabulary[0].english = "not a list";
+    file.data.messages[0].fluency = { garbage: true };
+    file.data.messages[0].tenseCounts = "nope";
+    file.settings.app = { provider: "nope" };
+    file.settings["insights-plan"] = { plan: 1 };
+    file.settings["practice:x"] = { rubbish: true };
+    const parsed = parseExportFile(file);
+    if (!parsed.ok) throw new Error(parsed.error);
+    expect(parsed.file.invalid.vocabulary).toBe(1);
+    expect(parsed.file.data.messages[0].fluency).toBeNull();
+    expect(parsed.file.data.messages[0].tenseCounts).toBeNull();
+    // upgradeSettings turns a broken value into valid settings (never the raw object).
+    expect(parsed.file.settings.app).toMatchObject({ provider: "gemini", version: 3 });
+    expect(parsed.file.settings["insights-plan"]).toBeUndefined();
+  });
+
+  it("refuses a file with too many rows in total", () => {
+    const rows = Array.from({ length: 40_000 }, (_, i) => ({ id: `r${i}` }));
+    const parsed = parseExportFile({
+      format: "english-companion-export",
+      version: 1,
+      data: { sessions: rows, reviewLog: rows, readAloudAttempts: rows },
+    });
+    expect(parsed).toEqual({ ok: false, error: "The file has too many rows" });
+  });
+});
+
 describe("validation", () => {
   it("refuses other files, newer versions and bad shapes", () => {
     expect(parseExportFile({ nope: 1 }).ok).toBe(false);

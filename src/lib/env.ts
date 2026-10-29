@@ -88,10 +88,10 @@ const envSchema = z.object({
       .default([]),
   ),
   /**
-   * Whether the keys below serve every account that has no key of its own (default: yes, so a single
-   * local user keeps working). A deploy should set it to false: everyone brings their own.
+   * Whether the keys below serve every account that has no key of its own (locally unset means yes, so a single
+   * user keeps working). A deploy must set it explicitly, and should say false: everyone brings their own.
    */
-  SHARED_KEYS: optional(flag.default(true)),
+  SHARED_KEYS: optional(flag.optional()),
   /** Fallbacks when no key is saved in Settings (see SHARED_KEYS). */
   GOOGLE_GENERATIVE_AI_API_KEY: optional(text.optional()),
   GROQ_API_KEY: optional(text.optional()),
@@ -147,6 +147,9 @@ export function deployProblems(env: Env): string[] {
   const problems: string[] = [];
   if (!env.BETTER_AUTH_SECRET) problems.push("BETTER_AUTH_SECRET is required when ALLOWED_HOSTS is set");
   if (!env.BETTER_AUTH_URL) problems.push("BETTER_AUTH_URL is required when ALLOWED_HOSTS is set");
+  if (env.SHARED_KEYS === undefined) {
+    problems.push("SHARED_KEYS is required when ALLOWED_HOSTS is set (false: every account brings its own API keys)");
+  }
   if (!env.APP_ENCRYPTION_KEY) problems.push("APP_ENCRYPTION_KEY is required when ALLOWED_HOSTS is set");
   return problems;
 }
@@ -177,6 +180,11 @@ function safeRealpath(dir: string): string {
   } catch {
     return dir;
   }
+}
+
+/** Whether accounts without a key of their own use the server's (the keys in the environment). */
+export function sharedKeys(env: Env): boolean {
+  return env.SHARED_KEYS ?? true;
 }
 
 /** Whether the eval pages and routes are on: always in development, in production only with ENABLE_EVAL. */

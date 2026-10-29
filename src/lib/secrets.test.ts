@@ -126,6 +126,24 @@ describe("the key of the single-user app", () => {
     expect(resolveApiKey(b.id, "gemini")).toBeNull();
   });
 
+  it("takes the old key over an account value that can't be decrypted", () => {
+    process.env.SHARED_KEYS = "false";
+    setUserSetting(a.id, "api-keys", { gemini: encryptSecret("lost", Buffer.alloc(32, 3), `${a.id}:gemini`) });
+    db.insert(schema.settings)
+      .values({ key: "api-keys", value: { gemini: "AIza-old" } })
+      .run();
+    expect(resolveApiKey(a.id, "gemini")?.key).toBe("AIza-old");
+    expect(legacy()).toBeUndefined();
+  });
+
+  it("warns once per problem, not on every lookup", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    process.env.SHARED_KEYS = "false";
+    setUserSetting(a.id, "api-keys", { groq: encryptSecret("lost", Buffer.alloc(32, 4), `${a.id}:groq`) });
+    for (let i = 0; i < 5; i++) resolveApiKey(a.id, "groq");
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+
   it("is idempotent, and what the account already saved wins", () => {
     db.insert(schema.settings)
       .values({ key: "api-keys", value: { gemini: "AIza-old", groq: "gsk-old" } })

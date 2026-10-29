@@ -25,6 +25,9 @@ export interface ClaimResult {
   skippedSettings: string[];
 }
 
+/** The settings row of the API keys: merged per provider, never skipped. */
+const API_KEYS = "api-keys";
+
 /** Rows without an owner, per table, and the legacy settings rows that move to a user. */
 export function unclaimedCounts(sqlite: Database.Database): Record<string, number> {
   const counts: Record<string, number> = {};
@@ -83,10 +86,18 @@ export function claimData(sqlite: Database.Database, email: string): ClaimResult
     // What the account saved after signing up is newer than the old rows: it stays, the old row is dropped.
     const exists = sqlite.prepare("SELECT 1 FROM user_settings WHERE user_id = ? AND key = ?");
     const put = sqlite.prepare("INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)");
+    const mineOf = sqlite.prepare("SELECT value FROM user_settings WHERE user_id = ? AND key = ?");
+    const replace = sqlite.prepare("UPDATE user_settings SET value = ? WHERE user_id = ? AND key = ?");
     const skippedSettings: string[] = [];
     let moved = 0;
     for (const row of rows) {
-      if (exists.get(user.id, row.key)) skippedSettings.push(row.key);
+      if (row.key === API_KEYS && exists.get(user.id, row.key)) {
+        // Never drop a key: the account's own value wins per provider, and the old keys fill the providers it lacks.
+        const mine = JSON.parse(mineOf.pluck().get(user.id, row.key) as string) as Record<string, unknown>;
+        const old = JSON.parse(row.value) as Record<string, unknown>;
+        replace.run(JSON.stringify({ ...old, ...mine }), user.id, row.key);
+        moved++;
+      } else if (exists.get(user.id, row.key)) skippedSettings.push(row.key);
       else {
         put.run(user.id, row.key, row.value);
         moved++;
