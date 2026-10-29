@@ -50,6 +50,11 @@ export type Practice = z.infer<typeof practiceSchema>;
 
 const keyOf = (sessionId: string) => `practice:${sessionId}`;
 
+/** Whether a stored value is a practice state this app can read (used to vet imported ones). */
+export function isPractice(value: unknown): boolean {
+  return practiceSchema.safeParse(value).success;
+}
+
 export function getPractice(userId: string, sessionId: string): Practice | null {
   const value = getUserSetting(userId, keyOf(sessionId));
   if (value === undefined) return null;

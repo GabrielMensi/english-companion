@@ -153,4 +153,4 @@ Consideraciones:
 
 ### Otras
 
-- Exportar/importar la base de datos para mover el historial entre PCs. El export tiene que excluir la fila `api-keys` de `settings`, para no compartir keys por accidente.
+- ~~Exportar/importar la base de datos para mover el historial entre PCs~~ (#157): hecho, por cuenta y en JSON, sin keys (Configuración > Your data).

@@ -52,6 +52,14 @@ const emails = z
     error: "expected comma-separated email addresses (e.g. ana@example.com,bruno@example.com)",
   });
 
+/** A server encryption key: 32 random bytes in base64 (`openssl rand -base64 32`). */
+const encryptionKey = z
+  .string()
+  .trim()
+  .refine((value) => Buffer.from(value, "base64").length === 32, {
+    error: "expected 32 random bytes in base64 (openssl rand -base64 32)",
+  });
+
 const envSchema = z.object({
   /** SQLite database file. */
   DATABASE_PATH: optional(text.default("data/companion.db")),
@@ -61,7 +69,30 @@ const envSchema = z.object({
   PHONEME_MODEL_DIR: optional(text.default("data/models")),
   /** "false" turns the sound check off: no download, no inference. */
   PHONEME_CHECK: optional(flag.default(true)),
-  /** Fallbacks when no key is saved in Settings. */
+  /**
+   * Encrypts the API keys saved in Settings. Locally it's generated once in `encryption.key` next to the database
+   * (lib/encryption-key.ts); a deploy must set it. Losing it only means pasting the keys again.
+   */
+  APP_ENCRYPTION_KEY: optional(encryptionKey.optional()),
+  /** Previous encryption keys, comma-separated, kept while rotating (see `pnpm keys:reencrypt`). */
+  APP_ENCRYPTION_KEYS_OLD: optional(
+    z
+      .string()
+      .transform((value) =>
+        value
+          .split(",")
+          .map((k) => k.trim())
+          .filter(Boolean),
+      )
+      .pipe(z.array(encryptionKey))
+      .default([]),
+  ),
+  /**
+   * Whether the keys below serve every account that has no key of its own (locally unset means yes, so a single
+   * user keeps working). A deploy must set it explicitly, and should say false: everyone brings their own.
+   */
+  SHARED_KEYS: optional(flag.optional()),
+  /** Fallbacks when no key is saved in Settings (see SHARED_KEYS). */
   GOOGLE_GENERATIVE_AI_API_KEY: optional(text.optional()),
   GROQ_API_KEY: optional(text.optional()),
   /** Hostnames the app answers to besides localhost, 127.0.0.1 and [::1] (see allowed-hosts.ts). */
@@ -116,6 +147,10 @@ export function deployProblems(env: Env): string[] {
   const problems: string[] = [];
   if (!env.BETTER_AUTH_SECRET) problems.push("BETTER_AUTH_SECRET is required when ALLOWED_HOSTS is set");
   if (!env.BETTER_AUTH_URL) problems.push("BETTER_AUTH_URL is required when ALLOWED_HOSTS is set");
+  if (env.SHARED_KEYS === undefined) {
+    problems.push("SHARED_KEYS is required when ALLOWED_HOSTS is set (false: every account brings its own API keys)");
+  }
+  if (!env.APP_ENCRYPTION_KEY) problems.push("APP_ENCRYPTION_KEY is required when ALLOWED_HOSTS is set");
   return problems;
 }
 
@@ -145,6 +180,11 @@ function safeRealpath(dir: string): string {
   } catch {
     return dir;
   }
+}
+
+/** Whether accounts without a key of their own use the server's (the keys in the environment). */
+export function sharedKeys(env: Env): boolean {
+  return env.SHARED_KEYS ?? true;
 }
 
 /** Whether the eval pages and routes are on: always in development, in production only with ENABLE_EVAL. */

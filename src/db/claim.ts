@@ -15,11 +15,6 @@ export const OWNED_TABLES = [
   "pronunciation_issues",
 ] as const;
 
-/** Legacy `settings` rows that stay global: the API keys, until each user has their own (#126). */
-export const GLOBAL_SETTINGS = ["api-keys"];
-
-const placeholders = GLOBAL_SETTINGS.map(() => "?").join(", ");
-
 export interface ClaimResult {
   userId: string;
   /** Rows given to the user, per table; `settings` counts the key-value rows moved to `user_settings`. */
@@ -30,16 +25,16 @@ export interface ClaimResult {
   skippedSettings: string[];
 }
 
+/** The settings row of the API keys: merged per provider, never skipped. */
+const API_KEYS = "api-keys";
+
 /** Rows without an owner, per table, and the legacy settings rows that move to a user. */
 export function unclaimedCounts(sqlite: Database.Database): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const table of OWNED_TABLES) {
     counts[table] = sqlite.prepare(`SELECT count(*) FROM "${table}" WHERE user_id IS NULL`).pluck().get() as number;
   }
-  counts.settings = sqlite
-    .prepare(`SELECT count(*) FROM settings WHERE key NOT IN (${placeholders})`)
-    .pluck()
-    .get(...GLOBAL_SETTINGS) as number;
+  counts.settings = sqlite.prepare("SELECT count(*) FROM settings").pluck().get() as number;
   return counts;
 }
 
@@ -48,10 +43,7 @@ export function hasUnclaimedData(sqlite: Database.Database): boolean {
   for (const table of OWNED_TABLES) {
     if (sqlite.prepare(`SELECT 1 FROM "${table}" WHERE user_id IS NULL LIMIT 1`).get()) return true;
   }
-  return (
-    sqlite.prepare(`SELECT 1 FROM settings WHERE key NOT IN (${placeholders}) LIMIT 1`).get(...GLOBAL_SETTINGS) !==
-    undefined
-  );
+  return sqlite.prepare("SELECT 1 FROM settings LIMIT 1").get() !== undefined;
 }
 
 function totals(sqlite: Database.Database): Record<string, number> {
@@ -90,22 +82,28 @@ export function claimData(sqlite: Database.Database, email: string): ClaimResult
       claimed[table] = sqlite.prepare(`UPDATE "${table}" SET user_id = ? WHERE user_id IS NULL`).run(user.id).changes;
     }
 
-    const rows = sqlite
-      .prepare(`SELECT key, value FROM settings WHERE key NOT IN (${placeholders})`)
-      .all(...GLOBAL_SETTINGS) as { key: string; value: string }[];
+    const rows = sqlite.prepare("SELECT key, value FROM settings").all() as { key: string; value: string }[];
     // What the account saved after signing up is newer than the old rows: it stays, the old row is dropped.
     const exists = sqlite.prepare("SELECT 1 FROM user_settings WHERE user_id = ? AND key = ?");
     const put = sqlite.prepare("INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)");
+    const mineOf = sqlite.prepare("SELECT value FROM user_settings WHERE user_id = ? AND key = ?");
+    const replace = sqlite.prepare("UPDATE user_settings SET value = ? WHERE user_id = ? AND key = ?");
     const skippedSettings: string[] = [];
     let moved = 0;
     for (const row of rows) {
-      if (exists.get(user.id, row.key)) skippedSettings.push(row.key);
+      if (row.key === API_KEYS && exists.get(user.id, row.key)) {
+        // Never drop a key: the account's own value wins per provider, and the old keys fill the providers it lacks.
+        const mine = JSON.parse(mineOf.pluck().get(user.id, row.key) as string) as Record<string, unknown>;
+        const old = JSON.parse(row.value) as Record<string, unknown>;
+        replace.run(JSON.stringify({ ...old, ...mine }), user.id, row.key);
+        moved++;
+      } else if (exists.get(user.id, row.key)) skippedSettings.push(row.key);
       else {
         put.run(user.id, row.key, row.value);
         moved++;
       }
     }
-    sqlite.prepare(`DELETE FROM settings WHERE key NOT IN (${placeholders})`).run(...GLOBAL_SETTINGS);
+    sqlite.prepare("DELETE FROM settings").run();
     claimed.settings = moved;
 
     // Nothing may be left without an owner, and no row may have appeared or disappeared (except the duplicates).

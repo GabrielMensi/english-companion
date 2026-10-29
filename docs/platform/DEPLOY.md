@@ -247,7 +247,8 @@ docker build -t english-companion:local .
 mkdir -p /tmp/ec-data && chmod 777 /tmp/ec-data   # una base descartable, nunca data/companion.db
 docker run --rm -v /tmp/ec-data:/data english-companion:local node scripts/db-migrate.mjs
 docker run --rm -p 127.0.0.1:3737:3737 -e ALLOWED_HOSTS=localhost -e BETTER_AUTH_URL=http://localhost:3737 \
-  -e BETTER_AUTH_SECRET="$(openssl rand -base64 48)" -v /tmp/ec-data:/data english-companion:local
+  -e BETTER_AUTH_SECRET="$(openssl rand -base64 48)" -e APP_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+  -e SHARED_KEYS=false -v /tmp/ec-data:/data english-companion:local
 curl http://localhost:3737/api/health
 ```
 
