@@ -13,6 +13,10 @@ import { and, desc, eq, isNotNull, lt } from "drizzle-orm";
 import { db, schema } from "../../src/db";
 import { DISCARDS_FILE, type DiscardContext, groupDiscards } from "../../src/lib/eval/discards";
 import { getPractice, practiceReplyRule } from "../../src/lib/practice";
+import { evalUserId } from "./settings";
+
+// Operator-only: exports the administrator's (first account's) discards, never other accounts'.
+const userId = (await evalUserId()) ?? "";
 
 const rows = db
   .select({
@@ -26,16 +30,32 @@ const rows = db
   })
   .from(schema.corrections)
   .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
-  .where(and(isNotNull(schema.corrections.discardedAt), eq(schema.messages.role, "user")))
+  .where(
+    and(
+      eq(schema.corrections.userId, userId),
+      isNotNull(schema.corrections.discardedAt),
+      eq(schema.messages.role, "user"),
+    ),
+  )
   .all();
 
 /** The chat the message was written in: mode, topic or practice rule, and the turns before it (as the app sends them). */
 function contextOf(sessionId: string, createdAt: Date): DiscardContext {
-  const session = db.select().from(schema.sessions).where(eq(schema.sessions.id, sessionId)).get();
+  const session = db
+    .select()
+    .from(schema.sessions)
+    .where(and(eq(schema.sessions.userId, userId), eq(schema.sessions.id, sessionId)))
+    .get();
   const previous = db
     .select()
     .from(schema.messages)
-    .where(and(eq(schema.messages.sessionId, sessionId), lt(schema.messages.createdAt, createdAt)))
+    .where(
+      and(
+        eq(schema.messages.userId, userId),
+        eq(schema.messages.sessionId, sessionId),
+        lt(schema.messages.createdAt, createdAt),
+      ),
+    )
     .orderBy(desc(schema.messages.createdAt))
     .limit(20)
     .all()
@@ -48,7 +68,7 @@ function contextOf(sessionId: string, createdAt: Date): DiscardContext {
   }
   return {
     mode: session?.mode ?? "correction",
-    practiceRule: practiceReplyRule(getPractice(sessionId)),
+    practiceRule: practiceReplyRule(getPractice(userId, sessionId)),
     history,
   };
 }

@@ -9,19 +9,19 @@ const bodySchema = z.object({
   mode: z.enum(["correction", "conversation"]).optional(),
 });
 
-export const PATCH = withUser(async (request: Request, ctx: RouteContext<"/api/sessions/[id]">) => {
+export const PATCH = withUser(async (request: Request, ctx: RouteContext<"/api/sessions/[id]">, { userId }) => {
   const { id } = await ctx.params;
-  if (!getSession(id)) return Response.json({ error: "Chat not found" }, { status: 404 });
+  if (!getSession(userId, id)) return Response.json({ error: "Chat not found" }, { status: 404 });
 
   const body = await parseBody(request, bodySchema, "Invalid data");
   if (!body.ok) return body.response;
-  return Response.json(updateSession(id, body.data));
+  return Response.json(updateSession(userId, id, body.data));
 });
 
-export const DELETE = withUser(async (_request: Request, ctx: RouteContext<"/api/sessions/[id]">) => {
+export const DELETE = withUser(async (_request: Request, ctx: RouteContext<"/api/sessions/[id]">, { userId }) => {
   const { id } = await ctx.params;
-  deleteSession(id);
+  deleteSession(userId, id);
   // Its mistakes and words are gone: so are their flashcards.
-  cleanOrphanReviews();
+  cleanOrphanReviews(userId);
   return new Response(null, { status: 204 });
 });

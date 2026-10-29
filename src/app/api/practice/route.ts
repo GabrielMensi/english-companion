@@ -28,17 +28,19 @@ const bodySchema = z.union([
 ]);
 
 /** Starts a practice chat (tense practice, exercises for an error category, or a topic conversation) and returns its session. */
-export const POST = withUser(async (request: Request) => {
+export const POST = withUser(async (request: Request, _ctx, { userId }) => {
   const body = await parseBody(request, bodySchema, "Invalid data");
   if (!body.ok) return body.response;
   try {
     if (body.data.kind === "topic") {
       const choice = resolveTopic(body.data);
       if (!choice) return Response.json({ error: "Choose a topic or type one" }, { status: 400 });
-      return Response.json(startTopicChat(choice), { status: 201 });
+      return Response.json(startTopicChat(userId, choice), { status: 201 });
     }
     const session =
-      body.data.kind === "category" ? await startCategoryPractice(body.data) : await startPractice(body.data);
+      body.data.kind === "category"
+        ? await startCategoryPractice(userId, body.data)
+        : await startPractice(userId, body.data);
     return Response.json(session, { status: 201 });
   } catch (error) {
     logRouteError("POST /api/practice", error, 502);

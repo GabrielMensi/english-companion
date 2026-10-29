@@ -11,14 +11,14 @@ import { withUser } from "@/lib/auth/with-user";
 const bodySchema = z.object({ provider: z.enum(PROVIDER_IDS) });
 
 /** Sends a tiny request to one provider, with its saved key and model, to check the connection. */
-export const POST = withUser(async (request: Request) => {
+export const POST = withUser(async (request: Request, _ctx, { userId }) => {
   const body = await parseBody(request, bodySchema, "Invalid provider");
   if (!body.ok) return body.response;
 
   const started = Date.now();
   try {
     const { text } = await generateText({
-      ...resolveModel(getSettings(), body.data.provider).call({ temperature: 0, retry: false }),
+      ...resolveModel(getSettings(userId), body.data.provider).call({ temperature: 0, retry: false }),
       prompt: "Reply with exactly: OK",
       maxOutputTokens: 20,
     });

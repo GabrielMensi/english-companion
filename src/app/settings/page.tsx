@@ -8,8 +8,8 @@ import { requirePageUser } from "@/lib/auth/session";
 
 export default async function SettingsPage() {
   await connection();
-  await requirePageUser("/settings");
-  const settings = getSettings();
+  const { userId } = await requirePageUser("/settings");
+  const settings = getSettings(userId);
   return (
     <Page width="md">
       <PageHeader title="Settings" description="Choose which AI models correct your messages and in what order." />

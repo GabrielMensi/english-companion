@@ -14,12 +14,12 @@ const bodySchema = z.object({
 });
 
 /** The learner fixes a mistake's type by hand. Returns a `CorrectionUpdate`. */
-export const PATCH = withUser(async (request: Request, ctx: RouteContext<"/api/corrections/[id]">) => {
+export const PATCH = withUser(async (request: Request, ctx: RouteContext<"/api/corrections/[id]">, { userId }) => {
   const { id } = await ctx.params;
   const body = await parseBody(request, bodySchema, "Invalid type");
   if (!body.ok) return body.response;
   try {
-    const update = classifyManually(id, body.data) ? getCorrectionUpdate(id) : undefined;
+    const update = classifyManually(userId, id, body.data) ? getCorrectionUpdate(userId, id) : undefined;
     if (!update) return Response.json({ error: "Mistake not found" }, { status: 404 });
     return Response.json(update);
   } catch (error) {

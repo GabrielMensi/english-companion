@@ -15,11 +15,11 @@ const RANGE_LABELS: Record<ReportRange, string> = { "7": "This week", "30": "30 
 
 export default async function InsightsPage({ searchParams }: PageProps<"/insights">) {
   await connection();
-  await requirePageUser("/insights");
+  const { userId } = await requirePageUser("/insights");
   const { range: rawRange } = await searchParams;
   const range: ReportRange = REPORT_RANGES.includes(rawRange as ReportRange) ? (rawRange as ReportRange) : "7";
-  const digest = getReportDigest(range);
-  const level = getLevelData();
+  const digest = getReportDigest(userId, range);
+  const level = getLevelData(userId);
   const hasModel = hasConfiguredProvider();
 
   return (
@@ -66,7 +66,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
 
       {digest.totals.messages > 0 && (
         <Section title="Study plan" description="What to practice next, based on the report">
-          <StudyPlan key={range} digest={digest} range={range} initial={getStoredPlan()} hasModel={hasModel} />
+          <StudyPlan key={range} digest={digest} range={range} initial={getStoredPlan(userId)} hasModel={hasModel} />
         </Section>
       )}
 

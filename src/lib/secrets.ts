@@ -8,6 +8,9 @@ import { KEY_ENV_VARS, type KeyProvider, pickApiKey } from "@/lib/credentials";
 /**
  * API keys live in their own settings row, apart from the regular settings, so
  * they are never sent to the browser along with them.
+ *
+ * Still global on purpose: one row of the legacy `settings` table, shared by every account, until each
+ * user has their own encrypted keys (#126). Everything else moved to `user_settings`.
  */
 const KEY = "api-keys";
 

@@ -9,6 +9,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getUser } from "@/lib/auth/session";
 import { listSessions } from "@/lib/chat";
+import { UnclaimedDataNotice } from "@/components/unclaimed-data-notice";
+import { showUnclaimedNotice } from "@/lib/auth/unclaimed";
 import { countCardsToStudy } from "@/lib/flashcards";
 import { chatLabels } from "@/lib/practice";
 import { SIDEBAR_COOKIE } from "@/lib/sidebar";
@@ -40,9 +42,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // Set by proxy.ts: the nonce that lets next-themes' inline script run under the CSP.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   const sidebarCollapsed = (await cookies()).get(SIDEBAR_COOKIE)?.value === "1";
-  const labels = user ? chatLabels() : new Map<string, { practice: boolean; topic: string | null }>();
+  const labels = user ? chatLabels(user.userId) : new Map<string, { practice: boolean; topic: string | null }>();
   const sessions = user
-    ? listSessions().map(({ id, title, mode }) => ({
+    ? listSessions(user.userId).map(({ id, title, mode }) => ({
         id,
         title,
         mode,
@@ -63,12 +65,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             {user && (
               <AppSidebar
                 sessions={sessions}
-                cardsToStudy={countCardsToStudy()}
+                cardsToStudy={countCardsToStudy(user.userId)}
                 initialCollapsed={sidebarCollapsed}
                 userEmail={user.email}
               />
             )}
-            <main className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</main>
+            <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+              {user && showUnclaimedNotice(user.userId) && <UnclaimedDataNotice email={user.email} />}
+              {children}
+            </main>
             <Toaster richColors position="top-center" />
             {user && <SpeechPreloader />}
           </TooltipProvider>

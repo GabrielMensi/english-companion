@@ -51,13 +51,13 @@ function filterTitle(filter: MistakeFilter): string {
 
 export default async function FlashcardsPage({ searchParams }: PageProps<"/flashcards">) {
   await connection();
-  await requirePageUser("/flashcards");
+  const { userId } = await requirePageUser("/flashcards");
   const params = await searchParams;
   const kind = typeof params.deck === "string" ? DECKS[params.deck] : undefined;
 
   if (kind) {
     const filter = kind === "mistake" ? parseFilter(params) : {};
-    const queue = getStudyQueue(kind, filter);
+    const queue = getStudyQueue(userId, kind, filter);
     const title =
       kind === "vocabulary"
         ? "Vocabulary"
@@ -86,13 +86,13 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
           kind={kind}
           initialQueue={queue}
           canRecord={resolveTranscriptionModel() !== null}
-          language={getSettings().explanationLanguage}
+          language={getSettings(userId).explanationLanguage}
         />
       </Page>
     );
   }
 
-  const overview = getFlashcardsOverview();
+  const overview = getFlashcardsOverview(userId);
   return (
     <Page area="train">
       <PageHeader
@@ -100,7 +100,7 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
         description="Review the words you looked up, the mistakes you made, the exercises you missed and the sentences that were hard to say, spaced out so they stick."
       />
       <DeckOverview overview={overview} />
-      <SuspendedCards cards={getSuspendedCards()} />
+      <SuspendedCards cards={getSuspendedCards(userId)} />
     </Page>
   );
 }

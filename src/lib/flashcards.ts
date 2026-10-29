@@ -1,7 +1,8 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { owned } from "@/db/owned";
 import {
   buildQueue,
   type Card,
@@ -32,8 +33,15 @@ import { getVocabulary } from "@/lib/vocabulary";
  * card is new (a row created only to suspend it). Suspended cards are listed
  * apart, so the decks can leave them out.
  */
-function loadStates(kind: CardKind): { states: Map<string, ReviewState | null>; suspended: Set<string> } {
-  const rows = db.select().from(schema.reviews).where(eq(schema.reviews.kind, kind)).all();
+function loadStates(
+  userId: string,
+  kind: CardKind,
+): { states: Map<string, ReviewState | null>; suspended: Set<string> } {
+  const rows = db
+    .select()
+    .from(schema.reviews)
+    .where(owned(schema.reviews, userId, eq(schema.reviews.kind, kind)))
+    .all();
   return {
     states: new Map(rows.map((r) => [r.cardKey, r.reviewCount > 0 ? toState(r) : null])),
     suspended: new Set(rows.filter((r) => r.suspendedAt !== null).map((r) => r.cardKey)),
@@ -51,16 +59,16 @@ function toState(r: typeof schema.reviews.$inferSelect): ReviewState {
 }
 
 /** The deck's cards with their review state; suspended cards are left out. */
-function withStates<C extends Card>(cards: C[], kind: CardKind): QueuedCard<C>[] {
-  const { states, suspended } = loadStates(kind);
+function withStates<C extends Card>(userId: string, cards: C[], kind: CardKind): QueuedCard<C>[] {
+  const { states, suspended } = loadStates(userId, kind);
   return cards
     .filter((card) => !suspended.has(card.key))
     .map((card) => ({ card, state: states.get(card.key) ?? null }));
 }
 
 /** Every real mistake (the ones that count in the stats) as a card, newest first. */
-function loadMistakeCards(): MistakeCard[] {
-  const { countTyposInStats } = getSettings();
+function loadMistakeCards(userId: string): MistakeCard[] {
+  const { countTyposInStats } = getSettings(userId);
   const rows = db
     .select({
       id: schema.corrections.id,
@@ -79,6 +87,7 @@ function loadMistakeCards(): MistakeCard[] {
     })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.messages.id, schema.corrections.messageId))
+    .where(owned(schema.corrections, userId))
     .all();
 
   return mistakeCards(
@@ -88,22 +97,22 @@ function loadMistakeCards(): MistakeCard[] {
   );
 }
 
-export function getVocabularyDeck(): QueuedCard<VocabularyCard>[] {
-  return withStates(vocabularyCards(getVocabulary()), "vocabulary");
+export function getVocabularyDeck(userId: string): QueuedCard<VocabularyCard>[] {
+  return withStates(userId, vocabularyCards(getVocabulary(userId)), "vocabulary");
 }
 
-export function getMistakeDeck(filter: MistakeFilter = {}): QueuedCard<MistakeCard>[] {
-  return withStates(filterMistakes(loadMistakeCards(), filter), "mistake");
+export function getMistakeDeck(userId: string, filter: MistakeFilter = {}): QueuedCard<MistakeCard>[] {
+  return withStates(userId, filterMistakes(loadMistakeCards(userId), filter), "mistake");
 }
 
 /** Exercise items missed in Practice, newest first. */
-export function getExerciseDeck(): QueuedCard<ExerciseCard>[] {
-  return withStates(loadExerciseCards(), "exercise");
+export function getExerciseDeck(userId: string): QueuedCard<ExerciseCard>[] {
+  return withStates(userId, loadExerciseCards(userId), "exercise");
 }
 
 /** Sentences read aloud with words heard differently, newest first. */
-export function getPronunciationDeck(): QueuedCard<PronunciationCard>[] {
-  return withStates(loadPronunciationCards(), "pronunciation");
+export function getPronunciationDeck(userId: string): QueuedCard<PronunciationCard>[] {
+  return withStates(userId, loadPronunciationCards(userId), "pronunciation");
 }
 
 export interface FilterOption {
@@ -115,20 +124,25 @@ export interface FilterOption {
 }
 
 /** Cards to study now across the decks, for the sidebar badge. Read-only, unlike the overview. */
-export function countCardsToStudy(): number {
+export function countCardsToStudy(userId: string): number {
   const now = Date.now();
-  const { newCardsPerSession } = getSettings();
-  return [getVocabularyDeck(), withStates(loadMistakeCards(), "mistake"), getExerciseDeck(), getPronunciationDeck()]
+  const { newCardsPerSession } = getSettings(userId);
+  return [
+    getVocabularyDeck(userId),
+    withStates(userId, loadMistakeCards(userId), "mistake"),
+    getExerciseDeck(userId),
+    getPronunciationDeck(userId),
+  ]
     .map((deck) => deckCounts(deck, now))
     .reduce((sum, c) => sum + c.due + Math.min(c.new, newCardsPerSession), 0);
 }
 
 /** Overview of both decks, plus the tenses and error types the mistake deck can be narrowed to. */
-export function getFlashcardsOverview() {
-  cleanOrphanReviews();
+export function getFlashcardsOverview(userId: string) {
+  cleanOrphanReviews(userId);
   const now = Date.now();
-  const { newCardsPerSession: newLimit } = getSettings();
-  const mistakes = withStates(loadMistakeCards(), "mistake");
+  const { newCardsPerSession: newLimit } = getSettings(userId);
+  const mistakes = withStates(userId, loadMistakeCards(userId), "mistake");
 
   const option = (filter: MistakeFilter, label: string): FilterOption => {
     const counts = deckCounts(
@@ -158,30 +172,33 @@ export function getFlashcardsOverview() {
     now,
     /** New cards a study session adds (a setting). */
     newLimit,
-    vocabulary: deckCounts(getVocabularyDeck(), now),
+    vocabulary: deckCounts(getVocabularyDeck(userId), now),
     mistakes: deckCounts(mistakes, now),
-    exercises: deckCounts(getExerciseDeck(), now),
-    pronunciation: deckCounts(getPronunciationDeck(), now),
+    exercises: deckCounts(getExerciseDeck(userId), now),
+    pronunciation: deckCounts(getPronunciationDeck(userId), now),
     tenses,
     categories,
   };
 }
 
-export function getStudyQueue(kind: CardKind, filter: MistakeFilter = {}): QueuedCard[] {
+export function getStudyQueue(userId: string, kind: CardKind, filter: MistakeFilter = {}): QueuedCard[] {
   const now = Date.now();
-  const { newCardsPerSession } = getSettings();
-  if (kind === "exercise") return buildQueue(getExerciseDeck(), now, newCardsPerSession);
-  if (kind === "pronunciation") return buildQueue(getPronunciationDeck(), now, newCardsPerSession);
+  const { newCardsPerSession } = getSettings(userId);
+  if (kind === "exercise") return buildQueue(getExerciseDeck(userId), now, newCardsPerSession);
+  if (kind === "pronunciation") return buildQueue(getPronunciationDeck(userId), now, newCardsPerSession);
   return kind === "vocabulary"
-    ? buildQueue(getVocabularyDeck(), now, newCardsPerSession)
-    : buildQueue(getMistakeDeck(filter), now, newCardsPerSession);
+    ? buildQueue(getVocabularyDeck(userId), now, newCardsPerSession)
+    : buildQueue(getMistakeDeck(userId, filter), now, newCardsPerSession);
 }
 
 /** Stores the learner's grade for a card and returns its new state. */
-export function recordReview(kind: CardKind, cardKey: string, grade: Grade): ReviewState {
+export function recordReview(userId: string, kind: CardKind, cardKey: string, grade: Grade): ReviewState {
   const now = Date.now();
-  const where = and(eq(schema.reviews.kind, kind), eq(schema.reviews.cardKey, cardKey));
-  const row = db.select().from(schema.reviews).where(where).get();
+  const row = db
+    .select()
+    .from(schema.reviews)
+    .where(owned(schema.reviews, userId, eq(schema.reviews.kind, kind), eq(schema.reviews.cardKey, cardKey)))
+    .get();
   // A row with no reviews was only created to suspend the card: it's still new.
   const previous: ReviewState = row && row.reviewCount > 0 ? toState(row) : newReviewState(now);
   const next = schedule(previous, grade, now);
@@ -198,16 +215,17 @@ export function recordReview(kind: CardKind, cardKey: string, grade: Grade): Rev
   if (row) {
     db.update(schema.reviews)
       .set({ ...values, reviewCount: row.reviewCount + 1 })
-      .where(eq(schema.reviews.id, row.id))
+      .where(owned(schema.reviews, userId, eq(schema.reviews.id, row.id)))
       .run();
   } else {
     db.insert(schema.reviews)
-      .values({ id: crypto.randomUUID(), kind, cardKey, reviewCount: 1, createdAt: new Date(now), ...values })
+      .values({ id: crypto.randomUUID(), userId, kind, cardKey, reviewCount: 1, createdAt: new Date(now), ...values })
       .run();
   }
   db.insert(schema.reviewLog)
     .values({
       id: crypto.randomUUID(),
+      userId,
       kind,
       cardKey,
       grade,
