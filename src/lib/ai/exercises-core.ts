@@ -2,7 +2,7 @@
  * Pure parts of the exercise generation (tense exercises and exercises for an
  * error category): output schema, prompt building and normalization. Kept free of server-only imports so it can be unit tested.
  */
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import {
   type CategoryExerciseItem,
   categoryDescription,

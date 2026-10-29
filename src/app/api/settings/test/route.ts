@@ -1,5 +1,5 @@
 import { generateText } from "ai";
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { errorToMessage } from "@/lib/ai/fallback";
 import { PROVIDER_IDS } from "@/lib/ai/provider-info";
 import { resolveModel } from "@/lib/ai/providers";

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { cmuLookup } from "@/lib/cmu-lookup";
 import { checkPhonemes } from "@/lib/phonemes";
 import { scoreReading } from "@/lib/pronunciation-core";

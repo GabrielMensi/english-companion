@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { classifyManually } from "@/lib/classification";
 import { getCorrectionUpdate } from "@/lib/corrections";
 import { ERROR_CATEGORIES, TENSES } from "@/lib/taxonomy";

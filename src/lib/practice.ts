@@ -1,7 +1,7 @@
 import "server-only";
 
 import { and, asc, eq, like, lt } from "drizzle-orm";
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { db, schema } from "@/db";
 import type { Message } from "@/db/schema";
 import { categoryTopic, EXERCISE_FORMATS } from "@/lib/category-practice";

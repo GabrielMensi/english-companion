@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { cleanOrphanReviews } from "@/lib/flashcards-upkeep";
 import { deleteVocabulary } from "@/lib/vocabulary";
 import { parseBody } from "@/lib/request-body";

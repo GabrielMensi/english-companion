@@ -3,7 +3,7 @@
  * normalization. Kept free of server-only imports so it can be unit tested.
  */
 import type { DeepPartial } from "ai";
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import type { InputMode, SessionMode } from "@/db/schema";
 import { CATEGORY_HINTS, ERROR_CATEGORIES, SEVERITIES, TRANSCRIBER_CATEGORIES } from "@/lib/taxonomy";
 

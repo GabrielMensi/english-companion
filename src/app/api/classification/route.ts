@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { getClassificationStatus, retryFailedClassifications, startClassification } from "@/lib/classification";
 import { parseBody } from "@/lib/request-body";
 import { withUser } from "@/lib/auth/with-user";

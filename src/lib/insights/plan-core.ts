@@ -4,7 +4,7 @@
  * estimate. Pure, so it's tested; the calls live in `src/lib/ai/insights.ts`.
  * Schemas are small and flat: every provider fills them reliably, Groq's structured output included.
  */
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { type StatsDigest, digestToPromptText } from "./digest-core";
 import type { LevelEstimate, LevelWindow } from "./level-core";
 

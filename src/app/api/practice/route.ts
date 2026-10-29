@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { errorToMessage } from "@/lib/ai/fallback";
 import { startCategoryPractice, startPractice, startTopicChat } from "@/lib/practice-start";
 import { ERROR_CATEGORIES, TENSES } from "@/lib/taxonomy";

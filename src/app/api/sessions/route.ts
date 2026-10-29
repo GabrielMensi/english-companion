@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "@/lib/zod";
 import { createSession, listSessions } from "@/lib/chat";
 import { parseBody } from "@/lib/request-body";
 import { withUser } from "@/lib/auth/with-user";
