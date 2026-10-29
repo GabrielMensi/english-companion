@@ -80,3 +80,4 @@ Estado: ⏳ pendiente · 🔨 en curso · 👀 en revisión · ✅ mergeado en l
 - 2026-10-28: #148 (auth) mergeada (CI de Docker necesitaba BETTER_AUTH_SECRET/URL, agregadas). Tanda 2 completa. Tanda 3: multi-user y e2e arrancados; evals en curso.
 - 2026-10-29: #150 (evals) mergeada. Tanda 3: faltan multi-user y e2e (implementando).
 - 2026-10-29: #154 (corrections-ui, parte UI de la tanda 4) mergeada. Nuevo bug #153 (CSP bloquea eval en /settings con `next start`), encontrado por E2E; lo toma el equipo de kokoro-csp en `team/csp-eval`. multi-user aprobado, con arreglos menores antes de la PR. e2e con un último arreglo.
+- 2026-10-29: #155 (multi-user) mergeada (migración 0015 verificada dos veces sobre copias de la base real). Tanda 4 arrancada: keys (#156, #126, #157), class (#158–#160), topics (#161–#163). Pendientes: e2e (confirmando #153), "Show discarded" (después), tanda 5.
