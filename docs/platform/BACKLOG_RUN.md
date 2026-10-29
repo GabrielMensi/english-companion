@@ -87,3 +87,4 @@ Estado: ⏳ pendiente · 🔨 en curso · 👀 en revisión · ✅ mergeado en l
 - 2026-10-29: #167 (topics) mergeada. Faltan keys (revisión 2) y class (últimos ajustes).
 - 2026-10-29: #168 (keys) mergeada (el orquestador adaptó las llamadas de IA de topics al usuario, bajó el tope de import a 30k filas y pasó APP_ENCRYPTION_KEY/SHARED_KEYS al CI de Docker; E2E 10/10). Falta class (revisión 2).
 - 2026-10-29: #169 (class) mergeada: tandas 1–4 completas (16 PRs). Tanda 5: import order (#170) y revisión cruzada final en curso.
+- 2026-10-29: #171 (import order) mergeada. Revisión cruzada final: un bug entre equipos (export/import pierde los datos de clases; lo arregla keys en `team/export-class`) y docs desactualizados (equipo `final-docs`). Pasos de actualización para el usuario agregados al doc de prueba manual.

@@ -32,10 +32,12 @@ Corre en tu máquina (la base de datos es un SQLite local) y está pensado para 
 
 ## Setup
 
-```bash
-pnpm install
-pnpm dev
-```
+Desde un clon nuevo:
+
+1. `pnpm install`
+2. Opcional: `cp .env.example .env.local` y completá `GOOGLE_GENERATIVE_AI_API_KEY` / `GROQ_API_KEY` (también se pueden pegar después en Configuración). No hace falta ninguna otra variable en local: la clave de cifrado (`data/encryption.key`) y la de las cookies (`data/auth.secret`) se generan solas en la primera ejecución. `APP_ENCRYPTION_KEY`, `BETTER_AUTH_*`, `SHARED_KEYS` y `ALLOWED_HOSTS` son solo para un deploy ([docs/platform/DEPLOY.md](docs/platform/DEPLOY.md)); no pongas `ALLOWED_HOSTS` en local.
+3. `pnpm dev`, abrí https://localhost:3737 y creá tu cuenta en `/signup` (la app pide login siempre).
+4. Si ya tenías datos de antes de las cuentas (una base `data/companion.db` vieja): `pnpm auth:claim-data <tu email>` se los asigna a tu cuenta. Si los traés de otra PC, copiá también `data/encryption.key` o importá el JSON de Configuración > Your data.
 
 Abrí https://localhost:3737: la app **pide login siempre**, también en local. La primera vez, entrá a `/signup` y creá tu cuenta (email y contraseña de al menos 10 caracteres): la primera cuenta se crea sin más y después el registro se cierra. Otras cuentas solo se pueden crear con `SIGNUP_ALLOWED_EMAILS`; cada cuenta tiene sus propios datos y sus propias API keys. Sin email de verificación, quien se registre primero con un email permitido se queda con él. Después armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key, el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys son **por cuenta**, se guardan **cifradas** en tu base local (AES-256-GCM; la clave de cifrado se genera sola en `data/encryption.key`, junto a la base, con permisos `600`: respaldala aparte, y si copiás la base a otra carpeta o PC copiá también ese archivo, o las keys no descifran y hay que pegarlas de nuevo) y nunca se muestran completas. Sin una key propia, una cuenta usa la del `.env.local` (`SHARED_KEYS=true`, el valor por defecto); con `SHARED_KEYS=false` cada cuenta trae las suyas. Si rotás la clave: `pnpm keys:reencrypt` (ver [docs/platform/AUTH_MULTIUSER.md](docs/platform/AUTH_MULTIUSER.md)). **Configuración > Your data** exporta tus datos a un archivo JSON (sin keys ni datos de login) o importa uno en tu cuenta, para mover el historial entre PCs; el resto de los cambios se guarda solo.
 

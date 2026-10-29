@@ -1,6 +1,6 @@
 # Flujo de releases
 
-> Area: Platform · Kind: Chore · Status: In progress · Board: #128
+> Area: Platform · Kind: Chore · Status: Done · Board: #128
 
 Reglas de ramas, versiones, tags y releases para cuando la app sea desplegable. Hoy no hay deploy: el flujo está listo y el primer release real es `v1.0.0` (el primer deploy). Ver [DEPLOY.md](DEPLOY.md).
 
