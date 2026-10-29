@@ -24,7 +24,10 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   timeout: 60_000,
   expect: { timeout: 10_000 },
-  reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
+  reporter: [
+    ...(process.env.CI ? ([["github"], ["html", { open: "never" }]] as const) : ([["list"]] as const)),
+    ["./e2e/cleanup-reporter.ts"],
+  ],
   use: { baseURL: BASE_URL, trace: "retain-on-failure" },
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },
@@ -47,7 +50,7 @@ export default defineConfig({
     command: `pnpm build && pnpm exec next start --port ${PORT} --hostname 127.0.0.1`,
     url: `${BASE_URL}/api/health`,
     timeout: 300_000,
-    reuseExistingServer: !!process.env.E2E_REUSE_SERVER && !process.env.CI,
+    reuseExistingServer: false,
     stdout: "ignore",
     stderr: "pipe",
     env: {
