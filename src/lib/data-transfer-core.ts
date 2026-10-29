@@ -19,8 +19,8 @@ export const EXPORT_VERSION = 1;
 /** Import limits: the request body, and rows per table (a heavy user has a few thousand at most). */
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
 export const MAX_ROWS_PER_TABLE = 50_000;
-/** The import is one synchronous transaction: the cap keeps it to about a second. */
-export const MAX_TOTAL_ROWS = 100_000;
+/** The import is one synchronous transaction that blocks the server: ~68k rows took ~7 s, so 30k keeps it near 3 s. */
+export const MAX_TOTAL_ROWS = 30_000;
 
 export type TableName =
   | "sessions"
