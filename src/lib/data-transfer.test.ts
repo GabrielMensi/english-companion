@@ -211,7 +211,7 @@ describe("class data", () => {
     expect(db.select().from(schema.corrections).where(eq(schema.corrections.userId, b.id)).get()?.source).toBe("class");
   });
 
-  it("refuses unknown source values and CEFR levels", () => {
+  it("drops a row with an unknown required value, and blanks an unknown optional one", () => {
     const cls = createClassSession(a.id, { heldAt: 1, teacherLevel: "B1", notes: null });
     saveClassItems(a.id, cls.id, {
       corrections: [CLASS_CORRECTION],
@@ -222,7 +222,9 @@ describe("class data", () => {
     file.data.classSessions[0].teacherLevel = "Z9";
     const parsed = parseExportFile(file);
     if (!parsed.ok) throw new Error(parsed.error);
-    expect(parsed.file.invalid).toMatchObject({ corrections: 1, classSessions: 1 });
+    expect(parsed.file.invalid).toEqual({ corrections: 1 });
+    expect(parsed.file.data.classSessions[0].teacherLevel).toBeNull();
+    expect(parsed.file.data.classSessions).toHaveLength(1);
   });
 });
 
@@ -242,7 +244,7 @@ describe("every table is accounted for", () => {
     expect(exported.filter((name) => !withOwner.includes(name))).toEqual([]);
   });
 
-  it("the enum checks cover the schema's source and mode unions", () => {
+  it("a chat of the class mode passes validation", () => {
     const file = JSON.parse(
       JSON.stringify({
         format: "english-companion-export",

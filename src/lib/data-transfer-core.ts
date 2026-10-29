@@ -200,7 +200,12 @@ function parseRow(table: TableName, raw: unknown): Row | string {
         return `${key} has an unsupported type`;
     }
     const allowed = ENUMS[table]?.[key];
-    if (allowed && !allowed.includes(value as string)) return `${key} has an unknown value`;
+    if (allowed && !allowed.includes(value as string)) {
+      // An optional value we don't know (a teacher level from a newer version) is left out, not the whole row.
+      if (column.notNull) return `${key} has an unknown value`;
+      out[key] = null;
+      continue;
+    }
     out[key] = value;
   }
   return out;
