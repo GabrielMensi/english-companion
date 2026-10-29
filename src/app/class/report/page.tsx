@@ -27,7 +27,7 @@ export default async function ClassReportPage({ searchParams }: PageProps<"/clas
   const request = { sinceId: first(raw.since), from: first(raw.from), to: first(raw.to) };
   const report = getClassReport(userId, request);
   const { digest, period, teacher } = report;
-  const hasModel = hasConfiguredProvider();
+  const hasModel = hasConfiguredProvider(userId);
   const query = new URLSearchParams(
     Object.entries(request).flatMap(([k, v]) => (v ? [[k === "sinceId" ? "since" : k, v]] : [])),
   ).toString();

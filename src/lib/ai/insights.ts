@@ -18,10 +18,11 @@ import type { Settings } from "@/lib/settings";
 import { withFallback } from "./providers";
 
 export async function generateObject<S extends z.ZodType>(
+  userId: string,
   settings: Settings,
   options: { instructions: string; prompt: string; schema: S; temperature: number },
 ) {
-  const { result, used } = await withFallback(settings, async (resolved, { isLast }) => {
+  const { result, used } = await withFallback(userId, settings, async (resolved, { isLast }) => {
     const run = () =>
       generateText({
         ...resolved.call({ temperature: options.temperature, retry: isLast }),
@@ -41,8 +42,8 @@ export async function generateObject<S extends z.ZodType>(
 }
 
 /** Writes a study plan for the next week from the period's digest. */
-export async function generateStudyPlan(digest: StatsDigest, settings: Settings) {
-  const { output, provider, modelId } = await generateObject(settings, {
+export async function generateStudyPlan(userId: string, digest: StatsDigest, settings: Settings) {
+  const { output, provider, modelId } = await generateObject(userId, settings, {
     instructions: buildPlanInstructions(settings.explanationLanguage),
     prompt: buildPlanPrompt(digest),
     schema: studyPlanSchema,
@@ -52,8 +53,13 @@ export async function generateStudyPlan(digest: StatsDigest, settings: Settings)
 }
 
 /** Explains the rule-based level estimate in plain words. It never changes the level. */
-export async function explainLevel(estimate: LevelEstimate, evolution: LevelWindow[], settings: Settings) {
-  const { output, provider, modelId } = await generateObject(settings, {
+export async function explainLevel(
+  userId: string,
+  estimate: LevelEstimate,
+  evolution: LevelWindow[],
+  settings: Settings,
+) {
+  const { output, provider, modelId } = await generateObject(userId, settings, {
     instructions: buildLevelInstructions(settings.explanationLanguage),
     prompt: buildLevelPrompt(estimate, evolution),
     schema: levelExplanationSchema,

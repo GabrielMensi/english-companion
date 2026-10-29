@@ -6,7 +6,7 @@ import { withUser } from "@/lib/auth/with-user";
 
 export const GET = withUser(async (_request, _ctx, { userId }) => {
   const settings = getSettings(userId);
-  return Response.json({ settings, providers: providerStatus() });
+  return Response.json({ settings, providers: providerStatus(userId) });
 });
 
 /**
@@ -22,5 +22,5 @@ export const PATCH = withUser(async (request: Request, _ctx, { userId }) => {
   const merged = settingsSchema.safeParse({ ...current, ...patch.data, ...chain });
   if (!merged.success) return Response.json({ error: "Invalid settings" }, { status: 400 });
   const settings = saveSettings(userId, merged.data);
-  return Response.json({ settings, providers: providerStatus() });
+  return Response.json({ settings, providers: providerStatus(userId) });
 });

@@ -18,7 +18,7 @@ export default async function PracticePage() {
   const { tenses: targets, categories } = getPracticeSuggestions(userId);
   const suggestedCategories = categories.every((c) => c.status === "suggested");
   const suggested = targets.every((t) => t.status === "suggested");
-  const hasModel = hasConfiguredProvider();
+  const hasModel = hasConfiguredProvider(userId);
 
   return (
     <Page area="train">

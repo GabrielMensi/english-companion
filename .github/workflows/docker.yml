@@ -44,7 +44,8 @@ jobs:
           docker run --rm -v companion-data:/data english-companion:ci node scripts/db-migrate.mjs --init
           docker run --detach --name companion -p 3737:3737 -v companion-data:/data \
             -e ALLOWED_HOSTS=localhost -e BETTER_AUTH_URL=http://localhost:3737 \
-            -e BETTER_AUTH_SECRET="$(openssl rand -base64 48)" english-companion:ci
+            -e BETTER_AUTH_SECRET="$(openssl rand -base64 48)" \
+            -e APP_ENCRYPTION_KEY="$(openssl rand -base64 32)" -e SHARED_KEYS=false english-companion:ci
           for _ in $(seq 1 30); do
             curl -fsS http://127.0.0.1:3737/api/health && exit 0
             sleep 2

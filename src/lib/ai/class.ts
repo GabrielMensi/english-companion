@@ -18,7 +18,7 @@ import { generateObject } from "./insights";
 /** Structures the learner's notes of the teacher's corrections with the fixed taxonomy. Nothing is saved here. */
 export async function structureClassNotes(userId: string, text: string, settings: Settings) {
   const { output, provider, modelId } = await withChatPriority(userId, () =>
-    generateObject(settings, {
+    generateObject(userId, settings, {
       instructions: buildClassImportInstructions(settings.explanationLanguage),
       prompt: buildClassImportPrompt(text),
       schema: classImportSchema,
@@ -31,7 +31,7 @@ export async function structureClassNotes(userId: string, text: string, settings
 /** What to ask the teacher, from the stats of the period. */
 export async function generateClassQuestions(userId: string, digest: StatsDigest, settings: Settings) {
   const { output, provider, modelId } = await withChatPriority(userId, () =>
-    generateObject(settings, {
+    generateObject(userId, settings, {
       instructions: buildClassQuestionsInstructions(settings.explanationLanguage),
       prompt: `Statistics since the last class:\n<<<\n${digestToPromptText(digest)}\n>>>`,
       schema: classQuestionsSchema,

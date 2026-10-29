@@ -346,8 +346,9 @@ export const classSessions = sqliteTable(
 
 /**
  * The old key-value table, from when the app had one user. Settings, practice state and AI outputs moved to
- * `userSettings`; this one only still holds `api-keys`, global until the per-user keys (#126). It is the only
- * table of data without `user_id` (see schema.test.ts).
+ * `userSettings`, and so did the API keys (encrypted, see lib/secrets.ts); the old `api-keys` row is moved to the
+ * first account on first use and deleted. Nothing new goes here. It is the only table of data without `user_id`
+ * (see schema.test.ts).
  */
 export const settings = sqliteTable("settings", {
   key: text("key").primaryKey(),

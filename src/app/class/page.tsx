@@ -11,7 +11,7 @@ import { requirePageUser } from "@/lib/auth/session";
 export default async function ClassPage() {
   await connection();
   const { userId } = await requirePageUser("/class");
-  const hasModel = hasConfiguredProvider();
+  const hasModel = hasConfiguredProvider(userId);
 
   return (
     <Page area="review" width="xl">

@@ -29,7 +29,7 @@ import { DISCARDS_FILE } from "../../src/lib/eval/discards";
 import { findPreset } from "../../src/lib/topics";
 import { SAMPLES, TOPIC_SAMPLES, type Sample, type TopicSample } from "./samples";
 import { reportCheck, wantsCheck } from "./check";
-import { evalSettings } from "./settings";
+import { evalSettings, evalUserId } from "./settings";
 import { scoreSample } from "./score";
 
 const args = process.argv.slice(2);
@@ -104,6 +104,7 @@ if (specs.length === 0) {
 }
 
 const base = await evalSettings();
+const userId = (await evalUserId()) ?? "";
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const summary: Record<string, string | number>[] = [];
 const details: unknown[] = [];
@@ -136,7 +137,7 @@ for (const spec of specs) {
     if (i > 0) await sleep(delayMs);
     const started = Date.now();
     try {
-      const { analysis } = await analyzeMessage(requestFor(sample), settings);
+      const { analysis } = await analyzeMessage(userId, requestFor(sample), settings);
       const ms = Date.now() - started;
       const score = scoreSample(sample, analysis);
       times.push(ms);

@@ -20,7 +20,7 @@ export default async function InsightsPage({ searchParams }: PageProps<"/insight
   const range: ReportRange = REPORT_RANGES.includes(rawRange as ReportRange) ? (rawRange as ReportRange) : "7";
   const digest = getReportDigest(userId, range);
   const level = getLevelData(userId);
-  const hasModel = hasConfiguredProvider();
+  const hasModel = hasConfiguredProvider(userId);
 
   return (
     <Page area="review" width="xl">

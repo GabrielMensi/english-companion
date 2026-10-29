@@ -5,6 +5,7 @@ import { availableModels, hasConfiguredProvider, resolveTranscriptionModel } fro
 import { getMessages, getSession } from "@/lib/chat";
 import { answerTemplate } from "@/lib/exercise-set";
 import { getPractice, pendingSetSize } from "@/lib/practice";
+import { getStoredFeedback } from "@/lib/topic-review";
 import { getSettings } from "@/lib/settings";
 import { requirePageUser } from "@/lib/auth/session";
 
@@ -30,11 +31,16 @@ export default async function ChatPage({ params }: PageProps<"/chat/[id]">) {
         topic: practice?.kind === "topic" ? practice.topic : null,
       }}
       initialMessages={getMessages(userId, session.id)}
-      models={availableModels(settings)}
+      models={availableModels(userId, settings)}
       selectedProvider={settings.provider}
-      hasModel={hasConfiguredProvider()}
-      canDictate={resolveTranscriptionModel() !== null}
+      hasModel={hasConfiguredProvider(userId)}
+      canDictate={resolveTranscriptionModel(userId) !== null}
       answerTemplate={setSize ? answerTemplate(setSize) : null}
+      topicTools={
+        practice?.kind === "topic"
+          ? { tense: practice.tense ?? null, feedback: getStoredFeedback(userId, session.id) }
+          : null
+      }
     />
   );
 }

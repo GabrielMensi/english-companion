@@ -80,7 +80,7 @@ export async function createStudyPlan(userId: string, range: ReportRange): Promi
   const digest = getReportDigest(userId, range);
   if (digest.totals.messages === 0) throw new Error("There are no messages in this period yet");
   const { plan, provider, modelId } = await withChatPriority(userId, () =>
-    generateStudyPlan(digest, getSettings(userId)),
+    generateStudyPlan(userId, digest, getSettings(userId)),
   );
   const stored: StoredPlan = { plan, digest, generatedAt: Date.now(), provider, modelId };
   writeStored(userId, PLAN_KEY, stored);
@@ -122,7 +122,7 @@ export async function createLevelExplanation(userId: string): Promise<StoredLeve
   const { estimate, evolution } = getLevelData(userId);
   if (estimate.level === null) throw new Error(`Write about ${estimate.wordsNeeded} more words to get an estimate`);
   const { explanation, provider, modelId } = await withChatPriority(userId, () =>
-    explainLevel(estimate, evolution, getSettings(userId)),
+    explainLevel(userId, estimate, evolution, getSettings(userId)),
   );
   const stored: StoredLevelExplanation = {
     explanation,

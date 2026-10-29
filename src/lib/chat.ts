@@ -14,6 +14,7 @@ import { deletePractice, exerciseReplyFor, getPractice, practiceReplyRule } from
 import { recordExerciseResult } from "@/lib/missed-exercises";
 import { carryOverReviews } from "@/lib/review-carry-over";
 import { getSettings } from "@/lib/settings";
+import { deleteUserSetting } from "@/lib/user-settings";
 import { countWords, makeTitle } from "@/lib/text";
 import type { ChatMessage, VoiceInput } from "@/lib/types";
 import { logRouteError } from "@/lib/server-log";
@@ -64,7 +65,10 @@ export function deleteSession(userId: string, id: string) {
     // A class's hidden chat goes with its class (src/lib/class.ts), never on its own.
     .where(owned(schema.sessions, userId, eq(schema.sessions.id, id), ne(schema.sessions.mode, "class")))
     .run().changes;
-  if (deleted > 0) deletePractice(userId, id);
+  if (deleted > 0) {
+    deletePractice(userId, id);
+    deleteUserSetting(userId, `feedback:${id}`);
+  }
 }
 
 export function getMessages(userId: string, sessionId: string): ChatMessage[] {
@@ -157,6 +161,7 @@ export async function analyzeStoredMessage(
     const started = Date.now();
     const { analysis, provider, modelId, fallbackAttempts } = await withChatPriority(userId, () =>
       analyzeMessage(
+        userId,
         {
           text: message.content,
           mode: session.mode,
@@ -320,7 +325,7 @@ export async function improveMessagePrompt(userId: string, messageId: string) {
 
   const started = Date.now();
   const { prompt, provider, modelId } = await withChatPriority(userId, () =>
-    improvePrompt(message.correctedText ?? message.content, getSettings(userId)),
+    improvePrompt(userId, message.correctedText ?? message.content, getSettings(userId)),
   );
   const update = {
     improvedPrompt: prompt,

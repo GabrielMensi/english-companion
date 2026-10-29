@@ -28,6 +28,9 @@ import { ASR_SAMPLES } from "../../src/lib/eval/asr-samples";
 import { type MistakeOutcome, scoreTranscript } from "../../src/lib/eval/asr-score";
 import { ASR_SAMPLES_DIR } from "../../src/lib/eval/asr-store";
 import { resolveApiKey } from "../../src/lib/secrets";
+import { evalUserId } from "./settings";
+
+const userId = (await evalUserId()) ?? "";
 import { reportCheck, wantsCheck } from "./check";
 
 /** Whisper imitates the prompt's style: an ungrammatical, disfluent one discourages "cleaning up". */
@@ -39,8 +42,8 @@ const delayMs = Number(args.find((a) => a.startsWith("--delay="))?.split("=")[1]
 let specs = args.filter((a) => !a.startsWith("--"));
 if (specs.length === 0) {
   specs = [
-    ...(resolveApiKey("groq") ? ["groq:whisper-large-v3-turbo", "groq-verbatim:whisper-large-v3-turbo"] : []),
-    ...(resolveApiKey("gemini")
+    ...(resolveApiKey(userId, "groq") ? ["groq:whisper-large-v3-turbo", "groq-verbatim:whisper-large-v3-turbo"] : []),
+    ...(resolveApiKey(userId, "gemini")
       ? ["gemini:gemini-3.5-transcribe", "gemini-smart:gemini-3.5-transcribe", "gemini-llm:gemini-flash-lite-latest"]
       : []),
   ];
@@ -125,7 +128,7 @@ function transcriber(engine: string, model: string): Transcriber {
 }
 
 function requireKey(provider: "groq" | "gemini") {
-  const resolved = resolveApiKey(provider);
+  const resolved = resolveApiKey(userId, provider);
   if (!resolved) throw new Error(`Missing ${provider} API key`);
   return resolved.key;
 }

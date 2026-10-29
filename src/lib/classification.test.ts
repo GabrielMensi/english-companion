@@ -63,7 +63,7 @@ describe("classification per user", () => {
     expect(fakeAi.gemini.calls).toBe(0);
   });
 
-  it("a chat of any user holds back batches while the API keys are shared", async () => {
+  it("a chat holds back only its own user's batches, not another user's", async () => {
     const mine = mistake(a);
     const theirs = mistake(b);
     let release!: () => void;
@@ -71,15 +71,13 @@ describe("classification per user", () => {
 
     startClassification(a.id);
     startClassification(b.id);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(classificationOf(theirs.id)).toBe("pending");
+    await untilIdle(b);
+    expect(classificationOf(theirs.id)).toBe("done");
     expect(classificationOf(mine.id)).toBe("pending");
 
     release();
     await chat;
     await untilIdle(a);
-    await untilIdle(b);
     expect(classificationOf(mine.id)).toBe("done");
-    expect(classificationOf(theirs.id)).toBe("done");
   });
 });

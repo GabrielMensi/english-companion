@@ -260,8 +260,14 @@ function ApiKeyField({
       )}
       {status.source === "env" && (
         <p className="text-sm text-muted-foreground">
-          Using <code>{KEY_ENV_VARS[provider]}</code> from the environment (<code>{status.detail}</code>). A key saved
-          here takes priority.
+          {status.detail ? (
+            <>
+              Using <code>{KEY_ENV_VARS[provider]}</code> from the environment (<code>{status.detail}</code>).
+            </>
+          ) : (
+            "Using the server’s key."
+          )}{" "}
+          A key saved here takes priority.
         </p>
       )}
 

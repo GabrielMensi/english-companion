@@ -63,6 +63,7 @@ async function loadSamples(): Promise<ClassifySample[]> {
 
 const samples = await loadSamples();
 const base = await evalSettings();
+const keyUserId = (await evalUserId()) ?? "";
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const summary: Record<string, string | number>[] = [];
 const details: unknown[] = [];
@@ -106,7 +107,7 @@ for (const spec of specs) {
     const started = Date.now();
     let results: Awaited<ReturnType<typeof classifyBatch>>["results"] = new Map();
     try {
-      ({ results } = await classifyBatch(batch, settings));
+      ({ results } = await classifyBatch(keyUserId, batch, settings));
       times.push(Date.now() - started);
     } catch (error) {
       console.log(`  FAIL batch ${start / batchSize + 1}: ${errorToMessage(error)}`);

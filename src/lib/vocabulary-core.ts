@@ -81,3 +81,15 @@ export function groupVocabulary(rows: VocabularyRow[]): VocabularyWord[] {
 
   return [...words.values()].sort((a, b) => b.lastSeen - a.lastSeen);
 }
+
+/** The English options of a meaning with `more` added, without repeats (ignoring case). */
+export function mergeEnglish(existing: readonly string[], more: readonly string[]): string[] {
+  const seen = new Set(existing.map((e) => e.toLowerCase()));
+  const merged = [...existing];
+  for (const option of more) {
+    if (seen.has(option.toLowerCase())) continue;
+    seen.add(option.toLowerCase());
+    merged.push(option);
+  }
+  return merged;
+}

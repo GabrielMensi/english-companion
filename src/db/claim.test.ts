@@ -59,14 +59,15 @@ describe("claimData", () => {
       expect(result.claimed[table]).toBe(before[table]);
     }
     expect(hasUnclaimedData(sqlite)).toBe(false);
-    // Settings, practice state and AI outputs now belong to the user; the keys stay global.
+    // Settings, practice state, AI outputs and the saved API keys now belong to the user.
     expect(sqlite.prepare("SELECT key FROM user_settings WHERE user_id = 'ana' ORDER BY key").pluck().all()).toEqual([
+      "api-keys",
       "app",
       "insights-plan",
       "practice:s2",
     ]);
-    expect(sqlite.prepare("SELECT key FROM settings").pluck().all()).toEqual(["api-keys"]);
-    expect(result.claimed.settings).toBe(3);
+    expect(sqlite.prepare("SELECT key FROM settings").pluck().all()).toEqual([]);
+    expect(result.claimed.settings).toBe(4);
   });
 
   it("keeps settings the account saved after signing up, and says which old ones it skipped", () => {
@@ -76,11 +77,27 @@ describe("claimData", () => {
     );
     const result = claimData(sqlite, "ana@x.com");
     expect(result.skippedSettings).toEqual(["app"]);
-    expect(result.claimed.settings).toBe(2);
+    expect(result.claimed.settings).toBe(3);
     expect(sqlite.prepare("SELECT value FROM user_settings WHERE key = 'app'").pluck().get()).toBe(
       '{"explanationLanguage":"en"}',
     );
-    expect(sqlite.prepare("SELECT key FROM settings").pluck().all()).toEqual(["api-keys"]);
+    expect(sqlite.prepare("SELECT key FROM settings").pluck().all()).toEqual([]);
+  });
+
+  it("merges the old API keys per provider into the ones the account already saved, dropping none", () => {
+    const sqlite = oldDatabase();
+    sqlite.exec(`UPDATE settings SET value = '{"gemini":"old-gemini","groq":"old-groq"}' WHERE key = 'api-keys'`);
+    sqlite.exec(`INSERT INTO user_settings (user_id, key, value) VALUES ('ana', 'api-keys', '{"groq":"mine-groq"}')`);
+    const result = claimData(sqlite, "ana@x.com");
+    expect(result.skippedSettings).not.toContain("api-keys");
+    const keys = JSON.parse(
+      sqlite
+        .prepare("SELECT value FROM user_settings WHERE user_id = 'ana' AND key = 'api-keys'")
+        .pluck()
+        .get() as string,
+    );
+    expect(keys).toEqual({ gemini: "old-gemini", groq: "mine-groq" });
+    expect(sqlite.prepare("SELECT count(*) FROM settings").pluck().get()).toBe(0);
   });
 
   it("waits for the write lock instead of failing halfway, and changes nothing while it is held", () => {

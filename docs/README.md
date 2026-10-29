@@ -7,7 +7,7 @@ Una carpeta por **Area** del tablero ([GitHub Project](https://github.com/users/
 
 | Area               | Carpeta     | Doc                                                                                                                                                                  | Kind     | Status      |
 | ------------------ | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----------- |
-| Chat & corrections | `chat/`     | —                                                                                                                                                                    |          |             |
+| Chat & corrections | `chat/`     | [TOPIC_TOOLS.md](chat/TOPIC_TOOLS.md): feedback al final, tiempo verbal y frases al Vocabulario en chats de tema                                                     |
 | Voice              | `voice/`    | [VOICE.md](voice/VOICE.md): investigación y plan de voz (dictado, escuchar, pronunciación)                                                                           | Research | In progress |
 | Voice              | `voice/`    | [PRONUNCIATION_AUDIO.md](voice/PRONUNCIATION_AUDIO.md): schwa, acento de palabra y acento desde el audio (Gemini vs wav2vec2); chequeo de sonidos beta en Read aloud | Research | In progress |
 | Practice           | `practice/` | [VERB_TENSES.md](practice/VERB_TENSES.md): diagnóstico y práctica por tiempo verbal                                                                                  | Feature  | Done        |
