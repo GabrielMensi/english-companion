@@ -101,6 +101,7 @@ function recentMistakes(userId: string, category: ErrorCategory, subtype: string
       category: schema.corrections.category,
       inputMode: schema.messages.inputMode,
       discardedAt: schema.corrections.discardedAt,
+      source: schema.corrections.source,
     })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.messages.id, schema.corrections.messageId))
