@@ -48,13 +48,12 @@
 - Descartar errores (#95, #96): "Wrong type?" marca un error como typo y "Discard" lo saca de las estadísticas cuando la corrección estaba mal (se puede deshacer); la tarjeta de corrección y el dashboard se actualizan al momento.
 - Sin API key (#97, #98): Today, Practice e Insights avisan y desactivan los botones de IA con un link a Settings; la configuración vieja se reescribe al leerla, sin los campos de Ollama.
 - Progreso (#99–#101): sección de pronunciación en el reporte de Insights, gráfico de precisión de Read aloud en el dashboard y la proporción de errores del nivel CEFR revisada por proveedor y con chats reales ([LEVEL_CALIBRATION.md](progress/LEVEL_CALIBRATION.md)).
-
 - Login (#124, #138): la app pide cuenta siempre, también en local (Better Auth, primera cuenta en `/signup`, `pnpm auth:reset-password`), con tests que recorren cada ruta y página para que ninguna quede abierta ([AUTH_MULTIUSER.md](platform/AUTH_MULTIUSER.md)).
 - Varias cuentas (#125, #155): cada cuenta ve solo sus datos y sus ajustes; lo que guardaste antes de las cuentas pasa a la tuya con `pnpm auth:claim-data <email>` (con respaldo).
 - API keys por cuenta, cifradas (#126, #156, #157): se guardan cifradas con `data/encryption.key`, `pnpm keys:reencrypt` al rotarla, y Configuración > Your data exporta e importa tus datos en JSON para mover el historial entre PCs.
-- CSP con nonce y Kokoro sin `eval` (#137, #153) y Next 16.4.3 con el arreglo de seguridad (#142).
+- CSP con nonce en todas las páginas (#137), zod sin `eval` (#153: su prueba con `new Function` chocaba con la CSP; ahora `@/lib/zod` con `jitless`), Kokoro en WebGPU intentado (#45, lo valida el usuario) y Next 16.4.3 con el arreglo de seguridad (#142).
 - Tests (#111–#114, #164): rutas con login y la IA simulada, tests de aislamiento entre cuentas y E2E con Playwright (`pnpm test:e2e`, nocturno y antes de un release; [TESTING.md](platform/TESTING.md)).
-- IA más robusta (#115–#118): el fallback entre modelos cubre más fallas y los errores de proveedor no filtran tu texto a los logs.
+- IA más robusta (#115–#118): fallback de Groq para mensajes largos, los descartes se conservan al reintentar, umbrales de regresión en `pnpm eval:*` (`--check`) y whisper.cpp fuera del eval de ASR.
 - Limpieza (#119–#123): logger de rutas sin texto del alumno, lectura de bodies con límite y código muerto fuera ([CODE_QUALITY.md](platform/CODE_QUALITY.md)).
 - Releases (#128): ramas `main`/`develop`, SemVer, tags y workflow de release ([RELEASES.md](platform/RELEASES.md)).
 - Evals de chats de tema y de correcciones descartadas (#146, #147): `pnpm eval:export-discards` y `eval:models --topics` miden si el modelo repite lo que descartaste ([TOPIC_EVAL.md](ai/TOPIC_EVAL.md)).
