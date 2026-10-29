@@ -2,6 +2,7 @@
   "name": "english-companion",
   "version": "0.2.0-beta.1",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev --port 3737 --hostname 127.0.0.1 --experimental-https",
     "build": "next build",
@@ -24,7 +25,8 @@
     "eval:classify": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/classify.mts",
     "eval:asr": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/asr.mts",
     "eval:level": "tsx --conditions=react-server --tsconfig tsconfig.json scripts/eval/level.mts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "screenshots": "playwright test -c playwright.screenshots.config.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.93",
