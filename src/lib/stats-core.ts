@@ -2,8 +2,15 @@
  * Pure statistics computation for the dashboard. Data volume is personal-scale,
  * so everything is computed in memory from the raw rows of the period.
  */
-import type { InputMode } from "@/db/schema";
-import { countsInStats, type ErrorCategory, SEVERITIES, type Severity, SEVERITY_WEIGHTS } from "@/lib/taxonomy";
+import type { CorrectionSource, InputMode } from "@/db/schema";
+import {
+  countsInStats,
+  type ErrorCategory,
+  isDiscarded,
+  SEVERITIES,
+  type Severity,
+  SEVERITY_WEIGHTS,
+} from "@/lib/taxonomy";
 
 export interface StatMessage {
   createdAt: number;
@@ -11,6 +18,7 @@ export interface StatMessage {
 }
 
 export interface StatCorrection {
+  id: string;
   messageId: string;
   createdAt: number;
   category: ErrorCategory;
@@ -23,6 +31,15 @@ export interface StatCorrection {
   explanation: string;
   /** Mistakes in dictated messages only count in categories speech-to-text can measure. */
   inputMode: InputMode;
+  /** Discarded by the learner as a wrong correction: left out of every number. */
+  discardedAt: number | null;
+  /** Optional so older callers keep working: absent means the AI. */
+  source?: CorrectionSource;
+  /**
+   * A mistake from class whose word count the learner didn't give: it shows in the counts, the weak areas and the
+   * top mistakes, but is left out of every per-100-words rate (there is no denominator for it).
+   */
+  unrated?: boolean;
 }
 
 export interface StatsInput {
@@ -49,7 +66,23 @@ export interface CategoryStat {
   bySeverity: Record<Severity, number>;
   /** Most frequent classified types in the category, most frequent first. */
   topSubtypes: { subtype: string; count: number }[];
+  /** The latest counted mistakes in the category, newest first, to review (and discard) one by one. */
+  recent: StatMistake[];
 }
+
+/** One counted mistake, as the dashboard lists it. */
+export interface StatMistake {
+  id: string;
+  original: string;
+  correction: string;
+  explanation: string;
+  severity: Severity;
+  createdAt: number;
+  source: CorrectionSource;
+}
+
+/** Mistakes listed per category on the dashboard. */
+const RECENT_PER_CATEGORY = 10;
 
 export interface Stats {
   totals: {
@@ -71,6 +104,8 @@ export interface Stats {
     subcategory: string;
     count: number;
     example: { original: string; correction: string; explanation: string };
+    /** The correction the example comes from. */
+    exampleId: string;
   }[];
 }
 
@@ -84,9 +119,11 @@ export function computeStats(input: StatsInput): Stats {
   const previousWords = sum(input.previousMessages.map((m) => m.wordCount));
 
   const bySeverity = emptySeverityRecord();
-  for (const c of input.corrections) bySeverity[c.severity]++;
+  for (const c of input.corrections) if (!isDiscarded(c)) bySeverity[c.severity]++;
 
-  const messagesWithErrors = new Set(counted.map((c) => c.messageId)).size;
+  const rated = counted.filter((c) => !c.unrated);
+  const previousRated = previousCounted.filter((c) => !c.unrated);
+  const messagesWithErrors = new Set(rated.map((c) => c.messageId)).size;
 
   return {
     totals: {
@@ -94,16 +131,16 @@ export function computeStats(input: StatsInput): Stats {
       words,
       errors: counted.length,
       typos: bySeverity.typo,
-      per100Words: rate(counted.length, words),
+      per100Words: rate(rated.length, words),
       cleanMessagesPct:
         input.messages.length === 0
           ? 0
           : round(((input.messages.length - messagesWithErrors) / input.messages.length) * 100),
-      previousPer100Words: previousWords > 0 ? rate(previousCounted.length, previousWords) : null,
+      previousPer100Words: previousWords > 0 ? rate(previousRated.length, previousWords) : null,
     },
     bySeverity,
     categories: categoryStats(counted, previousCounted, words, previousWords),
-    timeline: timeline(input, counted),
+    timeline: timeline(input, rated),
     topMistakes: topMistakes(counted),
   };
 }
@@ -116,7 +153,9 @@ function categoryStats(
 ): CategoryStat[] {
   const map = new Map<ErrorCategory, CategoryStat>();
   const subtypeCounts = new Map<ErrorCategory, Map<string, number>>();
+  const ratedCounts = new Map<ErrorCategory, number>();
   for (const c of counted) {
+    if (!c.unrated) ratedCounts.set(c.category, (ratedCounts.get(c.category) ?? 0) + 1);
     let stat = map.get(c.category);
     if (!stat) {
       stat = emptyCategoryStat(c.category);
@@ -125,6 +164,7 @@ function categoryStats(
     stat.count++;
     stat.score += SEVERITY_WEIGHTS[c.severity];
     stat.bySeverity[c.severity]++;
+    stat.recent.push(statMistake(c));
     if (c.subtype) {
       const counts = subtypeCounts.get(c.category) ?? new Map<string, number>();
       counts.set(c.subtype, (counts.get(c.subtype) ?? 0) + 1);
@@ -139,7 +179,8 @@ function categoryStats(
   }
 
   const previousCounts = new Map<ErrorCategory, number>();
-  for (const c of previousCounted) previousCounts.set(c.category, (previousCounts.get(c.category) ?? 0) + 1);
+  for (const c of previousCounted.filter((c) => !c.unrated))
+    previousCounts.set(c.category, (previousCounts.get(c.category) ?? 0) + 1);
 
   // Categories that had errors before but none now are improvements worth showing.
   for (const category of previousCounts.keys()) {
@@ -149,7 +190,8 @@ function categoryStats(
   }
 
   for (const stat of map.values()) {
-    stat.per100Words = rate(stat.count, words);
+    stat.recent = stat.recent.sort((a, b) => b.createdAt - a.createdAt).slice(0, RECENT_PER_CATEGORY);
+    stat.per100Words = rate(ratedCounts.get(stat.category) ?? 0, words);
     if (previousWords > 0 && words > 0) {
       stat.trend = round(stat.per100Words - rate(previousCounts.get(stat.category) ?? 0, previousWords));
     }
@@ -204,12 +246,14 @@ function topMistakes(counted: StatCorrection[]): Stats["topMistakes"] {
         subcategory: c.subcategory,
         count: 1,
         example,
+        exampleId: c.id,
         last: c.createdAt,
       });
     } else {
       entry.count++;
       if (c.createdAt > entry.last) {
         entry.example = example;
+        entry.exampleId = c.id;
         entry.last = c.createdAt;
       }
     }
@@ -217,7 +261,14 @@ function topMistakes(counted: StatCorrection[]): Stats["topMistakes"] {
   return [...map.values()]
     .sort((a, b) => b.count - a.count || b.last - a.last)
     .slice(0, 10)
-    .map(({ category, subtype, subcategory, count, example }) => ({ category, subtype, subcategory, count, example }));
+    .map(({ category, subtype, subcategory, count, example, exampleId }) => ({
+      category,
+      subtype,
+      subcategory,
+      count,
+      example,
+      exampleId,
+    }));
 }
 
 /** Local-date bucket key: YYYY-MM-DD (weekly buckets use the week's Monday). */
@@ -240,7 +291,13 @@ function emptyCategoryStat(category: ErrorCategory): CategoryStat {
     trend: null,
     bySeverity: emptySeverityRecord(),
     topSubtypes: [],
+    recent: [],
   };
+}
+
+function statMistake(c: StatCorrection): StatMistake {
+  const { id, original, correction, explanation, severity, createdAt } = c;
+  return { id, original, correction, explanation, severity, createdAt, source: c.source ?? "ai" };
 }
 
 function emptySeverityRecord(): Record<Severity, number> {

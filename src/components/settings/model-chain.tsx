@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Loader2, PlugZap } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -8,6 +9,7 @@ import { type Chain, chainSteps, moveStep, toggleStep } from "@/lib/ai/fallback"
 import { PROVIDERS, type ProviderId } from "@/lib/ai/provider-info";
 import type { Settings } from "@/lib/settings";
 import { cn } from "@/lib/utils";
+
 import { modelFacts, type Providers, TestResult, type TestState } from "./provider-card";
 
 /**
@@ -38,10 +40,10 @@ export function ModelChain({
     <section className="space-y-3">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h2 className="font-medium">Model chain</h2>
+          <h2 className="text-section font-semibold tracking-tight">Model chain</h2>
           <p className="text-sm text-muted-foreground">
             Every message goes to the first model. If it fails (offline, quota exceeded, overloaded…), the next one
-            takes over. A local model is slower and uses your GPU, so it usually goes last.
+            takes over.
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => onTestAll(testable)} disabled={testing || !testable.length}>
@@ -64,7 +66,7 @@ export function ModelChain({
                 (!enabled || !configured) && "bg-muted/40",
               )}
             >
-              <span className="w-5 text-center text-sm tabular-nums text-muted-foreground">
+              <span className="w-5 text-center text-sm text-muted-foreground tabular-nums">
                 {enabled ? i + 1 : "–"}
               </span>
               <div className="min-w-0 flex-1">
@@ -74,11 +76,7 @@ export function ModelChain({
                   {isPrimary && <Badge>Primary</Badge>}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {!configured
-                    ? "No API key: add one below to use it"
-                    : !enabled
-                      ? "Off"
-                      : (facts ?? "No eval data")}
+                  {!configured ? "No API key: add one below to use it" : !enabled ? "Off" : (facts ?? "No eval data")}
                 </div>
               </div>
               {enabled && <TestResult test={tests[id]} compact />}

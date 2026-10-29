@@ -1,8 +1,10 @@
 import "server-only";
 
 import { generateText, NoObjectGeneratedError, Output } from "ai";
-import type { z } from "zod";
+
 import type { Settings } from "@/lib/settings";
+import type { z } from "@/lib/zod";
+
 import {
   buildCategoryExerciseInstructions,
   buildCategoryExercisePrompt,
@@ -23,11 +25,12 @@ import { withFallback } from "./providers";
  * the usable ones. Too few usable items counts as a failure, so the next model is tried.
  */
 async function generateItems<Raw, T>(
+  userId: string,
   settings: Settings,
   prompt: { instructions: string; prompt: string; schema: z.ZodType<Raw> },
   normalize: (raw: Raw) => T[],
 ) {
-  const { result, used } = await withFallback(settings, async (resolved, { isLast }) => {
+  const { result, used } = await withFallback(userId, settings, async (resolved, { isLast }) => {
     const run = async () => {
       const { output } = await generateText({
         ...resolved.call({ temperature: 0.7, retry: isLast }),
@@ -42,7 +45,7 @@ async function generateItems<Raw, T>(
     try {
       return await run();
     } catch (error) {
-      // Small local models occasionally produce invalid JSON: one retry usually fixes it.
+      // Models occasionally produce invalid JSON: one retry usually fixes it.
       if (!NoObjectGeneratedError.isInstance(error)) throw error;
       return await run();
     }
@@ -52,9 +55,14 @@ async function generateItems<Raw, T>(
 }
 
 /** Generates a set of tense exercises. */
-export async function generateExercises(request: Omit<ExerciseRequest, "explanationLanguage">, settings: Settings) {
+export async function generateExercises(
+  userId: string,
+  request: Omit<ExerciseRequest, "explanationLanguage">,
+  settings: Settings,
+) {
   const input = { ...request, explanationLanguage: settings.explanationLanguage };
   return generateItems(
+    userId,
     settings,
     { instructions: buildExerciseInstructions(input), prompt: buildExercisePrompt(input), schema: exercisesSchema },
     (raw) => normalizeExercises(raw, input),
@@ -63,11 +71,13 @@ export async function generateExercises(request: Omit<ExerciseRequest, "explanat
 
 /** Generates a set of exercises (fill in, multiple choice, fix the mistake) for an error category. */
 export async function generateCategoryExercises(
+  userId: string,
   request: Omit<CategoryExerciseRequest, "explanationLanguage">,
   settings: Settings,
 ) {
   const input = { ...request, explanationLanguage: settings.explanationLanguage };
   return generateItems(
+    userId,
     settings,
     {
       instructions: buildCategoryExerciseInstructions(input),

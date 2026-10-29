@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
+
 import { bucketKey, computeStats, type StatCorrection, type StatsInput } from "./stats-core";
 
 const DAY = 86_400_000;
 const now = new Date(2026, 8, 26, 12).getTime();
 
+let nextId = 0;
+
 function correction(partial: Partial<StatCorrection>): StatCorrection {
   return {
+    id: `c${nextId++}`,
     messageId: "m1",
     createdAt: now - DAY,
     category: "articles",
@@ -16,6 +20,7 @@ function correction(partial: Partial<StatCorrection>): StatCorrection {
     original: "go to park",
     correction: "go to the park",
     explanation: "...",
+    discardedAt: null,
     ...partial,
   };
 }
@@ -74,6 +79,25 @@ describe("computeStats", () => {
       ["verb_tense", 1],
       ["articles", 1],
     ]);
+  });
+
+  it("leaves discarded corrections out of every number", () => {
+    const stats = computeStats(
+      input({
+        messages: [{ createdAt: now - DAY, wordCount: 50 }],
+        corrections: [
+          correction({ discardedAt: now }),
+          correction({ severity: "typo", category: "spelling", discardedAt: now }),
+          correction({ category: "verb_tense" }),
+        ],
+        previousCorrections: [correction({ createdAt: now - 8 * DAY, discardedAt: now })],
+      }),
+    );
+    expect(stats.totals.errors).toBe(1);
+    expect(stats.totals.typos).toBe(0);
+    expect(stats.bySeverity.minor).toBe(1);
+    expect(stats.categories.map((c) => c.category)).toEqual(["verb_tense"]);
+    expect(stats.topMistakes.map((m) => m.category)).toEqual(["verb_tense"]);
   });
 
   it("ranks categories by severity-weighted score", () => {
@@ -142,7 +166,13 @@ describe("computeStats", () => {
         ],
       }),
     );
-    expect(stats.topMistakes[0]).toMatchObject({ subcategory: "missing_article", count: 2, example: { original: "new" } });
+    expect(stats.topMistakes[0]).toMatchObject({
+      subcategory: "missing_article",
+      count: 2,
+      example: { original: "new" },
+      exampleId: stats.categories[0].recent[0].id,
+    });
+    expect(stats.categories[0].recent.map((m) => m.original)).toEqual(["new", "go to park", "old"]);
   });
 
   it("groups classified mistakes by their fixed type, whatever the free label", () => {

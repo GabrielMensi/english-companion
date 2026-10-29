@@ -1,7 +1,9 @@
 import "server-only";
 
-import { and, desc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
+
 import { db, schema } from "@/db";
+import { owned } from "@/db/owned";
 import { generateCategoryExercises, generateExercises } from "@/lib/ai/exercises";
 import {
   categoryExerciseIntro,
@@ -24,18 +26,14 @@ import {
   practiceTitle,
   selectPracticeTargets,
 } from "@/lib/tense-practice";
+import { type TopicChoice, topicOpening, topicTitle } from "@/lib/topics";
 
 /** Long enough for the tense stats to mean something, recent enough to reflect the current level. */
 const TARGETS_RANGE = "90";
 
-/** Tenses worth practicing now, from the per-tense diagnosis of the last 90 days. */
-export function getPracticeTargets() {
-  return selectPracticeTargets(getDashboardData(TARGETS_RANGE).tenses.tenses);
-}
-
 /** Both kinds of suggestions from a single pass over the stats: tenses, and the weakest error categories. */
-export function getPracticeSuggestions() {
-  const data = getDashboardData(TARGETS_RANGE);
+export function getPracticeSuggestions(userId: string) {
+  const data = getDashboardData(userId, TARGETS_RANGE);
   return { tenses: selectPracticeTargets(data.tenses.tenses), categories: selectCategoryTargets(data.stats) };
 }
 
@@ -52,8 +50,8 @@ export interface StartPracticeInput {
  * it" tasks come one at a time, the next one as the reply to each answer. The
  * learner's answers go through the normal correction pipeline.
  */
-export async function startPractice(input: StartPracticeInput) {
-  let practice: Exclude<Practice, { kind: "category" }>;
+export async function startPractice(userId: string, input: StartPracticeInput) {
+  let practice: Exclude<Practice, { kind: "category" | "topic" }>;
   let opening: string;
   let origin: { provider: string | null; model: string | null } = { provider: null, model: null };
 
@@ -62,8 +60,12 @@ export async function startPractice(input: StartPracticeInput) {
     opening = pickQuestion(input.tense);
   } else {
     const contrastWith = input.kind === "contrast" && input.contrastWith !== input.tense ? input.contrastWith : null;
-    const generated = await withChatPriority(() =>
-      generateExercises({ kind: input.kind as ExerciseKind, tense: input.tense, contrastWith }, getSettings()),
+    const generated = await withChatPriority(userId, () =>
+      generateExercises(
+        userId,
+        { kind: input.kind as ExerciseKind, tense: input.tense, contrastWith },
+        getSettings(userId),
+      ),
     );
     practice = { kind: input.kind, tense: input.tense, contrastWith, items: generated.items };
     // "Use it" tasks go one at a time; the drills show the whole set, answered in one message.
@@ -71,12 +73,12 @@ export async function startPractice(input: StartPracticeInput) {
     origin = { provider: generated.provider, model: generated.modelId };
   }
 
-  const session = createSession(practice.kind === "conversation" ? "conversation" : "correction");
-  savePractice(session.id, practice);
+  const session = createSession(userId, practice.kind === "conversation" ? "conversation" : "correction");
+  savePractice(userId, session.id, practice);
   db.insert(schema.messages)
-    .values({ id: crypto.randomUUID(), sessionId: session.id, role: "assistant", content: opening, ...origin })
+    .values({ id: crypto.randomUUID(), userId, sessionId: session.id, role: "assistant", content: opening, ...origin })
     .run();
-  return updateSession(session.id, {
+  return updateSession(userId, session.id, {
     title: practiceTitle({ ...practice, contrastWith: "contrastWith" in practice ? practice.contrastWith : null }),
   });
 }
@@ -90,8 +92,8 @@ export interface StartCategoryPracticeInput {
 const MATERIAL_MISTAKES = 6;
 
 /** The learner's latest distinct mistakes in the category (and type), the ones that count in the stats. */
-function recentMistakes(category: ErrorCategory, subtype: string | null) {
-  const { countTyposInStats } = getSettings();
+function recentMistakes(userId: string, category: ErrorCategory, subtype: string | null) {
+  const { countTyposInStats } = getSettings(userId);
   const rows = db
     .select({
       original: schema.corrections.original,
@@ -99,11 +101,15 @@ function recentMistakes(category: ErrorCategory, subtype: string | null) {
       severity: schema.corrections.severity,
       category: schema.corrections.category,
       inputMode: schema.messages.inputMode,
+      discardedAt: schema.corrections.discardedAt,
+      source: schema.corrections.source,
     })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.messages.id, schema.corrections.messageId))
     .where(
-      and(
+      owned(
+        schema.corrections,
+        userId,
         eq(schema.corrections.category, category),
         subtype ? eq(schema.corrections.subtype, subtype) : undefined,
       ),
@@ -129,21 +135,23 @@ function recentMistakes(category: ErrorCategory, subtype: string | null) {
  * choice and fix the mistake, using the learner's own mistakes as material.
  * The whole set is shown at once and answered in one message, like the tense drills.
  */
-export async function startCategoryPractice(input: StartCategoryPracticeInput) {
+export async function startCategoryPractice(userId: string, input: StartCategoryPracticeInput) {
   const subtype = validSubtype(input.category, input.subtype);
-  const generated = await withChatPriority(() =>
+  const generated = await withChatPriority(userId, () =>
     generateCategoryExercises(
-      { category: input.category, subtype, mistakes: recentMistakes(input.category, subtype) },
-      getSettings(),
+      userId,
+      { category: input.category, subtype, mistakes: recentMistakes(userId, input.category, subtype) },
+      getSettings(userId),
     ),
   );
   const practice: Practice = { kind: "category", category: input.category, subtype, items: generated.items };
 
-  const session = createSession("correction");
-  savePractice(session.id, practice);
+  const session = createSession(userId, "correction");
+  savePractice(userId, session.id, practice);
   db.insert(schema.messages)
     .values({
       id: crypto.randomUUID(),
+      userId,
       sessionId: session.id,
       role: "assistant",
       content: setOpening(categoryExerciseIntro(practice), practice.items),
@@ -151,5 +159,25 @@ export async function startCategoryPractice(input: StartCategoryPracticeInput) {
       model: generated.modelId,
     })
     .run();
-  return updateSession(session.id, { title: categoryPracticeTitle(practice) });
+  return updateSession(userId, session.id, { title: categoryPracticeTitle(practice) });
+}
+
+/**
+ * Creates a conversation about a topic (src/lib/topics.ts) with a fixed
+ * opening question, so it starts instantly. The topic steers the replies; the
+ * learner's messages are corrected and counted like in any other chat.
+ */
+export function startTopicChat(userId: string, choice: TopicChoice, tense: Tense | null = null) {
+  const session = createSession(userId, "conversation");
+  savePractice(userId, session.id, { kind: "topic", ...choice, tense });
+  db.insert(schema.messages)
+    .values({
+      id: crypto.randomUUID(),
+      userId,
+      sessionId: session.id,
+      role: "assistant",
+      content: topicOpening(choice),
+    })
+    .run();
+  return updateSession(userId, session.id, { title: topicTitle(choice) });
 }

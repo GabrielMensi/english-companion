@@ -1,23 +1,22 @@
-import type { NextRequest } from "next/server";
 import { errorToMessage } from "@/lib/ai/fallback";
 import { PROVIDER_IDS, type ProviderId } from "@/lib/ai/provider-info";
 import { listModels } from "@/lib/ai/providers";
-import { getSettings, settingsSchema } from "@/lib/settings";
+import { withUser } from "@/lib/auth/with-user";
+import { logRouteError } from "@/lib/server-log";
 
-export async function GET(request: NextRequest) {
+import type { NextRequest } from "next/server";
+
+export const GET = withUser(async (request: NextRequest, _ctx, { userId }) => {
   const params = request.nextUrl.searchParams;
   const provider = params.get("provider") as ProviderId | null;
   if (!provider || !PROVIDER_IDS.includes(provider)) {
     return Response.json({ error: "Invalid provider" }, { status: 400 });
   }
 
-  // Lets the settings page list Ollama models for a URL that isn't saved yet.
-  const baseUrl = settingsSchema.shape.ollamaBaseUrl.safeParse(params.get("ollamaBaseUrl"));
-  const settings = { ...getSettings(), ...(baseUrl.success && baseUrl.data ? { ollamaBaseUrl: baseUrl.data } : {}) };
-
   try {
-    return Response.json({ models: await listModels(provider, settings) });
+    return Response.json({ models: await listModels(userId, provider) });
   } catch (error) {
+    logRouteError("GET /api/models (listing models)", error);
     return Response.json({ models: [], error: errorToMessage(error) });
   }
-}
+});

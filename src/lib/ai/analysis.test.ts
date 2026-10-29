@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   type Analysis,
   buildAnalysisInstructions,
@@ -143,7 +144,13 @@ describe("grounding", () => {
   it("drops spanish phrases that are not in the learner's text", () => {
     const phrase = { english: ["x"], note: null };
     const result = normalizeAnalysis(
-      { ...base, spanishPhrases: [{ ...phrase, spanish: "aprovechar" }, { ...phrase, spanish: "actualmente" }] },
+      {
+        ...base,
+        spanishPhrases: [
+          { ...phrase, spanish: "aprovechar" },
+          { ...phrase, spanish: "actualmente" },
+        ],
+      },
       "correction",
       text,
     );
@@ -196,7 +203,9 @@ describe("prompts", () => {
   });
 
   it("asks for a reply only in conversation mode", () => {
-    expect(buildAnalysisInstructions({ mode: "correction", explanationLanguage: "es" })).toContain("reply: always null");
+    expect(buildAnalysisInstructions({ mode: "correction", explanationLanguage: "es" })).toContain(
+      "reply: always null",
+    );
     expect(buildAnalysisInstructions({ mode: "conversation", explanationLanguage: "en" })).toContain(
       "friendly conversation partner",
     );
@@ -214,14 +223,21 @@ describe("prompts", () => {
 
   it("includes the question the tutor opened a practice chat with", () => {
     const history = [{ learner: null, assistant: "What were you doing at 8 pm yesterday?" }];
-    const prompt = buildAnalysisPrompt({ text: "I was cooking", mode: "conversation", explanationLanguage: "es", history });
+    const prompt = buildAnalysisPrompt({
+      text: "I was cooking",
+      mode: "conversation",
+      explanationLanguage: "es",
+      history,
+    });
     expect(prompt).toContain("Conversation so far (context only, do not analyze it):\nYou: What were you doing");
     expect(prompt).not.toContain("Learner: null");
   });
 
   it("adds the practice rule to the conversation reply only", () => {
     const practiceRule = "This is a practice conversation";
-    expect(buildAnalysisInstructions({ mode: "conversation", explanationLanguage: "es", practiceRule })).toContain(practiceRule);
+    expect(buildAnalysisInstructions({ mode: "conversation", explanationLanguage: "es", practiceRule })).toContain(
+      practiceRule,
+    );
     expect(buildAnalysisInstructions({ mode: "correction", explanationLanguage: "es", practiceRule })).not.toContain(
       practiceRule,
     );
@@ -262,7 +278,12 @@ describe("isOptionalChange", () => {
 
 describe("suggestions", () => {
   it("downgrades contraction and punctuation-only corrections to suggestions", () => {
-    const error = { category: "punctuation" as const, subcategory: "x", severity: "moderate" as const, explanation: "" };
+    const error = {
+      category: "punctuation" as const,
+      subcategory: "x",
+      severity: "moderate" as const,
+      explanation: "",
+    };
     const result = normalizeAnalysis(
       {
         ...base,
@@ -304,7 +325,13 @@ describe("previewAnalysis", () => {
       {
         correctedText: "Yesterday I went to the store",
         errors: [
-          { original: "I have went", correction: "I went", category: "verb_tense", severity: "moderate", explanation: "Past sim" },
+          {
+            original: "I have went",
+            correction: "I went",
+            category: "verb_tense",
+            severity: "moderate",
+            explanation: "Past sim",
+          },
           // Cut mid-string: partial JSON can hold half an enum value.
           { original: "teh", correction: "the", category: "spell" as never },
         ],
@@ -313,7 +340,13 @@ describe("previewAnalysis", () => {
       text,
     );
     expect(preview.errors).toEqual([
-      { original: "I have went", correction: "I went", category: "verb_tense", severity: "moderate", explanation: "Past sim" },
+      {
+        original: "I have went",
+        correction: "I went",
+        category: "verb_tense",
+        severity: "moderate",
+        explanation: "Past sim",
+      },
     ]);
   });
 
@@ -322,8 +355,20 @@ describe("previewAnalysis", () => {
       {
         errors: [
           { original: "teh", correction: "the", category: "spelling", severity: "typo", explanation: "" },
-          { original: "for buy", correction: "to buy", category: "gerund_infinitive", severity: "moderate", explanation: "" },
-          { original: "I have went", correction: "I have went", category: "verb_tense", severity: "minor", explanation: "" },
+          {
+            original: "for buy",
+            correction: "to buy",
+            category: "gerund_infinitive",
+            severity: "moderate",
+            explanation: "",
+          },
+          {
+            original: "I have went",
+            correction: "I have went",
+            category: "verb_tense",
+            severity: "minor",
+            explanation: "",
+          },
         ],
       },
       "correction",

@@ -11,6 +11,13 @@ onlyBuiltDependencies:
 
 overrides:
   # transformers.js 3.8.1 pins onnxruntime-web 1.22-dev, whose WebGPU backend gives noise on some
-  # GPUs (see docs/VOICE.md, "Kokoro suena a ruido"). 1.30 works the same on WASM and SwiftShader;
+  # GPUs (see docs/voice/VOICE.md, "Kokoro suena a ruido"). 1.30 works the same on WASM and SwiftShader;
   # whether it fixes the AMD noise is to be confirmed on the real GPU (the audio check stays).
   onnxruntime-web: 1.30.0
+  # transformers.js 3.8.1 asks for sharp ^0.34, which has high advisories (libvips, libheif, librsvg).
+  # Only its Node image helpers use sharp (not Kokoro, which runs in the browser); transformers.js 4
+  # moved to ^0.35.4 with the same code, so 0.35.5 is safe here. Next already brings 0.35.5.
+  sharp: ^0.35.5
+  # @ai-sdk/provider-utils, dotenvx and shadcn bring undici 7.30.0, which has high advisories (DoS, TLS
+  # validation bypass, cache poisoning); 7.30.1 fixes them with no API change.
+  undici: ^7.30.1

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   buildClassificationPrompt,
   type ClassificationItem,
@@ -107,7 +108,10 @@ describe("normalizeClassification", () => {
 
 describe("buildClassificationPrompt", () => {
   it("lists only the options of each item's category and marks verb mistakes", () => {
-    const prompt = buildClassificationPrompt([item({}), item({ category: "articles", original: "a", correction: "the" })]);
+    const prompt = buildClassificationPrompt([
+      item({}),
+      item({ category: "articles", original: "a", correction: "the" }),
+    ]);
     expect(prompt).toContain("Item 1 (verb mistake)");
     expect(prompt).toContain("- tense_choice:");
     expect(prompt).toContain("Item 2\n");

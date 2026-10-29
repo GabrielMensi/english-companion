@@ -1,14 +1,16 @@
-import { z } from "zod";
+import { withUser } from "@/lib/auth/with-user";
 import { createSession, listSessions } from "@/lib/chat";
+import { parseBody } from "@/lib/request-body";
+import { z } from "@/lib/zod";
 
-export async function GET() {
-  return Response.json(listSessions());
-}
+export const GET = withUser(async (_request, _ctx, { userId }) => {
+  return Response.json(listSessions(userId));
+});
 
 const bodySchema = z.object({ mode: z.enum(["correction", "conversation"]).default("correction") });
 
-export async function POST(request: Request) {
-  const body = bodySchema.safeParse(await request.json().catch(() => ({})));
-  if (!body.success) return Response.json({ error: "Invalid data" }, { status: 400 });
-  return Response.json(createSession(body.data.mode), { status: 201 });
-}
+export const POST = withUser(async (request: Request, _ctx, { userId }) => {
+  const body = await parseBody(request, bodySchema, "Invalid data", { emptyAs: {} });
+  if (!body.ok) return body.response;
+  return Response.json(createSession(userId, body.data.mode), { status: 201 });
+});

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { computeTenseStats, type TenseStatCorrection, type TenseStatMessage } from "./tense-stats";
 
 function correction(partial: Partial<TenseStatCorrection>): TenseStatCorrection {
@@ -12,11 +13,15 @@ function correction(partial: Partial<TenseStatCorrection>): TenseStatCorrection 
     original: "I lived",
     correction: "I have lived",
     inputMode: "typed",
+    discardedAt: null,
     ...partial,
   };
 }
 
-const message = (tenseCounts: TenseStatMessage["tenseCounts"], wordCount = 50): TenseStatMessage => ({ tenseCounts, wordCount });
+const message = (tenseCounts: TenseStatMessage["tenseCounts"], wordCount = 50): TenseStatMessage => ({
+  tenseCounts,
+  wordCount,
+});
 
 function stats(input: Partial<Parameters<typeof computeTenseStats>[0]>) {
   return computeTenseStats({
@@ -40,12 +45,31 @@ describe("computeTenseStats", () => {
     });
     const perfect = result.tenses.find((t) => t.tense === "present_perfect")!;
     expect(perfect).toMatchObject({ uses: 10, usageErrors: 1, formErrors: 1, accuracy: 80 });
-    expect(perfect.confusedWith).toEqual([{ tense: "past_simple", count: 1, example: { original: "I lived", correction: "I have lived" } }]);
+    expect(perfect.confusedWith).toEqual([
+      { tense: "past_simple", count: 1, example: { original: "I lived", correction: "I have lived" } },
+    ]);
+  });
+
+  it("leaves discarded mistakes out", () => {
+    const result = stats({
+      messages: [message({ present_perfect: 10 })],
+      corrections: [
+        correction({ discardedAt: 1 }),
+        correction({ classification: "pending", tense: null, discardedAt: 1 }),
+      ],
+    });
+    expect(result.tenses.find((t) => t.tense === "present_perfect")).toMatchObject({ usageErrors: 0, accuracy: 100 });
+    expect(result.unclassified).toBe(0);
   });
 
   it("doesn't give an accuracy with too few uses, and smooths small samples", () => {
     const result = stats({ messages: [message({ past_perfect: 1 })] });
-    expect(result.tenses[0]).toMatchObject({ tense: "past_perfect", uses: 1, accuracy: null, status: "not_enough_data" });
+    expect(result.tenses[0]).toMatchObject({
+      tense: "past_perfect",
+      uses: 1,
+      accuracy: null,
+      status: "not_enough_data",
+    });
     expect(result.tenses[0].smoothedAccuracy).toBeCloseTo(66.7);
   });
 

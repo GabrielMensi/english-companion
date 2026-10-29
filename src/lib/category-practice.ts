@@ -6,14 +6,10 @@
  * imports so it can be unit tested.
  */
 import type { Stats } from "@/lib/stats-core";
-import {
-  CATEGORY_HINTS,
-  CATEGORY_LABELS,
-  type ErrorCategory,
-  isValidSubtype,
-  subtypeLabel,
-} from "@/lib/taxonomy";
+import { isValidSubtype, subtypeLabel } from "@/lib/subtypes";
+import { CATEGORY_HINTS, CATEGORY_LABELS, type ErrorCategory } from "@/lib/taxonomy";
 import { comparable } from "@/lib/tense-practice";
+import { escapeRegExp } from "@/lib/text";
 
 /**
  * - fill: a sentence with a gap ("I am ___ engineer.").
@@ -54,7 +50,13 @@ export interface CategoryTarget {
  * practice, spelling / punctuation / capitalization are mostly slips (and the
  * transcriber's decision in dictated messages), and "other" has no rule to drill.
  */
-export const NOT_PRACTICED: readonly ErrorCategory[] = ["verb_tense", "spelling", "punctuation", "capitalization", "other"];
+export const NOT_PRACTICED: readonly ErrorCategory[] = [
+  "verb_tense",
+  "spelling",
+  "punctuation",
+  "capitalization",
+  "other",
+];
 
 /** Counted mistakes needed for a category to be worth practicing. */
 const MIN_ERRORS = 2;
@@ -96,8 +98,8 @@ export function selectCategoryTargets(stats: Pick<Stats, "categories" | "topMist
       const top = c.topSubtypes[0];
       const subtype = top && top.subtype !== "other" && top.count >= MIN_ERRORS ? top.subtype : null;
       const example =
-        stats.topMistakes.find((m) => m.category === c.category && (subtype === null || m.subtype === subtype))?.example ??
-        null;
+        stats.topMistakes.find((m) => m.category === c.category && (subtype === null || m.subtype === subtype))
+          ?.example ?? null;
       const parts = [`${c.per100Words} per 100 words (${c.count} ${c.count === 1 ? "mistake" : "mistakes"})`];
       if (subtype) parts.push(`most often: ${subtypeLabel(c.category, subtype)?.toLowerCase()}`);
       const reason = `${parts.join(", ")}${example ? ` — “${example.original}” → “${example.correction}”` : ""}.`;
@@ -162,10 +164,6 @@ export function parseGaps(sentence: string): GapSentence {
   return { parts, options };
 }
 
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 /**
  * What fills the gaps of `sentence` in `text`, when `text` is the sentence with
  * the gaps filled in (ignoring case, punctuation and contractions). Null when
@@ -219,7 +217,11 @@ export interface AnswerSignals {
  * category is wrong, and a rewrite without mistakes is right. "unknown" when
  * neither can tell (the answer is shown without ✓/✗).
  */
-export function checkCategoryAnswer(learnerText: string, item: CategoryExerciseItem, signals: AnswerSignals): CategoryCheck {
+export function checkCategoryAnswer(
+  learnerText: string,
+  item: CategoryExerciseItem,
+  signals: AnswerSignals,
+): CategoryCheck {
   const learner = comparable(learnerText);
   if (!learner) return "unknown";
   if (learner === comparable(item.answer)) return "exact";

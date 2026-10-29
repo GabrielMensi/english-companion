@@ -1,4 +1,5 @@
 import { Bot } from "lucide-react";
+
 import { SpeakButton } from "@/components/audio/speak-button";
 import { ModelNote } from "@/components/chat/model-note";
 import type { ChatMessage } from "@/lib/types";
@@ -10,10 +11,15 @@ export function AssistantMessage({ message }: { message: ChatMessage }) {
         <Bot className="size-4" />
       </div>
       <div className="flex flex-col gap-1 pt-1">
-        <p className="leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        <p className="font-serif text-reading whitespace-pre-wrap">{message.content}</p>
         <div className="flex items-center gap-1">
           <SpeakButton text={message.content} id={message.id} />
-          <ModelNote verb="Replied by" provider={message.provider} model={message.model} durationMs={message.durationMs} />
+          <ModelNote
+            verb="Replied by"
+            provider={message.provider}
+            model={message.model}
+            durationMs={message.durationMs}
+          />
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { audioMetrics, checkSpeechAudio } from "./audio-check";
 
 const RATE = 24000;
@@ -66,7 +67,11 @@ describe("checkSpeechAudio", () => {
   it("rejects noise even when it comes in bursts like syllables", () => {
     const noise = whiteNoise();
     const gated = noise.map((x, i) => (Math.sin((i / RATE) * Math.PI * 4) > 0 ? x : x * 0.001));
-    expect(checkSpeechAudio(gated)).toMatchObject({ ok: false, kind: "noise", reason: expect.stringContaining("noise") });
+    expect(checkSpeechAudio(gated)).toMatchObject({
+      ok: false,
+      kind: "noise",
+      reason: expect.stringContaining("noise"),
+    });
   });
 
   it("rejects speech buried in noise", () => {

@@ -1,23 +1,43 @@
-import { diffWordsWithSpace } from "diff";
+import { type DiffSegment, markDiff } from "@/lib/correction-marks";
 
-/** Inline word diff: removed words struck through in red, added words in green. */
-export function DiffText({ from, to }: { from: string; to: string }) {
-  const parts = diffWordsWithSpace(from, to);
+/**
+ * Inline word diff: removed words struck through, added words highlighted,
+ * and (when given) reference numbers pointing at the explanation of each change.
+ */
+export function DiffText({ from, to, segments }: { from: string; to: string; segments?: DiffSegment[] }) {
+  const parts = segments ?? markDiff(from, to, []).segments;
   return (
-    <p className="leading-relaxed whitespace-pre-wrap">
+    <p className="font-serif text-reading whitespace-pre-wrap">
       {parts.map((part, i) => {
-        if (part.added) {
+        const notes = part.notes.length > 0 && (
+          <sup className="ml-0.5 font-sans text-[0.65em] font-semibold text-muted-foreground tabular-nums">
+            {part.notes.join(",")}
+          </sup>
+        );
+        if (part.kind === "added") {
           return (
-            <ins key={i} className="rounded-sm bg-emerald-500/15 px-0.5 text-emerald-700 no-underline dark:text-emerald-400">
-              {part.value}
-            </ins>
+            <span key={i}>
+              <ins className="rounded-sm bg-mark-right/12 px-0.5 text-mark-right no-underline">{part.value}</ins>
+              {notes}
+            </span>
           );
         }
-        if (part.removed) {
+        if (part.kind === "removed") {
           return (
-            <del key={i} className="rounded-sm bg-red-500/10 px-0.5 text-red-600/80 dark:text-red-400/80">
-              {part.value}
-            </del>
+            <span key={i}>
+              <del className="rounded-sm px-0.5 text-mark-wrong decoration-mark-wrong/70">{part.value}</del>
+              {notes}
+            </span>
+          );
+        }
+        if (part.kind === "flagged") {
+          return (
+            <span key={i}>
+              <mark className="bg-transparent text-inherit underline decoration-mark-wrong/70 decoration-wavy underline-offset-4">
+                {part.value}
+              </mark>
+              {notes}
+            </span>
           );
         }
         return <span key={i}>{part.value}</span>;

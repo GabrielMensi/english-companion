@@ -1,0 +1,59 @@
+name: Docker
+
+# Builds the production image (no push) when something that goes into it changes.
+on:
+  pull_request:
+    branches: [develop, main, "integration/**"]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - deploy/**
+      - drizzle/**
+      - src/db/**
+      - src/lib/env.ts
+      - src/app/api/health/**
+      - .github/workflows/docker.yml
+      - scripts/db-migrate.mts
+      - scripts/backup.mts
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - next.config.ts
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the image
+        run: docker build --tag english-companion:ci .
+      - name: Migrate a throwaway database, start the app and check the health endpoint
+        run: |
+          # MIGRATE_ON_START=false in the image: the migrate step comes first (as deploy.sh does).
+          docker volume create companion-data
+          docker run --rm -v companion-data:/data english-companion:ci node scripts/db-migrate.mjs --init
+          docker run --detach --name companion -p 3737:3737 -v companion-data:/data \
+            -e ALLOWED_HOSTS=localhost -e BETTER_AUTH_URL=http://localhost:3737 \
+            -e BETTER_AUTH_SECRET="$(openssl rand -base64 48)" \
+            -e APP_ENCRYPTION_KEY="$(openssl rand -base64 32)" -e SHARED_KEYS=false english-companion:ci
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3737/api/health && exit 0
+            sleep 2
+          done
+          exit 1
+      - name: Container logs
+        if: always()
+        run: docker logs companion || true
+      - name: Clean up
+        if: always()
+        run: docker rm -f companion || true

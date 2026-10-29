@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { StatsDigest } from "./digest-core";
-import type { LevelEstimate } from "./level-core";
+
 import {
   buildLevelInstructions,
   buildLevelPrompt,
@@ -11,6 +10,9 @@ import {
   normalizeLevelExplanation,
   normalizePlan,
 } from "./plan-core";
+
+import type { StatsDigest } from "./digest-core";
+import type { LevelEstimate } from "./level-core";
 
 const focus = (topic: string) => ({ topic, why: " why ", practice: "do it", example: "Example." });
 
@@ -65,7 +67,15 @@ describe("level explanation", () => {
     lookupsPer1000Words: 0.7,
     period: { from: 0, to: 1 },
     signals: [
-      { id: "accuracy", label: "Accuracy", score: 3.4, level: "B1", weight: 0.4, value: "6.3 mistakes per 100 words", basis: "…" },
+      {
+        id: "accuracy",
+        label: "Accuracy",
+        score: 3.4,
+        level: "B1",
+        weight: 0.4,
+        value: "6.3 mistakes per 100 words",
+        basis: "…",
+      },
     ],
   };
 

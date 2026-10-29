@@ -2,8 +2,10 @@
 
 import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
-import { cacheKey } from "@/components/audio/audio-cache-core";
+
 import { cachedInMemory, getCachedAudio, putCachedAudio } from "@/components/audio/audio-cache";
+import { cacheKey } from "@/components/audio/audio-cache-core";
+import type { KokoroDiagnostics } from "@/components/audio/kokoro-diagnostics";
 import { type GpuRejection, type KokoroDevicePref, parseGpuRejection } from "@/components/audio/speech-prefs";
 
 /**
@@ -43,6 +45,7 @@ export type KokoroResponse =
       adapter: string | null;
       threads: number | null;
       warning: string | null;
+      diagnostics: KokoroDiagnostics;
     }
   /** The GPU's audio failed the check in auto mode; the worker is switching to the CPU. */
   | { type: "gpu-rejected"; reason: string; at: string }
@@ -68,6 +71,7 @@ export type KokoroStatus =
       threads: number | null;
       /** Something to show next to the status: a fallback to the CPU or a failed audio check. */
       warning: string | null;
+      diagnostics: KokoroDiagnostics;
     }
   | { state: "error"; message: string };
 
@@ -119,7 +123,7 @@ export function getGpuRejection(): GpuRejection | null {
 
 /**
  * WASM threads: ONNX Runtime's default is at most 4. Kokoro keeps speeding up to ~8 on a desktop
- * CPU; past that the gain is small and the rest of the machine (the browser, Ollama) needs cores too.
+ * CPU; past that the gain is small and the rest of the machine (the browser) needs cores too.
  */
 function wasmThreads() {
   const cores = typeof navigator === "undefined" ? 1 : navigator.hardwareConcurrency || 1;
@@ -205,6 +209,7 @@ function handle(message: KokoroResponse) {
         adapter: message.adapter,
         threads: message.threads,
         warning: message.warning,
+        diagnostics: message.diagnostics,
       });
       readyWaiters.forEach((w) => w.resolve());
       readyWaiters = [];

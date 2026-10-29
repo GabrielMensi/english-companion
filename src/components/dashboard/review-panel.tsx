@@ -1,13 +1,17 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import type { ReviewTimelinePoint } from "@/lib/review-stats-core";
+
 import type { ReviewDashboard } from "@/lib/review-stats";
+import type { ReviewTimelinePoint } from "@/lib/review-stats-core";
 
 /** Flashcard reviews: what's due, retention, reviews per day and streak. */
 export function ReviewPanel({ data }: { data: ReviewDashboard }) {
   const { stats, due, untrackedBefore } = data;
-  const since = stats.since === null ? null : new Date(stats.since).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const since =
+    stats.since === null
+      ? null
+      : new Date(stats.since).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
   return (
     <div className="space-y-4">

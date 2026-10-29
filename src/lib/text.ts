@@ -6,9 +6,17 @@ export function countWords(text: string): number {
 }
 
 export function makeTitle(text: string, max = 48): string {
-  const firstLine = text.replace(/```[\s\S]*?```/g, " ").replace(/\s+/g, " ").trim();
+  const firstLine = text
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (firstLine.length <= max) return firstLine || "New chat";
   const cut = firstLine.slice(0, max);
   const lastSpace = cut.lastIndexOf(" ");
   return `${cut.slice(0, lastSpace > max / 2 ? lastSpace : max)}…`;
+}
+
+/** Escapes text to match it literally inside a RegExp. */
+export function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

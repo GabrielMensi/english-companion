@@ -1,7 +1,9 @@
 import "server-only";
 
 import { generateText, NoObjectGeneratedError, Output, streamText } from "ai";
+
 import type { Settings } from "@/lib/settings";
+
 import {
   type Analysis,
   type AnalysisPreview,
@@ -36,13 +38,14 @@ function analysisRequest(input: AnalysisPromptInput, resolved: ResolvedModel, is
  * the returned result is the same either way (the complete, validated object, normalized).
  */
 export async function analyzeMessage(
+  userId: string,
   input: Omit<AnalysisPromptInput, "explanationLanguage">,
   settings: Settings,
   onPreview?: OnPreview,
 ) {
   const promptInput = { ...input, explanationLanguage: settings.explanationLanguage };
 
-  const { result, used, failed } = await withFallback(settings, async (resolved, { isLast }) => {
+  const { result, used, failed } = await withFallback(userId, settings, async (resolved, { isLast }) => {
     const request = analysisRequest(promptInput, resolved, isLast);
     const generate = async () => (await generateText(request)).output;
 
@@ -62,7 +65,7 @@ export async function analyzeMessage(
     try {
       return await generate();
     } catch (error) {
-      // Small local models occasionally produce invalid JSON: one retry usually fixes it.
+      // Models occasionally produce invalid JSON: one retry usually fixes it.
       if (!NoObjectGeneratedError.isInstance(error)) throw error;
       return await generate();
     }

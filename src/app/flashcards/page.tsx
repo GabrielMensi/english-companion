@@ -1,29 +1,32 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { connection } from "next/server";
+
 import { DeckOverview } from "@/components/flashcards/deck-overview";
 import { ReviewSession } from "@/components/flashcards/review-session";
 import { SuspendedCards } from "@/components/flashcards/suspended-cards";
-import type { CardKind, MistakeFilter } from "@/lib/flashcards-core";
+import { Page, PageHeader } from "@/components/layout/page";
+import { resolveTranscriptionModel } from "@/lib/ai/providers";
+import { requirePageUser } from "@/lib/auth/session";
 import { getFlashcardsOverview, getStudyQueue } from "@/lib/flashcards";
+import type { CardKind, MistakeFilter } from "@/lib/flashcards-core";
 import { getSuspendedCards } from "@/lib/flashcards-upkeep";
-import {
-  categoryLabel,
-  ERROR_CATEGORIES,
-  type ErrorCategory,
-  isValidSubtype,
-  subtypeLabel,
-  type Tense,
-  TENSE_LABELS,
-  TENSES,
-} from "@/lib/taxonomy";
+import { getSettings } from "@/lib/settings";
+import { isValidSubtype, subtypeLabel } from "@/lib/subtypes";
+import { categoryLabel, ERROR_CATEGORIES, type ErrorCategory, type Tense, TENSE_LABELS, TENSES } from "@/lib/taxonomy";
 
-const DECKS: Record<string, CardKind> = { vocabulary: "vocabulary", mistakes: "mistake", exercises: "exercise" };
+const DECKS: Record<string, CardKind> = {
+  vocabulary: "vocabulary",
+  mistakes: "mistake",
+  exercises: "exercise",
+  pronunciation: "pronunciation",
+};
 
 const DECK_SUBTITLES: Record<CardKind, string> = {
   vocabulary: "Spanish → English",
   mistake: "Fix your own mistakes",
   exercise: "Exercise items you got wrong in Practice",
+  pronunciation: "Sentences you read aloud with words heard differently: read them again",
 };
 
 function parseFilter(params: Record<string, string | string[] | undefined>): MistakeFilter {
@@ -49,50 +52,56 @@ function filterTitle(filter: MistakeFilter): string {
 
 export default async function FlashcardsPage({ searchParams }: PageProps<"/flashcards">) {
   await connection();
+  const { userId } = await requirePageUser("/flashcards");
   const params = await searchParams;
   const kind = typeof params.deck === "string" ? DECKS[params.deck] : undefined;
 
   if (kind) {
     const filter = kind === "mistake" ? parseFilter(params) : {};
-    const queue = getStudyQueue(kind, filter);
-    const title = kind === "vocabulary" ? "Vocabulary" : kind === "exercise" ? "Missed exercises" : filterTitle(filter);
+    const queue = getStudyQueue(userId, kind, filter);
+    const title =
+      kind === "vocabulary"
+        ? "Vocabulary"
+        : kind === "exercise"
+          ? "Missed exercises"
+          : kind === "pronunciation"
+            ? "Hard to say"
+            : filterTitle(filter);
     return (
-      <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl space-y-6 px-6 py-8">
-          <div className="flex items-center gap-3">
+      <Page area="train" width="md">
+        <PageHeader
+          title={title}
+          description={DECK_SUBTITLES[kind]}
+          leading={
             <Link
               href="/flashcards"
               aria-label="Back to flashcards"
-              className="flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               <ArrowLeft className="size-4" />
             </Link>
-            <div>
-              <h1 className="text-xl font-semibold">{title}</h1>
-              <p className="text-sm text-muted-foreground">
-                {DECK_SUBTITLES[kind]}
-              </p>
-            </div>
-          </div>
-          <ReviewSession key={JSON.stringify(params)} kind={kind} initialQueue={queue} />
-        </div>
-      </div>
+          }
+        />
+        <ReviewSession
+          key={JSON.stringify(params)}
+          kind={kind}
+          initialQueue={queue}
+          canRecord={resolveTranscriptionModel(userId) !== null}
+          language={getSettings(userId).explanationLanguage}
+        />
+      </Page>
     );
   }
 
-  const overview = getFlashcardsOverview();
+  const overview = getFlashcardsOverview(userId);
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
-        <div>
-          <h1 className="text-2xl font-semibold">Flashcards</h1>
-          <p className="text-muted-foreground">
-            Review the words you looked up, the mistakes you made and the exercises you missed, spaced out so they stick.
-          </p>
-        </div>
-        <DeckOverview overview={overview} />
-        <SuspendedCards cards={getSuspendedCards()} />
-      </div>
-    </div>
+    <Page area="train">
+      <PageHeader
+        title="Flashcards"
+        description="Review the words you looked up, the mistakes you made, the exercises you missed and the sentences that were hard to say, spaced out so they stick."
+      />
+      <DeckOverview overview={overview} />
+      <SuspendedCards cards={getSuspendedCards(userId)} />
+    </Page>
   );
 }

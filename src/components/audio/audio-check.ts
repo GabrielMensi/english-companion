@@ -53,7 +53,12 @@ const MIN_DYNAMIC_RANGE_DB = 20;
  */
 export function checkSpeechAudio(samples: Float32Array): AudioCheck {
   const metrics = audioMetrics(samples);
-  const fail = (kind: "invalid" | "silent" | "noise", reason: string): AudioCheck => ({ ok: false, kind, reason, metrics });
+  const fail = (kind: "invalid" | "silent" | "noise", reason: string): AudioCheck => ({
+    ok: false,
+    kind,
+    reason,
+    metrics,
+  });
   if (metrics.nonFinite > 0) return fail("invalid", `${metrics.nonFinite} NaN/Infinity samples`);
   if (metrics.clipped > MAX_CLIPPED) return fail("invalid", `${pct(metrics.clipped)} of the samples clip`);
   if (metrics.rms < MIN_RMS) return fail("silent", "silent");
@@ -99,7 +104,7 @@ export function audioMetrics(samples: Float32Array): AudioMetrics {
     for (let i = start; i < start + FRAME; i++) {
       const x = finite(samples[i]);
       energy += x * x;
-      if (i > start && (x >= 0) !== (prev >= 0)) crossings++;
+      if (i > start && x >= 0 !== prev >= 0) crossings++;
       prev = x;
     }
     frames.push({ rms: Math.sqrt(energy / FRAME), zcr: crossings / (FRAME - 1), start });

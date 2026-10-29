@@ -1,14 +1,18 @@
 import "server-only";
 
-import { and, eq, gte, isNotNull, lt } from "drizzle-orm";
-import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import { eq, gte, isNotNull, lt, ne } from "drizzle-orm";
+
 import { db, schema } from "@/db";
+import { owned } from "@/db/owned";
+import { classChatIds } from "@/lib/class";
 import { computeFluencyStats } from "@/lib/fluency";
 import { getSettings } from "@/lib/settings";
 import { computeStats, type StatCorrection, type StatMessage } from "@/lib/stats-core";
 import { computeTenseStats, type TenseStatCorrection } from "@/lib/tense-stats";
 import { countTenses, TENSE_COUNTER_VERSION, type TenseCounts } from "@/lib/tenses-core";
 import { getVocabulary } from "@/lib/vocabulary";
+
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 
 export const RANGES = { "7": 7, "30": 30, "90": 90, all: null } as const;
 export type RangeKey = keyof typeof RANGES;
@@ -19,19 +23,34 @@ export type InputFilter = (typeof INPUT_FILTERS)[number];
 
 const DAY = 86_400_000;
 
-export function getDashboardData(range: RangeKey, input: InputFilter = "all") {
+export function getDashboardData(userId: string, range: RangeKey, input: InputFilter = "all") {
   const now = Date.now();
   const days = RANGES[range];
   const from = days === null ? null : now - days * DAY;
-  const previousFrom = days === null ? null : now - 2 * days * DAY;
+  return getPeriodData(
+    userId,
+    { from, to: null, previousFrom: days === null ? null : now - 2 * days * DAY, now },
+    input,
+  );
+}
 
-  const settings = getSettings();
+/** Everything the dashboard shows, for any period. `withoutClass` leaves out what the teacher corrected in class. */
+export function getPeriodData(
+  userId: string,
+  { from, to, previousFrom, now }: { from: number | null; to: number | null; previousFrom: number | null; now: number },
+  input: InputFilter = "all",
+  { withoutClass = false } = {},
+) {
+  const settings = getSettings(userId);
+  const classChats = new Set(classChatIds(userId));
   const period = (start: number | null, end: number | null) => ({
-    messages: loadMessages(start, end, input),
-    corrections: loadCorrections(start, end, input),
+    messages: loadMessages(userId, start, end, input, classChats, withoutClass),
+    corrections: loadCorrections(userId, start, end, input, withoutClass),
   });
+  // Mistakes from class without a word count have no denominator: they're out of the tense diagnosis too.
+  const measured = <T extends { unrated?: boolean }>(rows: T[]) => rows.filter((c) => !c.unrated);
 
-  const current = period(from, null);
+  const current = period(from, to);
   const previous = from !== null ? period(previousFrom, from) : { messages: [], corrections: [] };
 
   const stats = computeStats({
@@ -47,19 +66,24 @@ export function getDashboardData(range: RangeKey, input: InputFilter = "all") {
   const tenses = computeTenseStats({
     countTypos: settings.countTyposInStats,
     messages: current.messages,
-    corrections: current.corrections,
+    corrections: measured(current.corrections),
     previousMessages: previous.messages,
-    previousCorrections: previous.corrections,
+    previousCorrections: measured(previous.corrections),
   });
 
   // Fluency only exists for dictated messages, so the written/spoken filter doesn't change it.
   const fluency = computeFluencyStats(
-    loadFluency(from, null),
-    from !== null ? loadFluency(previousFrom, from) : [],
+    loadFluency(userId, from, to),
+    from !== null ? loadFluency(userId, previousFrom, from) : [],
   );
 
   // Words looked up with [brackets] during the period, grouped and newest first.
-  const vocabulary = getVocabulary().filter((w) => from === null || w.lastSeen >= from);
+  const vocabulary = getVocabulary(userId).filter(
+    (w) =>
+      (from === null || w.lastSeen >= from) &&
+      (to === null || w.lastSeen < to) &&
+      !(withoutClass && w.source === "class"),
+  );
 
   return {
     stats,
@@ -67,27 +91,29 @@ export function getDashboardData(range: RangeKey, input: InputFilter = "all") {
     vocabulary,
     fluency,
     countTypos: settings.countTyposInStats,
-    hasSpoken: hasSpokenMessages(),
+    hasSpoken: hasSpokenMessages(userId),
   };
 }
 
-function hasSpokenMessages(): boolean {
+function hasSpokenMessages(userId: string): boolean {
   return (
     db
       .select({ id: schema.messages.id })
       .from(schema.messages)
-      .where(eq(schema.messages.inputMode, "spoken"))
+      .where(owned(schema.messages, userId, eq(schema.messages.inputMode, "spoken")))
       .limit(1)
       .get() !== undefined
   );
 }
 
-function loadFluency(from: number | null, to: number | null) {
+function loadFluency(userId: string, from: number | null, to: number | null) {
   return db
     .select({ fluency: schema.messages.fluency })
     .from(schema.messages)
     .where(
-      and(
+      owned(
+        schema.messages,
+        userId,
         eq(schema.messages.role, "user"),
         eq(schema.messages.inputMode, "spoken"),
         isNotNull(schema.messages.fluency),
@@ -102,30 +128,41 @@ function inputFilter(input: InputFilter) {
 }
 
 function loadMessages(
+  userId: string,
   from: number | null,
   to: number | null,
   input: InputFilter,
+  classChats: Set<string>,
+  withoutClass: boolean,
 ): (StatMessage & { tenseCounts: TenseCounts })[] {
-  return db
-    .select({
-      id: schema.messages.id,
-      createdAt: schema.messages.createdAt,
-      wordCount: schema.messages.wordCount,
-      content: schema.messages.content,
-      correctedText: schema.messages.correctedText,
-      tenseCounts: schema.messages.tenseCounts,
-    })
-    .from(schema.messages)
-    .where(
-      and(
-        eq(schema.messages.role, "user"),
-        eq(schema.messages.status, "done"),
-        inputFilter(input),
-        ...rangeFilter(schema.messages.createdAt, from, to),
-      ),
-    )
-    .all()
-    .map((m) => ({ createdAt: m.createdAt.getTime(), wordCount: m.wordCount, tenseCounts: tenseCountsOf(m) }));
+  return (
+    db
+      .select({
+        id: schema.messages.id,
+        sessionId: schema.messages.sessionId,
+        createdAt: schema.messages.createdAt,
+        wordCount: schema.messages.wordCount,
+        content: schema.messages.content,
+        correctedText: schema.messages.correctedText,
+        tenseCounts: schema.messages.tenseCounts,
+      })
+      .from(schema.messages)
+      .where(
+        owned(
+          schema.messages,
+          userId,
+          eq(schema.messages.role, "user"),
+          eq(schema.messages.status, "done"),
+          inputFilter(input),
+          ...rangeFilter(schema.messages.createdAt, from, to),
+        ),
+      )
+      .all()
+      // What the teacher corrected in class is left out of reports for class; a load with only words has no
+      // words of the learner's, so it isn't a message.
+      .filter((m) => !classChats.has(m.sessionId) || (!withoutClass && m.wordCount > 0))
+      .map((m) => ({ createdAt: m.createdAt.getTime(), wordCount: m.wordCount, tenseCounts: tenseCountsOf(userId, m) }))
+  );
 }
 
 /**
@@ -133,33 +170,56 @@ function loadMessages(
  * before this existed, or counted with an older version of the rules, are
  * counted here the first time the dashboard needs them.
  */
-function tenseCountsOf(m: {
-  id: string;
-  content: string;
-  correctedText: string | null;
-  tenseCounts: { version: number; counts: TenseCounts } | null;
-}): TenseCounts {
+function tenseCountsOf(
+  userId: string,
+  m: {
+    id: string;
+    content: string;
+    correctedText: string | null;
+    tenseCounts: { version: number; counts: TenseCounts } | null;
+  },
+): TenseCounts {
   if (m.tenseCounts?.version === TENSE_COUNTER_VERSION) return m.tenseCounts.counts;
   const counts = countTenses(m.correctedText ?? m.content);
   db.update(schema.messages)
     .set({ tenseCounts: { version: TENSE_COUNTER_VERSION, counts } })
-    .where(eq(schema.messages.id, m.id))
+    .where(owned(schema.messages, userId, eq(schema.messages.id, m.id)))
     .run();
   return counts;
 }
 
 function loadCorrections(
+  userId: string,
   from: number | null,
   to: number | null,
   input: InputFilter,
+  withoutClass = false,
 ): (StatCorrection & TenseStatCorrection)[] {
   return db
-    .select({ correction: schema.corrections, inputMode: schema.messages.inputMode })
+    .select({
+      correction: schema.corrections,
+      inputMode: schema.messages.inputMode,
+      messageWords: schema.messages.wordCount,
+    })
     .from(schema.corrections)
     .innerJoin(schema.messages, eq(schema.corrections.messageId, schema.messages.id))
-    .where(and(inputFilter(input), ...rangeFilter(schema.corrections.createdAt, from, to)))
+    .where(
+      owned(
+        schema.corrections,
+        userId,
+        withoutClass ? ne(schema.corrections.source, "class") : undefined,
+        inputFilter(input),
+        ...rangeFilter(schema.corrections.createdAt, from, to),
+      ),
+    )
     .all()
-    .map(({ correction, inputMode }) => ({ ...correction, inputMode, createdAt: correction.createdAt.getTime() }));
+    .map(({ correction, inputMode, messageWords }) => ({
+      ...correction,
+      inputMode,
+      unrated: correction.source === "class" && messageWords === 0,
+      createdAt: correction.createdAt.getTime(),
+      discardedAt: correction.discardedAt?.getTime() ?? null,
+    }));
 }
 
 function rangeFilter(column: AnySQLiteColumn, from: number | null, to: number | null) {

@@ -1,40 +1,72 @@
-import { NoObjectGeneratedError } from "ai";
+import { APICallError, LoadAPIKeyError, NoObjectGeneratedError, RetryError } from "ai";
 import { describe, expect, it } from "vitest";
+
 import {
   AllModelsFailedError,
-  byFallbackPriority,
   canRetryWithoutStreaming,
   chainSteps,
   errorToMessage,
   fallbackOrder,
+  isRequestTooLarge,
   moveStep,
   runWithFallback,
   setPrimary,
   shortReason,
   toggleStep,
+  upgradeChain,
+  UserFacingError,
 } from "./fallback";
 
 describe("fallbackOrder", () => {
   const all = () => true;
 
   it("puts the selected provider first and skips it among the fallbacks", () => {
-    expect(fallbackOrder("gemini", ["ollama", "gemini", "groq"], all)).toEqual(["gemini", "ollama", "groq"]);
+    expect(fallbackOrder("gemini", ["gemini", "groq"], all)).toEqual(["gemini", "groq"]);
   });
 
   it("keeps the saved order", () => {
-    expect(fallbackOrder("groq", ["gemini", "ollama"], all)).toEqual(["groq", "gemini", "ollama"]);
-    expect(fallbackOrder("groq", ["ollama", "gemini"], all)).toEqual(["groq", "ollama", "gemini"]);
+    expect(fallbackOrder("groq", ["gemini"], all)).toEqual(["groq", "gemini"]);
   });
 
   it("skips fallbacks that are not configured or not enabled", () => {
-    expect(fallbackOrder("gemini", ["ollama", "groq"], (p) => p !== "groq")).toEqual(["gemini", "ollama"]);
-    expect(fallbackOrder("ollama", [], all)).toEqual(["ollama"]);
+    expect(fallbackOrder("gemini", ["groq"], (p) => p !== "groq")).toEqual(["gemini"]);
+    expect(fallbackOrder("groq", [], all)).toEqual(["groq"]);
   });
 });
 
-describe("byFallbackPriority", () => {
-  it("puts remote providers before local ones", () => {
-    expect(byFallbackPriority(["ollama", "gemini", "groq"])).toEqual(["gemini", "groq", "ollama"]);
+describe("upgradeChain", () => {
+  it("drops providers that no longer exist", () => {
+    expect(upgradeChain({ provider: "gemini", fallbacks: ["ollama", "gemini", "groq"] }, "gemini")).toEqual({
+      provider: "gemini",
+      fallbacks: ["groq"],
+    });
+  });
+
+  it("promotes the first remaining fallback when the primary is gone", () => {
+    expect(upgradeChain({ provider: "ollama", fallbacks: ["groq", "gemini"] }, "gemini")).toEqual({
+      provider: "groq",
+      fallbacks: ["gemini"],
+    });
+    expect(upgradeChain({ provider: "ollama", fallbacks: ["ollama"] }, "gemini")).toEqual({
+      provider: "gemini",
+      fallbacks: [],
+    });
+  });
+
+  it("uses the default chain when nothing was saved", () => {
+    expect(upgradeChain({}, "gemini")).toEqual({ provider: "gemini", fallbacks: ["groq"] });
+  });
+
+  it("makes every other provider a fallback when the fallbacks key is missing", () => {
+    expect(upgradeChain({ provider: "groq" }, "gemini")).toEqual({ provider: "groq", fallbacks: ["gemini"] });
+    expect(upgradeChain({ provider: "ollama" }, "gemini")).toEqual({ provider: "gemini", fallbacks: ["groq"] });
+  });
+
+  it("keeps a chain the user saved without fallbacks", () => {
+    expect(upgradeChain({ provider: "gemini", fallbacks: [] }, "gemini")).toEqual({
+      provider: "gemini",
+      fallbacks: [],
+    });
   });
 });
 
@@ -45,13 +77,15 @@ describe("chain editing", () => {
     expect(chainSteps(chain)).toEqual([
       { provider: "gemini", enabled: true },
       { provider: "groq", enabled: true },
-      { provider: "ollama", enabled: false },
+    ]);
+    expect(chainSteps({ provider: "groq", fallbacks: [] })).toEqual([
+      { provider: "groq", enabled: true },
+      { provider: "gemini", enabled: false },
     ]);
     // Old settings could list the primary among the fallbacks.
-    expect(chainSteps({ provider: "ollama", fallbacks: ["ollama", "gemini", "groq"] }).map((s) => s.provider)).toEqual([
-      "ollama",
-      "gemini",
+    expect(chainSteps({ provider: "groq", fallbacks: ["groq", "gemini"] }).map((s) => s.provider)).toEqual([
       "groq",
+      "gemini",
     ]);
   });
 
@@ -60,21 +94,21 @@ describe("chain editing", () => {
     expect(moveStep(chain, "gemini", 1)).toEqual({ provider: "groq", fallbacks: ["gemini"] });
     expect(moveStep(chain, "gemini", -1)).toEqual(chain);
     expect(moveStep(chain, "groq", 1)).toEqual(chain);
-    expect(moveStep(chain, "ollama", -1)).toEqual(chain);
+    expect(moveStep({ provider: "gemini", fallbacks: [] }, "groq", -1)).toEqual({ provider: "gemini", fallbacks: [] });
   });
 
   it("toggles fallbacks but never the primary", () => {
-    expect(toggleStep(chain, "ollama", true)).toEqual({ provider: "gemini", fallbacks: ["groq", "ollama"] });
+    expect(toggleStep({ provider: "gemini", fallbacks: [] }, "groq", true)).toEqual(chain);
     expect(toggleStep(chain, "groq", false)).toEqual({ provider: "gemini", fallbacks: [] });
     expect(toggleStep(chain, "gemini", false)).toEqual(chain);
   });
 
   it("keeps the previous primary as the first fallback when switching", () => {
-    expect(setPrimary({ provider: "gemini", fallbacks: ["groq", "ollama"] }, "ollama")).toEqual({
-      provider: "ollama",
-      fallbacks: ["gemini", "groq"],
+    expect(setPrimary(chain, "groq")).toEqual({ provider: "groq", fallbacks: ["gemini"] });
+    expect(setPrimary({ provider: "gemini", fallbacks: [] }, "groq")).toEqual({
+      provider: "groq",
+      fallbacks: ["gemini"],
     });
-    expect(setPrimary(chain, "ollama")).toEqual({ provider: "ollama", fallbacks: ["gemini", "groq"] });
     expect(setPrimary(chain, "gemini")).toEqual(chain);
   });
 });
@@ -82,7 +116,7 @@ describe("chain editing", () => {
 describe("runWithFallback", () => {
   const candidates = [
     { provider: "gemini" as const, modelId: "gemini-flash-latest" },
-    { provider: "ollama" as const, modelId: "qwen2.5:14b-instruct" },
+    { provider: "groq" as const, modelId: "qwen/qwen3.8-27b" },
     { provider: "groq" as const, modelId: "openai/gpt-oss-120b" },
   ];
 
@@ -94,11 +128,11 @@ describe("runWithFallback", () => {
       return "ok";
     });
     expect(result).toBe("ok");
-    expect(used.provider).toBe("ollama");
+    expect(used.modelId).toBe("qwen/qwen3.8-27b");
     expect(failed).toEqual([{ provider: "gemini", model: "gemini-flash-latest", reason: "quota exceeded" }]);
     expect(seen).toEqual([
       { provider: "gemini", isLast: false },
-      { provider: "ollama", isLast: false },
+      { provider: "groq", isLast: false },
     ]);
   });
 
@@ -110,11 +144,19 @@ describe("runWithFallback", () => {
 
   it("throws with every attempt when all models fail", async () => {
     const error = await runWithFallback(candidates, async (c) => {
-      throw new Error(c.provider === "ollama" ? "fetch failed" : "This model is currently experiencing high demand");
+      throw new Error(
+        c.modelId === "qwen/qwen3.8-27b" ? "fetch failed" : "This model is currently experiencing high demand",
+      );
     }).catch((e) => e);
     expect(error).toBeInstanceOf(AllModelsFailedError);
-    expect(error.attempts.map((a: { reason: string }) => a.reason)).toEqual(["overloaded", "unreachable", "overloaded"]);
-    expect(errorToMessage(error)).toMatch(/^All models failed: gemini-flash-latest \(overloaded\), .*overloaded right now/);
+    expect(error.attempts.map((a: { reason: string }) => a.reason)).toEqual([
+      "overloaded",
+      "unreachable",
+      "overloaded",
+    ]);
+    expect(errorToMessage(error)).toMatch(
+      /^All models failed: gemini-flash-latest \(overloaded\), .*overloaded right now/,
+    );
   });
 
   it("keeps the plain message when only one model was tried", async () => {
@@ -132,6 +174,109 @@ describe("shortReason", () => {
     expect(shortReason(new Error("The operation was aborted due to timeout"))).toBe("timed out");
     expect(shortReason(new Error("x".repeat(100)))).toHaveLength(78);
   });
+
+  it("recognizes a request refused for being too large", () => {
+    const groq = providerError(
+      "Request too large for model `qwen/qwen3.8-27b` on tokens per minute (TPM): Limit 1000, Requested 1500",
+      429,
+    );
+    expect(isRequestTooLarge(groq)).toBe(true);
+    expect(shortReason(groq)).toBe("request too large");
+    expect(shortReason(providerError("whatever", 413))).toBe("request too large");
+    expect(shortReason(new RetryError({ message: "x", reason: "maxRetriesExceeded", errors: [groq, groq] }))).toBe(
+      "request too large",
+    );
+    const truncated = providerError(
+      "max completion tokens reached before generating a valid document: the output was truncated to fit max_completion_tokens",
+      400,
+    );
+    expect(isRequestTooLarge(truncated)).toBe(true);
+    expect(shortReason(truncated)).toBe("request too large");
+    expect(canRetryWithoutStreaming(truncated)).toBe(false);
+    const rateLimit = providerError(
+      "Rate limit reached for model `qwen/qwen3.8-27b` on tokens per minute (TPM): Limit 6000, Used 5200, Requested 900. Please try again in 3s.",
+      429,
+    );
+    expect(isRequestTooLarge(rateLimit)).toBe(false);
+    expect(shortReason(rateLimit)).toBe("quota exceeded");
+    expect(isRequestTooLarge(providerError("Rate limit reached", 429))).toBe(false);
+    expect(shortReason(providerError("Rate limit reached", 429))).toBe("quota exceeded");
+  });
+
+  it("never repeats an unrecognized provider message", () => {
+    expect(shortReason(providerError("Request 7f3a for projects/123 failed: internal detail", 400))).toBe(
+      "provider error 400",
+    );
+    expect(shortReason(new TypeError("Cannot read properties of undefined"))).toBe("provider error");
+  });
+});
+
+function providerError(message: string, statusCode: number) {
+  return new APICallError({ message, url: "https://provider.example/v1/chat", requestBodyValues: {}, statusCode });
+}
+
+describe("errorToMessage", () => {
+  it("hides the raw message of errors that don't come from the app", () => {
+    const message = errorToMessage(providerError("Request 7f3a for projects/123 failed: internal detail", 400));
+    expect(message).toBe("The AI provider returned an error (HTTP 400). Try again or switch providers.");
+    expect(errorToMessage(new TypeError("Cannot read properties of undefined (reading 'x')"))).not.toMatch(/undefined/);
+    expect(errorToMessage("a thrown string")).not.toMatch(/thrown string/);
+  });
+
+  it("keeps the HTTP status when the SDK gave up after retrying", () => {
+    const error = new RetryError({
+      message: "Failed after 3 attempts. Last error: internal detail",
+      reason: "maxRetriesExceeded",
+      errors: [providerError("first", 500), providerError("internal detail", 500)],
+    });
+    expect(errorToMessage(error)).toBe("The AI provider returned an error (HTTP 500). Try again or switch providers.");
+    expect(shortReason(error)).toBe("provider error 500");
+  });
+
+  it("reports a key the SDK couldn't find", () => {
+    const error = new LoadAPIKeyError({ message: "Google Generative AI API key is missing." });
+    expect(errorToMessage(error)).toBe("The AI provider's API key is missing. Add it in Settings.");
+    expect(shortReason(error)).toBe("missing API key");
+  });
+
+  it("explains a request that is too large", () => {
+    const error = providerError("Request too large for model on tokens per minute (TPM)", 429);
+    expect(errorToMessage(error)).toMatch(/too long for the provider's free tier/);
+  });
+
+  it("lists every model when all of them fail", async () => {
+    const tooLarge = providerError("Request too large on tokens per minute (TPM)", 429);
+    const error = await runWithFallback(
+      [
+        { provider: "gemini" as const, modelId: "g" },
+        { provider: "groq" as const, modelId: "q" },
+      ],
+      async (c) => {
+        throw c.provider === "gemini" ? new Error("fetch failed") : tooLarge;
+      },
+    ).catch((e) => e);
+    expect(errorToMessage(error)).toMatch(
+      /^All models failed: g \(unreachable\), q \(request too large\)\. This message is too long/,
+    );
+  });
+
+  it("keeps the app's own messages", () => {
+    expect(errorToMessage(new Error("There are no messages in this period yet"))).toBe(
+      "There are no messages in this period yet",
+    );
+    expect(errorToMessage(new UserFacingError("Dictation needs a Groq API key."))).toBe(
+      "Dictation needs a Groq API key.",
+    );
+  });
+
+  it("translates a rejected key and a missing model without the provider's wording", () => {
+    expect(errorToMessage(providerError("API key not valid. Please pass a valid API key.", 400))).toMatch(
+      /rejected the API key/,
+    );
+    expect(errorToMessage(providerError("models/foo is not found for API version v1beta", 404))).toBe(
+      "The provider doesn't have that model. Check the model name in Settings.",
+    );
+  });
 });
 
 describe("canRetryWithoutStreaming", () => {
@@ -145,5 +290,6 @@ describe("canRetryWithoutStreaming", () => {
     expect(canRetryWithoutStreaming(new Error("The operation was aborted due to timeout"))).toBe(false);
     expect(canRetryWithoutStreaming(new Error("429 RESOURCE_EXHAUSTED"))).toBe(false);
     expect(canRetryWithoutStreaming(new Error("model 'foo' not found"))).toBe(false);
+    expect(canRetryWithoutStreaming(providerError("Request too large on tokens per minute", 429))).toBe(false);
   });
 });

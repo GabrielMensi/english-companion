@@ -2,6 +2,7 @@ import "server-only";
 
 import type { OnPreview } from "@/lib/ai/analyze";
 import { errorToMessage } from "@/lib/ai/fallback";
+import { logRouteError } from "@/lib/server-log";
 import { type ChatMessage, TURN_STREAM_TYPE, type TurnEvent } from "@/lib/types";
 
 /** Whether the client asked for the streamed version of a turn. */
@@ -13,10 +14,7 @@ export function wantsTurnStream(request: Request): boolean {
  * Streams a turn as newline-delimited JSON (see {@link TurnEvent}). The analysis keeps running and
  * gets saved even if the client goes away, as it does without streaming.
  */
-export function turnStreamResponse(
-  run: (onPreview: OnPreview) => Promise<ChatMessage[]>,
-  first?: TurnEvent,
-): Response {
+export function turnStreamResponse(run: (onPreview: OnPreview) => Promise<ChatMessage[]>, first?: TurnEvent): Response {
   const encoder = new TextEncoder();
   let open = true;
 
@@ -35,6 +33,7 @@ export function turnStreamResponse(
       try {
         send({ type: "done", turn: await run((preview) => send({ type: "preview", preview })) });
       } catch (error) {
+        logRouteError("turn stream", error, 502);
         send({ type: "error", error: errorToMessage(error) });
       }
       if (open) controller.close();

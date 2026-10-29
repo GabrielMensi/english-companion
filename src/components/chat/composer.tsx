@@ -3,6 +3,7 @@
 import { Loader2, Mic, SendHorizontal, Square } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { stopSpeaking } from "@/components/audio/speech";
 import { PUSH_TO_TALK_KEYS, usePushToTalk } from "@/components/audio/use-push-to-talk";
 import { useRecorder } from "@/components/audio/use-recorder";
@@ -30,6 +31,11 @@ const toastNotify: Notify = (kind, message) => toast[kind](message);
  * The composer's draft, dictation and recorder. It lives in `ChatView` rather than in `Composer`,
  * so the draft (and a dictation in progress) survives moving between the tab and the floating window.
  */
+/** The message of whatever was thrown (not every rejection is an Error). */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function useComposer({
   onSend,
   disabled,
@@ -79,7 +85,11 @@ export function useComposer({
     setText("");
     setDictation(null);
     // Give the text back if sending failed, so nothing is lost.
-    if (!(await onSend(value, voice))) {
+    const sent = await onSend(value, voice).catch((error: unknown) => {
+      notify("error", `Couldn't send: ${messageOf(error)}`);
+      return false;
+    });
+    if (!sent) {
       setText(value);
       setDictation(draftDictation);
     }
@@ -137,8 +147,9 @@ export function useComposer({
   usePushToTalk({
     enabled: canDictate && !transcribing,
     recording: recorder.recording,
-    onStart: startRecording,
-    onStop: finishRecording,
+    // Both catch and report their own errors.
+    onStart: () => void startRecording(),
+    onStop: () => void finishRecording(),
     keyWindow,
   });
 
@@ -148,7 +159,9 @@ export function useComposer({
     submit,
     multiline,
     toggleRecording,
-    cancelRecording: recorder.cancel,
+    cancelRecording: () => {
+      recorder.cancel().catch((error: unknown) => notify("error", `Couldn't stop the microphone: ${messageOf(error)}`));
+    },
     recording: recorder.recording,
     transcribing,
     disabled,
@@ -182,7 +195,8 @@ export function Composer({ composer, canDictate }: { composer: ComposerState; ca
             const send = multiline ? e.ctrlKey || e.metaKey : !e.shiftKey;
             if (!send) return;
             e.preventDefault();
-            composer.submit();
+            // submit() reports its own errors (the draft is given back if sending fails).
+            void composer.submit();
           }
         }}
         placeholder={placeholder}
@@ -196,7 +210,7 @@ export function Composer({ composer, canDictate }: { composer: ComposerState; ca
       />
       <div className="flex flex-col gap-2">
         <Button
-          onClick={composer.toggleRecording}
+          onClick={() => void composer.toggleRecording()}
           disabled={!canDictate || disabled || transcribing}
           size="icon-lg"
           variant={recording ? "destructive" : "outline"}
@@ -213,7 +227,7 @@ export function Composer({ composer, canDictate }: { composer: ComposerState; ca
           {transcribing ? <Loader2 className="animate-spin" /> : recording ? <Square /> : <Mic />}
         </Button>
         <Button
-          onClick={composer.submit}
+          onClick={() => void composer.submit()}
           disabled={disabled || !text.trim() || recording || transcribing}
           size="icon-lg"
           aria-label="Send"

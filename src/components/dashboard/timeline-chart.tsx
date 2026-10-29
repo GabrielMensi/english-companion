@@ -1,6 +1,7 @@
 "use client";
 
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
 import type { Stats } from "@/lib/stats-core";
 
 type Point = Stats["timeline"][number] & { rate: number | null };
@@ -31,10 +32,7 @@ export function TimelineChart({ data }: { data: Stats["timeline"] }) {
           minTickGap={24}
         />
         <YAxis tickLine={false} axisLine={false} fontSize={12} stroke="var(--muted-foreground)" />
-        <Tooltip
-          cursor={{ stroke: "var(--muted-foreground)", strokeDasharray: "3 3" }}
-          content={<TimelineTooltip />}
-        />
+        <Tooltip cursor={{ stroke: "var(--muted-foreground)", strokeDasharray: "3 3" }} content={<TimelineTooltip />} />
         <Line
           type="linear"
           dataKey="rate"

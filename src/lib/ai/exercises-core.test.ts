@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   buildCategoryExerciseInstructions,
   buildExerciseInstructions,
@@ -31,22 +32,37 @@ describe("buildExerciseInstructions", () => {
   });
 
   it("describes form drills and use tasks", () => {
-    expect(buildExerciseInstructions({ ...contrast, kind: "form", contrastWith: null })).toContain("FORM of the present perfect");
-    expect(buildExerciseInstructions({ ...contrast, kind: "use", contrastWith: null, explanationLanguage: "en" })).toContain(
-      "No gaps",
+    expect(buildExerciseInstructions({ ...contrast, kind: "form", contrastWith: null })).toContain(
+      "FORM of the present perfect",
     );
+    expect(
+      buildExerciseInstructions({ ...contrast, kind: "use", contrastWith: null, explanationLanguage: "en" }),
+    ).toContain("No gaps");
   });
 });
 
 describe("normalizeExercises", () => {
   it("keeps valid items and works out the tense each answer needs", () => {
     const items = normalizeExercises(
-      raw(["I ____ (live) here since 2020.", "I have lived here since 2020."], ["She ___ (call) me yesterday.", "She called me yesterday."]),
+      raw(
+        ["I ____ (live) here since 2020.", "I have lived here since 2020."],
+        ["She ___ (call) me yesterday.", "She called me yesterday."],
+      ),
       contrast,
     );
     expect(items).toEqual([
-      { sentence: "I ___ (live) here since 2020.", answer: "I have lived here since 2020.", why: "Porque sí.", tenses: ["present_perfect"] },
-      { sentence: "She ___ (call) me yesterday.", answer: "She called me yesterday.", why: "Porque sí.", tenses: ["past_simple"] },
+      {
+        sentence: "I ___ (live) here since 2020.",
+        answer: "I have lived here since 2020.",
+        why: "Porque sí.",
+        tenses: ["present_perfect"],
+      },
+      {
+        sentence: "She ___ (call) me yesterday.",
+        answer: "She called me yesterday.",
+        why: "Porque sí.",
+        tenses: ["past_simple"],
+      },
     ]);
   });
 
@@ -94,18 +110,35 @@ describe("category exercises", () => {
     expect(instructions).toContain("2 fill-in-the-gap, 2 multiple choice, 2 fix-the-mistake");
     expect(instructions).toContain('"depend of" → "depend on"');
     expect(instructions).toContain("Spanish");
-    expect(buildCategoryExerciseInstructions({ ...request, subtype: null, mistakes: [] })).toContain("Time (in / on / at)");
+    expect(buildCategoryExerciseInstructions({ ...request, subtype: null, mistakes: [] })).toContain(
+      "Time (in / on / at)",
+    );
   });
 
   it("keeps valid items of each format and drops broken ones", () => {
     const items = normalizeCategoryExercises(
       {
         items: [
-          { sentence: "She is interested ____ machine learning.", options: "", answer: "She is interested in machine learning.", why: " Rule. " },
-          { sentence: "It depends ___ the weather.", options: "of / on/in", answer: "It depends on the weather.", why: "" },
+          {
+            sentence: "She is interested ____ machine learning.",
+            options: "",
+            answer: "She is interested in machine learning.",
+            why: " Rule. ",
+          },
+          {
+            sentence: "It depends ___ the weather.",
+            options: "of / on/in",
+            answer: "It depends on the weather.",
+            why: "",
+          },
           // Options already in the sentence.
           { sentence: "He is good ___ (at / in) maths.", options: "at / in", answer: "He is good at maths.", why: "" },
-          { sentence: "Fix the mistake: We discussed about the plan.", options: "", answer: "We discussed the plan.", why: "" },
+          {
+            sentence: "Fix the mistake: We discussed about the plan.",
+            options: "",
+            answer: "We discussed the plan.",
+            why: "",
+          },
           // The answer doesn't follow the sentence.
           { sentence: "He is good ___ chess.", options: "", answer: "She is good at chess.", why: "" },
           // The answer isn't one of the options.
@@ -115,16 +148,36 @@ describe("category exercises", () => {
           // The gap is left empty.
           { sentence: "We discussed ___ the plan.", options: "", answer: "We discussed the plan.", why: "" },
           // Duplicate.
-          { sentence: "She is interested ___ machine learning.", options: "", answer: "She is interested in machine learning.", why: "" },
+          {
+            sentence: "She is interested ___ machine learning.",
+            options: "",
+            answer: "She is interested in machine learning.",
+            why: "",
+          },
         ],
       },
       request,
     );
     expect(items).toEqual([
-      { sentence: "She is interested ___ machine learning.", answer: "She is interested in machine learning.", why: "Rule.", format: "fill" },
-      { sentence: "It depends ___ (of / on / in) the weather.", answer: "It depends on the weather.", why: "", format: "choice" },
+      {
+        sentence: "She is interested ___ machine learning.",
+        answer: "She is interested in machine learning.",
+        why: "Rule.",
+        format: "fill",
+      },
+      {
+        sentence: "It depends ___ (of / on / in) the weather.",
+        answer: "It depends on the weather.",
+        why: "",
+        format: "choice",
+      },
       { sentence: "He is good ___ (at / in) maths.", answer: "He is good at maths.", why: "", format: "choice" },
-      { sentence: "Fix the mistake: We discussed about the plan.", answer: "We discussed the plan.", why: "", format: "rewrite" },
+      {
+        sentence: "Fix the mistake: We discussed about the plan.",
+        answer: "We discussed the plan.",
+        why: "",
+        format: "rewrite",
+      },
     ]);
   });
 });

@@ -1,10 +1,11 @@
 "use client";
 
-import { MessageSquare, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Dumbbell, MessageSquareText, MessagesSquare, MoreHorizontal, Pencil, PencilLine, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +25,19 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import type { SessionSummary } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { voided } from "@/lib/voided";
+
+/** What kind of chat it is, at a glance: corrections only, a conversation (about a topic or not), or practice from the Practice page. */
+function SessionIcon({ session }: { session: SessionSummary }) {
+  if (session.practice) return <Dumbbell className="size-3.5 shrink-0 text-train" aria-label="Practice" />;
+  if (session.topic) {
+    return <MessageSquareText className="size-3.5 shrink-0 text-muted-foreground" aria-label="Topic conversation" />;
+  }
+  if (session.mode === "conversation") {
+    return <MessagesSquare className="size-3.5 shrink-0 text-muted-foreground" aria-label="Conversation" />;
+  }
+  return <PencilLine className="size-3.5 shrink-0 text-muted-foreground" aria-label="Correction" />;
+}
 
 export function SessionItem({ session, active }: { session: SessionSummary; active: boolean }) {
   const router = useRouter();
@@ -61,7 +75,7 @@ export function SessionItem({ session, active }: { session: SessionSummary; acti
           active && "bg-sidebar-accent font-medium",
         )}
       >
-        <MessageSquare className="size-3.5 shrink-0 text-muted-foreground" />
+        <SessionIcon session={session} />
         <span className="truncate">{session.title}</span>
       </Link>
 
@@ -71,7 +85,7 @@ export function SessionItem({ session, active }: { session: SessionSummary; acti
             variant="ghost"
             size="icon-xs"
             aria-label="Actions"
-            className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 group-hover:opacity-100 aria-expanded:opacity-100"
+            className="absolute top-1/2 right-1 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
           >
             <MoreHorizontal />
           </Button>
@@ -93,7 +107,7 @@ export function SessionItem({ session, active }: { session: SessionSummary; acti
 
       <Dialog open={dialog === "rename"} onOpenChange={(open) => !open && setDialog(null)}>
         <DialogContent>
-          <form onSubmit={rename} className="flex flex-col gap-4">
+          <form onSubmit={voided(rename)} className="flex flex-col gap-4">
             <DialogHeader>
               <DialogTitle>Rename chat</DialogTitle>
             </DialogHeader>
@@ -119,7 +133,7 @@ export function SessionItem({ session, active }: { session: SessionSummary; acti
             <Button variant="outline" onClick={() => setDialog(null)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={remove}>
+            <Button variant="destructive" onClick={voided(remove)}>
               Delete
             </Button>
           </DialogFooter>

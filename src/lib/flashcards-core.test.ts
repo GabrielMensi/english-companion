@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   applyCorrection,
   buildQueue,
@@ -13,6 +14,7 @@ import {
   type QueuedCard,
   vocabularyCards,
 } from "./flashcards-core";
+
 import type { ReviewState } from "./srs";
 import type { VocabularyWord } from "./vocabulary-core";
 
@@ -82,6 +84,7 @@ describe("vocabularyCards", () => {
     key: "incluso",
     spanish: "Incluso",
     english: ["Even so", "Actually"],
+    source: "app",
     note: null,
     timesLookedUp: 2,
     firstSeen: 1,
@@ -111,7 +114,13 @@ describe("mistakeCards", () => {
     const cards = mistakeCards([
       mistake({ id: "a", createdAt: 1000 }),
       mistake({ id: "b", createdAt: 3000, original: "I  have went ", sentence: "I have went home." }),
-      mistake({ id: "c", createdAt: 2000, original: "he go", correction: "he goes", category: "subject_verb_agreement" }),
+      mistake({
+        id: "c",
+        createdAt: 2000,
+        original: "he go",
+        correction: "he goes",
+        category: "subject_verb_agreement",
+      }),
     ]);
     expect(cards.map((c) => [c.original, c.timesMade])).toEqual([
       ["I have went", 2],
@@ -144,8 +153,22 @@ describe("mistakeCards", () => {
 describe("filterMistakes", () => {
   const cards = mistakeCards([
     mistake({ id: "a" }),
-    mistake({ id: "b", original: "he go", correction: "he goes", category: "subject_verb_agreement", subtype: "third_person_s", tense: "present_simple" }),
-    mistake({ id: "c", original: "a English", correction: "an English", category: "articles", subtype: "a_vs_the", tense: null }),
+    mistake({
+      id: "b",
+      original: "he go",
+      correction: "he goes",
+      category: "subject_verb_agreement",
+      subtype: "third_person_s",
+      tense: "present_simple",
+    }),
+    mistake({
+      id: "c",
+      original: "a English",
+      correction: "an English",
+      category: "articles",
+      subtype: "a_vs_the",
+      tense: null,
+    }),
   ]);
 
   it("filters by tense, category and type", () => {

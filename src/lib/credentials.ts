@@ -4,12 +4,10 @@ export const KEY_PROVIDERS = ["gemini", "groq"] as const;
 export type KeyProvider = (typeof KEY_PROVIDERS)[number];
 
 /** Environment variable used as fallback when no key is saved in the app. */
-export const KEY_ENV_VARS: Record<KeyProvider, string> = {
+export const KEY_ENV_VARS = {
   gemini: "GOOGLE_GENERATIVE_AI_API_KEY",
   groq: "GROQ_API_KEY",
-};
-
-export const DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434";
+} as const satisfies Record<KeyProvider, string>;
 
 /** Shows only the last characters, so the UI can tell keys apart without exposing them. */
 export function maskKey(key: string): string {
@@ -25,8 +23,4 @@ export function pickApiKey(
   if (stored?.trim()) return { key: stored.trim(), source: "app" };
   if (env?.trim()) return { key: env.trim(), source: "env" };
   return null;
-}
-
-export function normalizeBaseUrl(url: string): string {
-  return url.trim().replace(/\/+$/, "");
 }

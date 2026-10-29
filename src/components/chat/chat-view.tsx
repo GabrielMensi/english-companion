@@ -5,37 +5,52 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
+
 import { preloadSpeech, speak, stopSpeaking, useSpeechSupported, useVoiceMode } from "@/components/audio/speech";
 import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AssistantMessage } from "@/components/chat/assistant-message";
+import { ChatMenu, type ModelOption, ModeSwitch } from "@/components/chat/chat-controls";
 import { Composer, type Notify, useComposer } from "@/components/chat/composer";
 import { MiniChat, type Notice } from "@/components/chat/mini-chat";
-import { type ModelOption, ModelSelect } from "@/components/chat/model-select";
+import { TopicTools } from "@/components/chat/topic-tools";
 import { UserMessage } from "@/components/chat/user-message";
+import { NoProviderNotice } from "@/components/no-provider-notice";
+import { FloatingWindowProvider } from "@/components/pip/floating-window-context";
 import { usePipWindow } from "@/components/pip/use-pip-window";
+import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SessionMode } from "@/db/schema";
 import type { AnalysisPreview } from "@/lib/ai/analysis";
 import type { ProviderId } from "@/lib/ai/provider-info";
+import { reviewFeedback } from "@/lib/analysis-card-core";
 import { api, streamTurn } from "@/lib/api";
-import type { ChatMessage, SessionSummary, VoiceInput } from "@/lib/types";
+import type { Tense } from "@/lib/taxonomy";
+import type { StoredFeedback } from "@/lib/topic-review";
+import { MIN_REVIEW_TURNS } from "@/lib/topic-review-core";
+import type { ChatMessage, CorrectionUpdate, SessionSummary, VoiceInput } from "@/lib/types";
+import { voided } from "@/lib/voided";
 
 export function ChatView({
   session,
   initialMessages,
   models,
   selectedProvider,
+  hasModel,
   canDictate,
   answerTemplate = null,
+  topicTools = null,
 }: {
-  session: SessionSummary;
+  session: Omit<SessionSummary, "practice">;
   initialMessages: ChatMessage[];
   models: ModelOption[];
   selectedProvider: ProviderId;
+  /** False when no provider has an API key: nothing can be corrected until one is added. */
+  hasModel: boolean;
   canDictate: boolean;
   /** In an exercise chat waiting for the answers to its set: numbered lines to fill in. */
   answerTemplate?: string | null;
+  /** In a topic chat: its tense focus and saved feedback. */
+  topicTools?: { tense: Tense | null; feedback: StoredFeedback | null } | null;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState(initialMessages);
@@ -119,7 +134,8 @@ export function ChatView({
     .map((p) => `${p.correctedDone}:${p.errors.length}:${!!p.naturalText}:${!!p.reply}`)
     .join();
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bottomRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
   }, [messages.length, sending, previewShape]);
 
   function setPreview(id: string, preview: AnalysisPreview | null) {
@@ -161,9 +177,7 @@ export function ChatView({
   function mergeTurn(turn: ChatMessage[], replaceId?: string) {
     setMessages((prev) => {
       const ids = new Set(turn.map((m) => m.id));
-      const kept = prev.filter(
-        (m) => m.id !== replaceId && !ids.has(m.id) && m.replyToId !== turn[0].id,
-      );
+      const kept = prev.filter((m) => m.id !== replaceId && !ids.has(m.id) && m.replyToId !== turn[0].id);
       return [...kept, ...turn].sort((a, b) => a.createdAt - b.createdAt);
     });
   }
@@ -205,7 +219,8 @@ export function ChatView({
   /** In voice mode the reply is read aloud; the corrections just show up in the chat. */
   function readReplyAloud(turn: ChatMessage[]) {
     const reply = turn.find((m) => m.role === "assistant");
-    if (voiceConversation && reply) speak(reply.content, reply.id);
+    // Fire and forget: the reply is already on screen and speak() never rejects (it resolves when it ends).
+    if (voiceConversation && reply) void speak(reply.content, reply.id);
   }
 
   function toggleVoiceMode() {
@@ -213,8 +228,28 @@ export function ChatView({
     setVoiceMode(!voiceMode);
   }
 
+  function togglePip() {
+    if (pipWindow) closePip();
+    else openPip().catch((error: Error) => toast.error(`Couldn't open the floating window: ${error.message}`));
+  }
+
   function updateMessage(updated: Partial<ChatMessage> & { id: string }) {
     setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)));
+  }
+
+  /** A mistake changed from the floating window: update the message and say how it affects the stats. */
+  function updateCorrection({ correction, countsInStats }: CorrectionUpdate) {
+    const before = messages.flatMap((m) => m.corrections).find((c) => c.id === correction.id);
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.corrections.some((c) => c.id === correction.id)
+          ? { ...m, corrections: m.corrections.map((c) => (c.id === correction.id ? correction : c)) }
+          : m,
+      ),
+    );
+    const note = before && reviewFeedback(before, correction, countsInStats);
+    // Undoing a discard is done in the tab, where discarded mistakes are listed.
+    if (note) notify("info", correction.discardedAt !== null ? `${note}. Undo it from the tab.` : note);
   }
 
   async function changeMode(value: SessionMode) {
@@ -228,10 +263,17 @@ export function ChatView({
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between gap-4 border-b px-6 py-2.5">
-        <h1 className="truncate font-medium">{session.title}</h1>
-        <div className="flex items-center gap-3">
+    <div data-area="write" className="flex h-full flex-col">
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-6 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="truncate font-medium">{session.title}</h1>
+          {session.topic && (
+            <StatusBadge tone="neutral" className="shrink-0">
+              Topic
+            </StatusBadge>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           {mode === "conversation" && speechSupported && (
             <Button
               variant={voiceConversation ? "secondary" : "ghost"}
@@ -249,35 +291,21 @@ export function ChatView({
               Voice
             </Button>
           )}
-          {pip.supported && (
-            <Button
-              variant={pipWindow ? "secondary" : "ghost"}
-              size="icon-sm"
-              onClick={() =>
-                pipWindow
-                  ? closePip()
-                  : openPip().catch((error: Error) => toast.error(`Couldn't open the floating window: ${error.message}`))
-              }
-              aria-label={pipWindow ? "Bring the composer back" : "Pop out"}
-              title={
-                pipWindow
-                  ? "Bring the composer back to the tab (Alt+P)"
-                  : "Pop out: a floating window to write or dictate while you work in other apps (Alt+P)"
-              }
-            >
-              <PictureInPicture2 />
-            </Button>
+          {topicTools && (
+            <TopicTools
+              sessionId={session.id}
+              tense={topicTools.tense}
+              feedback={topicTools.feedback}
+              canReview={messages.filter((m) => m.role === "user" && m.status === "done").length >= MIN_REVIEW_TURNS}
+            />
           )}
-          <ModelSelect key={selectedProvider} options={models} selected={selectedProvider} />
-          <Select value={mode} onValueChange={(v) => changeMode(v as SessionMode)}>
-            <SelectTrigger size="sm" className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="correction">Correction</SelectItem>
-              <SelectItem value="conversation">Conversation</SelectItem>
-            </SelectContent>
-          </Select>
+          <ModeSwitch value={mode} onChange={voided(changeMode)} />
+          <ChatMenu
+            key={selectedProvider}
+            models={models}
+            selected={selectedProvider}
+            pip={pip.supported ? { open: Boolean(pipWindow), toggle: togglePip } : null}
+          />
         </div>
       </header>
 
@@ -292,7 +320,13 @@ export function ChatView({
           )}
           {messages.map((m) =>
             m.role === "user" ? (
-              <UserMessage key={m.id} message={m} preview={previews[m.id]} onRetry={retry} onUpdate={updateMessage} />
+              <UserMessage
+                key={m.id}
+                message={m}
+                preview={previews[m.id]}
+                onRetry={voided(retry)}
+                onUpdate={voided(updateMessage)}
+              />
             ) : (
               <AssistantMessage key={m.id} message={m} />
             ),
@@ -315,6 +349,7 @@ export function ChatView({
             </div>
           ) : (
             <>
+              {!hasModel && <NoProviderNotice className="mb-3" />}
               <Composer composer={composer} canDictate={canDictate} />
               {voiceConversation && (
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -329,25 +364,28 @@ export function ChatView({
 
       {pipWindow &&
         createPortal(
-          <MiniChat
-            title={session.title}
-            mode={mode}
-            message={lastSent}
-            preview={lastSent && previews[lastSent.id]}
-            reply={reply}
-            composer={composer}
-            canDictate={canDictate}
-            notice={notice?.window === pipWindow ? notice : null}
-            onDismissNotice={() => setNotice(null)}
-            notify={notify}
-            onRetry={retry}
-            onClose={closePip}
-            voice={
-              mode === "conversation" && speechSupported
-                ? { on: voiceConversation, canTurnOn: canDictate, toggle: toggleVoiceMode }
-                : null
-            }
-          />,
+          <FloatingWindowProvider value={{ container: pipWindow.document.body, notify }}>
+            <MiniChat
+              title={session.title}
+              mode={mode}
+              message={lastSent}
+              preview={lastSent && previews[lastSent.id]}
+              reply={reply}
+              composer={composer}
+              canDictate={canDictate}
+              notice={notice?.window === pipWindow ? notice : null}
+              onDismissNotice={() => setNotice(null)}
+              notify={notify}
+              onRetry={voided(retry)}
+              onUpdateCorrection={updateCorrection}
+              onClose={closePip}
+              voice={
+                mode === "conversation" && speechSupported
+                  ? { on: voiceConversation, canTurnOn: canDictate, toggle: toggleVoiceMode }
+                  : null
+              }
+            />
+          </FloatingWindowProvider>,
           pipWindow.document.body,
         )}
     </div>

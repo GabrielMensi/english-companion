@@ -1,6 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+
+import { CategoryRow } from "@/components/dashboard/category-row";
 import type { CategoryStat } from "@/lib/stats-core";
-import { categoryLabel, subtypeLabel } from "@/lib/taxonomy";
 
 export function CategoryTable({ categories }: { categories: CategoryStat[] }) {
   if (categories.length === 0) {
@@ -22,20 +23,7 @@ export function CategoryTable({ categories }: { categories: CategoryStat[] }) {
         </thead>
         <tbody>
           {categories.map((c) => (
-            <tr key={c.category} className="border-b last:border-0">
-              <td className="py-2 pr-4">{categoryLabel(c.category)}</td>
-              <td className="py-2 pr-4 text-right tabular-nums">{c.count}</td>
-              <td className="py-2 pr-4 text-right tabular-nums">{c.bySeverity.major}</td>
-              <td className="py-2 pr-4 text-right tabular-nums">{c.per100Words}</td>
-              <td className="py-2 pr-4 text-muted-foreground">
-                {c.topSubtypes.length === 0
-                  ? "—"
-                  : c.topSubtypes.map((t) => `${subtypeLabel(c.category, t.subtype) ?? t.subtype} (${t.count})`).join(", ")}
-              </td>
-              <td className="py-2">
-                <Trend value={c.trend} />
-              </td>
-            </tr>
+            <CategoryRow key={c.category} stat={c} trend={<Trend value={c.trend} />} />
           ))}
         </tbody>
       </table>
@@ -44,7 +32,7 @@ export function CategoryTable({ categories }: { categories: CategoryStat[] }) {
 }
 
 /** Trend in errors per 100 words: lower is better. Icon + text, never color alone. */
-function Trend({ value }: { value: number | null }) {
+export function Trend({ value }: { value: number | null }) {
   if (value === null) return <span className="text-muted-foreground">—</span>;
   if (Math.abs(value) < 0.05) {
     return (
@@ -54,11 +42,11 @@ function Trend({ value }: { value: number | null }) {
     );
   }
   return value < 0 ? (
-    <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+    <span className="flex items-center gap-1 text-mark-right">
       <ArrowDownRight className="size-3.5" /> Improving
     </span>
   ) : (
-    <span className="flex items-center gap-1 text-red-700 dark:text-red-400">
+    <span className="flex items-center gap-1 text-mark-wrong">
       <ArrowUpRight className="size-3.5" /> Getting worse
     </span>
   );

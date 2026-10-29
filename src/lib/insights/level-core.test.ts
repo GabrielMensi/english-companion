@@ -1,19 +1,16 @@
 import { describe, expect, it } from "vitest";
+
 import {
-  cleanText,
   estimateLevel,
   type LevelCorrection,
   type LevelMessage,
   levelEvolution,
   levelOf,
-  mattr,
   measureLevel,
   MIN_WORDS,
   recentWindow,
-  scoreDecreasing,
-  scoreIncreasing,
-  tokenize,
 } from "./level-core";
+import { cleanText, mattr, scoreDecreasing, scoreIncreasing, tokenize } from "./level-text";
 
 const DAY = 86_400_000;
 
@@ -40,6 +37,7 @@ function mistakes(messageId: string, n: number, partial: Partial<LevelCorrection
     severity: "moderate" as const,
     category: "prepositions" as const,
     inputMode: "typed" as const,
+    discardedAt: null,
     ...partial,
   }));
 }
@@ -108,13 +106,14 @@ describe("estimateLevel", () => {
     expect(low.signals.find((s) => s.id === "accuracy")!.level).toBe("A1");
   });
 
-  it("doesn't count typos, suggestions or categories dictation can't measure", () => {
+  it("doesn't count typos, suggestions, discarded mistakes or categories dictation can't measure", () => {
     const messages = repeat(SIMPLE, 20);
     const base = estimateLevel({ messages, corrections: [], countTypos: false });
     const ignored = [
       ...mistakes("m0", 10, { severity: "typo", category: "spelling" }),
       ...mistakes("m1", 10, { severity: "suggestion" }),
       ...mistakes("m2", 10, { inputMode: "spoken", category: "articles" }),
+      ...mistakes("m3", 10, { severity: "major", discardedAt: 1 }),
     ];
     expect(estimateLevel({ messages, corrections: ignored, countTypos: false }).score).toBe(base.score);
     expect(estimateLevel({ messages, corrections: ignored, countTypos: true }).score).toBeLessThan(base.score!);
@@ -133,8 +132,11 @@ describe("estimateLevel", () => {
     // SIMPLE has 25 words: 20 messages are 500 words.
     const messages = repeat(SIMPLE, 20);
     const accuracy = (perMessage: number) =>
-      estimateLevel({ messages, corrections: messages.flatMap((m) => mistakes(m.id, perMessage)), countTypos: false })
-        .signals.find((s) => s.id === "accuracy")!;
+      estimateLevel({
+        messages,
+        corrections: messages.flatMap((m) => mistakes(m.id, perMessage)),
+        countTypos: false,
+      }).signals.find((s) => s.id === "accuracy")!;
     expect(accuracy(0).level).toBe("C2");
     expect(accuracy(1).level).toBe("B2"); // 4 per 100 words
     expect(accuracy(2).level).toBe("A1"); // 8 per 100 words
@@ -145,7 +147,9 @@ describe("estimateLevel", () => {
     const tenses = repeat(ADVANCED, 15, 0, { tenseCounts: { future_perfect: 2, past_perfect: 2, present_perfect: 2 } });
     const a = estimateLevel({ messages: plain, corrections: [], countTypos: false });
     const b = estimateLevel({ messages: tenses, corrections: [], countTypos: false });
-    expect(b.signals.find((s) => s.id === "grammar")!.score).toBeGreaterThan(a.signals.find((s) => s.id === "grammar")!.score);
+    expect(b.signals.find((s) => s.id === "grammar")!.score).toBeGreaterThan(
+      a.signals.find((s) => s.id === "grammar")!.score,
+    );
     expect(b.signals.find((s) => s.id === "grammar")!.weight).toBe(0);
     expect(b.score).toBe(a.score);
   });
@@ -153,7 +157,11 @@ describe("estimateLevel", () => {
   it("doesn't let dictated punctuation decide sentence complexity", () => {
     const run = ADVANCED.replace(/,/g, "") + " " + ADVANCED.replace(/,/g, "");
     const chopped = ADVANCED.replace(/,/g, ".");
-    const spokenRun = estimateLevel({ messages: repeat(run, 10, 0, { inputMode: "spoken" }), corrections: [], countTypos: false });
+    const spokenRun = estimateLevel({
+      messages: repeat(run, 10, 0, { inputMode: "spoken" }),
+      corrections: [],
+      countTypos: false,
+    });
     const spokenChopped = estimateLevel({
       messages: repeat(chopped, 20, 0, { inputMode: "spoken" }),
       corrections: [],
@@ -179,7 +187,11 @@ describe("estimateLevel", () => {
   it("counts each dictated mistake double, since half the categories aren't measured when speaking", () => {
     const typed = repeat(SIMPLE, 20);
     const spoken = repeat(SIMPLE, 20, 0, { inputMode: "spoken" });
-    const typedRate = measureLevel(typed, typed.map((m) => mistakes(m.id, 1)[0]), false).errorRate;
+    const typedRate = measureLevel(
+      typed,
+      typed.map((m) => mistakes(m.id, 1)[0]),
+      false,
+    ).errorRate;
     const spokenRate = measureLevel(
       spoken,
       spoken.map((m) => mistakes(m.id, 1, { inputMode: "spoken", category: "verb_tense" })[0]),
@@ -218,7 +230,12 @@ describe("levelEvolution", () => {
     const early = repeat(SIMPLE, 20, 0);
     const late = repeat(SIMPLE, 20, 20);
     const corrections = early.flatMap((m) => mistakes(m.id, 3));
-    const evolution = levelEvolution({ messages: [...late, ...early], corrections, countTypos: false, chunkWords: 400 });
+    const evolution = levelEvolution({
+      messages: [...late, ...early],
+      corrections,
+      countTypos: false,
+      chunkWords: 400,
+    });
     expect(evolution).toHaveLength(2);
     expect(evolution[0].from).toBeLessThan(evolution[1].from);
     expect(evolution[0].per100Words).toBeGreaterThan(evolution[1].per100Words);

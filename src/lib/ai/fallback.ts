@@ -2,22 +2,15 @@
  * Pure fallback logic: try the selected model first, then the configured
  * fallbacks in the order the user chose. Kept free of server-only imports so it can be tested.
  */
-import { NoObjectGeneratedError } from "ai";
-import { PROVIDER_IDS, type ProviderId, PROVIDERS } from "./provider-info";
+import { APICallError, LoadAPIKeyError, NoObjectGeneratedError, RetryError } from "ai";
+
+import { PROVIDER_IDS, type ProviderId } from "./provider-info";
 
 export interface FallbackAttempt {
   provider: ProviderId;
   model: string;
   /** Short, user-facing reason, e.g. "quota exceeded". */
   reason: string;
-}
-
-/**
- * Remote providers first, local ones last, because a local model is slower and
- * takes the GPU. Only used to migrate settings saved before the order was editable.
- */
-export function byFallbackPriority(providers: readonly ProviderId[]): ProviderId[] {
-  return [...providers].sort((a, b) => Number(PROVIDERS[a].local) - Number(PROVIDERS[b].local));
 }
 
 /** The primary model and its fallbacks, in the order they're tried. */
@@ -33,6 +26,27 @@ export function fallbackOrder(
   isConfigured: (provider: ProviderId) => boolean,
 ): ProviderId[] {
   return [...new Set([primary, ...fallbacks.filter((p) => p !== primary && isConfigured(p))])];
+}
+
+function isProviderId(value: unknown): value is ProviderId {
+  return PROVIDER_IDS.includes(value as ProviderId);
+}
+
+/**
+ * The chain saved by an older version, without providers that no longer exist
+ * (Ollama, removed in settings v3). If the primary was one of them, the first
+ * remaining fallback takes its place; with none left, `defaultProvider` does.
+ * Without a saved `fallbacks` key, every other provider is a fallback (the default).
+ */
+export function upgradeChain(stored: { provider?: unknown; fallbacks?: unknown }, defaultProvider: ProviderId): Chain {
+  if (stored.fallbacks === undefined) {
+    const provider = isProviderId(stored.provider) ? stored.provider : defaultProvider;
+    return normalizeChain({ provider, fallbacks: [...PROVIDER_IDS] });
+  }
+  const fallbacks = Array.isArray(stored.fallbacks) ? stored.fallbacks.filter(isProviderId) : [];
+  if (isProviderId(stored.provider)) return normalizeChain({ provider: stored.provider, fallbacks });
+  const [provider = defaultProvider, ...rest] = fallbacks;
+  return normalizeChain({ provider, fallbacks: rest });
 }
 
 /** Drops duplicates and the primary from the fallbacks. */
@@ -117,23 +131,61 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** An error whose message is written for the user, so it can be shown as is. */
+export class UserFacingError extends Error {}
+
+/**
+ * Whether the message comes from this app's code (`new Error("...")` or a {@link UserFacingError}).
+ * Anything else (provider responses, library and runtime errors) may carry raw details, like the
+ * provider's own wording, request ids or internal paths, so it's never shown verbatim.
+ */
+export function isOwnError(error: unknown): error is Error {
+  return (
+    error instanceof UserFacingError || (error instanceof Error && Object.getPrototypeOf(error) === Error.prototype)
+  );
+}
+
+/** The HTTP status a provider answered with, when the error came from its API (also after the SDK's retries). */
+export function statusOf(error: unknown): number | undefined {
+  if (RetryError.isInstance(error)) return statusOf(error.lastError);
+  return APICallError.isInstance(error) ? error.statusCode : undefined;
+}
+
 const UNREACHABLE = /Cannot connect to API|ECONNREFUSED|fetch failed|Connect Timeout/i;
 const TIMED_OUT = /aborted due to timeout|timed out|TimeoutError/i;
+// "Request too large" means the request alone is over the limit (Groq answers 413, or a 429 with this text):
+// waiting never helps. A normal per-minute rate limit ("Rate limit reached ... tokens per minute ... try again
+// in 3s") is temporary and stays "quota exceeded".
+const TOO_LARGE = /request too large|payload too large/i;
+// The model ran out of output tokens before finishing the JSON (Groq: "max completion tokens reached").
+const OUTPUT_TRUNCATED =
+  /max(?:imum)? completion tokens|max_completion_tokens|output was truncated|finish.?reason.{0,10}length/i;
 const QUOTA = /429|rate limit|quota|RESOURCE_EXHAUSTED/i;
 const OVERLOADED = /503|high demand|overloaded|UNAVAILABLE/i;
 const INVALID_KEY = /API key not valid|invalid api key|401|PERMISSION_DENIED/i;
+
+/** Whether the provider refused the request for being bigger than its token or size limits, or cut the answer short for the same reason: long, error-heavy messages on a free tier. */
+export function isRequestTooLarge(error: unknown): boolean {
+  if (RetryError.isInstance(error)) return isRequestTooLarge(error.lastError);
+  return statusOf(error) === 413 || TOO_LARGE.test(messageOf(error)) || OUTPUT_TRUNCATED.test(messageOf(error));
+}
 
 /** A few words describing why a model failed, for the "fallback" note. */
 export function shortReason(error: unknown): string {
   const message = messageOf(error);
   if (UNREACHABLE.test(message)) return "unreachable";
   if (TIMED_OUT.test(message)) return "timed out";
+  if (isRequestTooLarge(error)) return "request too large";
   if (QUOTA.test(message)) return "quota exceeded";
   if (OVERLOADED.test(message)) return "overloaded";
   if (INVALID_KEY.test(message)) return "invalid API key";
   if (NoObjectGeneratedError.isInstance(error)) return "invalid response";
   if (/not found/i.test(message) && /model/i.test(message)) return "model not found";
-  if (/Missing .* API key/i.test(message)) return "missing API key";
+  if (/Missing .* API key/i.test(message) || LoadAPIKeyError.isInstance(error)) return "missing API key";
+  if (!isOwnError(error)) {
+    const status = statusOf(error);
+    return status ? `provider error ${status}` : "provider error";
+  }
   return message.length > 80 ? `${message.slice(0, 77)}…` : message;
 }
 
@@ -142,6 +194,7 @@ const SAME_WITHOUT_STREAMING = new Set([
   "unreachable",
   "timed out",
   "quota exceeded",
+  "request too large",
   "overloaded",
   "invalid API key",
   "model not found",
@@ -166,13 +219,18 @@ export function errorToMessage(error: unknown): string {
   }
   const message = messageOf(error);
   if (UNREACHABLE.test(message)) {
-    return "Couldn't connect to the AI provider. If you use Ollama, make sure it's running and the model is downloaded.";
+    return "Couldn't connect to the AI provider. Check your internet connection and try again.";
   }
   if (TIMED_OUT.test(message)) {
     return "The model took too long to respond. Try again or switch to a faster model.";
   }
   if (/not found/i.test(message) && /model/i.test(message)) {
-    return `${message}. Check the model name in Settings.`;
+    return isOwnError(error)
+      ? `${message}. Check the model name in Settings.`
+      : "The provider doesn't have that model. Check the model name in Settings.";
+  }
+  if (isRequestTooLarge(error)) {
+    return "This message is too long for the provider's free tier limit. Try a shorter message or add another provider in Settings.";
   }
   if (QUOTA.test(message)) {
     return "The provider's free tier limit was reached. Wait a while or switch providers.";
@@ -180,8 +238,17 @@ export function errorToMessage(error: unknown): string {
   if (OVERLOADED.test(message)) {
     return "The provider is overloaded right now. Try again in a moment or switch providers.";
   }
+  if (LoadAPIKeyError.isInstance(error)) {
+    return "The AI provider's API key is missing. Add it in Settings.";
+  }
+  if (!isOwnError(error) && INVALID_KEY.test(message)) {
+    return "The provider rejected the API key. Check it in Settings.";
+  }
   if (NoObjectGeneratedError.isInstance(error)) {
     return "The model didn't return a response in the expected format. Try again or use a bigger model.";
   }
-  return message;
+  if (isOwnError(error)) return message;
+  // The route logs the details that are safe to log (see server-log.ts).
+  const status = statusOf(error);
+  return `The AI provider returned an error${status ? ` (HTTP ${status})` : ""}. Try again or switch providers.`;
 }

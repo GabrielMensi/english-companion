@@ -1,0 +1,200 @@
+# Tiempos verbales: diagnóstico por tiempo
+
+> Area: Practice · Kind: Feature · Status: Done (written vs spoken comparison pending) · Board: #10
+
+Estado (2026-09-30): **implementado** el diagnóstico (ver "Implementado") y la práctica (ver "Práctica", al final). Queda la comparación escrito / hablado. Los tiempos verbales son uno de los temas más importantes para un hispanohablante, pero hoy la app solo sabe **cuántos** errores hay en `verb_tense`, no **en qué tiempo** ni **cuáles domino**.
+
+## Qué pasa hoy
+
+- Todo error de tiempo va a la categoría `verb_tense`, con un `subcategory` que el modelo inventa libremente. En la base actual hay, por ejemplo, `past_simple` y `present_tense_for_future_conditions`: nombres distintos para cosas del mismo tipo, que no se pueden agrupar por tiempo.
+- Los errores de _forma_ del mismo tiempo van a otras categorías: _"I have wrote"_ es `verb_form`, _"he go"_ es `subject_verb_agreement`, _"If I will have time"_ es `conditionals`. El present perfect aparece repartido en tres lugares.
+- **Solo se registran fallas.** Para saber qué tiempo es fuerte hace falta saber cuántas veces lo usaste **bien**. Hoy, "cero errores de past perfect" puede significar que lo dominás o que nunca lo usás (evitación, muy común con el present perfect y los perfect continuous).
+- El dato más útil para un hispanohablante es la **confusión**: qué tiempo usaste en lugar de cuál (_past simple en vez de present perfect_, _present simple en vez de present perfect_ con _since/for_). Hoy no se guarda.
+
+## Propuesta
+
+Tres datos nuevos, todos con listas fijas (como la taxonomía) para que las estadísticas agrupen bien:
+
+1. **`tense`**: el tiempo que _correspondía_, en cada error de categorías verbales.
+2. **`tenseUsed`**: el tiempo que _usaste_, cuando el error es de uso. Con los dos sale la matriz de confusión.
+3. **Usos por tiempo** en cada mensaje: cuántas veces aparece cada tiempo en el texto corregido. Es el denominador para calcular la precisión.
+
+Con eso, para cada tiempo: `usos`, `errores de uso`, `errores de forma`, `precisión = 1 − errores / usos`, tendencia y estado.
+
+### Lista fija de tiempos (`src/lib/taxonomy.ts`)
+
+```ts
+export const TENSES = [
+  "present_simple",
+  "present_continuous",
+  "past_simple",
+  "past_continuous",
+  "present_perfect",
+  "present_perfect_continuous",
+  "past_perfect",
+  "past_perfect_continuous",
+  "future_will",
+  "future_going_to",
+  "future_present_continuous", // arrangements: I'm meeting him tomorrow
+  "future_continuous",
+  "future_perfect",
+  "used_to_would", // past habits
+  "conditional_would", // would do / would have done
+] as const;
+```
+
+Con `TENSE_LABELS` y `TENSE_HINTS` (una línea para el modelo, igual que `CATEGORY_HINTS`). Los condicionales y los modales mantienen su categoría; `tense` indica qué tiempo verbal había dentro (p. ej. _"If I will have time"_ → `conditionals` con `tense: present_simple`, `tenseUsed: future_will`).
+
+### Uso vs forma
+
+Distinguir dos tipos de falla por tiempo cambia la estrategia de estudio:
+
+- **Uso** (`verb_tense`): sabés formarlo pero no cuándo usarlo → explicación de contraste y ejercicios de elección (_"I live here since 2020"_).
+- **Forma** (`verb_form`, `subject_verb_agreement`, `question_formation`): sabés cuándo usarlo pero lo armás mal → drills de conjugación (_"I have wrote"_, _"he don't"_, _"Did you went?"_).
+
+Se deriva de la categoría que ya existe, no hace falta un campo nuevo.
+
+## Cambios
+
+### Salida del modelo (`src/lib/ai/analysis.ts`)
+
+> Alternativa: en vez de agregar estos campos al prompt del análisis, los puede resolver la etapa de clasificación separada de [ERROR_CLASSIFICATION.md](../ai/ERROR_CLASSIFICATION.md). Así el prompt no crece.
+
+Dos campos planos más por error, que funcionan con modelos locales (enum con `"none"` en vez de null, porque los modelos chicos manejan mejor un string que un null):
+
+```ts
+tense: z.enum([...TENSES, "none"]).describe("Tense the sentence needed. 'none' unless the error involves a verb."),
+tenseUsed: z.enum([...TENSES, "none"]).describe("Tense the learner used instead. 'none' if the error is about form, not tense choice."),
+```
+
+Instrucciones: una regla nueva con la lista de tiempos y un ejemplo; el ejemplo actual ya sirve (_"Yesterday I have went"_ → `tense: past_simple`, `tenseUsed: present_perfect`).
+
+`normalizeAnalysis` (puro, con tests):
+
+- `tense` / `tenseUsed` → `null` si son `"none"` o si la categoría no es verbal (`verb_tense`, `verb_form`, `subject_verb_agreement`, `question_formation`, `conditionals`, `modals`).
+- En `verb_tense`, si `tenseUsed === tense`, el error es de forma: se descarta `tenseUsed`.
+- Nada de esto aplica a `suggestion` ni `typo`.
+
+### Conteo de usos (el denominador)
+
+Contar los tiempos del **texto corregido** (el que expresa lo que quisiste decir) con código, no con el modelo:
+
+- **Opción recomendada: [compromise](https://github.com/spencermountain/compromise)**, NLP en JS basado en reglas. Detecta frases verbales y su forma (simple / progressive / perfect, past / present / future). Es determinístico, corre offline en microsegundos, se puede testear con vitest y **se puede correr sobre todo el historial** (el `correctedText` ya está guardado) sin volver a llamar a la IA.
+- Alternativa si compromise falla demasiado: pedirle al modelo `tensesUsed: TENSE[]`. Cuesta tokens y los modelos locales cuentan mal, así que queda como plan B.
+- Paso 0: un spike con ~50 oraciones etiquetadas a mano (incluidas las de `scripts/eval/samples.ts`) para medir la precisión de compromise por tiempo. Si confunde algún tiempo en particular (p. ej. `future_present_continuous` vs `present_continuous`, que solo el contexto separa), se fusionan esos tiempos en el conteo.
+
+Nuevo módulo puro `src/lib/tenses-core.ts`: `countTenses(text): Partial<Record<Tense, number>>`, con tests. Se ignoran los bloques de código y el texto entre backticks, igual que en el análisis.
+
+### Schema (`src/db/schema.ts` + `pnpm db:generate`)
+
+```ts
+// corrections
+tense: text("tense").$type<Tense>(),
+tenseUsed: text("tense_used").$type<Tense>(),
+
+// messages
+tenseCounts: text("tense_counts", { mode: "json" }).$type<Partial<Record<Tense, number>>>(),
+```
+
+Backfill: un script que recorre los mensajes con `correctedText` y completa `tenseCounts`. Los pocos errores verbales viejos se pueden reclasificar con el modelo o quedarse sin `tense` (se muestran como "sin clasificar").
+
+### Estadísticas (`src/lib/stats-core.ts`)
+
+Nueva sección `tenses` en `Stats`:
+
+```ts
+interface TenseStat {
+  tense: Tense;
+  uses: number;
+  usageErrors: number;   // verb_tense
+  formErrors: number;    // verb_form, subject_verb_agreement, question_formation...
+  accuracy: number | null;           // null con muy pocos usos
+  smoothedAccuracy: number;          // para rankear sin que 1 de 1 gane
+  trend: number | null;              // vs el período anterior
+  status: "strong" | "shaky" | "weak" | "not_enough_data" | "avoided";
+  confusedWith: { tense: Tense; count: number; example: {...} }[];
+}
+```
+
+- **Precisión suavizada** (Beta(1,1)): `(usos − errores + 1) / (usos + 2)`. Con 2 usos y 0 errores da 75 %, no 100 %, así no se declara "fuerte" algo que casi no usaste.
+- **Estados** (umbrales iniciales, ajustables): `strong` ≥ 90 % con ≥ 15 usos; `weak` < 75 %; `shaky` en el medio; `not_enough_data` con < 5 usos; `avoided` si el tiempo casi no aparece en muchas palabras escritas y es un tiempo común (present perfect, past continuous, going to). Evitar un tiempo también es una debilidad.
+- **Matriz de confusión**: pares `tenseUsed → tense` ordenados por frecuencia, con el ejemplo más reciente.
+- Respeta el mismo `countTypos` y los mismos rangos de fechas; cuando exista la voz ([VOICE.md](../voice/VOICE.md)), también el filtro escrito / hablado.
+
+### Dashboard
+
+Una card "Verb tenses":
+
+- Tabla por tiempo: usos, precisión (barra), errores de uso vs forma, tendencia y estado con color (fuerte / inestable / débil / evitado / sin datos), agrupada por familia (presentes, pasados, perfectos, futuros).
+- "Your most common confusions": _"Past simple instead of present perfect — 7 times"_, con el ejemplo real y un link a la explicación.
+- Resumen de una línea: _"Strongest: present simple (96 %). Needs work: present perfect (58 %, mostly used past simple instead). Avoided: past perfect."_
+
+### Estrategia de mejora (lo que se hace con el diagnóstico)
+
+El diagnóstico alimenta las features del roadmap que ya estaban previstas, con más precisión que "la categoría más floja":
+
+- **Ejercicios dirigidos**: en vez de "verb tenses", ejercicios de **contraste** para el par más confundido (elegir entre past simple y present perfect con marcadores como _yesterday / since / ever / just_), o de **forma** si la falla es de conjugación.
+- **Repaso espaciado**: las tarjetas de errores verbales llevan el tiempo, así que se puede repasar "solo present perfect".
+- **Conversación que fuerza el tiempo**: el modo conversación propone preguntas que requieren el tiempo débil o evitado (_"What have you done this week that you haven't done before?"_, _"What were you doing when…?"_). Es la forma de generar usos del tiempo evitado.
+- **Plan semanal y reporte para la clase**: "Present perfect: 58 % de precisión, lo confundís con past simple" es algo concreto para pedirle al profesor. Con el syllabus del libro se puede marcar "visto en Roadmap 3A y todavía débil".
+- **Escrito vs hablado** (con la voz): un tiempo fuerte al escribir y débil al hablar indica que se conoce la regla pero todavía no está automatizada.
+
+### Evaluación de modelos
+
+- Sumar a `scripts/eval/samples.ts` un campo opcional `tense` / `tenseUsed` en las expectativas y agregar casos típicos: _"I live here since 2020"_, _"When I will arrive, I call you"_, _"I didn't saw him"_, _"I was knowing the answer"_, _"If I would have known"_.
+- `score.ts` suma un puntaje de "tiempo correcto" para decidir si los modelos locales lo clasifican bien. Si `gemma4:12b` falla mucho en `tenseUsed`, se puede dejar solo `tense` para los modelos locales.
+
+## Plan de implementación
+
+1. **Spike de conteo**: compromise sobre ~50 oraciones etiquetadas; decidir compromise vs plan B y qué tiempos fusionar.
+2. **Taxonomía**: `TENSES`, labels y hints en `taxonomy.ts`.
+3. **Análisis**: campos en el schema de salida, regla y ejemplo en las instrucciones, normalización con tests.
+4. **Conteo**: `tenses-core.ts` con tests; guardar `tenseCounts` al persistir el análisis (`src/lib/chat.ts`).
+5. **DB**: columnas nuevas, `pnpm db:generate`, script de backfill.
+6. **Stats**: `tenses` en `computeStats` con tests (precisión suavizada, estados, confusiones, tendencia).
+7. **Dashboard**: card "Verb tenses".
+8. **Eval**: casos nuevos y puntaje de tiempo; correr `pnpm eval:models` con los modelos recomendados.
+9. **Docs**: README y ROADMAP.
+
+Después: ejercicios de contraste y conversación dirigida, que se apoyan en esto.
+
+## Implementado
+
+- **Tiempo de cada error**: lo asigna el clasificador diferido de [ERROR_CLASSIFICATION.md](../ai/ERROR_CLASSIFICATION.md) (`tense` / `tenseUsed` en `corrections`), no el prompt del chat.
+- **Conteo de usos**: `src/lib/tenses-core.ts` (`countTenses`), con compromise más reglas propias:
+  - une lo que compromise separa en las preguntas ("Did | she finish", "Are you going | to deploy");
+  - resuelve contracciones ("she's been" → has been);
+  - descarta infinitivos, imperativos (incluidos "Don't…" y los que van después de una coma) y participios usados como adjetivos ("minified code", "the work done on").
+  - Hay 45 casos de test. Sobre los prompts reales anda bien. Las fallas que quedan vienen de errores de etiquetado de compromise (p. ej. "show" como sustantivo) o son imperativos coordinados sin sujeto.
+- **Guardado**: `messages.tense_counts` (`{ version, counts }`), calculado la primera vez que el dashboard lo necesita. Si cambian las reglas, se sube `TENSE_COUNTER_VERSION` y se recalcula solo.
+- **Estadísticas**: `src/lib/tense-stats.ts` (puro, con tests):
+  - usos, errores de uso y de forma, precisión, precisión suavizada, tendencia, estado y confusiones;
+  - "present continuous for the future" se mide como present continuous, porque el contador no los distingue;
+  - los errores verbales que esperan al clasificador se muestran como pendientes y no se cuentan.
+- **Dashboard**: card "Verb tenses", con un resumen (el más fuerte, el que necesita trabajo y los poco usados), la tabla por familia y las confusiones más comunes con un ejemplo real.
+
+Umbrales iniciales: precisión recién con 5 usos; `strong` con ≥ 90 % suavizado y ≥ 15 usos; `weak` < 75 %; `avoided` si un tiempo común aparece ≤ 1 vez en ≥ 1000 palabras.
+
+## Práctica
+
+Página **Practice** (también desde "Practice →" en la card "Verb tenses" del dashboard). Usa el diagnóstico para practicar, no solo para medir.
+
+- **Qué practicar**: `selectPracticeTargets` en `src/lib/tense-practice.ts` (puro, con tests) toma las estadísticas por tiempo de los últimos 90 días y elige hasta 3 tiempos: puntaje = errores + un extra para `weak` (5), `avoided` (4) y `shaky` (2). Los `strong` y los `shaky` sin errores quedan afuera; los que tienen pocos usos entran solo con ≥ 2 errores. Un par confundido en los dos sentidos (past simple ↔ present perfect) aparece una sola vez. Sin datos, sugiere los clásicos del hispanohablante (present perfect vs past simple, past continuous vs past simple, going to vs will).
+- **Tipo de ejercicio** según el problema: **contraste** con el tiempo usado en su lugar si fallás al elegirlo (errores de uso ≥ de forma), **forma** (drill de conjugación: negativas, preguntas, irregulares) si lo elegís bien pero lo armás mal, y **uso** (tareas cortas para escribir oraciones propias) si es un tiempo evitado.
+- **Ejercicios**: se generan con IA (`src/lib/ai/exercises.ts`, schema plano `items: [{sentence, answer, why}]`, con fallback entre modelos y `withChatPriority`). Para los pares comunes, el prompt incluye las pistas que deciden el tiempo (_yesterday / ago_ vs _since / for / ever / just / yet_…). `normalizeExercises` descarta ítems sin hueco, respuestas sin completar, duplicados y respuestas en un tiempo que no se practica (según `countTenses`). El `why` sigue el idioma de las explicaciones.
+- **Chat de ejercicios** (contraste y forma; mismo motor que los ejercicios por categoría, `src/lib/exercise-set.ts`, puro, con tests): un chat normal en modo corrección cuyo primer mensaje muestra **el set completo**: la consigna, todos los ítems numerados (con las opciones a la vista en los de opción múltiple) y cómo responder. El aprendiz responde **todo en un solo mensaje**, una línea por ítem ("1. have lived", "2. called"…); el composer arranca con las líneas numeradas y, hasta que se responde, Enter agrega una línea y Ctrl+Enter envía. Ese mensaje pasa una sola vez por el pipeline de corrección de siempre (corrige, cuenta en las estadísticas y en `tense_counts`, `withChatPriority`, preview en streaming) y la respuesta es un resumen fijo, sin IA: por ítem ✓/✗, lo que escribiste, la respuesta esperada y el porqué, y el puntaje. Costo: **2 requests por set** (generar + revisar), antes eran 7 con 6 ítems uno por uno.
+  - **Parseo** (`parseAnswers`): tolera "1." "1)" "(1)" "1 -" "1/6.", líneas sin número (siguen a la anterior), números fuera de orden, varias respuestas numeradas en una línea ("1. on 2. at") o una lista corta separada por comas; ignora líneas de más. Un ítem sin respuesta (línea vacía, "?", "-", "skip") queda **sin responder**: se muestra la respuesta, no cuenta como fallado y no se guarda en el mazo (no sabemos si no lo sabías o lo salteaste, y un envío parcial no debería llenar el mazo).
+  - **Corrección por ítem, determinística**: los errores de la corrección se ubican en cada respuesta por la posición de su fragmento (`original`) en el mensaje. Si escribís solo las palabras del hueco, se rearma la oración (`completeSentence`; con varios huecos, separadas por "/" o "," o por cuántas palabras lleva cada hueco en la respuesta esperada). Contraste: decide el tiempo (`countTenses`) y un error verbal en esa respuesta lo vuelve ✗ ("right tense, wrong form"). Forma: el tiempo viene dado, así que las palabras del hueco tienen que ser las esperadas (ignorando contracciones; "'s" vale como is o has); si escribiste otra oración, ✗ si el tiempo es otro o la corrección encontró un error verbal, si no "?" (sin marcar).
+  - El primer mensaje del chat es la respuesta del set; reintentarlo vuelve a corregirlo igual (y actualiza los ítems guardados). Los mensajes siguientes son correcciones normales.
+  - Las tareas **"use"** (respuestas abiertas) siguen yendo de a una: la n-ésima respuesta corresponde a la tarea n.
+- **Conversación dirigida**: un chat en modo conversación que abre con una pregunta que solo se contesta natural con ese tiempo (`TENSE_QUESTIONS`, 3 por tiempo) y agrega una regla a la respuesta del modelo para que cada pregunta de seguimiento también lo necesite, sin hablar de gramática. Funciona con el modo voz.
+- **Sin migración**: qué practica cada chat se guarda en la tabla `settings` (clave `practice:<session id>`); los chats sin esa clave son chats normales. Se borra con el chat.
+
+Limitaciones:
+
+- El chequeo del tiempo depende de `countTenses`: si no reconoce el verbo, muestra la respuesta sin marcar ✓/✗ ("?").
+- Si la corrección reescribe un fragmento que no está tal cual en el mensaje, ese error no se puede ubicar en un ítem y no cuenta para la nota (sí en las estadísticas).
+- Responder solo con las palabras del hueco da poco contexto a la corrección: casi nunca encuentra errores ahí, y la nota sale de comparar con la respuesta esperada.
+- Dictado: "one on, two at" no se parsea como respuestas numeradas; para los sets conviene escribir.
+- Las respuestas a ejercicios son oraciones guiadas: suben los usos del tiempo practicado en las estadísticas, igual que cualquier mensaje.
+- Los ejercicios se generan cada vez (no hay banco guardado). Los ítems fallados sí se guardan y vuelven como flashcards en el mazo **Missed exercises** (ver "Ejercicios dirigidos" en docs/ROADMAP.md).

@@ -1,12 +1,15 @@
 import "server-only";
 
 import { APICallError } from "ai";
+
 import { computeFluency, wordsFromResponse } from "@/lib/fluency";
+
+import { UserFacingError } from "./fallback";
 import { resolveTranscriptionModel } from "./providers";
 
 const TIMEOUT_MS = 30_000;
 
-export class TranscriptionUnavailableError extends Error {
+export class TranscriptionUnavailableError extends UserFacingError {
   constructor() {
     super("Dictation needs a Groq API key. Add it in Settings.");
     this.name = "TranscriptionUnavailableError";
@@ -14,8 +17,8 @@ export class TranscriptionUnavailableError extends Error {
 }
 
 /** Transcribes a dictated message (16 kHz mono WAV) word for word, with fluency metrics from the word timestamps. */
-export async function transcribeSpeech(audio: Uint8Array) {
-  const resolved = resolveTranscriptionModel();
+export async function transcribeSpeech(userId: string, audio: Uint8Array) {
+  const resolved = resolveTranscriptionModel(userId);
   if (!resolved) throw new TranscriptionUnavailableError();
 
   const started = Date.now();

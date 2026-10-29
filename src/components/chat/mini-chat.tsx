@@ -2,7 +2,6 @@
 
 import {
   AlertTriangle,
-  ArrowRight,
   Bot,
   Check,
   CheckCircle2,
@@ -15,20 +14,25 @@ import {
   X,
 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
+
 import { SpeakButton } from "@/components/audio/speak-button";
 import { PUSH_TO_TALK_KEYS } from "@/components/audio/use-push-to-talk";
 import { AnalysisPreviewView } from "@/components/chat/analysis-preview";
 import { Composer, type ComposerState, type Notify } from "@/components/chat/composer";
 import { DiffText } from "@/components/chat/diff-text";
-import { CopyButton, copyText } from "@/components/copy-button";
+import { MistakeGroups } from "@/components/chat/mistake-list";
 import { FluencyNote } from "@/components/chat/user-message";
+import { CopyButton, copyText } from "@/components/copy-button";
 import { SeverityBadge } from "@/components/severity-badge";
 import { Button } from "@/components/ui/button";
 import type { SessionMode } from "@/db/schema";
 import type { AnalysisPreview } from "@/lib/ai/analysis";
-import { categoryLabel, SEVERITIES } from "@/lib/taxonomy";
-import type { ChatMessage } from "@/lib/types";
+import { cardSections } from "@/lib/analysis-card-core";
+import { markDiff } from "@/lib/correction-marks";
+import { SEVERITIES } from "@/lib/taxonomy";
+import type { ChatMessage, CorrectionUpdate } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { voided } from "@/lib/voided";
 
 export interface Notice {
   kind: "error" | "info";
@@ -38,7 +42,8 @@ export interface Notice {
 /**
  * The floating window's content: the last correction and the composer, so you can write or dictate
  * while working in another app. Radix popups and toasts portal into the main document (the hidden
- * tab), so this view avoids them: messages show inline as a `Notice`.
+ * tab) unless told otherwise: `FloatingWindowProvider` points dialogs and selects at this window's body
+ * and turns messages into an inline `Notice`. Don't add a popup that ignores it (or use `usePortalContainer`).
  */
 export function MiniChat({
   title,
@@ -52,6 +57,7 @@ export function MiniChat({
   onDismissNotice,
   notify,
   onRetry,
+  onUpdateCorrection,
   onClose,
   voice,
 }: {
@@ -69,6 +75,8 @@ export function MiniChat({
   onDismissNotice: () => void;
   notify: Notify;
   onRetry: (id: string) => void;
+  /** A mistake was reclassified or discarded by hand. */
+  onUpdateCorrection: (update: CorrectionUpdate) => void;
   onClose: () => void;
   /** Voice mode, shared with the tab; null when it isn't available (correction mode, no speech). */
   voice: { on: boolean; canTurnOn: boolean; toggle: () => void } | null;
@@ -95,13 +103,23 @@ export function MiniChat({
               Voice
             </Button>
           )}
-          <span className="text-xs text-muted-foreground">{mode === "conversation" ? "Conversation" : "Correction"}</span>
+          <span className="text-xs text-muted-foreground">
+            {mode === "conversation" ? "Conversation" : "Correction"}
+          </span>
         </div>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {message ? (
-          <LastCorrection message={message} preview={preview} reply={reply} notify={notify} onRetry={onRetry} onClose={onClose} />
+          <LastCorrection
+            message={message}
+            preview={preview}
+            reply={reply}
+            notify={notify}
+            onRetry={onRetry}
+            onUpdateCorrection={onUpdateCorrection}
+            onClose={onClose}
+          />
         ) : (
           <p className="py-8 text-center text-muted-foreground">
             Write or dictate something in English: the correction shows up here, ready to copy.
@@ -142,6 +160,7 @@ function LastCorrection({
   reply,
   notify,
   onRetry,
+  onUpdateCorrection,
   onClose,
 }: {
   message: ChatMessage;
@@ -149,6 +168,7 @@ function LastCorrection({
   reply: ChatMessage | undefined;
   notify: Notify;
   onRetry: (id: string) => void;
+  onUpdateCorrection: (update: CorrectionUpdate) => void;
   onClose: () => void;
 }) {
   const [showNative, setShowNative] = useShowNative();
@@ -195,34 +215,36 @@ function LastCorrection({
   }
 
   const corrected = message.correctedText ?? message.content;
-  const errors = message.corrections.filter((c) => c.severity !== "suggestion");
+  // Mistakes and typos, without discarded ones; the marks only number what's listed here.
+  const { mistakes, typos, counts } = cardSections(message.content, corrected, message.corrections);
+  const errors = [...mistakes, ...typos];
+  const marked = markDiff(message.content, corrected, errors);
 
   const copyFailed = () => notify("error", "Couldn't copy to the clipboard");
 
   return (
     <div className="flex flex-col gap-3">
       {errors.length === 0 ? (
-        <div className="flex items-center gap-2 font-medium text-emerald-700 dark:text-emerald-400">
+        <div className="flex items-center gap-2 font-medium text-mark-right">
           <CheckCircle2 className="size-4" />
           {corrected === message.content ? "Perfect! No mistakes." : "No mistakes."}
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-1.5">
-          {SEVERITIES.filter((s) => s !== "suggestion").map((s) => {
-            const count = errors.filter((e) => e.severity === s).length;
-            return count > 0 ? (
+          {SEVERITIES.filter((s) => s !== "suggestion").map((s) =>
+            counts[s] > 0 ? (
               <SeverityBadge key={s} severity={s}>
-                {count}
+                {counts[s]}
               </SeverityBadge>
-            ) : null;
-          })}
+            ) : null,
+          )}
         </div>
       )}
 
       {corrected !== message.content ? (
-        <DiffText from={message.content} to={corrected} />
+        <DiffText from={message.content} to={corrected} segments={marked.segments} />
       ) : (
-        <p className="leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        <p className="font-serif text-reading whitespace-pre-wrap">{message.content}</p>
       )}
       {message.inputMode === "spoken" && (
         <div className="-mt-1 flex items-center gap-1 text-xs text-muted-foreground">
@@ -233,30 +255,19 @@ function LastCorrection({
       )}
 
       {errors.length > 0 && (
-        <ul className="flex flex-col gap-2.5">
-          {errors.map((e) => (
-            <li key={e.id} className="flex flex-col gap-0.5">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-red-600/90 line-through dark:text-red-400/90">{e.original}</span>
-                <ArrowRight className="size-3.5 text-muted-foreground" />
-                <span className="font-medium text-emerald-700 dark:text-emerald-400">{e.correction}</span>
-                <span className="text-xs text-muted-foreground">· {categoryLabel(e.category)}</span>
-              </div>
-              <p className="text-muted-foreground">{e.explanation}</p>
-            </li>
-          ))}
-        </ul>
+        <MistakeGroups mistakes={errors} numbers={marked.numbers} compact onUpdate={onUpdateCorrection} />
       )}
 
       {message.naturalText && showNative && (
         <div className="flex flex-col gap-1 rounded-lg bg-muted/50 px-3 py-2">
-          <div className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
             <MessageCircleHeart className="size-3.5" />
             How a native speaker would say it
           </div>
           <div className="flex items-start gap-1">
-            <p className="flex-1 leading-relaxed whitespace-pre-wrap">{message.naturalText}</p>
+            <p className="flex-1 font-serif text-reading whitespace-pre-wrap">{message.naturalText}</p>
             <SpeakButton text={message.naturalText} />
+            <CopyButton text={message.naturalText} onError={copyFailed} />
           </div>
         </div>
       )}
@@ -264,7 +275,9 @@ function LastCorrection({
       <div className="-mb-1 flex flex-wrap gap-1 border-t pt-2">
         <SpeakButton text={corrected} label="Listen" />
         <CopyButton text={corrected} label="Copy corrected" onError={copyFailed} />
-        {message.improvedPrompt && <CopyButton text={message.improvedPrompt} label="Copy prompt" onError={copyFailed} />}
+        {message.improvedPrompt && (
+          <CopyButton text={message.improvedPrompt} label="Copy prompt" onError={copyFailed} />
+        )}
         <CopyAndCloseButton text={corrected} onClose={onClose} onError={copyFailed} />
         {message.naturalText && (
           <Button
@@ -285,7 +298,7 @@ function LastCorrection({
           <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted">
             <Bot className="size-3.5" />
           </div>
-          <p className="flex-1 leading-relaxed whitespace-pre-wrap">{reply.content}</p>
+          <p className="flex-1 font-serif text-reading whitespace-pre-wrap">{reply.content}</p>
           <SpeakButton text={reply.content} id={reply.id} />
         </div>
       )}
@@ -349,7 +362,7 @@ function CopyAndCloseButton({ text, onClose, onError }: { text: string; onClose:
     <Button
       variant="ghost"
       size="sm"
-      onClick={copyAndClose}
+      onClick={voided(copyAndClose)}
       disabled={copied}
       title="Copy the corrected text and close this window"
     >

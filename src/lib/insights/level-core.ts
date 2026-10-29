@@ -14,7 +14,7 @@
  *
  * The AI can explain the result later, but never changes it.
  *
- * Calibration (`pnpm eval:level`, details in docs/LEVEL_CALIBRATION.md):
+ * Calibration (`pnpm eval:level`, details in docs/progress/LEVEL_CALIBRATION.md):
  * the anchors and weights were checked against ~3,300 Write & Improve
  * essays graded A1–C2 by Cambridge annotators, joined into simulated
  * learners of ~1,000 words.
@@ -39,6 +39,8 @@ import type { InputMode } from "@/db/schema";
 import { countsInStats, type ErrorCategory, type Severity, type Tense, TENSES } from "@/lib/taxonomy";
 import type { TenseCounts } from "@/lib/tenses-core";
 
+import { cleanText, mattr, scoreDecreasing, scoreIncreasing, splitSentences, tokenize } from "./level-text";
+
 export const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 export type CefrLevel = (typeof CEFR_LEVELS)[number];
 
@@ -58,6 +60,8 @@ export interface LevelCorrection {
   severity: Severity;
   category: ErrorCategory;
   inputMode: InputMode;
+  /** Discarded by the learner as a wrong correction: never counted. */
+  discardedAt: Date | number | null;
 }
 
 export type SignalId = "accuracy" | "grammar" | "complexity" | "vocabulary";
@@ -176,9 +180,30 @@ const MIN_TENSE_USES = 2;
 const TOP_TENSES = 4;
 
 const SUBORDINATORS = new Set([
-  "because", "although", "though", "while", "whereas", "unless", "since", "if", "when", "whenever",
-  "which", "who", "whom", "whose", "where", "that", "until", "before", "after", "once", "whether",
-  "however", "therefore", "otherwise",
+  "because",
+  "although",
+  "though",
+  "while",
+  "whereas",
+  "unless",
+  "since",
+  "if",
+  "when",
+  "whenever",
+  "which",
+  "who",
+  "whom",
+  "whose",
+  "where",
+  "that",
+  "until",
+  "before",
+  "after",
+  "once",
+  "whether",
+  "however",
+  "therefore",
+  "otherwise",
 ]);
 
 export function estimateLevel(input: {
@@ -207,10 +232,7 @@ export function estimateLevel(input: {
   }
 
   const signals = signalsFrom(measureLevel(input.messages, input.corrections, input.countTypos));
-  const score = round(
-    sum(signals.map((s) => s.score * s.weight)) / sum(signals.map((s) => s.weight)),
-    2,
-  );
+  const score = round(sum(signals.map((s) => s.score * s.weight)) / sum(signals.map((s) => s.weight)), 2);
   const confidence: Confidence = words >= HIGH_WORDS ? "high" : words >= MEDIUM_WORDS ? "medium" : "low";
   // About the score error measured by `pnpm eval:level` at 300, 1,000 and 3,000 words (0.85, 0.6, 0.45 levels)
   // with human-counted mistakes, plus a margin for the AI counting them and for chat not being an essay.
@@ -337,7 +359,10 @@ export function measureLevel(
     }
   }
   const tensesUsed = TENSES.filter((t) => (totals.get(t) ?? 0) >= MIN_TENSE_USES);
-  const top = tensesUsed.map((t) => TENSE_LEVELS[t]).sort((a, b) => b - a).slice(0, TOP_TENSES);
+  const top = tensesUsed
+    .map((t) => TENSE_LEVELS[t])
+    .sort((a, b) => b - a)
+    .slice(0, TOP_TENSES);
   // Fewer than TOP_TENSES tenses in use counts the missing ones as A1.
   while (top.length < TOP_TENSES) top.push(1);
 
@@ -387,7 +412,9 @@ function signalsFrom(m: LevelMeasures): LevelSignal[] {
     signal("accuracy", "Accuracy", scoreDecreasing(m.errorRate, ANCHORS.errorRate), {
       value:
         `${round(m.errorRate, 1)} mistakes per 100 words` +
-        (m.typedShare < 1 ? " (dictated ones count double: half of the mistake types can't be checked when you speak)" : ""),
+        (m.typedShare < 1
+          ? " (dictated ones count double: half of the mistake types can't be checked when you speak)"
+          : ""),
       basis:
         "Fewer mistakes per 100 words means a higher level: about 7.4 is A2, 5.7 is B1, 4 is B2, 2.6 is C1, 1.5 is C2. The strongest signal in graded learner essays.",
     }),
@@ -404,7 +431,9 @@ function signalsFrom(m: LevelMeasures): LevelSignal[] {
     signal(
       "complexity",
       "Sentence complexity",
-      (scoreIncreasing(m.sentenceLength, ANCHORS.sentenceLength) + scoreIncreasing(m.subordination, ANCHORS.subordination)) / 2,
+      (scoreIncreasing(m.sentenceLength, ANCHORS.sentenceLength) +
+        scoreIncreasing(m.subordination, ANCHORS.subordination)) /
+        2,
       {
         value: dictated
           ? "Not measured: every message was dictated"
@@ -431,64 +460,6 @@ function signal(
 ): LevelSignal {
   const score = round(clamp(rawScore, 1, 6), 2);
   return { id, label, score, level: levelOf(score), weight: round(weight, 3), ...text };
-}
-
-/** Moving-average type-token ratio: the share of different words in every window of `size` words. */
-export function mattr(tokens: string[], size = 50): number {
-  if (tokens.length === 0) return 0;
-  if (tokens.length <= size) return new Set(tokens).size / tokens.length;
-  const counts = new Map<string, number>();
-  for (let i = 0; i < size; i++) counts.set(tokens[i], (counts.get(tokens[i]) ?? 0) + 1);
-  let total = counts.size / size;
-  for (let i = size; i < tokens.length; i++) {
-    const out = tokens[i - size];
-    const n = counts.get(out)! - 1;
-    if (n === 0) counts.delete(out);
-    else counts.set(out, n);
-    counts.set(tokens[i], (counts.get(tokens[i]) ?? 0) + 1);
-    total += counts.size / size;
-  }
-  return total / (tokens.length - size + 1);
-}
-
-/** Removes code, URLs, paths and [Spanish lookups], which aren't the learner's English. */
-export function cleanText(text: string): string {
-  return text
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`[^`]*`/g, " ")
-    .replace(/\[[^\]]*\]/g, " ")
-    .replace(/\bhttps?:\/\/\S+/g, " ")
-    .replace(/\S*[/\\]\S*/g, " ");
-}
-
-export function splitSentences(text: string): string[] {
-  return text
-    .split(/(?<=[.!?])\s+|\n+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-/** Lowercase English words; tokens with digits, underscores or other symbols (identifiers) are dropped. */
-export function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/’/g, "'")
-    .split(/[\s,;:!?.()"“”…]+/)
-    .filter((t) => /^[a-z]+(?:['-][a-z]+)*$/.test(t));
-}
-
-/** Score from 1 to 6 for a value that grows with the level. */
-export function scoreIncreasing(value: number, anchors: readonly number[]): number {
-  if (value <= anchors[0]) return 1;
-  for (let i = 1; i < anchors.length; i++) {
-    if (value <= anchors[i]) return i + (value - anchors[i - 1]) / (anchors[i] - anchors[i - 1]);
-  }
-  return anchors.length;
-}
-
-/** Score from 1 to 6 for a value that shrinks as the level grows (mistakes). */
-export function scoreDecreasing(value: number, anchors: readonly number[]): number {
-  return scoreIncreasing(-value, anchors.map((a) => -a));
 }
 
 export function levelOf(score: number): CefrLevel {

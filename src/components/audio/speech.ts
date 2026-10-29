@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
+
 import { getKokoroStatus, kokoroSupported, loadKokoro, setKokoroDevice, synthesize } from "@/components/audio/kokoro";
 import { parseSpeechPrefs, type SpeechPrefs } from "@/components/audio/speech-prefs";
 
@@ -125,7 +126,12 @@ function speakBrowser(text: string, id: string, prefs: SpeechPrefs, current: num
 }
 
 function splitSentences(text: string) {
-  return text.match(/[^.!?\n]+(?:[.!?]+|\n|$)/g)?.map((s) => s.trim()).filter(Boolean) ?? [text];
+  return (
+    text
+      .match(/[^.!?\n]+(?:[.!?]+|\n|$)/g)
+      ?.map((s) => s.trim())
+      .filter(Boolean) ?? [text]
+  );
 }
 
 let audioContext: AudioContext | null = null;
@@ -207,7 +213,8 @@ function speakKokoro(text: string, id: string, prefs: SpeechPrefs, current: numb
         toast.error(`Kokoro couldn't load (${error.message}). Using the browser's voice instead.`);
       }
       if (played) return maybeEnd();
-      speakBrowser(text, id, prefs, current).then(finish);
+      // speakBrowser doesn't reject, but `finished` must resolve whatever happens.
+      speakBrowser(text, id, prefs, current).then(finish, finish);
     },
   );
   return finished;

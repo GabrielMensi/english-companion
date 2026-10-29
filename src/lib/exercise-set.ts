@@ -1,5 +1,5 @@
 /**
- * Exercise sets answered in one message (see docs/VERB_TENSES.md, "Práctica"):
+ * Exercise sets answered in one message (see docs/practice/VERB_TENSES.md, "Práctica"):
  * the whole set is shown at once, the learner answers every item in a single
  * message, and that message costs one AI request (the normal correction). The
  * per-item ✓/✗ comes from deterministic checks: the gap words, the options, the
@@ -8,7 +8,13 @@
  * tasks still go one at a time (src/lib/tense-practice.ts). Kept free of
  * server-only imports so it can be unit tested.
  */
-import { type CategoryExerciseItem, type CategoryPractice, checkCategoryAnswer, gapFills, parseGaps } from "@/lib/category-practice";
+import {
+  type CategoryExerciseItem,
+  type CategoryPractice,
+  checkCategoryAnswer,
+  gapFills,
+  parseGaps,
+} from "@/lib/category-practice";
 import { type ErrorCategory, TENSE_CATEGORIES, TENSE_LABELS } from "@/lib/taxonomy";
 import { checkAnswer, comparable, type ExercisePractice, focusTenses, tensesAmong } from "@/lib/tense-practice";
 
@@ -109,7 +115,8 @@ function inlineSegments(text: string, count: number): Segment[] | null {
 function listSegments(text: string, count: number): Segment[] | null {
   const pieces: Segment[] = [];
   const pattern = /[^,;]+/g;
-  for (const m of text.matchAll(pattern)) pieces.push({ number: null, start: m.index ?? 0, end: (m.index ?? 0) + m[0].length });
+  for (const m of text.matchAll(pattern))
+    pieces.push({ number: null, start: m.index ?? 0, end: (m.index ?? 0) + m[0].length });
   const short = pieces.every((p) => text.slice(p.start, p.end).trim().split(/\s+/).length <= 4);
   return pieces.length === count && short ? pieces : null;
 }
@@ -166,7 +173,11 @@ export interface SetMistake {
  * order of the text), so a repeated word goes to the right answer. Mistakes
  * that can't be placed are left out.
  */
-export function mistakesByAnswer(text: string, answers: readonly (AnswerSpan | null)[], mistakes: readonly SetMistake[]): SetMistake[][] {
+export function mistakesByAnswer(
+  text: string,
+  answers: readonly (AnswerSpan | null)[],
+  mistakes: readonly SetMistake[],
+): SetMistake[][] {
   const result: SetMistake[][] = answers.map(() => []);
   const haystack = text.toLowerCase();
   let cursor = 0;
@@ -262,7 +273,11 @@ const unanswered = (item: { answer: string; why: string }): ItemResult => ({
 });
 
 /** Grades a category set (fill in, multiple choice, fix the mistake). */
-export function gradeCategorySet(practice: Pick<CategoryPractice, "category" | "items">, text: string, mistakes: readonly SetMistake[]): ItemResult[] {
+export function gradeCategorySet(
+  practice: Pick<CategoryPractice, "category" | "items">,
+  text: string,
+  mistakes: readonly SetMistake[],
+): ItemResult[] {
   const answers = parseAnswers(text, practice.items.length);
   const found = mistakesByAnswer(text, answers, mistakes);
   return practice.items.map((item: CategoryExerciseItem, i) => {
@@ -346,13 +361,19 @@ export function setSummary(results: readonly ItemResult[]): string {
     const n = `${i + 1}.`;
     switch (r.mark) {
       case "right":
-        lines.push(r.exact ? `${n} ✓ ${r.answer}` : `${n} ✓ ${r.note ?? "Right"}. You wrote: ${r.learnerAnswer} — suggested: ${r.answer}`);
+        lines.push(
+          r.exact
+            ? `${n} ✓ ${r.answer}`
+            : `${n} ✓ ${r.note ?? "Right"}. You wrote: ${r.learnerAnswer} — suggested: ${r.answer}`,
+        );
         break;
       case "wrong":
         lines.push(`${n} ✗ You wrote: ${r.learnerAnswer} — ${r.note ? `${r.note}: ` : "answer: "}${r.answer}`);
         break;
       case "unknown":
-        lines.push(`${n} ? You wrote: ${r.learnerAnswer} — answer: ${r.answer} (couldn't check this one: compare it yourself)`);
+        lines.push(
+          `${n} ? You wrote: ${r.learnerAnswer} — answer: ${r.answer} (couldn't check this one: compare it yourself)`,
+        );
         break;
       case "unanswered":
         lines.push(`${n} – Not answered — answer: ${r.answer}`);

@@ -1,20 +1,30 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Minus } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
-import { MIN_USES, type TenseStat, type TenseStats, type TenseStatus } from "@/lib/tense-stats";
 import { type Tense, TENSE_LABELS } from "@/lib/taxonomy";
+import { MIN_USES, type TenseStat, type TenseStats, type TenseStatus } from "@/lib/tense-stats";
 import { cn } from "@/lib/utils";
 
 const FAMILIES: { title: string; tenses: Tense[] }[] = [
-  { title: "Present", tenses: ["present_simple", "present_continuous", "present_perfect", "present_perfect_continuous"] },
-  { title: "Past", tenses: ["past_simple", "past_continuous", "past_perfect", "past_perfect_continuous", "used_to_would"] },
-  { title: "Future and conditional", tenses: ["future_will", "future_going_to", "future_continuous", "future_perfect", "conditional_would"] },
+  {
+    title: "Present",
+    tenses: ["present_simple", "present_continuous", "present_perfect", "present_perfect_continuous"],
+  },
+  {
+    title: "Past",
+    tenses: ["past_simple", "past_continuous", "past_perfect", "past_perfect_continuous", "used_to_would"],
+  },
+  {
+    title: "Future and conditional",
+    tenses: ["future_will", "future_going_to", "future_continuous", "future_perfect", "conditional_would"],
+  },
 ];
 
 const STATUS: Record<TenseStatus, { label: string; className: string }> = {
-  strong: { label: "Strong", className: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" },
-  shaky: { label: "Getting there", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
-  weak: { label: "Needs work", className: "bg-red-500/15 text-red-700 dark:text-red-400" },
-  avoided: { label: "Rarely used", className: "bg-sky-500/15 text-sky-700 dark:text-sky-400" },
+  strong: { label: "Strong", className: "bg-mark-right/12 text-mark-right" },
+  shaky: { label: "Getting there", className: "bg-sev-minor/18 text-sev-minor-text" },
+  weak: { label: "Needs work", className: "bg-sev-major/12 text-sev-major-text" },
+  avoided: { label: "Rarely used", className: "border-dashed border-border bg-transparent text-muted-foreground" },
   not_enough_data: { label: "Not enough data", className: "bg-muted text-muted-foreground" },
 };
 
@@ -56,7 +66,7 @@ export function TensePanel({ stats }: { stats: TenseStats }) {
             return (
               <tbody key={family.title}>
                 <tr>
-                  <td colSpan={6} className="pt-3 pb-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  <td colSpan={6} className="pt-3 pb-1 text-sm font-medium text-muted-foreground">
                     {family.title}
                   </td>
                 </tr>
@@ -83,9 +93,9 @@ export function TensePanel({ stats }: { stats: TenseStats }) {
                     <span className="font-medium">{TENSE_LABELS[c.needed].toLowerCase()}</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-red-600/90 line-through dark:text-red-400/90">{c.example.original}</span>
+                    <span className="text-mark-wrong line-through">{c.example.original}</span>
                     <ArrowRight className="size-3.5 text-muted-foreground" />
-                    <span className="text-emerald-700 dark:text-emerald-400">{c.example.correction}</span>
+                    <span className="text-mark-right">{c.example.correction}</span>
                   </div>
                 </div>
               </li>
@@ -145,7 +155,8 @@ function Summary({ tenses }: { tenses: TenseStat[] }) {
   if (strongest) {
     parts.push(
       <span key="strong">
-        Strongest: <strong>{TENSE_LABELS[strongest.tense].toLowerCase()}</strong> ({Math.round(strongest.accuracy ?? 0)}%).
+        Strongest: <strong>{TENSE_LABELS[strongest.tense].toLowerCase()}</strong> ({Math.round(strongest.accuracy ?? 0)}
+        %).
       </span>,
     );
   }
@@ -188,11 +199,11 @@ function Trend({ value }: { value: number | null }) {
     );
   }
   return value > 0 ? (
-    <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+    <span className="flex items-center gap-1 text-mark-right">
       <ArrowUpRight className="size-3.5" /> +{Math.round(value)} pts
     </span>
   ) : (
-    <span className="flex items-center gap-1 text-red-700 dark:text-red-400">
+    <span className="flex items-center gap-1 text-mark-wrong">
       <ArrowDownRight className="size-3.5" /> {Math.round(value)} pts
     </span>
   );

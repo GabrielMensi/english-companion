@@ -9,6 +9,7 @@
  * infinitives aren't tenses, so they aren't counted.
  */
 import nlp from "compromise";
+
 import type { Tense } from "@/lib/taxonomy";
 
 /** Bump when the rules change, so stored counts get recomputed. */
@@ -41,7 +42,24 @@ const FORM_TO_TENSE: Record<string, Tense> = {
 
 /** Words compromise sometimes tags as verbs that aren't verb phrases. */
 const NOT_VERBS = new Set(["thanks", "please"]);
-const IGNORED = new Set(["not", "n't", "never", "ever", "already", "just", "always", "still", "also", "really", "even", "only", "often", "usually", "recently", "finally"]);
+const IGNORED = new Set([
+  "not",
+  "n't",
+  "never",
+  "ever",
+  "already",
+  "just",
+  "always",
+  "still",
+  "also",
+  "really",
+  "even",
+  "only",
+  "often",
+  "usually",
+  "recently",
+  "finally",
+]);
 const DO = new Set(["do", "does", "did"]);
 const HAVE = new Set(["have", "has", "had"]);
 const BE = new Set(["am", "is", "are", "was", "were", "be", "been", "being"]);
@@ -125,7 +143,12 @@ export function detectTenses(text: string): Tense[] {
       // "Is it working?": compromise doesn't group (or even tag) the -ing verb after the subject.
       if (group.words.length === 1 && BE.has(word)) {
         const [subject, verb] = terms.filter((t) => t.offset.start >= group.end);
-        if (subject?.tags.includes("Pronoun") && verb && /\w{2,}ing$/i.test(verb.text) && !verb.tags.includes("Adjective")) {
+        if (
+          subject?.tags.includes("Pronoun") &&
+          verb &&
+          /\w{2,}ing$/i.test(verb.text) &&
+          !verb.tags.includes("Adjective")
+        ) {
           tenses.push(word === "was" || word === "were" ? "past_continuous" : "present_continuous");
           continue;
         }
@@ -157,12 +180,16 @@ function verbGroups(sentence: Sentence, text: string): Group[] {
       tags.push(term.tags);
     }
     // A contracted auxiliary right before the phrase ("I'll | check", "she's | been") isn't part of it.
-    const before = text.slice(Math.max(0, v.offset.start - 8), v.offset.start).toLowerCase().replace(/’/g, "'");
+    const before = text
+      .slice(Math.max(0, v.offset.start - 8), v.offset.start)
+      .toLowerCase()
+      .replace(/’/g, "'");
     const contraction = /('ll|'d|'ve|'m|'re|'s)\s*$/.exec(before);
     if (contraction && !/let's\s*$/.test(before)) {
       const participle = tags[0]?.includes("Participle") || words[0] === "been";
       const aux = contraction[1] === "'s" && participle ? "has" : CONTRACTIONS[contraction[1]];
-      const hasAux = words[0] !== undefined && (DO.has(words[0]) || HAVE.has(words[0]) || BE.has(words[0]) || MODALS.has(words[0]));
+      const hasAux =
+        words[0] !== undefined && (DO.has(words[0]) || HAVE.has(words[0]) || BE.has(words[0]) || MODALS.has(words[0]));
       if (!hasAux) {
         words.unshift(aux);
         tags.unshift(["Verb", "Auxiliary"]);
@@ -185,7 +212,10 @@ function isAdjectivalParticiple(tags: string[], prev: Term | undefined, next: Te
 }
 
 function normalizeWord(word: string): string {
-  const w = word.toLowerCase().replace(/’/g, "'").replace(/[^a-z']/g, "");
+  const w = word
+    .toLowerCase()
+    .replace(/’/g, "'")
+    .replace(/[^a-z']/g, "");
   return CONTRACTIONS[w] ?? w;
 }
 
@@ -223,7 +253,8 @@ function fromAuxiliaries(words: string[]): Tense | null {
   if (MODALS.has(first)) return null;
   if (first === "do" || first === "does") return "present_simple";
   if (first === "did") return "past_simple";
-  if (first === "have" || first === "has") return has("been") && progressive ? "present_perfect_continuous" : "present_perfect";
+  if (first === "have" || first === "has")
+    return has("been") && progressive ? "present_perfect_continuous" : "present_perfect";
   if (first === "had") return has("been") && progressive ? "past_perfect_continuous" : "past_perfect";
   if (first === "am" || first === "is" || first === "are") return progressive ? "present_continuous" : "present_simple";
   if (first === "was" || first === "were") return progressive ? "past_continuous" : "past_simple";

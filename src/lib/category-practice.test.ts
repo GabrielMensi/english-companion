@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import {
   acceptedAnswers,
   type CategoryExerciseItem,
@@ -14,6 +15,7 @@ import {
   SUGGESTED_CATEGORY_TARGETS,
   validSubtype,
 } from "./category-practice";
+
 import type { CategoryStat, Stats } from "./stats-core";
 
 function category(partial: Partial<CategoryStat> & Pick<CategoryStat, "category">): CategoryStat {
@@ -24,6 +26,7 @@ function category(partial: Partial<CategoryStat> & Pick<CategoryStat, "category"
     trend: null,
     bySeverity: { suggestion: 0, typo: 0, minor: 0, moderate: 0, major: 0 },
     topSubtypes: [],
+    recent: [],
     ...partial,
   };
 }
@@ -75,6 +78,7 @@ describe("selectCategoryTargets", () => {
             subcategory: "x",
             count: 4,
             example: { original: "depend of", correction: "depend on", explanation: "" },
+            exampleId: "c1",
           },
         ],
       ),
@@ -86,11 +90,15 @@ describe("selectCategoryTargets", () => {
 
   it("doesn't focus on 'other' or on a type seen once", () => {
     const [a] = selectCategoryTargets(
-      stats([category({ category: "articles", count: 4, per100Words: 1, topSubtypes: [{ subtype: "other", count: 3 }] })]),
+      stats([
+        category({ category: "articles", count: 4, per100Words: 1, topSubtypes: [{ subtype: "other", count: 3 }] }),
+      ]),
     );
     expect(a.subtype).toBeNull();
     const [b] = selectCategoryTargets(
-      stats([category({ category: "articles", count: 4, per100Words: 1, topSubtypes: [{ subtype: "a_vs_the", count: 1 }] })]),
+      stats([
+        category({ category: "articles", count: 4, per100Words: 1, topSubtypes: [{ subtype: "a_vs_the", count: 1 }] }),
+      ]),
     );
     expect(b.subtype).toBeNull();
   });
@@ -138,9 +146,24 @@ describe("gaps", () => {
   });
 });
 
-const fill: CategoryExerciseItem = { sentence: "My sister is ___ engineer.", answer: "My sister is an engineer.", why: "Profesiones llevan a/an.", format: "fill" };
-const choice: CategoryExerciseItem = { sentence: "It depends ___ (of / on / in) the weather.", answer: "It depends on the weather.", why: "", format: "choice" };
-const rewrite: CategoryExerciseItem = { sentence: "Fix the mistake: I am agree with you.", answer: "I agree with you.", why: "", format: "rewrite" };
+const fill: CategoryExerciseItem = {
+  sentence: "My sister is ___ engineer.",
+  answer: "My sister is an engineer.",
+  why: "Profesiones llevan a/an.",
+  format: "fill",
+};
+const choice: CategoryExerciseItem = {
+  sentence: "It depends ___ (of / on / in) the weather.",
+  answer: "It depends on the weather.",
+  why: "",
+  format: "choice",
+};
+const rewrite: CategoryExerciseItem = {
+  sentence: "Fix the mistake: I am agree with you.",
+  answer: "I agree with you.",
+  why: "",
+  format: "rewrite",
+};
 const clean = { categoryErrors: 0, errors: 0 };
 
 describe("checkCategoryAnswer", () => {
@@ -157,7 +180,9 @@ describe("checkCategoryAnswer", () => {
   });
 
   it("falls back to the correction when the answer doesn't follow the sentence", () => {
-    expect(checkCategoryAnswer("Whether we go depends of the weather.", choice, { categoryErrors: 1, errors: 1 })).toBe("wrong");
+    expect(checkCategoryAnswer("Whether we go depends of the weather.", choice, { categoryErrors: 1, errors: 1 })).toBe(
+      "wrong",
+    );
     expect(checkCategoryAnswer("Whether we go depends on the weather.", choice, clean)).toBe("unknown");
   });
 
@@ -171,7 +196,12 @@ describe("checkCategoryAnswer", () => {
 });
 
 describe("category exercise chat", () => {
-  const practice: CategoryPractice = { kind: "category", category: "articles", subtype: "missing_a_an", items: [fill, choice, rewrite] };
+  const practice: CategoryPractice = {
+    kind: "category",
+    category: "articles",
+    subtype: "missing_a_an",
+    items: [fill, choice, rewrite],
+  };
 
   it("explains the formats in the set", () => {
     const intro = categoryExerciseIntro(practice);

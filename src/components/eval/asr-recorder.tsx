@@ -3,6 +3,7 @@
 import { CheckCircle2, Circle, Loader2, Mic, Square } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { useRecorder } from "@/components/audio/use-recorder";
 import { Button } from "@/components/ui/button";
 import type { AsrSample } from "@/lib/eval/asr-samples";
@@ -56,7 +57,7 @@ export function AsrRecorder({ samples, initialRecorded }: { samples: AsrSample[]
             <li key={s.id} className={cn("flex flex-col gap-2 p-4", active && "bg-muted/40")}>
               <div className="flex items-start gap-3">
                 {recorded.has(s.id) ? (
-                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="Recorded" />
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-mark-right" aria-label="Recorded" />
                 ) : (
                   <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-label="Not recorded" />
                 )}
@@ -64,11 +65,11 @@ export function AsrRecorder({ samples, initialRecorded }: { samples: AsrSample[]
                   <p className="leading-relaxed">{highlight(s.text, s.mistake)}</p>
                 </div>
                 {active && phase.step === "recording" ? (
-                  <Button size="sm" variant="destructive" onClick={() => stop(s.id)}>
+                  <Button size="sm" variant="destructive" onClick={() => void stop(s.id)}>
                     <Square /> Stop
                   </Button>
                 ) : (
-                  <Button size="sm" variant="outline" onClick={() => start(s.id)} disabled={busy || active}>
+                  <Button size="sm" variant="outline" onClick={() => void start(s.id)} disabled={busy || active}>
                     {active ? <Loader2 className="animate-spin" /> : <Mic />}
                     {recorded.has(s.id) ? "Record again" : "Record"}
                   </Button>
@@ -97,7 +98,7 @@ function highlight(text: string, mistake: string) {
   return (
     <>
       {text.slice(0, at)}
-      <span className="underline decoration-red-500/70 decoration-wavy underline-offset-4">
+      <span className="underline decoration-mark-wrong/70 decoration-wavy underline-offset-4">
         {text.slice(at, at + mistake.length)}
       </span>
       {text.slice(at + mistake.length)}

@@ -1,15 +1,17 @@
 /**
  * Pure flashcard logic shared by the decks: vocabulary (words looked up with
  * [brackets], Spanish → English), mistakes (real corrections, original →
- * correction) and missed exercises (items got wrong in Practice). Scheduling lives in `srs.ts`; review state is stored per card
+ * correction), missed exercises (items got wrong in Practice) and hard-to-say
+ * sentences (read aloud with pronunciation issues). Scheduling lives in `srs.ts`; review state is stored per card
  * in the `reviews` table, keyed by (kind, card key).
  */
 
 import type { ReviewState } from "@/lib/srs";
-import type { ErrorCategory, Tense } from "@/lib/taxonomy";
+import type { ErrorCategory, PronunciationCategory, Tense } from "@/lib/taxonomy";
+import { escapeRegExp } from "@/lib/text";
 import type { VocabularyWord } from "@/lib/vocabulary-core";
 
-export const CARD_KINDS = ["vocabulary", "mistake", "exercise"] as const;
+export const CARD_KINDS = ["vocabulary", "mistake", "exercise", "pronunciation"] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
 
 export interface VocabularyCard {
@@ -38,6 +40,8 @@ export interface MistakeCard {
   /** The sentence with only this mistake fixed. */
   fixedSentence: string;
   sessionId: string;
+  /** The newest time it was reported was in class: the teacher gave it, and there is no chat to open. */
+  fromClass: boolean;
   timesMade: number;
   lastSeen: number;
 }
@@ -61,7 +65,22 @@ export interface ExerciseCard {
   missedAt: number;
 }
 
-export type Card = VocabularyCard | MistakeCard | ExerciseCard;
+/**
+ * A sentence read aloud on the Read aloud page with words heard differently,
+ * to read again. Keyed by the sentence text (see `read_aloud_attempts`).
+ */
+export interface PronunciationCard {
+  kind: "pronunciation";
+  key: string;
+  text: string;
+  /** The words heard differently, most repeated first. */
+  words: { expected: string; heard: string; category: PronunciationCategory; detail: string | null }[];
+  /** Readings of the sentence with at least one issue. */
+  timesMissed: number;
+  lastMissedAt: number;
+}
+
+export type Card = VocabularyCard | MistakeCard | ExerciseCard | PronunciationCard;
 
 /** A card with its review state; `state` is null for cards never reviewed. */
 export interface QueuedCard<C extends Card = Card> {
@@ -76,10 +95,6 @@ function squash(text: string): string {
 
 export function mistakeKey(original: string, correction: string): string {
   return `${squash(original)} → ${squash(correction)}`;
-}
-
-function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Replaces every occurrence of any term (case-insensitive) with a blank. */
@@ -144,8 +159,7 @@ export function sentenceAround(text: string, fragments: string[], max = MAX_SENT
 export function vocabularyCards(words: VocabularyWord[]): VocabularyCard[] {
   return words.map((w) => {
     // Prefer a sentence that actually contains the English, so the blank is meaningful.
-    const source =
-      w.contexts.find((c) => maskTerms(c.text, w.english) !== c.text) ?? w.contexts[0] ?? null;
+    const source = w.contexts.find((c) => maskTerms(c.text, w.english) !== c.text) ?? w.contexts[0] ?? null;
     const text = source ? sentenceAround(source.text, w.english) : null;
     const hint = text ? maskTerms(text, w.english) : null;
     return {
@@ -172,6 +186,7 @@ export interface MistakeRow {
   sessionId: string;
   /** What the learner wrote (the whole message). */
   sentence: string;
+  source?: "ai" | "class";
 }
 
 /**
@@ -211,6 +226,7 @@ export function mistakeCards(rows: MistakeRow[]): MistakeCard[] {
       sentence,
       fixedSentence: applyCorrection(sentence, row.original, row.correction),
       sessionId: row.sessionId,
+      fromClass: row.source === "class",
       timesMade: 1,
       lastSeen: row.createdAt,
     });

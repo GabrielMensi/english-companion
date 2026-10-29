@@ -4,11 +4,17 @@ import { PlayCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import type { SuspendedCard } from "@/lib/flashcards-upkeep";
 
-const DECK_LABELS: Record<string, string> = { vocabulary: "Vocabulary", mistake: "Mistake", exercise: "Exercise" };
+const DECK_LABELS: Record<string, string> = {
+  vocabulary: "Vocabulary",
+  mistake: "Mistake",
+  exercise: "Exercise",
+  pronunciation: "Hard to say",
+};
 
 /** Cards the learner suspended, with a button to bring each one back to its deck. */
 export function SuspendedCards({ cards }: { cards: SuspendedCard[] }) {
@@ -21,7 +27,10 @@ export function SuspendedCards({ cards }: { cards: SuspendedCard[] }) {
     const id = `${card.kind}:${card.key}`;
     setBusy(id);
     try {
-      await api("/api/flashcards/cards", { method: "PATCH", body: { kind: card.kind, key: card.key, suspended: false } });
+      await api("/api/flashcards/cards", {
+        method: "PATCH",
+        body: { kind: card.kind, key: card.key, suspended: false },
+      });
       router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
@@ -48,7 +57,7 @@ export function SuspendedCards({ cards }: { cards: SuspendedCard[] }) {
                 <span className="font-medium">{card.front}</span>
                 {card.back && <span className="text-muted-foreground"> → {card.back}</span>}
               </div>
-              <Button variant="ghost" size="sm" disabled={busy === id} onClick={() => unsuspend(card)}>
+              <Button variant="ghost" size="sm" disabled={busy === id} onClick={() => void unsuspend(card)}>
                 <PlayCircle /> Unsuspend
               </Button>
             </li>

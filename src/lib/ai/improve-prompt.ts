@@ -1,7 +1,9 @@
 import "server-only";
 
 import { generateText } from "ai";
+
 import type { Settings } from "@/lib/settings";
+
 import { withFallback } from "./providers";
 
 const INSTRUCTIONS = `You turn a message into a clear, well-structured prompt for an AI assistant (such as Claude or ChatGPT, often a coding agent).
@@ -14,8 +16,8 @@ Rules:
 - Keep code, identifiers, paths and commands exactly as written.
 - Output ONLY the final prompt, without preamble or explanations.`;
 
-export async function improvePrompt(text: string, settings: Settings) {
-  const { result, used } = await withFallback(settings, (resolved, { isLast }) =>
+export async function improvePrompt(userId: string, text: string, settings: Settings) {
+  const { result, used } = await withFallback(userId, settings, (resolved, { isLast }) =>
     generateText({
       ...resolved.call({ temperature: 0.3, retry: isLast }),
       instructions: INSTRUCTIONS,

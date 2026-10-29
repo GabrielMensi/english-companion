@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { ASR_SAMPLES } from "./asr-samples";
 import { normalizeTranscript, scoreTranscript, wordErrorRate } from "./asr-score";
 
@@ -6,7 +7,10 @@ const sample = ASR_SAMPLES.find((s) => s.id === "have-went")!;
 
 describe("scoreTranscript", () => {
   it("detects a kept mistake", () => {
-    expect(scoreTranscript(sample, "Yesterday I have went to the park with my friends.")).toEqual({ outcome: "kept", wer: 0 });
+    expect(scoreTranscript(sample, "Yesterday I have went to the park with my friends.")).toEqual({
+      outcome: "kept",
+      wer: 0,
+    });
   });
 
   it("detects a mistake the transcriber fixed", () => {

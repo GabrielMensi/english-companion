@@ -4,17 +4,10 @@
  * category; this assigns the fixed fine-grained type and, for verb mistakes,
  * the tense. Kept free of server-only imports so it can be unit tested.
  */
-import { z } from "zod";
-import {
-  type ErrorCategory,
-  isValidSubtype,
-  type Severity,
-  SUBTYPES,
-  type Tense,
-  TENSE_CATEGORIES,
-  TENSE_HINTS,
-  TENSES,
-} from "@/lib/taxonomy";
+import { isValidSubtype, SUBTYPES } from "@/lib/subtypes";
+import { type ErrorCategory, type Severity, type Tense, TENSE_CATEGORIES, TENSE_HINTS, TENSES } from "@/lib/taxonomy";
+import { z } from "@/lib/zod";
+
 import { toSnakeCase } from "./analysis";
 
 export interface ClassificationItem {
@@ -43,7 +36,9 @@ export const classificationSchema = z.object({
     z.object({
       index: z.number().int().describe("The item number."),
       subtype: z.string().describe("One of the item's options, exactly as written."),
-      tense: z.enum([...TENSES, NONE]).describe("Tense the sentence needed, or 'none' if the mistake isn't about a verb."),
+      tense: z
+        .enum([...TENSES, NONE])
+        .describe("Tense the sentence needed, or 'none' if the mistake isn't about a verb."),
       tenseUsed: z
         .enum([...TENSES, NONE])
         .describe("Tense the learner used instead, or 'none' if they used the right tense."),

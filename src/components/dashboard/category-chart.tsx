@@ -1,6 +1,7 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
 import type { CategoryStat } from "@/lib/stats-core";
 import { categoryLabel, type Severity, SEVERITY_LABELS } from "@/lib/taxonomy";
 
@@ -33,7 +34,14 @@ export function CategoryChart({ categories }: { categories: CategoryStat[] }) {
       <ResponsiveContainer width="100%" height={Math.max(160, data.length * 34)}>
         <BarChart data={data} layout="vertical" margin={{ left: 0, right: 8, top: 0, bottom: 0 }} barCategoryGap={6}>
           <CartesianGrid horizontal={false} stroke="var(--border)" />
-          <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} fontSize={12} stroke="var(--muted-foreground)" />
+          <XAxis
+            type="number"
+            allowDecimals={false}
+            tickLine={false}
+            axisLine={false}
+            fontSize={12}
+            stroke="var(--muted-foreground)"
+          />
           <YAxis
             type="category"
             dataKey="name"

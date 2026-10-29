@@ -3,21 +3,27 @@
 import { Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { CopyButton } from "@/components/copy-button";
+import { NeedsKeyHint } from "@/components/no-provider-notice";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { digestToMarkdown, type StatsDigest } from "@/lib/insights/digest-core";
 import type { StoredPlan } from "@/lib/insights/insights";
+import { voided } from "@/lib/voided";
 
 /** The AI study plan for the period, generated on demand and kept until the next one. */
 export function StudyPlan({
   digest,
   range,
   initial,
+  hasModel,
 }: {
   digest: StatsDigest;
   range: string;
   initial: StoredPlan | null;
+  /** Whether an AI provider is set up; without one a plan can't be written (a saved one is still shown). */
+  hasModel: boolean;
 }) {
   const [stored, setStored] = useState(initial);
   const [loading, setLoading] = useState(false);
@@ -37,10 +43,17 @@ export function StudyPlan({
 
   const actions = (
     <div className="flex flex-wrap gap-2">
-      <Button variant={stored ? "outline" : "default"} size="sm" onClick={generate} disabled={loading}>
-        {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
-        {loading ? "Writing the plan…" : stored ? "Write a new plan" : "Write my study plan"}
-      </Button>
+      <NeedsKeyHint active={!hasModel}>
+        <Button
+          variant={stored ? "outline" : "default"}
+          size="sm"
+          onClick={voided(generate)}
+          disabled={loading || !hasModel}
+        >
+          {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
+          {loading ? "Writing the plan…" : stored ? "Write a new plan" : "Write my study plan"}
+        </Button>
+      </NeedsKeyHint>
       <CopyButton
         text={digestToMarkdown(digest, samePeriod ? stored?.plan : null)}
         label={samePeriod ? "Copy report and plan (Markdown)" : "Copy report (Markdown)"}
@@ -87,8 +100,7 @@ export function StudyPlan({
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        Written{" "}
-        {/* Server and browser can be in different time zones. */}
+        Written {/* Server and browser can be in different time zones. */}
         <time suppressHydrationWarning>
           {new Date(stored.generatedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
         </time>{" "}

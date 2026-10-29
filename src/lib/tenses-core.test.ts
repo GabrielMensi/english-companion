@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import type { Tense } from "@/lib/taxonomy";
+
 import { countTenses, detectTenses } from "./tenses-core";
 
 const CASES: [string, Tense[]][] = [
@@ -50,9 +52,11 @@ describe("detectTenses", () => {
   });
 
   it("ignores code, inline code and URLs", () => {
-    expect(detectTenses("I fixed it:\n```ts\nconst x = await run();\n```\nSee `npm run dev` at https://example.com/was/built")).toEqual([
-      "past_simple",
-    ]);
+    expect(
+      detectTenses(
+        "I fixed it:\n```ts\nconst x = await run();\n```\nSee `npm run dev` at https://example.com/was/built",
+      ),
+    ).toEqual(["past_simple"]);
   });
 });
 

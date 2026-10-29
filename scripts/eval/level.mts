@@ -31,10 +31,13 @@
  *   --spoken         treat every essay as dictated
  *   --analyze=<provider>:<model>  compare corpus mistakes with the app's (needs --limit)
  *   --limit=<n>      essays to analyze, spread across levels (default 24)
- *   --delay=<ms>     pause between remote requests (default 4000)
+ *   --delay=<ms>     pause between requests (default 4000; Groq with Qwen needs ~75000 for its tokens-per-minute limit)
+ *
+ * It stops at the first quota or rate-limit error.
  */
 import fs from "node:fs";
 import path from "node:path";
+
 import {
   CEFR_LEVELS,
   type CefrLevel,
@@ -45,14 +48,22 @@ import {
   measureLevel,
   type SignalId,
 } from "../../src/lib/insights/level-core";
-import type { InputMode } from "../../src/db/schema";
 import { countsInStats } from "../../src/lib/taxonomy";
 import { countTenses, TENSE_COUNTER_VERSION, type TenseCounts } from "../../src/lib/tenses-core";
 import { countWords } from "../../src/lib/text";
+
 import { type Bundle, bundleEssays, DEFAULT_CORPUS_DIR, type Edit, type Essay, loadEssays } from "./level-data";
+import { evalSettings, evalUserId } from "./settings";
+
+import type { InputMode } from "../../src/db/schema";
 
 const args = process.argv.slice(2);
-const option = (name: string) => args.find((a) => a.startsWith(`--${name}=`))?.split("=").slice(1).join("=");
+const option = (name: string) =>
+  args
+    .find((a) => a.startsWith(`--${name}=`))
+    ?.split("=")
+    .slice(1)
+    .join("=");
 const dir = option("dir") ?? DEFAULT_CORPUS_DIR;
 const targetWords = Number(option("words") ?? 1000);
 const countTypos = args.includes("--count-typos");
@@ -92,7 +103,9 @@ function runEstimator() {
     return { bundle: b, estimate, measures };
   });
   fs.writeFileSync(tenseCacheFile, JSON.stringify({ version: TENSE_COUNTER_VERSION, counts: tenseCache }));
-  console.log(`Estimated ${rows.length} learners of ~${targetWords} words in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+  console.log(
+    `Estimated ${rows.length} learners of ~${targetWords} words in ${((Date.now() - started) / 1000).toFixed(1)}s`,
+  );
 
   const report: Record<string, unknown> = { words: targetWords, countTypos, appRatio, inputMode };
   for (const split of ["train", "dev"] as const) {
@@ -116,7 +129,13 @@ function runEstimator() {
       Object.fromEntries(
         Object.entries(signals).map(([id, a]) => [
           id,
-          { exact: pct(a.exact), adjacent: pct(a.adjacent), meanError: +a.mae.toFixed(2), bias: +a.bias.toFixed(2), spearman: +a.spearman.toFixed(2) },
+          {
+            exact: pct(a.exact),
+            adjacent: pct(a.adjacent),
+            meanError: +a.mae.toFixed(2),
+            bias: +a.bias.toFixed(2),
+            spearman: +a.spearman.toFixed(2),
+          },
         ]),
       ),
     );
@@ -177,9 +196,10 @@ function toLevelInput(list: Essay[]) {
 
 /** The corpus' corrections as the app would store them (mechanics are suggestions, spelling slips typos). */
 function toCorrection(messageId: string, edit: Edit): LevelCorrection {
-  if (edit.kind === "mechanics") return { messageId, severity: "suggestion", category: "punctuation", inputMode: "typed" };
-  if (edit.kind === "spelling") return { messageId, severity: "typo", category: "spelling", inputMode: "typed" };
-  return { messageId, severity: "moderate", category: "other", inputMode: "typed" };
+  const base = { messageId, inputMode: "typed", discardedAt: null } as const;
+  if (edit.kind === "mechanics") return { ...base, severity: "suggestion", category: "punctuation" };
+  if (edit.kind === "spelling") return { ...base, severity: "typo", category: "spelling" };
+  return { ...base, severity: "moderate", category: "other" };
 }
 
 function signalScore(estimate: LevelEstimate, id: SignalId) {
@@ -199,7 +219,10 @@ function agreement(pairs: [CefrLevel, number][]) {
     /** Root mean square distance between the (unrounded) score and the human level. */
     rmse: Math.sqrt(pairs.reduce((a, [l, score]) => a + (score - levelIndex(l)) ** 2, 0) / n),
     bias: diffs.reduce((a, d) => a + d, 0) / n,
-    spearman: spearman(truth, pairs.map(([, s]) => s)),
+    spearman: spearman(
+      truth,
+      pairs.map(([, s]) => s),
+    ),
   };
 }
 
@@ -242,9 +265,8 @@ async function compareWithApp(spec: string) {
   // Settings and API keys come from the database in DATABASE_PATH; read it from .env.local like the app does.
   if (!process.env.DATABASE_PATH && fs.existsSync(".env.local")) process.loadEnvFile(".env.local");
   const { analyzeMessage } = await import("../../src/lib/ai/analyze");
-  const { errorToMessage } = await import("../../src/lib/ai/fallback");
+  const { AllModelsFailedError, errorToMessage, shortReason } = await import("../../src/lib/ai/fallback");
   const { PROVIDER_IDS } = await import("../../src/lib/ai/provider-info");
-  const { getSettings } = await import("../../src/lib/settings");
   type ProviderId = (typeof PROVIDER_IDS)[number];
 
   const limit = Number(option("limit") ?? 24);
@@ -255,8 +277,14 @@ async function compareWithApp(spec: string) {
     console.error(`Invalid spec "${spec}". Use <provider>:<model>, e.g. gemini:gemini-flash-lite-latest`);
     process.exit(1);
   }
-  const base = getSettings();
-  const settings = { ...base, provider: provider as ProviderId, models: { ...base.models, [provider]: model }, fallbacks: [] };
+  const base = await evalSettings();
+  const userId = (await evalUserId()) ?? "";
+  const settings = {
+    ...base,
+    provider: provider as ProviderId,
+    models: { ...base.models, [provider]: model },
+    fallbacks: [],
+  };
 
   // The same essays every time: every k-th dev essay of each level, 80–400 words.
   const perLevel = Math.ceil(limit / CEFR_LEVELS.length);
@@ -269,20 +297,28 @@ async function compareWithApp(spec: string) {
   }).slice(0, limit);
 
   const cacheFile = path.join(resultsDir, "level-analysis-cache.json");
-  const cache: Record<string, { counted: number; typos: number; suggestions: number; errors: unknown[] }> = fs.existsSync(cacheFile)
-    ? JSON.parse(fs.readFileSync(cacheFile, "utf8"))
-    : {};
+  const cache: Record<string, { counted: number; typos: number; suggestions: number; errors: unknown[] }> =
+    fs.existsSync(cacheFile) ? JSON.parse(fs.readFileSync(cacheFile, "utf8")) : {};
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   let requests = 0;
   for (const essay of sample) {
     const key = `${spec}|${essay.id}`;
     if (cache[key]) continue;
-    if (provider !== "ollama" && requests > 0) await sleep(delayMs);
+    if (requests > 0) await sleep(delayMs);
     requests++;
     try {
-      const { analysis } = await analyzeMessage({ text: essay.text, mode: "correction", history: [] }, settings);
-      const stored = analysis.errors.map((e) => ({ severity: e.severity, category: e.category, inputMode: "typed" as const }));
+      const { analysis } = await analyzeMessage(
+        userId,
+        { text: essay.text, mode: "correction", history: [] },
+        settings,
+      );
+      const stored = analysis.errors.map((e) => ({
+        severity: e.severity,
+        category: e.category,
+        inputMode: "typed" as const,
+        discardedAt: null,
+      }));
       cache[key] = {
         counted: stored.filter((e) => countsInStats(e, false)).length,
         typos: stored.filter((e) => e.severity === "typo").length,
@@ -293,6 +329,9 @@ async function compareWithApp(spec: string) {
       console.log(`  ${essay.level} ${essay.id}: ${cache[key].counted} counted (corpus: ${countedEdits(essay)})`);
     } catch (error) {
       console.log(`  FAIL ${essay.id}: ${errorToMessage(error)}`);
+      // Out of quota: stop instead of spending more requests (what's done stays in the cache).
+      const cause = error instanceof AllModelsFailedError ? error.lastError : error;
+      if (shortReason(cause) === "quota exceeded") break;
     }
   }
 
@@ -305,7 +344,12 @@ async function compareWithApp(spec: string) {
     const app = done.reduce((n, e) => n + cache[`${spec}|${e.id}`].counted, 0);
     const corpus = done.reduce((n, e) => n + countedEdits(e), 0);
     const corpusAll = done.reduce((n, e) => n + e.edits.length, 0);
-    Object.assign(all, { words: all.words + words, app: all.app + app, corpus: all.corpus + corpus, corpusAll: all.corpusAll + corpusAll });
+    Object.assign(all, {
+      words: all.words + words,
+      app: all.app + app,
+      corpus: all.corpus + corpus,
+      corpusAll: all.corpusAll + corpusAll,
+    });
     table[`${level} (${done.length})`] = {
       words,
       "app /100w": +((app / words) * 100).toFixed(1),
@@ -346,7 +390,7 @@ function spearman(a: number[], b: number[]) {
   const rank = (values: number[]) => {
     const order = values.map((v, i) => [v, i] as const).sort((x, y) => x[0] - y[0]);
     const ranks = new Array<number>(values.length);
-    for (let i = 0; i < order.length; ) {
+    for (let i = 0; i < order.length;) {
       let j = i;
       while (j + 1 < order.length && order[j + 1][0] === order[i][0]) j++;
       for (let k = i; k <= j; k++) ranks[order[k][1]] = (i + j) / 2;

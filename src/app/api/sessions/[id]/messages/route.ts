@@ -1,13 +1,15 @@
-import { z } from "zod";
+import { withUser } from "@/lib/auth/with-user";
 import { addUserMessage, analyzeStoredMessage, getMessage, getMessages, getSession } from "@/lib/chat";
 import { FLUENCY_VERSION } from "@/lib/fluency";
+import { parseBody } from "@/lib/request-body";
 import { turnStreamResponse, wantsTurnStream } from "@/lib/turn-stream";
+import { z } from "@/lib/zod";
 
-export async function GET(_request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) {
+export const GET = withUser(async (_request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">, { userId }) => {
   const { id } = await ctx.params;
-  if (!getSession(id)) return Response.json({ error: "Chat not found" }, { status: 404 });
-  return Response.json(getMessages(id));
-}
+  if (!getSession(userId, id)) return Response.json({ error: "Chat not found" }, { status: 404 });
+  return Response.json(getMessages(userId, id));
+});
 
 const bodySchema = z.object({
   text: z.string().trim().min(1).max(20_000),
@@ -39,19 +41,19 @@ const bodySchema = z.object({
  * Stores the message, analyzes it and returns the resulting turn (message + reply). With
  * `Accept: application/x-ndjson` the analysis is streamed while it's generated.
  */
-export async function POST(request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">) {
+export const POST = withUser(async (request: Request, ctx: RouteContext<"/api/sessions/[id]/messages">, { userId }) => {
   const { id } = await ctx.params;
-  const body = bodySchema.safeParse(await request.json().catch(() => null));
-  if (!body.success) return Response.json({ error: "The message is empty" }, { status: 400 });
+  const body = await parseBody(request, bodySchema, "The message is empty");
+  if (!body.ok) return body.response;
 
-  const message = addUserMessage(id, body.data.text, body.data.voice);
+  const message = addUserMessage(userId, id, body.data.text, body.data.voice);
   if (!message) return Response.json({ error: "Chat not found" }, { status: 404 });
 
   if (wantsTurnStream(request)) {
-    return turnStreamResponse((onPreview) => analyzeStoredMessage(message.id, onPreview), {
+    return turnStreamResponse((onPreview) => analyzeStoredMessage(userId, message.id, onPreview), {
       type: "message",
-      message: getMessage(message.id)!,
+      message: getMessage(userId, message.id)!,
     });
   }
-  return Response.json(await analyzeStoredMessage(message.id));
-}
+  return Response.json(await analyzeStoredMessage(userId, message.id));
+});

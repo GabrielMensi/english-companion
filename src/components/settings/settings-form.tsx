@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +12,7 @@ import { PROVIDER_IDS, type ProviderId } from "@/lib/ai/provider-info";
 import { api } from "@/lib/api";
 import { NEW_CARD_LIMIT_OPTIONS } from "@/lib/flashcards-upkeep-core";
 import type { Settings } from "@/lib/settings";
+
 import { ModelChain } from "./model-chain";
 import { ProviderCard, type Providers, type TestState } from "./provider-card";
 
@@ -47,7 +49,6 @@ export function SettingsForm({
   function save(patch: Partial<Settings>) {
     setSettings((s) => ({ ...s, ...patch }));
     if (patch.models) clearTests(PROVIDER_IDS.filter((id) => patch.models?.[id] !== settings.models[id]));
-    if (patch.ollamaBaseUrl !== undefined) clearTests(["ollama"]);
 
     setPending((n) => n + 1);
     queue.current = queue.current.then(async () => {
@@ -71,15 +72,18 @@ export function SettingsForm({
   function runTest(id: ProviderId) {
     setTests((t) => ({ ...t, [id]: { status: "testing" } }));
     // Test what's saved, including changes still on their way.
-    queue.current.then(async () => {
-      const result = await api<TestResponse>("/api/settings/test", { body: { provider: id } }).catch(
-        (error: Error): TestResponse => ({ ok: false, error: error.message }),
-      );
-      setTests((t) => ({
-        ...t,
-        [id]: result.ok ? { status: "ok", ms: result.ms } : { status: "error", error: result.error },
-      }));
-    });
+    queue.current
+      .then(async () => {
+        const result = await api<TestResponse>("/api/settings/test", { body: { provider: id } }).catch(
+          (error: Error): TestResponse => ({ ok: false, error: error.message }),
+        );
+        setTests((t) => ({
+          ...t,
+          [id]: result.ok ? { status: "ok", ms: result.ms } : { status: "error", error: result.error },
+        }));
+      })
+      // Don't leave the test spinning if something unexpected fails.
+      .catch((error: Error) => setTests((t) => ({ ...t, [id]: { status: "error", error: error.message } })));
   }
 
   function onProvidersChange(next: Providers) {
@@ -102,7 +106,7 @@ export function SettingsForm({
 
       <section className="space-y-3">
         <div>
-          <h2 className="font-medium">Providers</h2>
+          <h2 className="text-section font-semibold tracking-tight">Providers</h2>
           <p className="text-sm text-muted-foreground">
             Set up each provider’s key and model. Changing them here doesn’t change the order above.
           </p>
@@ -122,7 +126,7 @@ export function SettingsForm({
       </section>
 
       <section className="space-y-4">
-        <h2 className="font-medium">Corrections</h2>
+        <h2 className="text-section font-semibold tracking-tight">Corrections</h2>
         <div className="flex items-center justify-between gap-4">
           <div>
             <Label>Explanation language</Label>
@@ -148,12 +152,16 @@ export function SettingsForm({
               Typos are always highlighted in corrections, but they don’t reflect a lack of knowledge.
             </p>
           </div>
-          <Switch id="typos" checked={settings.countTyposInStats} onCheckedChange={(v) => save({ countTyposInStats: v })} />
+          <Switch
+            id="typos"
+            checked={settings.countTyposInStats}
+            onCheckedChange={(v) => save({ countTyposInStats: v })}
+          />
         </div>
       </section>
 
       <section className="space-y-4">
-        <h2 className="font-medium">Flashcards</h2>
+        <h2 className="text-section font-semibold tracking-tight">Flashcards</h2>
         <div className="flex items-center justify-between gap-4">
           <div>
             <Label>New cards per session</Label>

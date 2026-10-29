@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+
+import { TENSES } from "./taxonomy";
 import {
   checkAnswer,
   conversationPracticeRule,
@@ -15,8 +17,8 @@ import {
   SUGGESTED_TARGETS,
   TENSE_QUESTIONS,
 } from "./tense-practice";
+
 import type { TenseStat } from "./tense-stats";
-import { TENSES } from "./taxonomy";
 
 function stat(partial: Partial<TenseStat> & Pick<TenseStat, "tense">): TenseStat {
   return {
@@ -58,7 +60,12 @@ describe("selectPracticeTargets", () => {
         confusedWith: [confusion("past_simple", 3), confusion("present_simple", 2)],
       }),
     ]);
-    expect(target).toMatchObject({ tense: "present_perfect", contrastWith: "past_simple", kind: "contrast", status: "weak" });
+    expect(target).toMatchObject({
+      tense: "present_perfect",
+      contrastWith: "past_simple",
+      kind: "contrast",
+      status: "weak",
+    });
     expect(target.reason).toContain("past simple instead 3 times");
   });
 
@@ -92,7 +99,14 @@ describe("selectPracticeTargets", () => {
 
   it("includes tenses with few uses only when they already have several mistakes", () => {
     const targets = selectPracticeTargets([
-      stat({ tense: "past_perfect", uses: 3, formErrors: 1, accuracy: null, smoothedAccuracy: 60, status: "not_enough_data" }),
+      stat({
+        tense: "past_perfect",
+        uses: 3,
+        formErrors: 1,
+        accuracy: null,
+        smoothedAccuracy: 60,
+        status: "not_enough_data",
+      }),
       stat({
         tense: "past_simple",
         uses: 4,
@@ -108,8 +122,20 @@ describe("selectPracticeTargets", () => {
 
   it("doesn't repeat the same pair of tenses the other way round", () => {
     const targets = selectPracticeTargets([
-      stat({ tense: "present_perfect", usageErrors: 4, smoothedAccuracy: 60, status: "weak", confusedWith: [confusion("past_simple", 4)] }),
-      stat({ tense: "past_simple", usageErrors: 2, smoothedAccuracy: 70, status: "weak", confusedWith: [confusion("present_perfect", 2)] }),
+      stat({
+        tense: "present_perfect",
+        usageErrors: 4,
+        smoothedAccuracy: 60,
+        status: "weak",
+        confusedWith: [confusion("past_simple", 4)],
+      }),
+      stat({
+        tense: "past_simple",
+        usageErrors: 2,
+        smoothedAccuracy: 70,
+        status: "weak",
+        confusedWith: [confusion("present_perfect", 2)],
+      }),
     ]);
     expect(targets).toHaveLength(1);
     expect(targets[0]).toMatchObject({ tense: "present_perfect", contrastWith: "past_simple" });
@@ -132,7 +158,9 @@ describe("conversation practice", () => {
     const [first, second] = TENSE_QUESTIONS.present_perfect;
     const question = pickQuestion("present_perfect", [first, second], () => 0);
     expect(question).toBe(TENSE_QUESTIONS.present_perfect[2]);
-    expect(TENSE_QUESTIONS.present_perfect).toContain(pickQuestion("present_perfect", [...TENSE_QUESTIONS.present_perfect]));
+    expect(TENSE_QUESTIONS.present_perfect).toContain(
+      pickQuestion("present_perfect", [...TENSE_QUESTIONS.present_perfect]),
+    );
   });
 
   it("asks the model for follow-up questions that need the tense, without mentioning grammar", () => {
@@ -146,7 +174,9 @@ describe("conversation practice", () => {
     expect(practiceTitle({ kind: "contrast", tense: "present_perfect", contrastWith: "past_simple" })).toBe(
       "Practice: present perfect vs past simple",
     );
-    expect(practiceTitle({ kind: "conversation", tense: "past_continuous", contrastWith: null })).toBe("Talk: past continuous");
+    expect(practiceTitle({ kind: "conversation", tense: "past_continuous", contrastWith: null })).toBe(
+      "Talk: past continuous",
+    );
   });
 });
 
@@ -203,7 +233,12 @@ describe("exerciseReply", () => {
   });
 
   it("gives feedback on the answer and the next item", () => {
-    const reply = exerciseReply({ practice: contrast, index: 0, learnerText: "I live in Madrid since 2020.", previousChecks: [] });
+    const reply = exerciseReply({
+      practice: contrast,
+      index: 0,
+      learnerText: "I live in Madrid since 2020.",
+      previousChecks: [],
+    });
     expect(reply?.check).toBe("wrong_tense");
     expect(reply?.text).toContain("✗ This one needs the present perfect: I have lived in Madrid since 2020.");
     expect(reply?.text).toContain(contrast.items[0].why);
@@ -228,7 +263,12 @@ describe("exerciseReply", () => {
       contrastWith: null,
       items: [item("He ___ (not / write) the tests yet.", "He hasn't written the tests yet.", ["present_perfect"])],
     };
-    const reply = exerciseReply({ practice: form, index: 0, learnerText: "He hasn't wrote the tests yet.", previousChecks: [] });
+    const reply = exerciseReply({
+      practice: form,
+      index: 0,
+      learnerText: "He hasn't wrote the tests yet.",
+      previousChecks: [],
+    });
     expect(reply?.text).toContain("Answer: He hasn't written the tests yet.");
     expect(reply?.text).not.toContain("✓");
     expect(reply?.text).toContain("exactly right in 0 of 1");

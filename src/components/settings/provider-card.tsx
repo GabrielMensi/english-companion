@@ -3,6 +3,7 @@
 import { CheckCircle2, Loader2, PlugZap, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MODEL_INFO, PROVIDERS, type ProviderId } from "@/lib/ai/provider-info";
 import type { ProviderStatus } from "@/lib/ai/providers";
 import { api } from "@/lib/api";
-import { DEFAULT_OLLAMA_BASE_URL, KEY_ENV_VARS, type KeyProvider } from "@/lib/credentials";
+import { KEY_ENV_VARS, type KeyProvider } from "@/lib/credentials";
 import type { Settings } from "@/lib/settings";
 
 export type Providers = Record<ProviderId, ProviderStatus>;
@@ -46,39 +47,37 @@ export function ProviderCard({
           <h3 className="font-medium">{info.label}</h3>
           <p className="text-sm text-muted-foreground">{info.description}</p>
         </div>
-        {info.local ? (
-          <Badge variant="secondary">Local</Badge>
-        ) : status.configured ? (
+        {status.configured ? (
           <Badge variant="secondary">API key set</Badge>
         ) : (
           <Badge variant="outline">No API key</Badge>
         )}
       </div>
 
-      {id === "ollama" ? (
-        <OllamaUrlField settings={settings} status={status} onSave={onSave} />
-      ) : (
-        <ApiKeyField
-          provider={id}
-          status={status}
-          onChange={(next) => {
-            onProvidersChange(next);
-            setCredentialsVersion((v) => v + 1);
-          }}
-        />
-      )}
+      <ApiKeyField
+        provider={id}
+        status={status}
+        onChange={(next) => {
+          onProvidersChange(next);
+          setCredentialsVersion((v) => v + 1);
+        }}
+      />
 
       <ModelField
         id={id}
         model={settings.models[id]}
-        ollamaBaseUrl={id === "ollama" ? settings.ollamaBaseUrl : null}
         credentialsVersion={credentialsVersion}
         disabled={!status.configured}
         onChange={(model) => onSave({ models: { ...settings.models, [id]: model } })}
       />
 
       <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={onTest} disabled={!status.configured || test?.status === "testing"}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onTest}
+          disabled={!status.configured || test?.status === "testing"}
+        >
           {test?.status === "testing" ? <Loader2 className="animate-spin" /> : <PlugZap />}
           Test
         </Button>
@@ -91,7 +90,7 @@ export function ProviderCard({
 export function TestResult({ test, compact = false }: { test: TestState | undefined; compact?: boolean }) {
   if (test?.status === "ok") {
     return (
-      <span className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+      <span className="flex items-center gap-1.5 text-sm text-mark-right">
         <CheckCircle2 className="size-4 shrink-0" /> {compact ? "" : "Working "}({(test.ms / 1000).toFixed(1)}s)
       </span>
     );
@@ -115,7 +114,7 @@ export function modelFacts(provider: ProviderId, model: string): string | null {
   const facts = [
     info?.score !== undefined && `${info.score} % in eval`,
     info?.seconds !== undefined && `~${info.seconds} s`,
-    PROVIDERS[provider].local ? "no limit" : info?.freeLimit && `${info.freeLimit} free`,
+    info?.freeLimit && `${info.freeLimit} free`,
   ].filter(Boolean);
   return facts.length > 0 ? facts.join(" · ") : null;
 }
@@ -123,41 +122,37 @@ export function modelFacts(provider: ProviderId, model: string): string | null {
 function ModelField({
   id,
   model,
-  ollamaBaseUrl,
   credentialsVersion,
   disabled,
   onChange,
 }: {
   id: ProviderId;
   model: string;
-  /** Lists Ollama models from this URL, even before the change is saved. */
-  ollamaBaseUrl: string | null;
   /** Bumped when the key changes, so the list is fetched again. */
   credentialsVersion: number;
   disabled: boolean;
   onChange: (model: string) => void;
 }) {
-  const [models, setModels] = useState<{ key: string; list: string[]; error?: string } | null>(null);
+  const [models, setModels] = useState<{ key: number; list: string[]; error?: string } | null>(null);
   const [draft, setDraft] = useState(model);
   const inputId = `model-${id}`;
-  const listKey = `${ollamaBaseUrl ?? ""}:${credentialsVersion}`;
-  const loaded = models?.key === listKey ? models : null;
+  const loaded = models?.key === credentialsVersion ? models : null;
 
   useEffect(() => {
     if (disabled) return;
     let cancelled = false;
-    const query = new URLSearchParams({ provider: id });
-    if (ollamaBaseUrl) query.set("ollamaBaseUrl", ollamaBaseUrl);
-    fetch(`/api/models?${query}`)
+    fetch(`/api/models?${new URLSearchParams({ provider: id })}`)
       .then((res) => res.json())
       .then((data: { models: string[]; error?: string }) => {
-        if (!cancelled) setModels({ key: listKey, list: data.models, error: data.error });
+        if (!cancelled) setModels({ key: credentialsVersion, list: data.models, error: data.error });
       })
-      .catch(() => !cancelled && setModels({ key: listKey, list: [], error: "Couldn't get the model list" }));
+      .catch(
+        () => !cancelled && setModels({ key: credentialsVersion, list: [], error: "Couldn't get the model list" }),
+      );
     return () => {
       cancelled = true;
     };
-  }, [id, listKey, ollamaBaseUrl, disabled]);
+  }, [id, credentialsVersion, disabled]);
 
   function commit() {
     const value = draft.trim();
@@ -205,53 +200,11 @@ function ModelField({
         />
       )}
       {!disabled && !loaded && <p className="text-sm text-muted-foreground">Looking for available models…</p>}
-      {loaded?.error && <p className="text-sm text-muted-foreground">{loaded.error}. You can type the name manually.</p>}
+      {loaded?.error && (
+        <p className="text-sm text-muted-foreground">{loaded.error}. You can type the name manually.</p>
+      )}
       <p className="text-sm text-muted-foreground">
         {[facts ?? "Not measured with pnpm eval:models yet", info?.note].filter(Boolean).join(". ")}
-      </p>
-    </div>
-  );
-}
-
-function OllamaUrlField({
-  settings,
-  status,
-  onSave,
-}: {
-  settings: Settings;
-  status: ProviderStatus;
-  onSave: (patch: Partial<Settings>) => void;
-}) {
-  const [draft, setDraft] = useState(settings.ollamaBaseUrl ?? "");
-  const [error, setError] = useState<string | null>(null);
-
-  function commit() {
-    const value = draft.trim() || null;
-    if (value === settings.ollamaBaseUrl) return;
-    if (value && !/^https?:\/\/[^/\s]+/.test(value)) {
-      setError("Enter a URL like http://localhost:11434");
-      return;
-    }
-    setError(null);
-    onSave({ ollamaBaseUrl: value });
-  }
-
-  return (
-    <div className="space-y-2">
-      <Label htmlFor="ollama-url">Ollama URL</Label>
-      <Input
-        id="ollama-url"
-        value={draft}
-        placeholder={status.source === "env" && status.detail ? status.detail : DEFAULT_OLLAMA_BASE_URL}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => e.key === "Enter" && commit()}
-        aria-invalid={error !== null}
-      />
-      <p className={error ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
-        {error ?? (
-          <>Leave it empty to use {status.source === "env" ? <code>OLLAMA_BASE_URL</code> : "the default"}.</>
-        )}
       </p>
     </div>
   );
@@ -301,15 +254,21 @@ function ApiKeyField({
           <span>
             Saved in the app: <code>{status.detail}</code>
           </span>
-          <Button variant="ghost" size="sm" onClick={() => save(null)} disabled={saving}>
+          <Button variant="ghost" size="sm" onClick={() => void save(null)} disabled={saving}>
             Remove
           </Button>
         </div>
       )}
       {status.source === "env" && (
         <p className="text-sm text-muted-foreground">
-          Using <code>{KEY_ENV_VARS[provider]}</code> from the environment (<code>{status.detail}</code>). A key saved
-          here takes priority.
+          {status.detail ? (
+            <>
+              Using <code>{KEY_ENV_VARS[provider]}</code> from the environment (<code>{status.detail}</code>).
+            </>
+          ) : (
+            "Using the server’s key."
+          )}{" "}
+          A key saved here takes priority.
         </p>
       )}
 
@@ -317,7 +276,8 @@ function ApiKeyField({
         className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (value.trim()) save(value);
+          // save() shows its own errors in a toast.
+          if (value.trim()) void save(value);
         }}
       >
         <Input

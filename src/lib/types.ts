@@ -3,16 +3,32 @@ import type { AnalysisPreview } from "@/lib/ai/analysis";
 import type { FluencyMetrics } from "@/lib/fluency";
 
 /** Serializable shapes sent from the server to client components. */
-export type ChatCorrection = Omit<Correction, "createdAt"> & { createdAt: number };
-export type ChatVocabulary = Omit<VocabularyEntry, "createdAt"> & { createdAt: number };
+// The owner (`userId`) never leaves the server.
+export type ChatCorrection = Omit<Correction, "createdAt" | "discardedAt" | "userId"> & {
+  createdAt: number;
+  discardedAt: number | null;
+};
 
-export type ChatMessage = Omit<Message, "createdAt" | "tenseCounts"> & {
+/** A correction the learner changed (type fixed by hand, discarded or restored), as the routes return it. */
+export interface CorrectionUpdate {
+  correction: ChatCorrection;
+  /** Whether it counts in the stats now, with the current Settings. */
+  countsInStats: boolean;
+}
+export type ChatVocabulary = Omit<VocabularyEntry, "createdAt" | "userId"> & { createdAt: number };
+
+export type ChatMessage = Omit<Message, "createdAt" | "tenseCounts" | "userId"> & {
   createdAt: number;
   corrections: ChatCorrection[];
   vocabulary: ChatVocabulary[];
 };
 
-export type SessionSummary = Pick<Session, "id" | "title" | "mode">;
+export type SessionSummary = Pick<Session, "id" | "title" | "mode"> & {
+  /** An exercise set or a guided conversation started from Practice. */
+  practice: boolean;
+  /** The topic of a topic conversation (src/lib/topics.ts). */
+  topic: string | null;
+};
 
 /** How a dictated message was transcribed, sent along with its (possibly edited) text. */
 export interface VoiceInput {

@@ -1,6 +1,7 @@
-import type { StoredLevelExplanation } from "@/lib/insights/insights";
+import type { LevelData, StoredLevelExplanation } from "@/lib/insights/insights";
 import { CEFR_LEVELS, type LevelEstimate, type LevelWindow } from "@/lib/insights/level-core";
 import { cn } from "@/lib/utils";
+
 import { LevelExplanationPanel } from "./level-explanation";
 
 const CONFIDENCE_LABELS = { low: "Low confidence", medium: "Medium confidence", high: "Good confidence" } as const;
@@ -11,16 +12,24 @@ export function LevelCard({
   estimate,
   evolution,
   explanation,
+  teacher,
+  hasModel,
 }: {
   estimate: LevelEstimate;
   evolution: LevelWindow[];
   explanation: StoredLevelExplanation | null;
+  /** The level the teacher gave in the latest class that gave one. */
+  teacher: LevelData["teacher"];
+  hasModel: boolean;
 }) {
   if (estimate.level === null) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Not enough writing yet: the estimate needs at least 300 words. Write about {estimate.wordsNeeded} more.
-      </p>
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Not enough writing yet: the estimate needs at least 300 words. Write about {estimate.wordsNeeded} more.
+        </p>
+        <TeacherLevel teacher={teacher} />
+      </div>
     );
   }
 
@@ -29,7 +38,9 @@ export function LevelCard({
       <div className="flex flex-wrap items-center gap-6">
         <div>
           <div className="text-5xl font-semibold tabular-nums">{estimate.level}</div>
-          <div className="text-sm text-muted-foreground">{POSITION_LABELS[estimate.position!]} {estimate.level}</div>
+          <div className="text-sm text-muted-foreground">
+            {POSITION_LABELS[estimate.position!]} {estimate.level}
+          </div>
         </div>
         <div className="min-w-60 flex-1 space-y-2">
           <Scale score={estimate.score!} from={estimate.range!.from} to={estimate.range!.to} />
@@ -41,6 +52,8 @@ export function LevelCard({
           </p>
         </div>
       </div>
+
+      <TeacherLevel teacher={teacher} />
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -61,7 +74,7 @@ export function LevelCard({
                 </td>
                 <td className="py-2 pr-4">{s.value}</td>
                 <td className="py-2 pr-4 font-medium">{s.level}</td>
-                <td className="py-2 text-right tabular-nums text-muted-foreground">
+                <td className="py-2 text-right text-muted-foreground tabular-nums">
                   {s.weight > 0 ? `${Math.round(s.weight * 100)}%` : "Context"}
                 </td>
               </tr>
@@ -96,12 +109,12 @@ export function LevelCard({
       <p className="text-xs text-muted-foreground">
         This is an estimate from fixed rules, not a test: it only sees what you write (or dictate) here, not your
         reading, listening or speaking. The rules were checked against essays graded A1–C2 by Cambridge examiners, where
-        they matched the grade about 6 times in 10 and were within one level more than 9 times in 10; here the mistakes are
-        found by the AI and chats and prompts aren&apos;t essays, so expect about one level of error either way. Use it
-        to see the trend, not as a certificate.
+        they matched the grade about 6 times in 10 and were within one level more than 9 times in 10; here the mistakes
+        are found by the AI and chats and prompts aren&apos;t essays, so expect about one level of error either way. Use
+        it to see the trend, not as a certificate.
       </p>
 
-      <LevelExplanationPanel initial={explanation} />
+      <LevelExplanationPanel initial={explanation} hasModel={hasModel} />
     </div>
   );
 }
@@ -137,4 +150,16 @@ function Scale({ score, from, to }: { score: number; from: string; to: string })
 
 function formatDay(ms: number) {
   return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/** What the teacher said in class, next to the estimate; it never changes the estimate. */
+function TeacherLevel({ teacher }: { teacher: LevelData["teacher"] }) {
+  if (!teacher) return null;
+  return (
+    <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+      Your teacher’s level on {new Date(teacher.heldAt).toLocaleDateString("en-US", { dateStyle: "medium" })}:{" "}
+      <span className="font-medium">{teacher.level}</span>
+      {teacher.comparison && <span className="text-muted-foreground"> · {teacher.comparison.text}</span>}
+    </p>
+  );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CategoryExerciseItem, CategoryPractice } from "./category-practice";
+
 import {
   answerTemplate,
   completeSentence,
@@ -11,6 +11,8 @@ import {
   setOpening,
   setSummary,
 } from "./exercise-set";
+
+import type { CategoryExerciseItem, CategoryPractice } from "./category-practice";
 import type { ExercisePractice } from "./tense-practice";
 
 const texts = (text: string, count: number) => parseAnswers(text, count).map((a) => a?.text ?? null);
@@ -41,7 +43,11 @@ describe("parseAnswers", () => {
   it("splits a single line of short answers separated by commas", () => {
     expect(texts("on, at, in", 3)).toEqual(["on", "at", "in"]);
     // A sentence with a comma is one answer.
-    expect(texts("Yesterday, I went to the office early.", 3)).toEqual(["Yesterday, I went to the office early.", null, null]);
+    expect(texts("Yesterday, I went to the office early.", 3)).toEqual([
+      "Yesterday, I went to the office early.",
+      null,
+      null,
+    ]);
   });
 
   it("treats empty lines, '?' and 'skip' as not answered, and ignores extra lines", () => {
@@ -80,20 +86,26 @@ describe("mistakesByAnswer", () => {
 
 describe("completeSentence", () => {
   it("fills the gap with the missing words", () => {
-    expect(completeSentence("I ___ (live) in Madrid since 2020.", "have lived", "I have lived in Madrid since 2020.")).toBe(
-      "I have lived in Madrid since 2020.",
-    );
+    expect(
+      completeSentence("I ___ (live) in Madrid since 2020.", "have lived", "I have lived in Madrid since 2020."),
+    ).toBe("I have lived in Madrid since 2020.");
   });
 
   it("splits words between several gaps", () => {
     const sentence = "___ you ever ___ (be) to Japan?";
-    expect(completeSentence(sentence, "Have / been", "Have you ever been to Japan?")).toBe("Have you ever been to Japan?");
-    expect(completeSentence(sentence, "have been", "Have you ever been to Japan?")).toBe("have you ever been to Japan?");
+    expect(completeSentence(sentence, "Have / been", "Have you ever been to Japan?")).toBe(
+      "Have you ever been to Japan?",
+    );
+    expect(completeSentence(sentence, "have been", "Have you ever been to Japan?")).toBe(
+      "have you ever been to Japan?",
+    );
   });
 
   it("keeps a full sentence that follows the exercise and rejects a different one", () => {
     expect(completeSentence("I ___ (live) here.", "I lived here.", "I have lived here.")).toBe("I lived here.");
-    expect(completeSentence("I ___ (live) here.", "My family and I moved to this city in 2019.", "I have lived here.")).toBeNull();
+    expect(
+      completeSentence("I ___ (live) here.", "My family and I moved to this city in 2019.", "I have lived here."),
+    ).toBeNull();
   });
 });
 
@@ -105,10 +117,30 @@ describe("sameAnswer", () => {
   });
 });
 
-const fill: CategoryExerciseItem = { sentence: "My sister is ___ engineer.", answer: "My sister is an engineer.", why: "Profesiones llevan a/an.", format: "fill" };
-const choice: CategoryExerciseItem = { sentence: "It depends ___ (of / on / in) the weather.", answer: "It depends on the weather.", why: "Depend on.", format: "choice" };
-const rewrite: CategoryExerciseItem = { sentence: "Fix the mistake: I am agree with you.", answer: "I agree with you.", why: "Agree es un verbo.", format: "rewrite" };
-const category: CategoryPractice = { kind: "category", category: "articles", subtype: null, items: [fill, choice, rewrite] };
+const fill: CategoryExerciseItem = {
+  sentence: "My sister is ___ engineer.",
+  answer: "My sister is an engineer.",
+  why: "Profesiones llevan a/an.",
+  format: "fill",
+};
+const choice: CategoryExerciseItem = {
+  sentence: "It depends ___ (of / on / in) the weather.",
+  answer: "It depends on the weather.",
+  why: "Depend on.",
+  format: "choice",
+};
+const rewrite: CategoryExerciseItem = {
+  sentence: "Fix the mistake: I am agree with you.",
+  answer: "I agree with you.",
+  why: "Agree es un verbo.",
+  format: "rewrite",
+};
+const category: CategoryPractice = {
+  kind: "category",
+  category: "articles",
+  subtype: null,
+  items: [fill, choice, rewrite],
+};
 
 describe("gradeCategorySet", () => {
   it("grades gap words, options and rewrites in one message", () => {
@@ -119,7 +151,9 @@ describe("gradeCategorySet", () => {
 
   it("uses the correction's mistakes inside each answer for rewrites", () => {
     const text = "1. an\n2. on\n3. I am totally agree with you.";
-    const results = gradeCategorySet({ ...category, category: "verb_form" }, text, [{ category: "verb_form", original: "am totally agree" }]);
+    const results = gradeCategorySet({ ...category, category: "verb_form" }, text, [
+      { category: "verb_form", original: "am totally agree" },
+    ]);
     expect(results.map((r) => r.mark)).toEqual(["right", "right", "wrong"]);
   });
 
@@ -186,7 +220,9 @@ describe("gradeTenseSet", () => {
 describe("the set chat", () => {
   it("opens with every item numbered and how to answer", () => {
     const opening = setOpening("Let’s practice.", category.items);
-    expect(opening).toContain("1. My sister is ___ engineer.\n2. It depends ___ (of / on / in) the weather.\n3. Fix the mistake");
+    expect(opening).toContain(
+      "1. My sister is ___ engineer.\n2. It depends ___ (of / on / in) the weather.\n3. Fix the mistake",
+    );
     expect(opening).toContain("ONE message");
   });
 
