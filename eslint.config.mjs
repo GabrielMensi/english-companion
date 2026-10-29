@@ -16,7 +16,10 @@ const eslintConfig = defineConfig([
       // zod's runtime only through "@/lib/zod", which turns off its eval probe before any schema exists (#153).
       "no-restricted-imports": [
         "error",
-        { paths: [{ name: "zod", message: 'Import z from "@/lib/zod" (it configures zod for the CSP).' }] },
+        {
+          paths: [{ name: "zod", message: 'Import z from "@/lib/zod" (it configures zod for the CSP).' }],
+          patterns: [{ group: ["zod/*"], message: 'Import z from "@/lib/zod" (it configures zod for the CSP).' }],
+        },
       ],
       "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-misused-promises": "error",
