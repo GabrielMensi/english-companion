@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupVocabulary, type VocabularyRow, wordKey } from "./vocabulary-core";
+import { groupVocabulary, mergeEnglish, type VocabularyRow, wordKey } from "./vocabulary-core";
 
 function row(partial: Partial<VocabularyRow>): VocabularyRow {
   return {
@@ -47,5 +47,11 @@ describe("groupVocabulary", () => {
     const [word] = groupVocabulary(rows);
     expect(word.timesLookedUp).toBe(5);
     expect(word.contexts.map((c) => c.messageId)).toEqual(["m4", "m3", "m2"]);
+  });
+});
+
+describe("mergeEnglish", () => {
+  it("adds options once, ignoring case, keeping the order", () => {
+    expect(mergeEnglish(["explain"], ["Explain", "walk me through"])).toEqual(["explain", "walk me through"]);
   });
 });

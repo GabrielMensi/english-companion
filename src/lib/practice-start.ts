@@ -160,9 +160,9 @@ export async function startCategoryPractice(userId: string, input: StartCategory
  * opening question, so it starts instantly. The topic steers the replies; the
  * learner's messages are corrected and counted like in any other chat.
  */
-export function startTopicChat(userId: string, choice: TopicChoice) {
+export function startTopicChat(userId: string, choice: TopicChoice, tense: Tense | null = null) {
   const session = createSession(userId, "conversation");
-  savePractice(userId, session.id, { kind: "topic", ...choice });
+  savePractice(userId, session.id, { kind: "topic", ...choice, tense });
   db.insert(schema.messages)
     .values({
       id: crypto.randomUUID(),

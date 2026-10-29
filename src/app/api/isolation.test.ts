@@ -15,6 +15,8 @@ import { db, resetDb, schema, seedCorrection, seedSession, seedUserMessage } fro
 const sessionsRoute = await import("@/app/api/sessions/route");
 const sessionRoute = await import("@/app/api/sessions/[id]/route");
 const messagesRoute = await import("@/app/api/sessions/[id]/messages/route");
+const feedbackRoute = await import("@/app/api/sessions/[id]/feedback/route");
+const phrasesRoute = await import("@/app/api/sessions/[id]/phrases/route");
 const retryRoute = await import("@/app/api/messages/[id]/retry/route");
 const promptRoute = await import("@/app/api/messages/[id]/prompt/route");
 const correctionRoute = await import("@/app/api/corrections/[id]/route");
@@ -200,6 +202,32 @@ describe("routes with an id: another user's id is a 404 and changes nothing", ()
       ctx(id),
     );
     expect(post.status).toBe(404);
+    // Topic reviews, phrases and tense changes of A's chat are A's alone.
+    expect(
+      (await feedbackRoute.POST(b.request(`http://t/api/sessions/${id}/feedback`, { method: "POST" }), ctx(id))).status,
+    ).toBe(404);
+    expect(
+      (await phrasesRoute.POST(b.request(`http://t/api/sessions/${id}/phrases`, { method: "POST" }), ctx(id))).status,
+    ).toBe(404);
+    expect(
+      (
+        await phrasesRoute.PUT(
+          b.request(`http://t/api/sessions/${id}/phrases`, {
+            method: "PUT",
+            body: json({ phrases: [{ phrase: "walk me through", spanish: "x", messageId: ids.message.id }] }),
+          }),
+          ctx(id),
+        )
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await sessionRoute.PATCH(
+          b.request(`http://t/api/sessions/${id}`, { method: "PATCH", body: json({ tense: "past_simple" }) }),
+          ctx(id),
+        )
+      ).status,
+    ).toBe(404);
     expect(snapshotOfA()).toBe(before);
     expect(fakeAi.gemini.calls + fakeAi.groq.calls).toBe(0);
   });
