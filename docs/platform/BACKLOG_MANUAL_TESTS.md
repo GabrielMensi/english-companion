@@ -166,6 +166,15 @@ Usa algunas llamadas reales a la IA.
 - [ ] Exportar desde tu cuenta: el archivo no tiene `AIza`/`gsk` ni `api-keys`. Importarlo en la segunda cuenta: aparecen sus chats, errores y flashcards (los chats de tema conservan tema y tiempo verbal); importarlo de nuevo no agrega nada.
 - Importante al mergear a `develop`: tu key actual pasa cifrada a tu cuenta la primera vez que se lee; hacé backup de `data/companion.db` antes (como siempre) y guardá `data/encryption.key` junto con la base.
 
+### Clases (#169: #158–#160)
+
+Los pasos de la sección de clases que agregó el equipo (más arriba) siguen valiendo. Además:
+
+- [ ] Una corrección de clase de preposiciones (`depend of → depend on`) cuenta en la categoría del dashboard y en flashcards, y no aparece en "Written".
+- [ ] Sin cantidad de palabras, el "errors per 100 words" del dashboard no cambia, pero los errores aparecen en los conteos y en Flashcards.
+- [ ] Today: "wrote this week" no cuenta cargas de clase.
+- [ ] Descartar un error "From class": en Discarded dice "Open class" y lleva a /class.
+
 ## Problemas encontrados
 
 -
