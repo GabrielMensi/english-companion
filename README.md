@@ -1,133 +1,155 @@
 # English Companion
 
-Compañero personal para practicar inglés escribiendo, con IA. Escribís en inglés y te devuelve el mensaje corregido, con cada error marcado, clasificado por tema y gravedad, y explicado. Los errores se guardan para que el dashboard te muestre dónde estás fuerte, dónde flojo y cómo evolucionás.
+[Español](README.es.md)
 
-Corre en tu máquina (la base de datos es un SQLite local) y está pensado para ser gratis: corrige con los free tiers de Gemini y Groq. Los modelos locales con Ollama se quitaron en octubre de 2026 ([docs/ai/LOCAL_MODELS.md](docs/ai/LOCAL_MODELS.md)).
+An AI English tutor that runs on your machine. Write (or speak) in English and get your message back corrected: every mistake marked, explained and classified. The app keeps your mistakes, so it can show where you're strong, where you're weak, and turn your own errors into practice and flashcards.
+
+It's built for Spanish speakers (explanations in Spanish or English) and it's free to run: corrections use the free tiers of [Gemini](https://aistudio.google.com/apikey) and [Groq](https://console.groq.com/keys), and your data stays in a local SQLite file.
+
+![A corrected message: the diff, a more natural version, and each mistake with its type and explanation](docs/screenshots/chat-correction.png)
+
+> **Status:** beta (`v0.2.0-beta.1`), used daily by its author. Not deployed yet: you run it locally. The screenshots use invented demo data.
 
 ## Features
 
-- **Chat por sesiones** con historial guardado, en dos modos:
-  - **Corrección**: solo corrige. Ideal para escribir prompts o mensajes y después usarlos en otro lado.
-  - **Conversación**: corrige y además te responde para seguir la charla.
-- **Correcciones detalladas**: diff del texto, lista de errores con categoría (taxonomía fija: tiempos verbales, preposiciones, falsos amigos…), gravedad (`typo`, leve, moderado, grave) y explicación.
-- **Tipos de error detallados**: además de la categoría, cada error recibe un tipo fijo (p. ej. _Preposiciones › Verbo + preposición_) y, en los errores verbales, qué tiempo correspondía y cuál usaste. Se clasifica después, en lotes, al abrir el dashboard o cuando la app está inactiva, así el chat no se hace más lento. Si un tipo está mal, "Wrong type?" lo corrige a mano.
-- **Tiempos verbales**: el dashboard muestra, para cada tiempo, cuántas veces lo necesitaste y con qué precisión lo usaste, si fallás al elegirlo o al formarlo, qué tiempo usás en su lugar y cuáles casi no usás. Los usos se cuentan en el texto corregido sin IA (con [compromise](https://github.com/spencermountain/compromise)).
-- **Práctica de tiempos verbales** (página **Practice**): elige los tiempos flojos o poco usados a partir de ese diagnóstico y propone ejercicios de contraste (p. ej. past simple vs present perfect con _yesterday / since / ever_), drills de forma o tareas para usar un tiempo que evitás, y conversaciones cuyas preguntas obligan a usarlo. Los ejercicios se muestran completos y se responden en un solo mensaje (una línea por ítem): se corrige una vez, suma a las estadísticas como cualquier mensaje y la respuesta es un resumen con ✓/✗ por ítem y el puntaje.
-- **Ejercicios dirigidos** (también en **Practice**): para las 3 categorías con más errores cada 100 palabras (y su tipo más frecuente), ejercicios cortos de completar el hueco, elegir la opción correcta y corregir el error, armados con tus propios errores de esa categoría como material. Cada respuesta se corrige, suma a las estadísticas y recibe ✓/✗ con la respuesta y la regla.
-- **Dictado**: con el botón de micrófono hablás en inglés y Whisper (Groq, gratis) lo transcribe tal cual, con tus errores. El mensaje se corrige como cualquier otro, pero no se marcan la ortografía ni la puntuación (las decide el transcriptor) y en el dashboard podés ver tus errores escritos y hablados por separado. Requiere una API key de Groq.
-- **Tolerante a typos**: los errores de tipeo se marcan, pero no cuentan en las estadísticas (se puede cambiar en Configuración).
-- **Sugerencias, no errores**: contracciones ("is not" / "isn't"), puntuación opcional o comma splices en texto informal se muestran aparte como sugerencias y nunca cuentan en las estadísticas.
-- **"Cómo lo diría un nativo"**: una versión más natural cuando la corrección es correcta pero suena traducida.
-- **Escape al español**: si no sabés cómo decir algo, escribilo entre corchetes (`I want to [aprovechar] this`) y te da opciones en inglés. Queda guardado en la página **Vocabulary** (agrupado por palabra, con las veces que la buscaste y las oraciones donde la usaste) y en un panel del dashboard.
-- **Flashcards con repaso espaciado** (página **Flashcards**): tres mazos, las palabras que buscaste entre corchetes (español → inglés, con la oración donde la usaste como pista), tus errores reales (el original como pregunta, la corrección como respuesta) y los ítems de ejercicios que fallaste en Practice (el ejercicio como pregunta, la respuesta y el porqué al darla vuelta). Escribís la respuesta (opcional), la ves y la calificás con Again / Hard / Good / Easy; un algoritmo tipo SM-2 decide cuándo vuelve cada tarjeta. Los errores se pueden repasar por tiempo verbal o por tipo (el tipo de error es una pista opcional, para no regalar la respuesta). Cada tarjeta se puede suspender (se recupera desde la página Flashcards) o borrar; la cantidad de tarjetas nuevas por sesión se elige en Settings. El dashboard muestra tarjetas pendientes, retención, repasos por día y racha (con historial desde que existe la tabla `review_log`).
-- **Convertir en prompt**: sobre un mensaje corregido, lo reestructura como un prompt claro para una IA, listo para copiar.
-- **Selector de modelo** en el chat y nota en cada respuesta con el modelo que la generó y cuánto tardó.
-- **Fallback automático**: si el modelo elegido falla (offline, cuota, sobrecarga), prueba con los otros modelos configurados, en orden, y deja registrado cuál falló.
-- **Dashboard**: errores cada 100 palabras, evolución en el tiempo, áreas a trabajar por categoría y gravedad, tendencia contra el período anterior, errores más frecuentes y vocabulario buscado.
+**Write and get corrected**
 
-## Requisitos
+- **Correction chats** fix your text; **conversation chats** also answer, so you keep talking (with an optional voice mode). **Talk about…** starts a role-play on a topic, optionally pushing a verb tense, with feedback at the end.
+- Each mistake has a category from a fixed list (verb tenses, prepositions, false friends…), a severity and an explanation. A background classifier adds the fine type (_Prepositions › Verb + preposition_) and, for verbs, which tense you needed and which one you used. Wrong type? Fix it by hand.
+- **Typos** and **suggestions** (contractions, optional commas) are shown apart and don't count as mistakes. A **native version** shows how it would sound more natural.
+- **Spanish escape:** write what you don't know in brackets (`I want to [aprovechar] this`) and get English options, saved to your **Vocabulary**.
+- **Dictation** with Whisper (Groq): your speech is transcribed as you said it, mistakes included. Spoken messages are tracked separately and don't count what speech-to-text decides (spelling, punctuation).
+- Discard a wrong correction, retry a message, turn a message into a clean AI prompt, listen to it with an in-browser voice ([Kokoro](https://github.com/hexgrad/kokoro)).
 
-- Node.js 22+ y pnpm
-- Una API key gratis de [Gemini](https://aistudio.google.com/apikey) o [Groq](https://console.groq.com/keys) (mejor las dos, así una cubre a la otra). Sin ninguna, la app abre pero no puede corregir.
+| Conversation                                                   | Dark mode                                                           |
+| -------------------------------------------------------------- | ------------------------------------------------------------------- |
+| ![A conversation chat](docs/screenshots/chat-conversation.png) | ![The chat in dark mode](docs/screenshots/chat-correction-dark.png) |
 
-## Setup
+**See your progress**
 
-Desde un clon nuevo:
+- **Today:** what to do next (cards due, the tense that needs work, your weakest sound).
+- **Dashboard:** mistakes per 100 words over time, areas to work on, verb tense accuracy and confusions, most frequent mistakes, written vs spoken, pronunciation and flashcard stats.
+- **Insights:** a weekly report, a study plan and an estimate of your CEFR level.
 
-1. `pnpm install`
-2. Opcional: `cp .env.example .env.local` y completá `GOOGLE_GENERATIVE_AI_API_KEY` / `GROQ_API_KEY` (también se pueden pegar después en Configuración). No hace falta ninguna otra variable en local: la clave de cifrado (`data/encryption.key`) y la de las cookies (`data/auth.secret`) se generan solas en la primera ejecución. `APP_ENCRYPTION_KEY`, `BETTER_AUTH_*`, `SHARED_KEYS` y `ALLOWED_HOSTS` son solo para un deploy ([docs/platform/DEPLOY.md](docs/platform/DEPLOY.md)); no pongas `ALLOWED_HOSTS` en local.
-3. `pnpm dev`, abrí https://localhost:3737 y creá tu cuenta en `/signup` (la app pide login siempre).
-4. Si ya tenías datos de antes de las cuentas (una base `data/companion.db` vieja): `pnpm auth:claim-data <tu email>` se los asigna a tu cuenta. Si los traés de otra PC, copiá también `data/encryption.key` o importá el JSON de Configuración > Your data.
+| Today                                     | Dashboard                                    |
+| ----------------------------------------- | -------------------------------------------- |
+| ![Today page](docs/screenshots/today.png) | ![Dashboard](docs/screenshots/dashboard.png) |
 
-Abrí https://localhost:3737: la app **pide login siempre**, también en local. La primera vez, entrá a `/signup` y creá tu cuenta (email y contraseña de al menos 10 caracteres): la primera cuenta se crea sin más y después el registro se cierra. Otras cuentas solo se pueden crear con `SIGNUP_ALLOWED_EMAILS`; cada cuenta tiene sus propios datos y sus propias API keys. Sin email de verificación, quien se registre primero con un email permitido se queda con él. Después armá la **cadena de modelos** en **Configuración**: el primero corrige cada mensaje y, si falla, prueba el siguiente. Cada proveedor tiene su tarjeta con la API key, el modelo y un botón "Test", y se puede configurar sin cambiar el orden. Las keys son **por cuenta**, se guardan **cifradas** en tu base local (AES-256-GCM; la clave de cifrado se genera sola en `data/encryption.key`, junto a la base, con permisos `600`: respaldala aparte, y si copiás la base a otra carpeta o PC copiá también ese archivo, o las keys no descifran y hay que pegarlas de nuevo) y nunca se muestran completas. Sin una key propia, una cuenta usa la del `.env.local` (`SHARED_KEYS=true`, el valor por defecto); con `SHARED_KEYS=false` cada cuenta trae las suyas. Si rotás la clave: `pnpm keys:reencrypt` (ver [docs/platform/AUTH_MULTIUSER.md](docs/platform/AUTH_MULTIUSER.md)). **Configuración > Your data** exporta tus datos a un archivo JSON (sin keys ni datos de login) o importa uno en tu cuenta, para mover el historial entre PCs; el resto de los cambios se guarda solo.
+**Practice**
 
-Si preferís configurarlo por entorno, copiá `.env.example` a `.env.local`: esas variables se usan cuando no hay nada guardado en la app.
+- **Practice** picks your weak tenses and mistake types and builds exercises from your own mistakes (fill the gap, choose, fix the error), plus conversations that force a tense.
+- **Flashcards** with spaced repetition: words you looked up, your real mistakes, missed exercises and sentences that were hard to say.
+- **Read aloud:** read a sentence and see which words speech-to-text heard differently, grouped by the sound that changed (th, b/v, long and short vowels…). A beta sound check runs a phoneme model on the server.
 
-La app usa el puerto **3737** para no chocar con el 3000 de otros proyectos. Para cambiarlo, editá los scripts `dev` y `start` en `package.json`.
+| Practice                                   | Flashcards                                     | Read aloud                                     |
+| ------------------------------------------ | ---------------------------------------------- | ---------------------------------------------- |
+| ![Practice](docs/screenshots/practice.png) | ![Flashcards](docs/screenshots/flashcards.png) | ![Read aloud](docs/screenshots/read-aloud.png) |
 
-`pnpm dev` sirve la app por **HTTPS** (`next dev --experimental-https`, certificado local de [mkcert](https://github.com/FiloSottile/mkcert) en `certificates/`): Chrome solo abre la ventana flotante sola al cambiar de pestaña mientras dictás si la página es `https://`, y `localhost` no es excepción. Como el navegador corre en Windows y el certificado se genera en WSL, hay que confiar una vez en la CA de mkcert desde Windows:
+**Classes with a teacher**
 
-```powershell
-# en WSL: cp ~/.local/share/mkcert/rootCA.pem /mnt/c/Users/<usuario>/Downloads/mkcert-rootCA.pem
-certutil -user -addstore Root $env:USERPROFILE\Downloads\mkcert-rootCA.pem
+- Log your classes, take a report of your mistakes since the last one, get questions to ask, and load the teacher's corrections (structured with AI) so they count in your stats and flashcards.
+
+| Class                                     | Vocabulary                                     |
+| ----------------------------------------- | ---------------------------------------------- |
+| ![Class page](docs/screenshots/class.png) | ![Vocabulary](docs/screenshots/vocabulary.png) |
+
+**Accounts and data**
+
+- Login is always on, also locally (email and password). Each account has its own data and its own API keys, stored encrypted.
+- Export your data to a JSON file and import it on another machine (no keys or login data in the file).
+
+## Quick start
+
+You need **Node.js 22+**, **pnpm** and at least one free API key ([Gemini](https://aistudio.google.com/apikey) or [Groq](https://console.groq.com/keys); both is better, one covers the other when a quota runs out).
+
+```bash
+git clone https://github.com/GabrielMensi/english-companion.git
+cd english-companion
+pnpm install
+pnpm dev
 ```
 
-Después reiniciá Chrome. Solo se importa el certificado público; la clave queda en WSL.
+1. Open **https://localhost:3737**. The dev server uses HTTPS with a local certificate (the first run may ask to install the [mkcert](https://github.com/FiloSottile/mkcert) CA; see [Troubleshooting](#troubleshooting)).
+2. Go to `/signup` and create your account (password of 10+ characters). The first account needs nothing else; after it, signup closes.
+3. In **Settings**, paste your API keys and press **Test**. Order the **model chain**: the first model corrects each message and the next ones take over if it fails.
+4. Start a chat and write something in English.
 
-La base de datos es un archivo SQLite en `data/companion.db`, que se crea y migra solo al arrancar. La clave que firma las cookies de sesión se genera sola la primera vez en `data/auth.secret` (permisos `600`, junto a la base); en un deploy hay que definir `BETTER_AUTH_SECRET` y `BETTER_AUTH_URL` (ver [docs/platform/AUTH_MULTIUSER.md](docs/platform/AUTH_MULTIUSER.md)).
+The database (`data/companion.db`) is created and migrated on startup. Two secrets are generated next to it the first time: `data/encryption.key` (encrypts your saved API keys) and `data/auth.secret` (signs session cookies). Back up `data/encryption.key` together with the database: without it, saved keys can't be decrypted and you paste them again.
 
-**Olvidé la contraseña**: no hay email para recuperarla. En la carpeta de la app corré `pnpm auth:reset-password <email>`: pide la nueva contraseña, la cambia y borra las sesiones de esa cuenta (una copia de la cookie puede seguir valiendo hasta 5 minutos).
+No environment variables are needed locally. Optionally, copy `.env.example` to `.env.local` to set the keys there (used when nothing is saved in the app) or to change other options; each one is explained in the file.
 
-**Mis datos de antes no aparecen (primera vez con cuentas)**: lo que guardaste antes de que existieran las cuentas (chats, errores, tarjetas, ajustes) no tiene dueño todavía y la app no se lo muestra a nadie. Creá tu cuenta en `/signup` y, en la carpeta de la app, corré `pnpm auth:claim-data <tu email>`: hace un respaldo en `data/backups/pre-claim-<fecha>.db`, le asigna todo a esa cuenta en una sola transacción e imprime cuántas filas movió. Se corre una vez (volver a correrlo no hace nada) y funciona sobre una copia con `DATABASE_PATH=data/dev.db`. Mientras tanto, la primera cuenta ve un aviso arriba. Las cuentas siguientes empiezan vacías: cada una ve solo lo suyo.
+### Recommended models
 
-**Varias copias de la app en la misma máquina**: las cookies se comparten entre puertos de un mismo host, así que el nombre de la cookie de sesión lleva un prefijo que sale de la ruta de la base (`ec-<hash>.session_token`). Cada carpeta (la app en uso y los worktrees) tiene su propia base, su propio `data/auth.secret` y su propia sesión: iniciar sesión en un worktree no cierra la de la app en el puerto 3737. Si `data/auth.secret` queda vacío o corto, la app no arranca y avisa; borrá el archivo para generar uno nuevo.
+**Gemini Flash-Lite as the main model and `qwen/qwen3.8-27b` on Groq as the fallback.** From `pnpm eval:models` (September 2026, 16 sentences with typical mistakes of Spanish speakers):
 
-### Modelos recomendados
+| Model                        | Score   | Avg. time | Notes                                                                     |
+| ---------------------------- | ------- | --------- | ------------------------------------------------------------------------- |
+| `gemini-flash-lite-latest`   | 96 %    | 2 s       | ~500 requests/day free. The most accurate.                                |
+| `qwen/qwen3.8-27b` (Groq)    | 93 %    | ~2 s      | ~110 corrections/day free (200K tokens/day, 8K tokens/minute).            |
+| `openai/gpt-oss-120b` (Groq) | 81 %    | ~13 s     | ~1,100 reasoning tokens per correction (~60/day); sometimes invalid JSON. |
+| Gemma 4 26B / 31B (Gemini)   | 44–63 % | 7–44 s    | Slow, with timeouts on the free tier.                                     |
 
-Configuración recomendada: **Gemini Flash-Lite como principal y `qwen/qwen3.8-27b` en Groq como fallback**. Estos datos (puntaje, velocidad y límite gratis) se muestran en Configuración desde `MODEL_INFO` en `src/lib/ai/provider-info.ts`; actualizalos juntos. Resultados de `pnpm eval:models` (septiembre 2026, 16 oraciones con errores típicos de hispanohablantes; los modelos locales de esa corrida están en [LOCAL_MODELS.md](docs/ai/LOCAL_MODELS.md)):
+The same numbers show in Settings (`MODEL_INFO` in `src/lib/ai/provider-info.ts`). `gemini-flash-latest` is more capable but only gives ~20 requests/day for free.
 
-| Modelo                           | Puntaje | Tiempo promedio | Notas                                                                                          |
-| -------------------------------- | ------- | --------------- | ---------------------------------------------------------------------------------------------- |
-| `gemini-flash-lite-latest` (API) | 96 %    | 2 s             | ~500 requests/día gratis. El más preciso.                                                      |
-| `qwen/qwen3.8-27b` (Groq)        | 93 %    | ~2 s            | ~110 correcciones/día gratis (200K tokens/día, 8K tokens/minuto). Sin tokens de razonamiento.  |
-| `openai/gpt-oss-120b` (Groq)     | 81 %    | ~13 s           | Gasta ~1.100 tokens de razonamiento por corrección (~60/día) y a veces devuelve JSON inválido. |
-| Gemma 4 26B / 31B (API)          | 44–63 % | 7–44 s          | Lentos y con timeouts en el free tier.                                                         |
+> On Gemini's free plan, Google may use your data to improve its products. Groq doesn't train on your data but has daily limits.
 
-`gemini-flash-latest` es más capaz, pero en el free tier tiene solo ~20 requests/día.
+## More accounts
 
-> En el plan gratis de Gemini, Google puede usar los datos para mejorar sus productos. Groq no entrena con tus datos, pero tiene límites diarios.
+Signup is closed after the first account. To add people, list their emails in `.env.local` and restart:
+
+```bash
+SIGNUP_ALLOWED_EMAILS=ana@example.com,bruno@example.com
+```
+
+New accounts start empty and see only their own data. By default an account without its own key uses the keys in `.env.local` (`SHARED_KEYS=true`); with `SHARED_KEYS=false` everyone brings their own. Details in [docs/platform/AUTH_MULTIUSER.md](docs/platform/AUTH_MULTIUSER.md).
 
 ## Scripts
 
-| Comando                                   | Qué hace                                                                                                                                                                                                                                                                          |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`                                | Levanta la app en modo desarrollo                                                                                                                                                                                                                                                 |
-| `pnpm test`                               | Tests unitarios (vitest)                                                                                                                                                                                                                                                          |
-| `pnpm typecheck`                          | Genera tipos de rutas y corre `tsc`                                                                                                                                                                                                                                               |
-| `pnpm lint`                               | ESLint                                                                                                                                                                                                                                                                            |
-| `pnpm eval:models <provider>:<model> …`   | Compara modelos sobre un set de oraciones con errores conocidos (ej. `gemini:gemini-flash-lite-latest groq:qwen/qwen3.8-27b`). Con `--check` (también en `eval:classify` y `eval:asr`) marca PASS/FAIL contra `scripts/eval/thresholds.json`                                      |
-| `pnpm keys:reencrypt`                     | Vuelve a cifrar las API keys guardadas con la `APP_ENCRYPTION_KEY` actual (después de rotarla; hace backup antes)                                                                                                                                                                 |
-| `pnpm eval:export-discards`               | Exporta tus correcciones descartadas a `.eval-results/discards.json` (local, no va a git). `eval:models … --with-discards` mide si el modelo las repite; `--topics` / `--topics-only` / `--topics-plain` miden chats de tema (ver [docs/ai/TOPIC_EVAL.md](docs/ai/TOPIC_EVAL.md)) |
-| `pnpm eval:classify <provider>:<model> …` | Compara modelos clasificando errores ya detectados (tipo fino y tiempos verbales). `--with-user-labels` suma los tipos corregidos a mano en la app                                                                                                                                |
-| `pnpm eval:asr [engine:model …]`          | Transcribe las grabaciones de `/eval/asr` con cada motor de speech-to-text y mide si conservan tus errores o los "corrigen" (ver [docs/voice/VOICE.md](docs/voice/VOICE.md))                                                                                                      |
-| `pnpm eval:level`                         | Compara el nivel CEFR estimado con textos de alumnos calificados por Cambridge (Write & Improve, se descarga aparte; ver [docs/progress/LEVEL_CALIBRATION.md](docs/progress/LEVEL_CALIBRATION.md))                                                                                |
-| `pnpm auth:claim-data <email>`            | Le asigna a una cuenta los datos de antes de las cuentas (con respaldo, una transacción, idempotente)                                                                                                                                                                             |
-| `pnpm auth:reset-password <email>`        | Cambia la contraseña de una cuenta (sin email de recuperación) y cierra sus sesiones                                                                                                                                                                                              |
-| `pnpm db:generate`                        | Genera una migración después de cambiar `src/db/schema.ts`                                                                                                                                                                                                                        |
-| `pnpm db:migrate`                         | Aplica las migraciones pendientes haciendo antes un backup (`data/backups/`); es el paso de migración del deploy ([docs/platform/DEPLOY.md](docs/platform/DEPLOY.md)). Con `pnpm dev` no hace falta: migra al arrancar                                                            |
-| `pnpm db:backup`                          | Copia consistente de la base en `data/backups/` (`--prefix`, `--keep`)                                                                                                                                                                                                            |
+| Command                                      | What it does                                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `pnpm dev`                                   | Development server on https://localhost:3737                                                     |
+| `pnpm build` / `pnpm start`                  | Production build and server (http://127.0.0.1:3737)                                              |
+| `pnpm test`                                  | Unit tests (Vitest)                                                                              |
+| `pnpm test:e2e`                              | End-to-end tests (Playwright) with a throwaway database and a fake AI                            |
+| `pnpm typecheck` · `pnpm lint` · `pnpm knip` | Types, lint and unused code. `pnpm format` formats with Prettier                                 |
+| `pnpm screenshots`                           | Regenerates the README screenshots from demo data (`scripts/screenshots/`)                       |
+| `pnpm db:generate`                           | Creates a migration after changing `src/db/schema.ts`                                            |
+| `pnpm db:migrate` · `pnpm db:backup`         | Migrates with a backup first · consistent copy of the database in `data/backups/`                |
+| `pnpm auth:reset-password <email>`           | Sets a new password (there's no reset by email) and closes that account's sessions               |
+| `pnpm auth:claim-data <email>`               | Gives an account the data saved before accounts existed (backup first, idempotent)               |
+| `pnpm keys:reencrypt`                        | Re-encrypts the saved API keys after rotating `APP_ENCRYPTION_KEY`                               |
+| `pnpm eval:models <provider>:<model> …`      | Compares models on sentences with known mistakes (`eval:classify`, `eval:asr`, `eval:level` too) |
 
-## Stack
+## Troubleshooting
 
-Next.js (App Router) · TypeScript · Tailwind + shadcn/ui · SQLite + Drizzle ORM · Vercel AI SDK (Gemini, Groq) · Recharts
+- **The browser says the certificate isn't trusted.** `pnpm dev` serves HTTPS with a certificate from mkcert (in `certificates/`); HTTPS is needed for the microphone and the floating window. If the browser runs on another OS than the server (Windows browser, WSL server), trust the mkcert CA there once. On Windows: copy `~/.local/share/mkcert/rootCA.pem` from WSL to Windows, run `certutil -user -addstore Root <path>\rootCA.pem` and restart Chrome. Only the public certificate is imported.
+- **Forgot the password:** `pnpm auth:reset-password <email>`.
+- **Saved API keys show as missing** after copying the database to another folder or machine: copy `data/encryption.key` too, or paste the keys again.
+- **The app doesn't start and names a variable:** an invalid value in `.env.local`; the message says which one. Don't set `ALLOWED_HOSTS` locally: it turns on deploy mode, which requires more variables.
+- **Port 3737 is taken:** change it in the `dev` and `start` scripts of `package.json`.
+- **Several copies on one machine** (for example git worktrees on other ports) each have their own database and their own session cookie, so signing in on one doesn't sign you out of another.
 
-## Estructura
+## How it works
+
+Next.js (App Router) · TypeScript · Tailwind and shadcn/ui · SQLite with Drizzle ORM · Vercel AI SDK (Gemini, Groq) · Better Auth · Recharts · Kokoro and transformers.js for voice.
+
+- AI calls go through `src/lib/ai/providers.ts`, with automatic fallback along your model chain. The correction streams to the chat and is saved only once it's complete and validated.
+- The error taxonomy (`src/lib/taxonomy.ts`, `src/lib/subtypes.ts`) is fixed so stats group consistently: the model can't invent categories.
+- Verb tenses in your text are counted without AI ([compromise](https://github.com/spencermountain/compromise)), and pronunciation is scored by comparing what you read with what speech-to-text heard.
+- Pure logic (stats, spaced repetition, normalization) lives in files without server code and has unit tests.
 
 ```
-src/
-  app/                 páginas (chat, dashboard, settings) y API routes
-  components/          UI: chat, dashboard, sidebar, settings
-  db/                  schema de Drizzle y conexión (migra al arrancar)
-  lib/
-    ai/                providers, prompt de análisis, "convertir en prompt"
-    taxonomy.ts        categorías, tiempos verbales y gravedades (fijos)
-    subtypes.ts        tipos finos de error por categoría (fijos)
-    classification.ts  clasificación diferida de errores (lotes, prioridad del chat)
-    chat.ts            sesiones, mensajes y persistencia del análisis
-    stats-core.ts      cálculo de estadísticas (puro, testeado)
-    tenses-core.ts     conteo de tiempos verbales en un texto (puro, testeado)
-    tense-stats.ts     precisión por tiempo verbal (puro, testeado)
-    srs.ts             repaso espaciado tipo SM-2 (puro, testeado)
-    flashcards-core.ts tarjetas de vocabulario y de errores, cola de repaso (puro, testeado)
-    flashcards-upkeep*.ts suspender / borrar tarjetas y limpiar reviews huérfanas
-    review-stats*.ts   retención, repasos por día, racha y pendientes de las flashcards (core puro, testeado)
-    tense-practice.ts  qué tiempos practicar, preguntas y feedback de ejercicios (puro, testeado)
-    category-practice.ts qué categorías practicar, chequeo y feedback de sus ejercicios (puro, testeado)
-    exercise-set.ts    sets respondidos en un mensaje: parseo de respuestas, nota por ítem y resumen (puro, testeado)
-    missed-exercises.ts ítems fallados en los ejercicios, para el mazo "Missed exercises"
-    practice*.ts       chats de práctica: estado, ejercicios generados y conversación dirigida
-drizzle/               migraciones SQL
-docs/                  una carpeta por área (ver docs/README.md) y ROADMAP.md
+src/app/         pages and API routes
+src/components/  UI (chat, dashboard, practice, flashcards, settings…)
+src/db/          Drizzle schema, migrations on startup, per-user query helpers
+src/lib/         AI pipeline, stats, practice, flashcards, voice, auth
+drizzle/         SQL migrations
+e2e/             Playwright tests
+docs/            design docs by area (in Spanish), roadmap
 ```
 
-Los libros del curso (PDFs) van en `books/`, que está ignorado en git. Ver [docs/ROADMAP.md](docs/ROADMAP.md) para lo que viene, incluida la integración con las clases.
+Design docs, research and decisions are in [docs/](docs/README.md) (in Spanish); what's done and what's next is in [docs/ROADMAP.md](docs/ROADMAP.md). Work is tracked on the [project board](https://github.com/users/GabrielMensi/projects/1).
+
+## Deploying
+
+The app is ready for a small VPS with Docker Compose and Caddy (Dockerfile, migrations with a backup, deploy script), but it isn't published yet. See [docs/platform/DEPLOY.md](docs/platform/DEPLOY.md) and [docs/platform/RELEASES.md](docs/platform/RELEASES.md).
